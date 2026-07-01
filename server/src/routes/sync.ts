@@ -4,6 +4,7 @@ import { requireAuth, requireRol } from "../auth.ts";
 import { difundirCambio } from "../ws.ts";
 import type { Db } from "../db/client.ts";
 import type { Entidad, FilaSync, TokenPayload } from "../types.ts";
+import { normalizarJsonb } from "../jsonb.ts";
 
 const filaSchema = z.object({
   id: z.string().min(1),
@@ -18,11 +19,13 @@ const pushSchema = z.object({
 });
 
 async function filasDesde(db: Db, tabla: Entidad, since: number): Promise<FilaSync[]> {
-  return db.query<FilaSync>(
+  const filas = await db.query<FilaSync>(
     `SELECT id, updated_at, updated_by, deleted, data FROM ${tabla}
      WHERE updated_at > $1 ORDER BY updated_at`,
     [since],
   );
+  // Filas antiguas pueden tener `data` como string JSON (doble codificación).
+  return filas.map((f) => ({ ...f, data: normalizarJsonb(f.data) }));
 }
 
 /** Upsert con last-write-wins. Devuelve solo las filas realmente aplicadas. */
@@ -44,9 +47,11 @@ async function aplicar(
          data = EXCLUDED.data
        WHERE EXCLUDED.updated_at >= ${tabla}.updated_at
        RETURNING id, updated_at, updated_by, deleted, data`,
-      [f.id, f.updated_at, usuario, f.deleted ?? false, JSON.stringify(f.data ?? null)],
+      // Pasar el objeto directo: postgres.js serializa a jsonb. JSON.stringify
+      // previo guardaba un string jsonb (sin geom al leer en el cliente).
+      [f.id, f.updated_at, usuario, f.deleted ?? false, f.data ?? null],
     );
-    if (res[0]) aplicadas.push(res[0]);
+    if (res[0]) aplicadas.push({ ...res[0], data: normalizarJsonb(res[0].data) });
   }
   return aplicadas;
 }

@@ -30,7 +30,7 @@ export async function rutasHistorial(app: FastifyInstance) {
           parsed.data.accion,
           parsed.data.entidad ?? null,
           parsed.data.entidad_id ?? null,
-          JSON.stringify(parsed.data.detalle ?? null),
+          parsed.data.detalle ?? null,
         ],
       );
       return reply.code(201).send({ id });

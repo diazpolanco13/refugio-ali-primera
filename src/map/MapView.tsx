@@ -56,7 +56,8 @@ export interface MapViewHandle {
   volverAlParque: () => void;
 }
 
-function centroide(poligono: GeoJSON.Polygon): [number, number] {
+function centroide(poligono: GeoJSON.Polygon | undefined): [number, number] {
+  if (!poligono?.coordinates) return PARQUE_CENTRO;
   const anillo = poligono.coordinates[0] ?? [];
   const pts = anillo.slice(0, -1); // quitar cierre duplicado
   if (pts.length === 0) return PARQUE_CENTRO;
@@ -302,20 +303,28 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
     if (!map || !listoRef.current) return;
     const src = map.getSource("sectores-src") as maplibregl.GeoJSONSource | undefined;
     if (!src) return;
-    const features: GeoJSON.Feature[] = cbRef.current.sectores.map((s) => ({
-      type: "Feature",
-      geometry: s.geom,
-      properties: {
-        id: s.id,
-        color: s.color || "#2dd4bf",
-      },
-    }));
+    const features: GeoJSON.Feature[] = [];
+    for (const s of cbRef.current.sectores) {
+      if (!s.geom?.coordinates) {
+        console.warn(`[mapa] Sector ${s.id}: geometría ausente — se omite`);
+        continue;
+      }
+      features.push({
+        type: "Feature",
+        geometry: s.geom,
+        properties: {
+          id: s.id,
+          color: s.color || "#2dd4bf",
+        },
+      });
+    }
     src.setData({ type: "FeatureCollection", features });
 
     // Marcadores HTML con el nombre del sector (color personalizado) y un
     // puntito con el estado (semáforo de cobertura).
     const vistos = new Set<string>();
     for (const s of cbRef.current.sectores) {
+      if (!s.geom?.coordinates) continue;
       vistos.add(s.id);
       const colorSector = s.color || "#2dd4bf";
       const colorEstado = ESTADO_SECTOR_COLOR[estadoSector(s, cbRef.current.puntos)];
@@ -478,7 +487,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
     if (props.modoEdicion) {
       draw.clear();
       const features = cbRef.current.sectores
-        .filter((s) => UUID_RE.test(s.id))
+        .filter((s) => UUID_RE.test(s.id) && s.geom?.coordinates)
         .map((s) => ({
           id: s.id,
           type: "Feature" as const,

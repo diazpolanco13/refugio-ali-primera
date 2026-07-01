@@ -41,6 +41,7 @@ export function puntosEnSector(
   sector: Sector,
   puntos: PuntoServicio[],
 ): PuntoServicio[] {
+  if (!sector.geom?.coordinates) return [];
   return puntos.filter((p) => {
     if (!p.geom?.coordinates) return false;
     return puntoEnPoligono(p.geom.coordinates as [number, number], sector.geom);

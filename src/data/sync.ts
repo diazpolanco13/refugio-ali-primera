@@ -43,6 +43,19 @@ export function reiniciarLastSync(): void {
 // ---- Aplicar filas entrantes a Dexie (last-write-wins) ----
 type Tabla = EntityTable<Sector, "id"> | EntityTable<PuntoServicio, "id">;
 
+/** Filas antiguas del servidor pueden traer `data` como string JSON. */
+function normalizarData(data: unknown): Record<string, unknown> {
+  if (typeof data === "string") {
+    try {
+      const parsed = JSON.parse(data);
+      return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  }
+  return data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+}
+
 async function aplicarFila(tabla: Tabla, fila: FilaSync): Promise<void> {
   const local = await tabla.get(fila.id);
   if (local && local.updated_at > fila.updated_at) return; // lo local es más nuevo
@@ -50,7 +63,7 @@ async function aplicarFila(tabla: Tabla, fila: FilaSync): Promise<void> {
     await tabla.delete(fila.id);
   } else {
     // Los metadatos de la fila mandan sobre el blob (garantiza id/updated_at).
-    const base = fila.data && typeof fila.data === "object" ? fila.data : {};
+    const base = normalizarData(fila.data);
     const obj = {
       ...(base as Record<string, unknown>),
       id: fila.id,
