@@ -19,6 +19,11 @@ body {
   color: #e2e8f0;
 }
 
+/* Evitar el resaltado azul al tocar botones en móvil. */
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Marcador de punto: ícono + número; etiqueta al pasar el mouse */
 .punto-mk {
   display: flex;
@@ -74,6 +79,23 @@ body {
 }
 .punto-mk:hover .etq {
   display: block;
+}
+
+/* En dispositivos táctiles: marcadores más grandes (mejor puntería con el dedo)
+   y controles del mapa ampliados. */
+@media (pointer: coarse) {
+  .punto-mk {
+    padding: 3px 9px 3px 4px;
+  }
+  .punto-mk .ic {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+  }
+  .maplibregl-ctrl button {
+    width: 40px !important;
+    height: 40px !important;
+  }
 }
 
 /* Popups de MapLibre en tema oscuro */

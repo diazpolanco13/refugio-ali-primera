@@ -1,5 +1,10 @@
 import Dexie, { type EntityTable } from "dexie";
-import { SECTOR_COLORES, type PuntoServicio, type Sector } from "../domain/tipos";
+import {
+  SECTOR_COLORES,
+  VULNERABLES_VACIO,
+  type PuntoServicio,
+  type Sector,
+} from "../domain/tipos";
 
 /** Mutación pendiente de subir al servidor (cola de sincronización). */
 export interface OutboxItem {
@@ -65,6 +70,27 @@ db.version(3).stores({
   puntos: "id, tipo, estado, updated_at",
   outbox: "clave, entidad, updated_at",
 });
+
+// v4: desglose demográfico por edad y sexo. Los totales antiguos (ninos,
+// adultos_mayores, discapacidad) no tenían sexo; se ponen los nuevos campos
+// en 0 (el usuario los recompleta). Se conserva `embarazadas` (mismo campo).
+db.version(4)
+  .stores({
+    sectores: "id, nombre, updated_at",
+    puntos: "id, tipo, estado, updated_at",
+    outbox: "clave, entidad, updated_at",
+  })
+  .upgrade(async (tx) => {
+    await tx
+      .table("sectores")
+      .toCollection()
+      .modify((s: Record<string, unknown>) => {
+        const v = (s.vulnerables ?? {}) as Record<string, unknown>;
+        const embarazadas =
+          typeof v.embarazadas === "number" ? v.embarazadas : 0;
+        s.vulnerables = { ...VULNERABLES_VACIO, embarazadas };
+      });
+  });
 
 export { db };
 

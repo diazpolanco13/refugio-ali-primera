@@ -42,7 +42,17 @@ export async function cargarEjemplo(): Promise<void> {
     ],
     poblacion_estimada: 800,
     familias: 200,
-    vulnerables: { ninos: 210, embarazadas: 18, adultos_mayores: 65, discapacidad: 12 },
+    vulnerables: {
+      ninos: 108,
+      ninas: 102,
+      adultos_h: 230,
+      adultos_m: 260,
+      adultos_mayores_h: 30,
+      adultos_mayores_m: 35,
+      embarazadas: 18,
+      discapacidad_h: 6,
+      discapacidad_m: 6,
+    },
     notas: "Sector de ejemplo generado automáticamente.",
   });
 

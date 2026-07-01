@@ -54,6 +54,8 @@ export function Tablero({
       <div className="grid grid-cols-2 gap-2">
         <Kpi label="Población" valor={kpis.poblacionTotal} />
         <Kpi label="Familias" valor={kpis.familiasTotal} />
+        <Kpi label="♂ Hombres" valor={kpis.hombresTotal} />
+        <Kpi label="♀ Mujeres" valor={kpis.mujeresTotal} />
         <Kpi label="Vulnerables" valor={kpis.vulnerablesTotal} />
         <Kpi label="Sectores" valor={kpis.sectores} />
         <Kpi label="Puntos operativos" valor={kpis.puntosOperativos} />

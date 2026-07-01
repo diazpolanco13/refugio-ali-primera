@@ -18,12 +18,72 @@ export type EstadoPunto = "operativo" | "saturado" | "fuera_servicio";
 
 export type EstadoSector = "verde" | "amarillo" | "rojo";
 
-/** Grupos vulnerables (conteo agregado por sector, sin datos nominales). */
+/**
+ * Desglose demográfico del sector por edad y sexo (conteo agregado, sin datos
+ * nominales). Los grupos etarios (niñez, adultos, adultos mayores) son
+ * excluyentes y suman la población; embarazadas y discapacidad son
+ * transversales (subconjuntos que pueden solaparse con los etarios).
+ */
 export interface Vulnerables {
-  ninos: number;
+  // Niñez (0-17)
+  ninos: number; // varones
+  ninas: number; // niñas
+  // Adultos (18-59)
+  adultos_h: number;
+  adultos_m: number;
+  // Adultos mayores (60+)
+  adultos_mayores_h: number;
+  adultos_mayores_m: number;
+  // Grupos transversales
   embarazadas: number;
-  adultos_mayores: number;
-  discapacidad: number;
+  discapacidad_h: number;
+  discapacidad_m: number;
+}
+
+export const VULNERABLES_VACIO: Vulnerables = {
+  ninos: 0,
+  ninas: 0,
+  adultos_h: 0,
+  adultos_m: 0,
+  adultos_mayores_h: 0,
+  adultos_mayores_m: 0,
+  embarazadas: 0,
+  discapacidad_h: 0,
+  discapacidad_m: 0,
+};
+
+/** Normaliza un objeto vulnerables tolerando datos viejos o incompletos. */
+export function normalizarVulnerables(
+  v: Partial<Vulnerables> | null | undefined,
+): Vulnerables {
+  return { ...VULNERABLES_VACIO, ...(v ?? {}) };
+}
+
+/** Total de hombres del sector (suma de grupos etarios masculinos). */
+export function totalHombres(v: Vulnerables): number {
+  return (v.ninos || 0) + (v.adultos_h || 0) + (v.adultos_mayores_h || 0);
+}
+
+/** Total de mujeres del sector (suma de grupos etarios femeninos). */
+export function totalMujeres(v: Vulnerables): number {
+  return (v.ninas || 0) + (v.adultos_m || 0) + (v.adultos_mayores_m || 0);
+}
+
+/**
+ * Total de personas en grupos vulnerables prioritarios: niñez, adultos
+ * mayores, embarazadas y personas con discapacidad (excluye adultos 18-59
+ * sin condición). Es un estimado: puede haber solapamiento entre grupos.
+ */
+export function totalVulnerables(v: Vulnerables): number {
+  return (
+    (v.ninos || 0) +
+    (v.ninas || 0) +
+    (v.adultos_mayores_h || 0) +
+    (v.adultos_mayores_m || 0) +
+    (v.embarazadas || 0) +
+    (v.discapacidad_h || 0) +
+    (v.discapacidad_m || 0)
+  );
 }
 
 /** Categoría del responsable, para saber a qué cuerpo/rol pertenece. */

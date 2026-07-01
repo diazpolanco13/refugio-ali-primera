@@ -1,4 +1,5 @@
 import type { EstadoSector, PuntoServicio, Sector, TipoPunto } from "./tipos";
+import { normalizarVulnerables, totalHombres, totalMujeres, totalVulnerables } from "./tipos";
 import { ESTANDARES } from "./estandares";
 
 /** Point-in-polygon por ray casting. Punto y anillo en [lng, lat]. */
@@ -147,6 +148,8 @@ export interface KpisGlobales {
   poblacionTotal: number;
   familiasTotal: number;
   vulnerablesTotal: number;
+  hombresTotal: number;
+  mujeresTotal: number;
   sectores: number;
   puntosOperativos: number;
   puntosTotal: number;
@@ -161,22 +164,22 @@ export function kpisGlobales(
 ): KpisGlobales {
   const poblacionTotal = sectores.reduce((a, s) => a + (s.poblacion_estimada || 0), 0);
   const familiasTotal = sectores.reduce((a, s) => a + (s.familias || 0), 0);
-  const vulnerablesTotal = sectores.reduce((a, s) => {
-    const v = s.vulnerables;
-    if (!v) return a;
-    return (
-      a +
-      (v.ninos || 0) +
-      (v.embarazadas || 0) +
-      (v.adultos_mayores || 0) +
-      (v.discapacidad || 0)
-    );
-  }, 0);
+  let vulnerablesTotal = 0;
+  let hombresTotal = 0;
+  let mujeresTotal = 0;
+  for (const s of sectores) {
+    const v = normalizarVulnerables(s.vulnerables);
+    vulnerablesTotal += totalVulnerables(v);
+    hombresTotal += totalHombres(v);
+    mujeresTotal += totalMujeres(v);
+  }
   const estados = sectores.map((s) => estadoSector(s, puntos));
   return {
     poblacionTotal,
     familiasTotal,
     vulnerablesTotal,
+    hombresTotal,
+    mujeresTotal,
     sectores: sectores.length,
     puntosOperativos: puntos.filter((p) => p.estado === "operativo").length,
     puntosTotal: puntos.length,

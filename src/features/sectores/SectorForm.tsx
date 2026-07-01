@@ -3,8 +3,13 @@ import {
   CATEGORIAS_RESPONSABLE,
   FUNCIONES_COMUNES,
   SECTOR_COLORES,
+  normalizarVulnerables,
+  totalHombres,
+  totalMujeres,
+  totalVulnerables,
   type Responsable,
   type Sector,
+  type Vulnerables,
 } from "../../domain/tipos";
 import { nuevoId } from "../../data/db";
 import { Modal } from "../../ui/Modal";
@@ -36,11 +41,18 @@ export function SectorForm({
   );
   const [poblacion, setPoblacion] = useState(inicial?.poblacion_estimada ?? 0);
   const [familias, setFamilias] = useState(inicial?.familias ?? 0);
-  const [ninos, setNinos] = useState(inicial?.vulnerables.ninos ?? 0);
-  const [embarazadas, setEmbarazadas] = useState(inicial?.vulnerables.embarazadas ?? 0);
-  const [mayores, setMayores] = useState(inicial?.vulnerables.adultos_mayores ?? 0);
-  const [discapacidad, setDiscapacidad] = useState(inicial?.vulnerables.discapacidad ?? 0);
+  const [vulnerables, setVulnerables] = useState<Vulnerables>(
+    normalizarVulnerables(inicial?.vulnerables),
+  );
   const [notas, setNotas] = useState(inicial?.notas ?? "");
+
+  const setV = (campo: keyof Vulnerables) => (n: number) =>
+    setVulnerables((prev) => ({ ...prev, [campo]: n }));
+
+  const hombres = totalHombres(vulnerables);
+  const mujeres = totalMujeres(vulnerables);
+  const totalDemografico = hombres + mujeres;
+  const vulnerablesCount = totalVulnerables(vulnerables);
 
   function agregarResponsable() {
     setResponsables((prev) => [
@@ -66,7 +78,7 @@ export function SectorForm({
         .map((r) => ({ ...r, nombre: r.nombre.trim(), telefono: r.telefono.trim(), funcion: r.funcion.trim() })),
       poblacion_estimada: poblacion,
       familias,
-      vulnerables: { ninos, embarazadas, adultos_mayores: mayores, discapacidad },
+      vulnerables,
       notas: notas.trim(),
     });
   }
@@ -239,15 +251,59 @@ export function SectorForm({
           </datalist>
         </div>
 
-        {/* Grupos vulnerables */}
+        {/* Desglose demográfico por edad y sexo */}
         <div>
-          <label className={labelCls}>Grupos vulnerables</label>
-          <div className="grid grid-cols-2 gap-3">
-            <NumField label="Niños/as" value={ninos} onChange={setNinos} />
-            <NumField label="Embarazadas" value={embarazadas} onChange={setEmbarazadas} />
-            <NumField label="Adultos mayores" value={mayores} onChange={setMayores} />
-            <NumField label="Discapacidad" value={discapacidad} onChange={setDiscapacidad} />
+          <label className={labelCls}>Desglose demográfico (por edad y sexo)</label>
+          <div className="space-y-2">
+            <GrupoSexo
+              titulo="Niñez (0-17)"
+              etiquetaH="Niños"
+              etiquetaM="Niñas"
+              valorH={vulnerables.ninos}
+              valorM={vulnerables.ninas}
+              onH={setV("ninos")}
+              onM={setV("ninas")}
+            />
+            <GrupoSexo
+              titulo="Adultos (18-59)"
+              valorH={vulnerables.adultos_h}
+              valorM={vulnerables.adultos_m}
+              onH={setV("adultos_h")}
+              onM={setV("adultos_m")}
+            />
+            <GrupoSexo
+              titulo="Adultos mayores (60+)"
+              valorH={vulnerables.adultos_mayores_h}
+              valorM={vulnerables.adultos_mayores_m}
+              onH={setV("adultos_mayores_h")}
+              onM={setV("adultos_mayores_m")}
+            />
+            <GrupoSexo
+              titulo="Personas con discapacidad"
+              valorH={vulnerables.discapacidad_h}
+              valorM={vulnerables.discapacidad_m}
+              onH={setV("discapacidad_h")}
+              onM={setV("discapacidad_m")}
+            />
+            <div className="rounded-lg border border-slate-700 bg-slate-800/40 p-2">
+              <NumField
+                label="Embarazadas"
+                value={vulnerables.embarazadas}
+                onChange={setV("embarazadas")}
+              />
+            </div>
           </div>
+
+          {/* Totales calculados */}
+          <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+            <Total etiqueta="♂ Hombres" valor={hombres} clase="text-sky-300" />
+            <Total etiqueta="♀ Mujeres" valor={mujeres} clase="text-pink-300" />
+            <Total etiqueta="Total" valor={totalDemografico} clase="text-slate-200" />
+          </div>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Grupos vulnerables (niñez, mayores, embarazadas, discapacidad):{" "}
+            <span className="font-medium text-slate-300">{vulnerablesCount}</span>
+          </p>
         </div>
 
         <div>
@@ -311,5 +367,51 @@ function NumField({
         onChange={(e) => onChange(Number(e.target.value))}
       />
     </label>
+  );
+}
+
+/** Fila de un grupo etario con conteo de hombres y mujeres. */
+function GrupoSexo({
+  titulo,
+  etiquetaH = "Hombres",
+  etiquetaM = "Mujeres",
+  valorH,
+  valorM,
+  onH,
+  onM,
+}: {
+  titulo: string;
+  etiquetaH?: string;
+  etiquetaM?: string;
+  valorH: number;
+  valorM: number;
+  onH: (n: number) => void;
+  onM: (n: number) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-700 bg-slate-800/40 p-2">
+      <div className="mb-1.5 text-xs font-medium text-slate-300">{titulo}</div>
+      <div className="grid grid-cols-2 gap-2">
+        <NumField label={etiquetaH} value={valorH} onChange={onH} />
+        <NumField label={etiquetaM} value={valorM} onChange={onM} />
+      </div>
+    </div>
+  );
+}
+
+function Total({
+  etiqueta,
+  valor,
+  clase,
+}: {
+  etiqueta: string;
+  valor: number;
+  clase: string;
+}) {
+  return (
+    <div className="rounded-md border border-slate-700 bg-slate-800/60 px-2 py-1.5 text-center">
+      <div className={`text-base font-bold ${clase}`}>{valor.toLocaleString("es")}</div>
+      <div className="text-[11px] text-slate-400">{etiqueta}</div>
+    </div>
   );
 }

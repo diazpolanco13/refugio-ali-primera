@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "./data/db";
 import { eliminarPunto, eliminarSector, guardarPunto, guardarSector } from "./data/repos";
@@ -19,7 +19,7 @@ import { Tablero } from "./features/tablero/Tablero";
 import { Login } from "./features/auth/Login";
 import { cerrarSesion, useSesion, type Sesion } from "./data/auth";
 import { detenerSync, iniciarSync, useEstadoSync, type EstadoSync } from "./data/sync";
-import { btnSecundario } from "./ui/clases";
+import { useEsMovil } from "./ui/useEsMovil";
 
 type Pendiente =
   | { clase: "sector"; geom: GeoJSON.Polygon }
@@ -33,6 +33,7 @@ type Editando =
 
 function AppInterna({ sesion }: { sesion: Sesion }) {
   const puedeEditar = sesion.user.rol !== "visor";
+  const esMovil = useEsMovil();
   const estadoSync = useEstadoSync();
   const sectores = useLiveQuery(() => db.sectores.toArray(), [], [] as Sector[]);
   const puntos = useLiveQuery(() => db.puntos.toArray(), [], [] as PuntoServicio[]);
@@ -46,12 +47,26 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
   const [modoEdicion, setModoEdicion] = useState(false);
   const [pendiente, setPendiente] = useState<Pendiente>(null);
   const [editando, setEditando] = useState<Editando>(null);
-  const [panelAbierto, setPanelAbierto] = useState(true);
+  // En móvil el panel arranca cerrado (no debe tapar el mapa).
+  const [panelAbierto, setPanelAbierto] = useState(
+    () => !(typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches),
+  );
   const [tableroAbierto, setTableroAbierto] = useState(false);
+  const [menuUsuario, setMenuUsuario] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [zoom, setZoom] = useState(() => cargarVista().zoom);
   const [ahora, setAhora] = useState(() => Date.now());
   const mapaRef = useRef<MapViewHandle>(null);
+
+  // En móvil, abrir panel y tablero es excluyente (ambos ocupan pantalla).
+  function abrirPanel(v: boolean) {
+    setPanelAbierto(v);
+    if (v && esMovil) setTableroAbierto(false);
+  }
+  function abrirTablero(v: boolean) {
+    setTableroAbierto(v);
+    if (v && esMovil) setPanelAbierto(false);
+  }
 
   useEffect(() => {
     const on = () => setOnline(true);
@@ -84,6 +99,11 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
   function elegirDibujo(modo: ModoDibujo) {
     setModoEdicion(false);
     setModoDibujo((m) => (m === modo ? "none" : modo));
+    // En móvil, cerrar los paneles para dejar el mapa despejado al dibujar.
+    if (esMovil) {
+      setPanelAbierto(false);
+      setTableroAbierto(false);
+    }
   }
 
   function toggleCapa(tipo: TipoPunto) {
@@ -100,41 +120,67 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
   return (
     <div className="flex h-screen flex-col">
       {/* Cabecera */}
-      <header className="z-20 flex h-12 items-center justify-between border-b border-slate-800 bg-slate-900 px-3">
-        <div className="flex items-center gap-2 overflow-hidden">
+      <header className="z-20 flex h-14 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900 px-2 sm:px-3">
+        <div className="flex min-w-0 items-center gap-1.5">
           <button
-            className="rounded-md px-2 py-1 text-slate-300 hover:bg-slate-800"
-            onClick={() => setPanelAbierto((v) => !v)}
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-lg text-slate-300 hover:bg-slate-800 active:bg-slate-700"
+            onClick={() => abrirPanel(!panelAbierto)}
             aria-label="Alternar panel"
           >
             ☰
           </button>
-          <h1 className="truncate text-sm font-semibold text-slate-100">
-            Sala Situacional — Refugio Parque del Oeste
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <IndicadorSync online={online} estado={estadoSync} />
-          <button
-            className={btnSecundario}
-            onClick={() => setTableroAbierto((v) => !v)}
-          >
-            📊 Tablero
-          </button>
-          <div className="hidden items-center gap-2 border-l border-slate-700 pl-2 sm:flex">
-            <span className="text-xs text-slate-300">
-              {sesion.user.nombre || sesion.user.username}
-              <span className="ml-1 rounded bg-slate-700 px-1 py-0.5 text-[10px] text-slate-300">
-                {sesion.user.rol}
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold leading-tight text-slate-100">
+              <span className="sm:hidden">Sala Situacional</span>
+              <span className="hidden sm:inline">
+                Sala Situacional — Refugio Parque del Oeste
               </span>
-            </span>
+            </h1>
+            <IndicadorSync online={online} estado={estadoSync} />
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            className="flex h-10 items-center gap-1.5 rounded-lg border border-slate-600 px-3 text-sm font-medium text-slate-200 hover:bg-slate-800 active:bg-slate-700"
+            onClick={() => abrirTablero(!tableroAbierto)}
+          >
+            📊<span className="hidden xs:inline sm:inline">Tablero</span>
+          </button>
+          {/* Menú de usuario (accesible también en móvil) */}
+          <div className="relative">
             <button
-              className="rounded-md px-2 py-1 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-              onClick={() => cerrarSesion()}
-              title="Cerrar sesión"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-800 active:bg-slate-700"
+              onClick={() => setMenuUsuario((v) => !v)}
+              aria-label="Usuario"
             >
-              Salir
+              👤
             </button>
+            {menuUsuario && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setMenuUsuario(false)}
+                />
+                <div className="absolute right-0 top-12 z-40 w-52 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl">
+                  <div className="border-b border-slate-800 px-4 py-3">
+                    <div className="truncate text-sm font-medium text-slate-100">
+                      {sesion.user.nombre || sesion.user.username}
+                    </div>
+                    <div className="mt-0.5">
+                      <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] uppercase text-slate-300">
+                        {sesion.user.rol}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-red-300 hover:bg-red-950/60"
+                    onClick={() => cerrarSesion()}
+                  >
+                    🚪 Cerrar sesión
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -179,202 +225,198 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
 
         {/* Banner de dibujo */}
         {dibujando && (
-          <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-teal-600 px-4 py-1.5 text-sm font-medium text-white shadow-lg">
-            {modoDibujo === "poligono"
-              ? "Clic en cada vértice del sector; doble clic (o Enter) para cerrar"
-              : modoDibujo === "rectangulo"
-                ? "Haz clic en dos esquinas opuestas para dibujar el sector"
-                : "Haz clic en el mapa para ubicar el punto"}
+          <div className="absolute left-1/2 top-3 z-30 flex w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 items-center gap-2 rounded-xl bg-teal-600 px-3 py-2 text-white shadow-lg">
+            <span className="flex-1 text-xs font-medium leading-snug sm:text-sm">
+              {modoDibujo === "poligono"
+                ? "Toca cada vértice del sector; toca el primer punto (naranja) para cerrar"
+                : modoDibujo === "rectangulo"
+                  ? "Toca dos esquinas opuestas para dibujar el sector"
+                  : "Toca el mapa para ubicar el punto"}
+            </span>
             <button
-              className="pointer-events-auto ml-3 underline"
+              className="shrink-0 rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold hover:bg-white/30 active:bg-white/40"
               onClick={() => setModoDibujo("none")}
             >
-              cancelar
+              Cancelar
             </button>
           </div>
         )}
 
         {/* Banner de edición */}
         {modoEdicion && (
-          <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-amber-600 px-4 py-1.5 text-sm font-medium text-white shadow-lg">
-            Modo edición: arrastra los íconos; toca un sector y mueve sus vértices
+          <div className="absolute left-1/2 top-3 z-30 flex w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 items-center gap-2 rounded-xl bg-amber-600 px-3 py-2 text-white shadow-lg">
+            <span className="flex-1 text-xs font-medium leading-snug sm:text-sm">
+              Modo edición: arrastra los íconos; toca un sector y mueve sus vértices
+            </span>
             <button
-              className="pointer-events-auto ml-3 underline"
+              className="shrink-0 rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold hover:bg-white/30 active:bg-white/40"
               onClick={() => setModoEdicion(false)}
             >
-              salir
+              Salir
             </button>
           </div>
         )}
 
-        {/* Panel de control (capas y herramientas) */}
+        {/* Backdrop (solo móvil) al abrir el panel */}
         {panelAbierto && (
-          <div className="absolute left-3 top-3 z-10 flex max-h-[calc(100%-1.5rem)] w-72 flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-900/95 shadow-xl backdrop-blur">
-            <div className="overflow-y-auto p-3">
-              {/* Herramientas de dibujo (ocultas para el rol visor) */}
-              {puedeEditar && (
-                <div className="mb-3 space-y-2">
-                  <BotonHerramienta
-                    activo={modoDibujo === "poligono"}
-                    onClick={() => elegirDibujo("poligono")}
-                  >
-                    ⬠ Dibujar sector
-                  </BotonHerramienta>
-                  <div className="grid grid-cols-2 gap-2">
-                    <BotonHerramienta
-                      activo={modoDibujo === "rectangulo"}
-                      onClick={() => elegirDibujo("rectangulo")}
-                    >
-                      ▭ Rectángulo
-                    </BotonHerramienta>
-                    <BotonHerramienta
-                      activo={modoDibujo === "punto"}
-                      onClick={() => elegirDibujo("punto")}
-                    >
-                      📍 Punto
-                    </BotonHerramienta>
-                  </div>
-                  <BotonHerramienta
-                    activo={modoEdicion}
-                    onClick={() => {
-                      setModoDibujo("none");
-                      setModoEdicion((v) => !v);
-                    }}
-                  >
-                    ✏️ {modoEdicion ? "Salir de edición" : "Editar ubicaciones"}
-                  </BotonHerramienta>
-                </div>
-              )}
+          <div
+            className="absolute inset-0 z-10 bg-black/50 md:hidden"
+            onClick={() => setPanelAbierto(false)}
+          />
+        )}
 
-              {/* Base del mapa */}
-              <div className="mb-3">
-                <div className="mb-1 text-xs font-medium text-slate-400">Base del mapa</div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {BASES_DISPONIBLES.map((b) => (
-                    <button
-                      key={b.valor}
-                      className={`rounded-md py-1.5 text-sm ${
-                        baseMapa === b.valor
-                          ? "bg-slate-700 text-white ring-1 ring-teal-500"
-                          : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                      }`}
-                      onClick={() => setBaseMapa(b.valor)}
-                    >
-                      {b.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+        {/* Panel de control (capas y ajustes). Drawer en móvil, tarjeta flotante en escritorio. */}
+        <div
+          className={`absolute z-20 flex flex-col overflow-hidden border-slate-700 bg-slate-900/95 shadow-xl backdrop-blur transition-transform duration-200 ${
+            panelAbierto ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          } inset-y-0 left-0 w-[85%] max-w-xs border-r md:inset-y-auto md:left-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-72 md:rounded-xl md:border ${
+            panelAbierto ? "" : "md:hidden"
+          }`}
+        >
+          {/* Cabecera del drawer (visible en móvil) */}
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-800 px-4 py-3 md:hidden">
+            <span className="text-sm font-semibold text-slate-100">Controles</span>
+            <button
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800"
+              onClick={() => setPanelAbierto(false)}
+              aria-label="Cerrar panel"
+            >
+              ✕
+            </button>
+          </div>
 
-              {/* Vista / zoom (se guarda en localStorage) */}
-              <div className="mb-3">
-                <div className="mb-1 flex items-center justify-between text-xs font-medium text-slate-400">
-                  <span>Zoom</span>
-                  <span className="tabular-nums text-slate-300">{zoom.toFixed(1)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="range"
-                    min={13}
-                    max={20}
-                    step={0.1}
-                    value={zoom}
-                    onChange={(e) => {
-                      const z = Number(e.target.value);
-                      setZoom(z);
-                      mapaRef.current?.setZoom(z);
-                    }}
-                    className="h-1 flex-1 cursor-pointer accent-teal-500"
-                  />
+          <div className="overflow-y-auto p-3">
+            {/* Base del mapa */}
+            <div className="mb-3">
+              <div className="mb-1 text-xs font-medium text-slate-400">Base del mapa</div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {BASES_DISPONIBLES.map((b) => (
                   <button
-                    title="Centrar en el parque"
-                    className="rounded-md border border-slate-600 px-2 py-1 text-sm text-slate-200 hover:bg-slate-800"
-                    onClick={() => mapaRef.current?.volverAlParque()}
+                    key={b.valor}
+                    className={`rounded-md py-2 text-sm ${
+                      baseMapa === b.valor
+                        ? "bg-slate-700 text-white ring-1 ring-teal-500"
+                        : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                    }`}
+                    onClick={() => setBaseMapa(b.valor)}
                   >
-                    🎯
+                    {b.label}
                   </button>
-                </div>
-                <div className="mt-1 text-[11px] text-slate-500">
-                  Tu vista (centro y zoom) se guarda automáticamente.
-                </div>
+                ))}
               </div>
+            </div>
 
-              {/* Capas */}
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-400">Capas</span>
+            {/* Vista / zoom (se guarda en localStorage) */}
+            <div className="mb-3">
+              <div className="mb-1 flex items-center justify-between text-xs font-medium text-slate-400">
+                <span>Zoom</span>
+                <span className="tabular-nums text-slate-300">{zoom.toFixed(1)}</span>
               </div>
-              <label className="mb-1 flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-slate-800">
+              <div className="flex items-center gap-2">
+                <input
+                  type="range"
+                  min={13}
+                  max={20}
+                  step={0.1}
+                  value={zoom}
+                  onChange={(e) => {
+                    const z = Number(e.target.value);
+                    setZoom(z);
+                    mapaRef.current?.setZoom(z);
+                  }}
+                  className="h-2 flex-1 cursor-pointer accent-teal-500"
+                />
+                <button
+                  title="Centrar en el parque"
+                  className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-600 text-sm text-slate-200 hover:bg-slate-800"
+                  onClick={() => mapaRef.current?.volverAlParque()}
+                >
+                  🎯
+                </button>
+              </div>
+              <div className="mt-1 text-[11px] text-slate-500">
+                Tu vista (centro y zoom) se guarda automáticamente.
+              </div>
+            </div>
+
+            {/* Capas */}
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-400">Capas</span>
+            </div>
+            <label className="mb-1 flex items-center justify-between rounded-md px-2 py-2.5 hover:bg-slate-800">
+              <span className="flex items-center gap-2 text-sm text-slate-200">
+                ▱ Sectores
+              </span>
+              <input
+                type="checkbox"
+                className="h-5 w-5 accent-teal-500"
+                checked={mostrarSectores}
+                onChange={() => setMostrarSectores((v) => !v)}
+              />
+            </label>
+            {CATALOGO_TIPOS.map((m) => (
+              <label
+                key={m.tipo}
+                className="flex items-center justify-between rounded-md px-2 py-2.5 hover:bg-slate-800"
+              >
                 <span className="flex items-center gap-2 text-sm text-slate-200">
-                  ▱ Sectores
+                  <span
+                    className="inline-block h-3 w-3 rounded-full"
+                    style={{ background: m.color }}
+                  />
+                  {m.icono} {m.label}
+                  <span className="text-xs text-slate-500">
+                    {conteos.get(m.tipo) ?? 0}
+                  </span>
                 </span>
                 <input
                   type="checkbox"
-                  checked={mostrarSectores}
-                  onChange={() => setMostrarSectores((v) => !v)}
+                  className="h-5 w-5 accent-teal-500"
+                  checked={capasVisibles.has(m.tipo)}
+                  onChange={() => toggleCapa(m.tipo)}
                 />
               </label>
-              {CATALOGO_TIPOS.map((m) => (
-                <label
-                  key={m.tipo}
-                  className="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-slate-800"
-                >
-                  <span className="flex items-center gap-2 text-sm text-slate-200">
-                    <span
-                      className="inline-block h-3 w-3 rounded-full"
-                      style={{ background: m.color }}
-                    />
-                    {m.icono} {m.label}
-                    <span className="text-xs text-slate-500">
-                      {conteos.get(m.tipo) ?? 0}
-                    </span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={capasVisibles.has(m.tipo)}
-                    onChange={() => toggleCapa(m.tipo)}
-                  />
-                </label>
-              ))}
+            ))}
 
-              {/* Datos de ejemplo / limpiar (solo admin) */}
-              {sesion.user.rol === "admin" && (
-                <div className="mt-3 flex gap-2 border-t border-slate-800 pt-3">
-                  {sectores.length === 0 && puntos.length === 0 ? (
-                    <button
-                      className="flex-1 rounded-md border border-slate-600 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
-                      onClick={() => cargarEjemplo()}
-                    >
-                      Cargar ejemplo
-                    </button>
-                  ) : (
-                    <button
-                      className="flex-1 rounded-md border border-red-900 py-1.5 text-xs text-red-300 hover:bg-red-950"
-                      onClick={() => {
-                        if (confirm("¿Borrar todos los datos locales?")) limpiarTodo();
-                      }}
-                    >
-                      Limpiar datos
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+            {/* Datos de ejemplo / limpiar (solo admin) */}
+            {sesion.user.rol === "admin" && (
+              <div className="mt-3 flex gap-2 border-t border-slate-800 pt-3">
+                {sectores.length === 0 && puntos.length === 0 ? (
+                  <button
+                    className="flex-1 rounded-md border border-slate-600 py-2 text-xs text-slate-300 hover:bg-slate-800"
+                    onClick={() => cargarEjemplo()}
+                  >
+                    Cargar ejemplo
+                  </button>
+                ) : (
+                  <button
+                    className="flex-1 rounded-md border border-red-900 py-2 text-xs text-red-300 hover:bg-red-950"
+                    onClick={() => {
+                      if (confirm("¿Borrar todos los datos locales?")) limpiarTodo();
+                    }}
+                  >
+                    Limpiar datos
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
-        {/* Tablero */}
+        {/* Tablero. Pantalla completa en móvil, tarjeta flotante en escritorio. */}
         {tableroAbierto && (
-          <div className="absolute right-3 top-3 z-10 flex max-h-[calc(100%-1.5rem)] w-80 flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-900/95 shadow-xl backdrop-blur">
-            <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
-              <span className="text-sm font-semibold text-slate-100">Sala situacional</span>
+          <div className="absolute inset-0 z-20 flex flex-col overflow-hidden border-slate-700 bg-slate-900 shadow-xl md:inset-y-auto md:left-auto md:right-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-80 md:rounded-xl md:border md:bg-slate-900/95 md:backdrop-blur">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-800 px-4 py-3">
+              <span className="text-sm font-semibold text-slate-100">📊 Sala situacional</span>
               <button
-                className="rounded px-2 text-slate-400 hover:bg-slate-800"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800"
                 onClick={() => setTableroAbierto(false)}
+                aria-label="Cerrar tablero"
               >
                 ✕
               </button>
             </div>
-            <div className="overflow-y-auto p-3">
+            <div className="overflow-y-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               <Tablero
                 sectores={sectores}
                 puntos={puntos}
@@ -388,6 +430,25 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
               />
             </div>
           </div>
+        )}
+
+        {/* Barra de herramientas de dibujo (flotante inferior, táctil). Se
+            oculta para el visor, al abrir paneles en móvil, o al editar/dibujar. */}
+        {puedeEditar && !(esMovil && (panelAbierto || tableroAbierto)) && (
+          <BarraDibujo
+            modoDibujo={modoDibujo}
+            modoEdicion={modoEdicion}
+            oculto={dibujando || modoEdicion}
+            onDibujar={elegirDibujo}
+            onEditar={() => {
+              setModoDibujo("none");
+              setModoEdicion((v) => !v);
+              if (esMovil) {
+                setPanelAbierto(false);
+                setTableroAbierto(false);
+              }
+            }}
+          />
         )}
 
         {/* Formularios */}
@@ -452,39 +513,91 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
   );
 }
 
-function BotonHerramienta({
+/** Barra flotante inferior con las herramientas de dibujo (táctil). */
+function BarraDibujo({
+  modoDibujo,
+  modoEdicion,
+  oculto,
+  onDibujar,
+  onEditar,
+}: {
+  modoDibujo: ModoDibujo;
+  modoEdicion: boolean;
+  oculto: boolean;
+  onDibujar: (modo: ModoDibujo) => void;
+  onEditar: () => void;
+}) {
+  // Cuando se está dibujando/editando, el banner superior ya guía al usuario;
+  // ocultamos la barra para dejar el mapa despejado.
+  if (oculto) return null;
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div className="pointer-events-auto flex items-stretch gap-1.5 rounded-2xl border border-slate-700 bg-slate-900/95 p-1.5 shadow-2xl backdrop-blur">
+        <BotonBarra
+          activo={modoDibujo === "rectangulo"}
+          icono="▭"
+          label="Sector"
+          onClick={() => onDibujar("rectangulo")}
+        />
+        <BotonBarra
+          activo={modoDibujo === "poligono"}
+          icono="⬠"
+          label="Libre"
+          onClick={() => onDibujar("poligono")}
+        />
+        <BotonBarra
+          activo={modoDibujo === "punto"}
+          icono="📍"
+          label="Punto"
+          onClick={() => onDibujar("punto")}
+        />
+        <BotonBarra
+          activo={modoEdicion}
+          icono="✏️"
+          label="Editar"
+          onClick={onEditar}
+        />
+      </div>
+    </div>
+  );
+}
+
+function BotonBarra({
   activo,
+  icono,
+  label,
   onClick,
-  children,
 }: {
   activo: boolean;
+  icono: string;
+  label: string;
   onClick: () => void;
-  children: ReactNode;
 }) {
   return (
     <button
-      className={`w-full rounded-md px-3 py-2 text-sm font-semibold transition ${
+      className={`flex min-w-[64px] flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-2 text-[11px] font-semibold transition active:scale-95 ${
         activo
           ? "bg-teal-600 text-white ring-2 ring-teal-400"
-          : "border border-slate-600 text-slate-200 hover:bg-slate-800"
+          : "text-slate-200 hover:bg-slate-800"
       }`}
       onClick={onClick}
     >
-      {children}
+      <span className="text-lg leading-none">{icono}</span>
+      {label}
     </button>
   );
 }
 
 function IndicadorSync({ online, estado }: { online: boolean; estado: EstadoSync }) {
   const { texto, dot, cls } = !online
-    ? { texto: "Sin conexión", dot: "bg-amber-400", cls: "bg-amber-900/60 text-amber-300" }
+    ? { texto: "Sin conexión", dot: "bg-amber-400", cls: "text-amber-300" }
     : estado === "sincronizando"
-      ? { texto: "Sincronizando…", dot: "bg-sky-400 animate-pulse", cls: "bg-sky-900/60 text-sky-300" }
+      ? { texto: "Sincronizando…", dot: "bg-sky-400 animate-pulse", cls: "text-sky-300" }
       : estado === "error"
-        ? { texto: "Sin sync", dot: "bg-red-400", cls: "bg-red-900/60 text-red-300" }
-        : { texto: "En línea", dot: "bg-green-400", cls: "bg-green-900/60 text-green-300" };
+        ? { texto: "Sin sync", dot: "bg-red-400", cls: "text-red-300" }
+        : { texto: "En línea", dot: "bg-green-400", cls: "text-green-300" };
   return (
-    <span className={`hidden items-center gap-1 rounded-full px-2 py-0.5 text-[11px] sm:flex ${cls}`}>
+    <span className={`flex items-center gap-1 text-[11px] leading-tight ${cls}`}>
       <span className={`h-2 w-2 rounded-full ${dot}`} />
       {texto}
     </span>
