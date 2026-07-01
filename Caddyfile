@@ -1,0 +1,19 @@
+# Caddy: HTTPS automático (Let's Encrypt) + PWA + proxy a la API.
+{$DOMAIN} {
+	encode gzip
+
+	# API REST y WebSocket -> servidor Node.
+	handle /api/* {
+		reverse_proxy server:3001
+	}
+	handle /ws {
+		reverse_proxy server:3001
+	}
+
+	# PWA (archivos estáticos con fallback SPA a index.html).
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

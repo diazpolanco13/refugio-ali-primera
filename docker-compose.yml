@@ -1,0 +1,57 @@
+# Despliegue en el VPS: Postgres + API (Node) + Caddy (sirve la PWA y HTTPS).
+# Uso:
+#   1) cp .env.deploy.example .env  y edita los valores
+#   2) npm run build                (genera dist/ con la PWA)
+#   3) docker compose up -d --build
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: refugio
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?define DB_PASSWORD en .env}
+      POSTGRES_DB: refugio
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U refugio"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build: ./server
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://refugio:${DB_PASSWORD}@db:5432/refugio
+      JWT_SECRET: ${JWT_SECRET:?define JWT_SECRET en .env}
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?define ADMIN_PASSWORD en .env}
+      CORS_ORIGIN: https://${DOMAIN}
+      PORT: "3001"
+      HOST: 0.0.0.0
+    depends_on:
+      db:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?define DOMAIN en .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./dist:/srv:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - server
+
+volumes:
+  dbdata:
+  caddydata:
+  caddyconfig:
