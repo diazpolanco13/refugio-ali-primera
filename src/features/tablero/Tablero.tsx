@@ -112,10 +112,10 @@ export function Tablero({
                   className="inline-block h-3 w-3 shrink-0 rounded-full"
                   style={{ background: info?.color ?? "#94a3b8" }}
                 />
-                <span className="text-sm">{META_POR_TIPO[p.tipo].icono}</span>
+                <span className="text-sm">{META_POR_TIPO[p.tipo]?.icono ?? "❓"}</span>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-xs font-medium text-slate-200">
-                    {p.nombre || META_POR_TIPO[p.tipo].label}
+                    {p.nombre || META_POR_TIPO[p.tipo]?.label || p.tipo}
                   </div>
                   <div className="text-[11px] text-slate-400">
                     {p.ultimaLimpieza
@@ -175,7 +175,7 @@ export function Tablero({
                         Sector {s.nombre}
                       </span>
                       <span className="text-xs text-slate-400">
-                        {s.poblacion_estimada} pers · {s.familias} fam
+                        {s.poblacion_estimada || 0} pers · {s.familias || 0} fam
                       </span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -191,13 +191,13 @@ export function Tablero({
                                 : "bg-red-900/50 text-red-300"
                           }`}
                         >
-                          {META_POR_TIPO[c.tipo].icono} {c.porcentaje}%
+                          {META_POR_TIPO[c.tipo]?.icono ?? "❓"} {c.porcentaje}%
                         </span>
                       ))}
                     </div>
                   </button>
 
-                  {s.responsables.length > 0 && (
+                  {(s.responsables?.length ?? 0) > 0 && (
                     <div className="mt-2 space-y-1 border-t border-slate-700/60 pt-2">
                       {s.responsables.map((r) => {
                         const cat = CAT_POR_VALOR[r.categoria];

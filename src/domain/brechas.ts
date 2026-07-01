@@ -68,7 +68,7 @@ export function calcularCobertura(
   for (const est of Object.values(ESTANDARES)) {
     if (!est) continue;
     const base =
-      est.base === "familias" ? sector.familias : sector.poblacion_estimada;
+      (est.base === "familias" ? sector.familias : sector.poblacion_estimada) || 0;
     const requerido = base > 0 ? Math.ceil(base / est.personasPorUnidad) : 0;
     const disponible = dentro.filter(
       (p) => p.tipo === est.tipo && cuentaParaEstandar(p),
@@ -159,17 +159,19 @@ export function kpisGlobales(
   sectores: Sector[],
   puntos: PuntoServicio[],
 ): KpisGlobales {
-  const poblacionTotal = sectores.reduce((a, s) => a + s.poblacion_estimada, 0);
-  const familiasTotal = sectores.reduce((a, s) => a + s.familias, 0);
-  const vulnerablesTotal = sectores.reduce(
-    (a, s) =>
+  const poblacionTotal = sectores.reduce((a, s) => a + (s.poblacion_estimada || 0), 0);
+  const familiasTotal = sectores.reduce((a, s) => a + (s.familias || 0), 0);
+  const vulnerablesTotal = sectores.reduce((a, s) => {
+    const v = s.vulnerables;
+    if (!v) return a;
+    return (
       a +
-      s.vulnerables.ninos +
-      s.vulnerables.embarazadas +
-      s.vulnerables.adultos_mayores +
-      s.vulnerables.discapacidad,
-    0,
-  );
+      (v.ninos || 0) +
+      (v.embarazadas || 0) +
+      (v.adultos_mayores || 0) +
+      (v.discapacidad || 0)
+    );
+  }, 0);
   const estados = sectores.map((s) => estadoSector(s, puntos));
   return {
     poblacionTotal,
