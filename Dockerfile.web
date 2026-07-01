@@ -1,0 +1,25 @@
+# Construye la PWA (Vite) y la sirve con Caddy, todo dentro de Docker.
+# Reemplaza el paso manual "npm run build" en el host: ahora
+# "docker compose up -d --build" reconstruye también el frontend.
+
+# --- Etapa 1: build de la PWA ---
+FROM node:22-alpine AS build
+WORKDIR /app
+
+# Dependencias primero (capa cacheable: solo se reinstala si cambia el lockfile).
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Resto del código y build.
+COPY . .
+# Vite hornea las variables VITE_* en tiempo de build. La clave de MapTiler
+# es opcional (solo habilita las bases "HD"); si no se pasa, queda vacía.
+ARG VITE_MAPTILER_KEY=""
+ENV VITE_MAPTILER_KEY=$VITE_MAPTILER_KEY
+RUN npm run build
+
+# --- Etapa 2: servir con Caddy ---
+# El dist/ queda horneado en la imagen (ya no se monta desde el host).
+# El Caddyfile se sigue montando como volumen desde docker-compose.
+FROM caddy:2-alpine
+COPY --from=build /app/dist /srv

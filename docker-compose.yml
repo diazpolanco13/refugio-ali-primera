@@ -1,8 +1,9 @@
 # Despliegue en el VPS: Postgres + API (Node) + Caddy (sirve la PWA y HTTPS).
+# La PWA se construye dentro de Docker (Dockerfile.web) — NO hace falta Node ni
+# "npm run build" en el host.
 # Uso:
 #   1) cp .env.deploy.example .env  y edita los valores
-#   2) npm run build                (genera dist/ con la PWA)
-#   3) docker compose up -d --build
+#   2) docker compose up -d --build
 
 services:
   db:
@@ -36,7 +37,12 @@ services:
         condition: service_healthy
 
   caddy:
-    image: caddy:2-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        # Vite hornea las VITE_* en tiempo de build (clave opcional de MapTiler).
+        VITE_MAPTILER_KEY: ${VITE_MAPTILER_KEY:-}
     restart: unless-stopped
     ports:
       - "80:80"
@@ -45,7 +51,6 @@ services:
       DOMAIN: ${DOMAIN:?define DOMAIN en .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./dist:/srv:ro
       - caddydata:/data
       - caddyconfig:/config
     depends_on:

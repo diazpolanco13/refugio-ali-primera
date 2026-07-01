@@ -167,11 +167,15 @@ roles, **sin perder el offline**. Archivos: `src/data/auth.ts` (sesión),
 
 Objetivo: dejar la app en `https://TU-DOMINIO` con Postgres + API + Caddy (HTTPS
 automático). VPS del usuario: 6 vCPU / 12 GB / 200 GB, con dominio. Archivos ya
-listos: `docker-compose.yml`, `Caddyfile`, `server/Dockerfile`, `.env.deploy.example`.
+listos: `docker-compose.yml`, `Caddyfile`, `server/Dockerfile`, `Dockerfile.web`
+(build de la PWA en Docker), `.dockerignore`, `.env.deploy.example`.
+
+**La PWA se construye dentro de Docker** (`Dockerfile.web`: build de Vite + Caddy
+sirviendo el `dist/` horneado en la imagen). NO hace falta Node ni `npm run build`
+en el host: `docker compose up -d --build` reconstruye frontend **y** backend.
 
 **Requisitos en el VPS:**
-- Docker + Docker Compose v2.
-- **Node 20+** en el host (solo para `npm run build` de la PWA).
+- Docker + Docker Compose v2. (No hace falta Node en el host.)
 - Dominio con registro **A** apuntando a la IP del VPS.
 - Puertos **80 y 443** abiertos (Caddy emite el certificado por HTTP-01).
 
@@ -190,11 +194,7 @@ cp .env.deploy.example .env
 #   (Opcional) clave MapTiler para bases HD — Vite la hornea al construir:
 #                 VITE_MAPTILER_KEY=tu-clave   (puede ir en el mismo .env)
 
-# 2) Construir la PWA (genera dist/, que Caddy sirve)
-npm install
-npm run build
-
-# 3) Levantar todo
+# 2) Levantar todo (construye PWA + API dentro de Docker)
 docker compose up -d --build
 ```
 
@@ -217,16 +217,22 @@ Roles: `admin` · `coordinador` · `campo` · `visor` (solo lectura).
 **Actualizar tras nuevos commits:**
 ```bash
 git pull
-npm run build                    # reconstruye la PWA
-docker compose up -d --build     # reconstruye la API si cambió
+docker compose up -d --build     # reconstruye PWA y API (lo que haya cambiado)
 ```
+> ⚠️ El `--build` es obligatorio: sin él, Caddy sigue sirviendo el `dist/` viejo
+> horneado en la imagen anterior y los cambios de frontend NO aparecen. Si un
+> deploy automático solo hace `git pull` + `docker compose up` (sin `--build`),
+> el frontend no se actualiza. Como el PWA usa `registerType: "autoUpdate"`, tras
+> el rebuild el service worker nuevo se activa en la siguiente carga (puede hacer
+> falta un hard-reload la primera vez).
 
 **Notas de despliegue:**
 - La PWA llama a `/api` y `/ws` **relativos** → Caddy los proxya a `server:3001`
   en el mismo dominio (WebSocket incluido). No hay que configurar URLs.
-- `dist/` debe existir antes de `docker compose up` (por eso el `npm run build`).
-  Alternativa (opcional, pendiente): añadir un servicio de build en compose para
-  no necesitar Node en el host.
+- El `dist/` se construye dentro de Docker (`Dockerfile.web`) y queda horneado en
+  la imagen de Caddy. La clave opcional de MapTiler se pasa como build-arg
+  `VITE_MAPTILER_KEY` (compose la toma del `.env`); si cambias la clave, hay que
+  reconstruir con `--build`.
 - Postgres persiste en el volumen `dbdata`. Backup:
   `docker compose exec db pg_dump -U refugio refugio > backup.sql`.
 - Cambiar `JWT_SECRET` invalida las sesiones activas (todos deben re-login).
