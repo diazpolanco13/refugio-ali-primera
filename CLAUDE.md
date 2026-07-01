@@ -21,9 +21,12 @@ autoaloja en el VPS del usuario, sin nubes de terceros.
 
 - ✅ **Fase 1 — PWA offline (frontend):** completa y verificada.
 - ✅ **Fase 2a — Backend de sincronización:** completo y verificado (`server/`).
-- ⏳ **Fase 2b — Integrar frontend ↔ backend:** PENDIENTE (login, motor de sync,
-  WebSocket, roles en la UI). **Este es el siguiente trabajo.**
-- ⏳ **Fase 2c:** bitácora "quién marcó limpio/recogió", pulir despliegue.
+- ✅ **Fase 2b — Integrar frontend ↔ backend:** completa y verificada. Login con
+  gate de sesión, motor de sync (Dexie↔`/api/sync` con cola `outbox`), WebSocket
+  en tiempo real, y roles en la UI (visor = solo lectura). Ver `src/data/{auth,api,sync}.ts`.
+- ⏳ **Fase 2c:** bitácora "quién marcó limpio/recogió" (usar `POST /api/historial`
+  al marcar limpio y en ediciones clave; mostrar en el tablero), gestión de
+  usuarios desde la UI (admin), y desplegar en el VPS. **Siguiente trabajo.**
 - ⏳ **Fase 3:** vista sala de control (pantalla grande), overlay de la
   ilustración del parque, export PDF de reportes.
 
@@ -105,10 +108,13 @@ Archivos backend: `src/index.ts` (arranque, plugins, WS), `src/routes/*`,
 `src/auth.ts`, `src/db/client.ts` (adaptador PGlite/postgres), `src/db/bootstrap.ts`
 (crea tablas), `src/ws.ts` (hub), `src/seedAdmin.ts`.
 
-## ⏳ Fase 2b — Plan concreto (lo que sigue)
+## ✅ Fase 2b — IMPLEMENTADA (referencia de cómo funciona)
 
+> Ya está hecho y verificado. Esta sección documenta el diseño implementado.
 Objetivo: la app comparte datos entre dispositivos en tiempo real, con login y
-roles, **sin perder el offline**.
+roles, **sin perder el offline**. Archivos: `src/data/auth.ts` (sesión),
+`src/data/api.ts` (cliente HTTP), `src/data/sync.ts` (motor + WebSocket),
+`src/features/auth/Login.tsx`, y proxy en `vite.config.ts`.
 
 ### 1. Config de API (mismo origen en prod)
 - En prod, la PWA y la API comparten dominio: llamar a `/api` y `/ws` **relativos**.

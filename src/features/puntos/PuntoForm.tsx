@@ -23,12 +23,20 @@ import { btnPeligro, btnPrimario, btnSecundario, inputCls, labelCls } from "../.
 interface Props {
   geom: GeoJSON.Point;
   inicial?: PuntoServicio;
+  soloLectura?: boolean;
   onGuardar: (datos: Omit<PuntoServicio, "id" | "updated_at" | "updated_by"> & { id?: string }) => void;
   onEliminar?: () => void;
   onCerrar: () => void;
 }
 
-export function PuntoForm({ geom, inicial, onGuardar, onEliminar, onCerrar }: Props) {
+export function PuntoForm({
+  geom,
+  inicial,
+  soloLectura = false,
+  onGuardar,
+  onEliminar,
+  onCerrar,
+}: Props) {
   const [tipo, setTipo] = useState<TipoPunto>(inicial?.tipo ?? "hidratacion");
   const [nombre, setNombre] = useState(inicial?.nombre ?? "");
   const [estado, setEstado] = useState<EstadoPunto>(inicial?.estado ?? "operativo");
@@ -246,13 +254,15 @@ export function PuntoForm({ geom, inicial, onGuardar, onEliminar, onCerrar }: Pr
                 </div>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={marcarLimpio}
-              className="mt-3 w-full rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500"
-            >
-              🧹 {tipo === "residuos" ? "Basura recogida ahora" : "Marcar limpiado ahora"}
-            </button>
+            {!soloLectura && (
+              <button
+                type="button"
+                onClick={marcarLimpio}
+                className="mt-3 w-full rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500"
+              >
+                🧹 {tipo === "residuos" ? "Basura recogida ahora" : "Marcar limpiado ahora"}
+              </button>
+            )}
           </div>
         )}
 
@@ -266,23 +276,32 @@ export function PuntoForm({ geom, inicial, onGuardar, onEliminar, onCerrar }: Pr
           />
         </div>
 
-        <div className="flex items-center justify-between pt-2">
-          {onEliminar ? (
-            <button className={btnPeligro} onClick={onEliminar}>
-              Eliminar
-            </button>
-          ) : (
-            <span />
-          )}
-          <div className="flex gap-2">
+        {soloLectura ? (
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-xs text-slate-500">Solo lectura</span>
             <button className={btnSecundario} onClick={onCerrar}>
-              Cancelar
-            </button>
-            <button className={btnPrimario} onClick={guardar}>
-              Guardar
+              Cerrar
             </button>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between pt-2">
+            {onEliminar ? (
+              <button className={btnPeligro} onClick={onEliminar}>
+                Eliminar
+              </button>
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2">
+              <button className={btnSecundario} onClick={onCerrar}>
+                Cancelar
+              </button>
+              <button className={btnPrimario} onClick={guardar}>
+                Guardar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );

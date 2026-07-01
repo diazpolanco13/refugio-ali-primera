@@ -1,8 +1,17 @@
-import { db, nuevoId } from "./db";
+import { db, nuevoId, type OutboxItem } from "./db";
 import type { PuntoServicio, Sector } from "../domain/tipos";
+import { getUsuario } from "./auth";
+import { notificarCambioLocal } from "./sync";
 
-// Usuario local por defecto (Fase 1 sin auth). En Fase 2 vendrá de Supabase Auth.
-const USUARIO_LOCAL = "local";
+function usuarioActual(): string {
+  return getUsuario()?.username ?? "local";
+}
+
+/** Encola una mutación para subir al servidor y avisa al motor de sync. */
+async function encolar(item: OutboxItem): Promise<void> {
+  await db.outbox.put(item);
+  notificarCambioLocal();
+}
 
 // ---- Sectores ----
 
@@ -14,14 +23,31 @@ export async function guardarSector(
     ...datos,
     id,
     updated_at: Date.now(),
-    updated_by: USUARIO_LOCAL,
+    updated_by: usuarioActual(),
   };
   await db.sectores.put(sector);
+  await encolar({
+    clave: `sectores:${id}`,
+    entidad: "sectores",
+    id,
+    updated_at: sector.updated_at,
+    deleted: false,
+    data: sector,
+  });
   return id;
 }
 
 export async function eliminarSector(id: string): Promise<void> {
+  const previo = await db.sectores.get(id);
   await db.sectores.delete(id);
+  await encolar({
+    clave: `sectores:${id}`,
+    entidad: "sectores",
+    id,
+    updated_at: Date.now(),
+    deleted: true,
+    data: previo ?? { id },
+  });
 }
 
 // ---- Puntos de servicio ----
@@ -34,14 +60,31 @@ export async function guardarPunto(
     ...datos,
     id,
     updated_at: Date.now(),
-    updated_by: USUARIO_LOCAL,
+    updated_by: usuarioActual(),
   };
   await db.puntos.put(punto);
+  await encolar({
+    clave: `puntos:${id}`,
+    entidad: "puntos",
+    id,
+    updated_at: punto.updated_at,
+    deleted: false,
+    data: punto,
+  });
   return id;
 }
 
 export async function eliminarPunto(id: string): Promise<void> {
+  const previo = await db.puntos.get(id);
   await db.puntos.delete(id);
+  await encolar({
+    clave: `puntos:${id}`,
+    entidad: "puntos",
+    id,
+    updated_at: Date.now(),
+    deleted: true,
+    data: previo ?? { id },
+  });
 }
 
 // ---- Utilidades ----

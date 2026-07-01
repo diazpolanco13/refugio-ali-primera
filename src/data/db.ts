@@ -1,11 +1,22 @@
 import Dexie, { type EntityTable } from "dexie";
 import { SECTOR_COLORES, type PuntoServicio, type Sector } from "../domain/tipos";
 
+/** Mutación pendiente de subir al servidor (cola de sincronización). */
+export interface OutboxItem {
+  /** Clave = `${entidad}:${id}` (una entrada por entidad+id). */
+  clave: string;
+  entidad: "sectores" | "puntos";
+  id: string;
+  updated_at: number;
+  deleted: boolean;
+  data: unknown;
+}
+
 // Base de datos local (IndexedDB). Fuente inmediata para UI offline-first.
-// En Fase 2 se añade una cola de sincronización hacia Supabase.
 const db = new Dexie("refugio-parque-oeste") as Dexie & {
   sectores: EntityTable<Sector, "id">;
   puntos: EntityTable<PuntoServicio, "id">;
+  outbox: EntityTable<OutboxItem, "clave">;
 };
 
 db.version(1).stores({
@@ -47,6 +58,13 @@ db.version(2)
         i++;
       });
   });
+
+// v3: cola de sincronización (Fase 2b).
+db.version(3).stores({
+  sectores: "id, nombre, updated_at",
+  puntos: "id, tipo, estado, updated_at",
+  outbox: "clave, entidad, updated_at",
+});
 
 export { db };
 

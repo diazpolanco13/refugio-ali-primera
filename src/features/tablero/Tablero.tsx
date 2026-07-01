@@ -25,11 +25,19 @@ interface Props {
   sectores: Sector[];
   puntos: PuntoServicio[];
   ahora: number;
+  puedeEditar: boolean;
   onMarcarLimpio: (id: string) => void;
   onIrASector: (id: string) => void;
 }
 
-export function Tablero({ sectores, puntos, ahora, onMarcarLimpio, onIrASector }: Props) {
+export function Tablero({
+  sectores,
+  puntos,
+  ahora,
+  puedeEditar,
+  onMarcarLimpio,
+  onIrASector,
+}: Props) {
   const kpis = kpisGlobales(sectores, puntos);
   const alertas = generarAlertas(sectores, puntos);
 
@@ -120,13 +128,15 @@ export function Tablero({ sectores, puntos, ahora, onMarcarLimpio, onIrASector }
                         : ` · vencida hace ${formatoDuracion(info.venceEnMs)}`)}
                   </div>
                 </div>
-                <button
-                  onClick={() => onMarcarLimpio(p.id)}
-                  className="shrink-0 rounded-md bg-green-700/70 px-2 py-1 text-xs font-medium text-white hover:bg-green-600"
-                  title="Marcar como limpiado/recogido ahora"
-                >
-                  🧹 Limpio
-                </button>
+                {puedeEditar && (
+                  <button
+                    onClick={() => onMarcarLimpio(p.id)}
+                    className="shrink-0 rounded-md bg-green-700/70 px-2 py-1 text-xs font-medium text-white hover:bg-green-600"
+                    title="Marcar como limpiado/recogido ahora"
+                  >
+                    🧹 Limpio
+                  </button>
+                )}
               </div>
             ))}
           </div>

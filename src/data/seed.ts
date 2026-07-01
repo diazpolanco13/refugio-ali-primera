@@ -1,4 +1,4 @@
-import { guardarPunto, guardarSector } from "./repos";
+import { eliminarPunto, eliminarSector, guardarPunto, guardarSector } from "./repos";
 import { PARQUE_CENTRO, SECTOR_COLORES, type TipoPunto } from "../domain/tipos";
 import { db, nuevoId } from "./db";
 
@@ -80,6 +80,11 @@ export async function cargarEjemplo(): Promise<void> {
 }
 
 export async function limpiarTodo(): Promise<void> {
-  await db.sectores.clear();
-  await db.puntos.clear();
+  // Borrado suave (encola tombstones) para que la baja se propague al servidor.
+  const [sectores, puntos] = await Promise.all([
+    db.sectores.toArray(),
+    db.puntos.toArray(),
+  ]);
+  for (const s of sectores) await eliminarSector(s.id);
+  for (const p of puntos) await eliminarPunto(p.id);
 }

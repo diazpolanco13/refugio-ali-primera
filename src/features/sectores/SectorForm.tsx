@@ -14,6 +14,7 @@ interface Props {
   geom: GeoJSON.Polygon;
   inicial?: Sector;
   colorSugerido: string;
+  soloLectura?: boolean;
   onGuardar: (datos: Omit<Sector, "id" | "updated_at" | "updated_by"> & { id?: string }) => void;
   onEliminar?: () => void;
   onCerrar: () => void;
@@ -23,6 +24,7 @@ export function SectorForm({
   geom,
   inicial,
   colorSugerido,
+  soloLectura = false,
   onGuardar,
   onEliminar,
   onCerrar,
@@ -258,23 +260,32 @@ export function SectorForm({
           />
         </div>
 
-        <div className="flex items-center justify-between pt-1">
-          {onEliminar ? (
-            <button className={btnPeligro} onClick={onEliminar}>
-              Eliminar
-            </button>
-          ) : (
-            <span />
-          )}
-          <div className="flex gap-2">
+        {soloLectura ? (
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs text-slate-500">Solo lectura</span>
             <button className={btnSecundario} onClick={onCerrar}>
-              Cancelar
-            </button>
-            <button className={btnPrimario} onClick={guardar}>
-              Guardar
+              Cerrar
             </button>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between pt-1">
+            {onEliminar ? (
+              <button className={btnPeligro} onClick={onEliminar}>
+                Eliminar
+              </button>
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2">
+              <button className={btnSecundario} onClick={onCerrar}>
+                Cancelar
+              </button>
+              <button className={btnPrimario} onClick={guardar}>
+                Guardar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );

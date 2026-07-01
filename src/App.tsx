@@ -16,6 +16,9 @@ import { cargarVista } from "./data/preferencias";
 import { SectorForm } from "./features/sectores/SectorForm";
 import { PuntoForm } from "./features/puntos/PuntoForm";
 import { Tablero } from "./features/tablero/Tablero";
+import { Login } from "./features/auth/Login";
+import { cerrarSesion, useSesion, type Sesion } from "./data/auth";
+import { detenerSync, iniciarSync, useEstadoSync, type EstadoSync } from "./data/sync";
 import { btnSecundario } from "./ui/clases";
 
 type Pendiente =
@@ -28,7 +31,9 @@ type Editando =
   | { clase: "punto"; item: PuntoServicio }
   | null;
 
-export function App() {
+function AppInterna({ sesion }: { sesion: Sesion }) {
+  const puedeEditar = sesion.user.rol !== "visor";
+  const estadoSync = useEstadoSync();
   const sectores = useLiveQuery(() => db.sectores.toArray(), [], [] as Sector[]);
   const puntos = useLiveQuery(() => db.puntos.toArray(), [], [] as PuntoServicio[]);
 
@@ -109,22 +114,28 @@ export function App() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <span
-            className={`hidden items-center gap-1 rounded-full px-2 py-0.5 text-[11px] sm:flex ${
-              online ? "bg-green-900/60 text-green-300" : "bg-amber-900/60 text-amber-300"
-            }`}
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${online ? "bg-green-400" : "bg-amber-400"}`}
-            />
-            {online ? "En línea" : "Sin conexión"}
-          </span>
+          <IndicadorSync online={online} estado={estadoSync} />
           <button
             className={btnSecundario}
             onClick={() => setTableroAbierto((v) => !v)}
           >
             📊 Tablero
           </button>
+          <div className="hidden items-center gap-2 border-l border-slate-700 pl-2 sm:flex">
+            <span className="text-xs text-slate-300">
+              {sesion.user.nombre || sesion.user.username}
+              <span className="ml-1 rounded bg-slate-700 px-1 py-0.5 text-[10px] text-slate-300">
+                {sesion.user.rol}
+              </span>
+            </span>
+            <button
+              className="rounded-md px-2 py-1 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+              onClick={() => cerrarSesion()}
+              title="Cerrar sesión"
+            >
+              Salir
+            </button>
+          </div>
         </div>
       </header>
 
@@ -200,38 +211,40 @@ export function App() {
         {panelAbierto && (
           <div className="absolute left-3 top-3 z-10 flex max-h-[calc(100%-1.5rem)] w-72 flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-900/95 shadow-xl backdrop-blur">
             <div className="overflow-y-auto p-3">
-              {/* Herramientas de dibujo */}
-              <div className="mb-3 space-y-2">
-                <BotonHerramienta
-                  activo={modoDibujo === "poligono"}
-                  onClick={() => elegirDibujo("poligono")}
-                >
-                  ⬠ Dibujar sector
-                </BotonHerramienta>
-                <div className="grid grid-cols-2 gap-2">
+              {/* Herramientas de dibujo (ocultas para el rol visor) */}
+              {puedeEditar && (
+                <div className="mb-3 space-y-2">
                   <BotonHerramienta
-                    activo={modoDibujo === "rectangulo"}
-                    onClick={() => elegirDibujo("rectangulo")}
+                    activo={modoDibujo === "poligono"}
+                    onClick={() => elegirDibujo("poligono")}
                   >
-                    ▭ Rectángulo
+                    ⬠ Dibujar sector
                   </BotonHerramienta>
+                  <div className="grid grid-cols-2 gap-2">
+                    <BotonHerramienta
+                      activo={modoDibujo === "rectangulo"}
+                      onClick={() => elegirDibujo("rectangulo")}
+                    >
+                      ▭ Rectángulo
+                    </BotonHerramienta>
+                    <BotonHerramienta
+                      activo={modoDibujo === "punto"}
+                      onClick={() => elegirDibujo("punto")}
+                    >
+                      📍 Punto
+                    </BotonHerramienta>
+                  </div>
                   <BotonHerramienta
-                    activo={modoDibujo === "punto"}
-                    onClick={() => elegirDibujo("punto")}
+                    activo={modoEdicion}
+                    onClick={() => {
+                      setModoDibujo("none");
+                      setModoEdicion((v) => !v);
+                    }}
                   >
-                    📍 Punto
+                    ✏️ {modoEdicion ? "Salir de edición" : "Editar ubicaciones"}
                   </BotonHerramienta>
                 </div>
-                <BotonHerramienta
-                  activo={modoEdicion}
-                  onClick={() => {
-                    setModoDibujo("none");
-                    setModoEdicion((v) => !v);
-                  }}
-                >
-                  ✏️ {modoEdicion ? "Salir de edición" : "Editar ubicaciones"}
-                </BotonHerramienta>
-              </div>
+              )}
 
               {/* Base del mapa */}
               <div className="mb-3">
@@ -323,26 +336,28 @@ export function App() {
                 </label>
               ))}
 
-              {/* Datos de ejemplo / limpiar */}
-              <div className="mt-3 flex gap-2 border-t border-slate-800 pt-3">
-                {sectores.length === 0 && puntos.length === 0 ? (
-                  <button
-                    className="flex-1 rounded-md border border-slate-600 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
-                    onClick={() => cargarEjemplo()}
-                  >
-                    Cargar ejemplo
-                  </button>
-                ) : (
-                  <button
-                    className="flex-1 rounded-md border border-red-900 py-1.5 text-xs text-red-300 hover:bg-red-950"
-                    onClick={() => {
-                      if (confirm("¿Borrar todos los datos locales?")) limpiarTodo();
-                    }}
-                  >
-                    Limpiar datos
-                  </button>
-                )}
-              </div>
+              {/* Datos de ejemplo / limpiar (solo admin) */}
+              {sesion.user.rol === "admin" && (
+                <div className="mt-3 flex gap-2 border-t border-slate-800 pt-3">
+                  {sectores.length === 0 && puntos.length === 0 ? (
+                    <button
+                      className="flex-1 rounded-md border border-slate-600 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+                      onClick={() => cargarEjemplo()}
+                    >
+                      Cargar ejemplo
+                    </button>
+                  ) : (
+                    <button
+                      className="flex-1 rounded-md border border-red-900 py-1.5 text-xs text-red-300 hover:bg-red-950"
+                      onClick={() => {
+                        if (confirm("¿Borrar todos los datos locales?")) limpiarTodo();
+                      }}
+                    >
+                      Limpiar datos
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -364,6 +379,7 @@ export function App() {
                 sectores={sectores}
                 puntos={puntos}
                 ahora={ahora}
+                puedeEditar={puedeEditar}
                 onMarcarLimpio={marcarLimpio}
                 onIrASector={(id) => {
                   const s = sectores.find((x) => x.id === id);
@@ -378,6 +394,7 @@ export function App() {
         {pendiente?.clase === "sector" && (
           <SectorForm
             geom={pendiente.geom}
+            soloLectura={!puedeEditar}
             colorSugerido={SECTOR_COLORES[sectores.length % SECTOR_COLORES.length]}
             onGuardar={async (d) => {
               await guardarSector(d);
@@ -389,6 +406,7 @@ export function App() {
         {pendiente?.clase === "punto" && (
           <PuntoForm
             geom={pendiente.geom}
+            soloLectura={!puedeEditar}
             onGuardar={async (d) => {
               await guardarPunto(d);
               setPendiente(null);
@@ -400,6 +418,7 @@ export function App() {
           <SectorForm
             geom={editando.item.geom}
             inicial={editando.item}
+            soloLectura={!puedeEditar}
             colorSugerido={editando.item.color}
             onGuardar={async (d) => {
               await guardarSector(d);
@@ -416,6 +435,7 @@ export function App() {
           <PuntoForm
             geom={editando.item.geom}
             inicial={editando.item}
+            soloLectura={!puedeEditar}
             onGuardar={async (d) => {
               await guardarPunto(d);
               setEditando(null);
@@ -453,4 +473,32 @@ function BotonHerramienta({
       {children}
     </button>
   );
+}
+
+function IndicadorSync({ online, estado }: { online: boolean; estado: EstadoSync }) {
+  const { texto, dot, cls } = !online
+    ? { texto: "Sin conexión", dot: "bg-amber-400", cls: "bg-amber-900/60 text-amber-300" }
+    : estado === "sincronizando"
+      ? { texto: "Sincronizando…", dot: "bg-sky-400 animate-pulse", cls: "bg-sky-900/60 text-sky-300" }
+      : estado === "error"
+        ? { texto: "Sin sync", dot: "bg-red-400", cls: "bg-red-900/60 text-red-300" }
+        : { texto: "En línea", dot: "bg-green-400", cls: "bg-green-900/60 text-green-300" };
+  return (
+    <span className={`hidden items-center gap-1 rounded-full px-2 py-0.5 text-[11px] sm:flex ${cls}`}>
+      <span className={`h-2 w-2 rounded-full ${dot}`} />
+      {texto}
+    </span>
+  );
+}
+
+export function App() {
+  const sesion = useSesion();
+
+  useEffect(() => {
+    if (sesion) iniciarSync();
+    else detenerSync();
+  }, [sesion?.token]);
+
+  if (!sesion) return <Login />;
+  return <AppInterna sesion={sesion} />;
 }

@@ -4,6 +4,14 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  // En desarrollo, el frontend (5173) reenvía /api y /ws al backend (3001).
+  // En producción, Caddy sirve la PWA y proxya /api y /ws en el mismo dominio.
+  server: {
+    proxy: {
+      "/api": "http://localhost:3001",
+      "/ws": { target: "http://localhost:3001", ws: true },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),
