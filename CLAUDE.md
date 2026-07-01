@@ -163,20 +163,74 @@ roles, **sin perder el offline**. Archivos: `src/data/auth.ts` (sesión),
   con `{accion, entidad, entidad_id, detalle}` → registra quién y cuándo. Mostrar
   en el tablero.
 
-## Despliegue en el VPS (ya preparado)
+## 🚀 Desplegar en el VPS (Docker) — SIGUIENTE PASO
 
-Docker Compose con Postgres + API + **Caddy** (HTTPS automático). El usuario tiene
-dominio y un VPS (6 vCPU / 12 GB). Ver `docker-compose.yml`, `Caddyfile`,
-`server/Dockerfile`, `.env.deploy.example`.
+Objetivo: dejar la app en `https://TU-DOMINIO` con Postgres + API + Caddy (HTTPS
+automático). VPS del usuario: 6 vCPU / 12 GB / 200 GB, con dominio. Archivos ya
+listos: `docker-compose.yml`, `Caddyfile`, `server/Dockerfile`, `.env.deploy.example`.
 
+**Requisitos en el VPS:**
+- Docker + Docker Compose v2.
+- **Node 20+** en el host (solo para `npm run build` de la PWA).
+- Dominio con registro **A** apuntando a la IP del VPS.
+- Puertos **80 y 443** abiertos (Caddy emite el certificado por HTTP-01).
+
+**Pasos:**
 ```bash
 git clone https://github.com/diazpolanco13/refugio-ali-primera.git
 cd refugio-ali-primera
-cp .env.deploy.example .env     # DOMAIN, JWT_SECRET, DB_PASSWORD, ADMIN_PASSWORD reales
-npm install && npm run build    # genera dist/ (Caddy la sirve)
+
+# 1) Secretos de despliegue (NO se commitean; .env está en .gitignore)
+cp .env.deploy.example .env
+#   Editar .env:  DOMAIN=refugio.tudominio.com
+#                 DB_PASSWORD=...           (fuerte)
+#                 JWT_SECRET=$(openssl rand -base64 48)
+#                 ADMIN_USER=admin
+#                 ADMIN_PASSWORD=...         (cambia el admin1234 por defecto)
+#   (Opcional) clave MapTiler para bases HD — Vite la hornea al construir:
+#                 VITE_MAPTILER_KEY=tu-clave   (puede ir en el mismo .env)
+
+# 2) Construir la PWA (genera dist/, que Caddy sirve)
+npm install
+npm run build
+
+# 3) Levantar todo
 docker compose up -d --build
 ```
-`.env` está en `.gitignore` — **nunca** commitear secretos.
+
+**Verificar:**
+- `docker compose ps` → db, server, caddy en "up".
+- `docker compose logs -f server` → "Escuchando en :3001 (Postgres)" y (1ª vez) "Usuario admin creado".
+- Abrir `https://TU-DOMINIO` → login. Entrar con ADMIN_USER / ADMIN_PASSWORD.
+- `curl https://TU-DOMINIO/api/health` → `{"ok":true,"db":"postgres",...}`.
+
+**Crear usuarios** (aún NO hay UI de gestión — es parte de la Fase 2c). Con el admin:
+```bash
+TOKEN=$(curl -s https://TU-DOMINIO/api/auth/login -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"TU_PASS"}' | jq -r .token)
+curl -s https://TU-DOMINIO/api/usuarios -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"coord1","password":"secreto123","nombre":"Coordinador","rol":"coordinador"}'
+```
+Roles: `admin` · `coordinador` · `campo` · `visor` (solo lectura).
+
+**Actualizar tras nuevos commits:**
+```bash
+git pull
+npm run build                    # reconstruye la PWA
+docker compose up -d --build     # reconstruye la API si cambió
+```
+
+**Notas de despliegue:**
+- La PWA llama a `/api` y `/ws` **relativos** → Caddy los proxya a `server:3001`
+  en el mismo dominio (WebSocket incluido). No hay que configurar URLs.
+- `dist/` debe existir antes de `docker compose up` (por eso el `npm run build`).
+  Alternativa (opcional, pendiente): añadir un servicio de build en compose para
+  no necesitar Node en el host.
+- Postgres persiste en el volumen `dbdata`. Backup:
+  `docker compose exec db pg_dump -U refugio refugio > backup.sql`.
+- Cambiar `JWT_SECRET` invalida las sesiones activas (todos deben re-login).
+- Solo los VITE_* entran al bundle; `DB_PASSWORD`/`JWT_SECRET` NO se exponen.
 
 ## Notas / gotchas
 
