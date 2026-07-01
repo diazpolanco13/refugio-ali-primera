@@ -359,6 +359,12 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
         console.warn(`[mapa] Punto ${p.id}: tipo desconocido "${p.tipo}" — se omite`);
         continue;
       }
+      if (!p.geom?.coordinates) {
+        // Mismo caso que el tipo desconocido: geometría corrupta o ausente
+        // (dato de sync parcial) no debe tumbar el mapa.
+        console.warn(`[mapa] Punto ${p.id}: geometría ausente — se omite`);
+        continue;
+      }
       vistos.add(p.id);
       const color = meta.color;
       // El anillo del ícono refleja el cronómetro de limpieza (si aplica);

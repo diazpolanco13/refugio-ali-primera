@@ -41,9 +41,10 @@ export function puntosEnSector(
   sector: Sector,
   puntos: PuntoServicio[],
 ): PuntoServicio[] {
-  return puntos.filter((p) =>
-    puntoEnPoligono(p.geom.coordinates as [number, number], sector.geom),
-  );
+  return puntos.filter((p) => {
+    if (!p.geom?.coordinates) return false;
+    return puntoEnPoligono(p.geom.coordinates as [number, number], sector.geom);
+  });
 }
 
 export interface Cobertura {
