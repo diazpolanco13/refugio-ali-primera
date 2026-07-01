@@ -351,8 +351,15 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
     if (!map || !listoRef.current) return;
     const vistos = new Set<string>();
     for (const p of cbRef.current.puntos) {
-      vistos.add(p.id);
       const meta = META_POR_TIPO[p.tipo];
+      if (!meta) {
+        // Un punto con tipo desconocido (dato corrupto o de una versión previa)
+        // NO debe tumbar todo el mapa. Lo omitimos y avisamos en consola para
+        // poder ubicarlo y corregirlo.
+        console.warn(`[mapa] Punto ${p.id}: tipo desconocido "${p.tipo}" — se omite`);
+        continue;
+      }
+      vistos.add(p.id);
       const color = meta.color;
       // El anillo del ícono refleja el cronómetro de limpieza (si aplica);
       // si está fuera de servicio, siempre rojo.
