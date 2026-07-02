@@ -69,6 +69,11 @@ export function totalMujeres(v: Vulnerables): number {
   return (v.ninas || 0) + (v.adultos_m || 0) + (v.adultos_mayores_m || 0);
 }
 
+/** Población total del sector según el desglose por edad y sexo. */
+export function totalPoblacion(v: Vulnerables): number {
+  return totalHombres(v) + totalMujeres(v);
+}
+
 /**
  * Total de personas en grupos vulnerables prioritarios: niñez, adultos
  * mayores, embarazadas y personas con discapacidad (excluye adultos 18-59
@@ -84,6 +89,18 @@ export function totalVulnerables(v: Vulnerables): number {
     (v.discapacidad_h || 0) +
     (v.discapacidad_m || 0)
   );
+}
+
+/** Suma el desglose demográfico de varios sectores. */
+export function sumarVulnerables(sectores: { vulnerables?: Partial<Vulnerables> | null }[]): Vulnerables {
+  const total = { ...VULNERABLES_VACIO };
+  for (const s of sectores) {
+    const v = normalizarVulnerables(s.vulnerables);
+    (Object.keys(total) as (keyof Vulnerables)[]).forEach((k) => {
+      total[k] += v[k] || 0;
+    });
+  }
+  return total;
 }
 
 /** Categoría del responsable, para saber a qué cuerpo/rol pertenece. */
@@ -162,6 +179,9 @@ export interface Sector {
   color: string;
   /** Responsables por función (basura, baños, censo, coordinación…). */
   responsables: Responsable[];
+  /** Carpas/contenedores familiares contados en el recorrido inicial del sector. */
+  carpas: number;
+  /** Suma del desglose demográfico (se calcula al guardar). */
   poblacion_estimada: number;
   familias: number;
   vulnerables: Vulnerables;
@@ -289,3 +309,69 @@ export const META_POR_TIPO: Record<TipoPunto, MetaTipo> = Object.fromEntries(
 /** Centro del Parque del Oeste "Alí Primera", Caracas. */
 export const PARQUE_CENTRO: [number, number] = [-66.939458, 10.5141373];
 export const PARQUE_ZOOM = 16.5;
+
+/** Líneas de referencia cartográfica (límites, calles, caminerías). Sin relleno. */
+export type TipoLinea = "limite_parque" | "calle" | "camineria";
+
+export type EstiloTrazo = "solido" | "punteado" | "guiones";
+
+export interface LineaReferencia {
+  id: string;
+  nombre: string;
+  tipo: TipoLinea;
+  /** LineString GeoJSON en [lng, lat]. */
+  geom: GeoJSON.LineString;
+  color: string;
+  estilo: EstiloTrazo;
+  /** Grosor del trazo en píxeles (MapLibre). */
+  ancho: number;
+  notas: string;
+  updated_at: number;
+  updated_by: string;
+}
+
+export interface MetaTipoLinea {
+  tipo: TipoLinea;
+  label: string;
+  icono: string;
+  color: string;
+  estilo: EstiloTrazo;
+  ancho: number;
+}
+
+export const CATALOGO_LINEAS: MetaTipoLinea[] = [
+  {
+    tipo: "limite_parque",
+    label: "Límite del parque",
+    icono: "⬚",
+    color: "#fbbf24",
+    estilo: "punteado",
+    ancho: 3,
+  },
+  {
+    tipo: "calle",
+    label: "Calle / vía",
+    icono: "═",
+    color: "#e2e8f0",
+    estilo: "solido",
+    ancho: 2.5,
+  },
+  {
+    tipo: "camineria",
+    label: "Caminería / sendero",
+    icono: "╌",
+    color: "#94a3b8",
+    estilo: "guiones",
+    ancho: 2,
+  },
+];
+
+export const META_LINEA_POR_TIPO: Record<TipoLinea, MetaTipoLinea> = Object.fromEntries(
+  CATALOGO_LINEAS.map((m) => [m.tipo, m]),
+) as Record<TipoLinea, MetaTipoLinea>;
+
+/** Valores por defecto de apariencia según el tipo de línea. */
+export function defaultsLinea(tipo: TipoLinea): Pick<LineaReferencia, "color" | "estilo" | "ancho"> {
+  const m = META_LINEA_POR_TIPO[tipo];
+  return { color: m.color, estilo: m.estilo, ancho: m.ancho };
+}

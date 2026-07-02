@@ -1,9 +1,15 @@
+import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
+  },
   // En desarrollo, el frontend (5173) reenvía /api y /ws al backend (3001).
   // En producción, Caddy sirve la PWA y proxya /api y /ws en el mismo dominio.
   server: {

@@ -3,7 +3,7 @@ import type { EntityTable } from "dexie";
 import { db } from "./db";
 import { api, type FilaSync } from "./api";
 import { getToken } from "./auth";
-import type { PuntoServicio, Sector } from "../domain/tipos";
+import type { LineaReferencia, PuntoServicio, Sector } from "../domain/tipos";
 
 // ---- Estado observable para la UI ----
 export type EstadoSync = "idle" | "sincronizando" | "ok" | "error" | "offline";
@@ -41,7 +41,10 @@ export function reiniciarLastSync(): void {
 }
 
 // ---- Aplicar filas entrantes a Dexie (last-write-wins) ----
-type Tabla = EntityTable<Sector, "id"> | EntityTable<PuntoServicio, "id">;
+type Tabla =
+  | EntityTable<Sector, "id">
+  | EntityTable<PuntoServicio, "id">
+  | EntityTable<LineaReferencia, "id">;
 
 /** Filas antiguas del servidor pueden traer `data` como string JSON. */
 function normalizarData(data: unknown): Record<string, unknown> {
@@ -74,9 +77,14 @@ async function aplicarFila(tabla: Tabla, fila: FilaSync): Promise<void> {
   }
 }
 
-async function aplicarLote(entidad: "sectores" | "puntos", filas: FilaSync[]): Promise<void> {
+async function aplicarLote(
+  entidad: "sectores" | "puntos" | "lineas",
+  filas: FilaSync[],
+): Promise<void> {
   if (!filas.length) return;
-  const tabla = (entidad === "sectores" ? db.sectores : db.puntos) as Tabla;
+  const tabla = (
+    entidad === "sectores" ? db.sectores : entidad === "puntos" ? db.puntos : db.lineas
+  ) as Tabla;
   await db.transaction("rw", tabla, async () => {
     for (const f of filas) await aplicarFila(tabla, f);
   });
@@ -86,7 +94,11 @@ async function aplicarLote(entidad: "sectores" | "puntos", filas: FilaSync[]): P
 async function push(): Promise<void> {
   const items = await db.outbox.toArray();
   if (!items.length) return;
-  const body: { sectores: FilaSync[]; puntos: FilaSync[] } = { sectores: [], puntos: [] };
+  const body: { sectores: FilaSync[]; puntos: FilaSync[]; lineas: FilaSync[] } = {
+    sectores: [],
+    puntos: [],
+    lineas: [],
+  };
   for (const it of items) {
     const fila: FilaSync = {
       id: it.id,
@@ -94,7 +106,7 @@ async function push(): Promise<void> {
       deleted: it.deleted,
       data: it.data,
     };
-    (it.entidad === "sectores" ? body.sectores : body.puntos).push(fila);
+    body[it.entidad].push(fila);
   }
   await api.push(body);
   // Borrar de la cola lo enviado, salvo que haya cambiado mientras tanto.
@@ -112,6 +124,7 @@ async function pull(): Promise<void> {
   const r = await api.pull(getLastSync());
   await aplicarLote("sectores", r.sectores);
   await aplicarLote("puntos", r.puntos);
+  await aplicarLote("lineas", r.lineas);
   setLastSync(r.serverTime);
 }
 
@@ -146,7 +159,7 @@ function conectarWs(): void {
     try {
       const msg = JSON.parse(ev.data) as {
         type: string;
-        entidad?: "sectores" | "puntos";
+        entidad?: "sectores" | "puntos" | "lineas";
         filas?: FilaSync[];
       };
       if (msg.type === "cambio" && msg.entidad && msg.filas) {

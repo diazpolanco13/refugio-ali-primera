@@ -1,4 +1,4 @@
-import { cerrarSesion, getToken, type Sesion } from "./auth";
+import { cerrarSesion, getToken, type Rol, type Sesion } from "./auth";
 
 const BASE = "/api";
 
@@ -10,9 +10,19 @@ export interface FilaSync {
   data: unknown;
 }
 
+export interface UsuarioRegistro {
+  id: string;
+  username: string;
+  nombre: string | null;
+  rol: Rol;
+  sector_asignado: string | null;
+  created_at: number;
+}
+
 export interface RespuestaPull {
   sectores: FilaSync[];
   puntos: FilaSync[];
+  lineas: FilaSync[];
   serverTime: number;
 }
 
@@ -54,11 +64,19 @@ export const api = {
     return req<RespuestaPull>(`/sync?since=${since}`);
   },
 
-  push(body: { sectores: FilaSync[]; puntos: FilaSync[] }): Promise<{
+  push(body: { sectores: FilaSync[]; puntos: FilaSync[]; lineas: FilaSync[] }): Promise<{
     serverTime: number;
-    aplicados: { sectores: number; puntos: number };
+    aplicados: { sectores: number; puntos: number; lineas: number };
   }> {
     return req("/sync", { method: "POST", body: JSON.stringify(body) });
+  },
+
+  purgeMapa(): Promise<{
+    ok: boolean;
+    serverTime: number;
+    borrados: { sectores: number; puntos: number; lineas: number };
+  }> {
+    return req("/sync/purge", { method: "POST", body: "{}" });
   },
 
   historial(entry: {
@@ -68,5 +86,31 @@ export const api = {
     detalle?: unknown;
   }): Promise<{ id: string }> {
     return req("/historial", { method: "POST", body: JSON.stringify(entry) });
+  },
+
+  listarUsuarios(): Promise<UsuarioRegistro[]> {
+    return req("/usuarios");
+  },
+
+  crearUsuario(body: {
+    username: string;
+    password: string;
+    nombre?: string;
+    rol?: Rol;
+    sector_asignado?: string;
+  }): Promise<UsuarioRegistro> {
+    return req("/usuarios", { method: "POST", body: JSON.stringify(body) });
+  },
+
+  actualizarUsuario(
+    id: string,
+    body: {
+      nombre?: string | null;
+      rol?: Rol;
+      password?: string;
+      sector_asignado?: string | null;
+    },
+  ): Promise<UsuarioRegistro> {
+    return req(`/usuarios/${id}`, { method: "PATCH", body: JSON.stringify(body) });
   },
 };

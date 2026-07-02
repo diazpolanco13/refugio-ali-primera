@@ -1,7 +1,19 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import maplibregl from "maplibre-gl";
+import { MarcadorPunto } from "./MarcadorPunto";
+import { MarcadorSector } from "./MarcadorSector";
+import { PreviewSectorDatos } from "./PreviewSectorDatos";
+import {
+  aplicarTransformEscala,
+  escalaMarcadorPorZoom,
+  esVistaCompacta,
+  MK_ESCALA_SELECTOR,
+  ocultarNombreSector,
+} from "./escalaMarcadores";
 import {
   TerraDraw,
+  TerraDrawLineStringMode,
   TerraDrawPointMode,
   TerraDrawPolygonMode,
   TerraDrawRectangleMode,
@@ -17,8 +29,10 @@ import {
   MOVILIDAD_ICONO,
   MOVILIDAD_LABEL,
   PARQUE_CENTRO,
+  type LineaReferencia,
   type PuntoServicio,
   type Sector,
+  type TipoLinea,
   type TipoPunto,
 } from "../domain/tipos";
 import { ESTADOS_PUNTO } from "../domain/tipos";
@@ -28,23 +42,38 @@ import { cargarVista, guardarVista, VISTA_DEFECTO } from "../data/preferencias";
 
 export type { BaseMapa } from "./estiloMapa";
 import type { BaseMapa } from "./estiloMapa";
-export type ModoDibujo = "none" | "poligono" | "rectangulo" | "punto";
+export type ModoDibujo =
+  | "none"
+  | "poligono"
+  | "rectangulo"
+  | "punto"
+  | "linea_limite"
+  | "linea_calle"
+  | "linea_camineria";
+
+const CAPAS_LINEA = ["lineas-solido", "lineas-punteado", "lineas-guiones"] as const;
 
 interface Props {
   sectores: Sector[];
   puntos: PuntoServicio[];
+  lineas: LineaReferencia[];
   capasVisibles: Set<TipoPunto>;
+  lineasVisibles: Set<TipoLinea>;
   mostrarSectores: boolean;
+  mostrarLineas: boolean;
   baseMapa: BaseMapa;
   modoDibujo: ModoDibujo;
   modoEdicion: boolean;
   ahora: number;
   onSectorDibujado: (geom: GeoJSON.Polygon) => void;
   onPuntoDibujado: (geom: GeoJSON.Point) => void;
+  onLineaDibujada: (geom: GeoJSON.LineString) => void;
   onSeleccionarSector: (id: string) => void;
   onSeleccionarPunto: (id: string) => void;
+  onSeleccionarLinea: (id: string) => void;
   onMoverPunto: (id: string, coords: [number, number]) => void;
   onEditarSectorGeom: (id: string, geom: GeoJSON.Polygon) => void;
+  onEditarLineaGeom: (id: string, geom: GeoJSON.LineString) => void;
   onVistaCambio?: (zoom: number) => void;
 }
 
@@ -74,13 +103,6 @@ const estadoColor = (estado: string): string =>
 /** Número visible en el marcador (capacidad). */
 function numeroPunto(p: PuntoServicio): string {
   return p.capacidad > 0 ? String(p.capacidad) : "";
-}
-
-function escapar(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
 
 /** Título corto para el marcador del punto. */
@@ -125,10 +147,167 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
   const listoRef = useRef(false);
   const marcadoresSector = useRef<Map<string, maplibregl.Marker>>(new Map());
   const marcadoresPunto = useRef<Map<string, maplibregl.Marker>>(new Map());
+  const rootsSector = useRef<Map<string, Root>>(new Map());
+  const rootsPunto = useRef<Map<string, Root>>(new Map());
+  const zoomRef = useRef(cargarVista().zoom);
+  const compactoRef = useRef(esVistaCompacta(cargarVista().zoom));
+  const popupSectorRef = useRef<maplibregl.Popup | null>(null);
+  const popupSectorRootRef = useRef<Root | null>(null);
+  const popupSectorIdRef = useRef<string | null>(null);
 
   // Refs a callbacks para no re-registrar listeners.
   const cbRef = useRef(props);
   cbRef.current = props;
+
+  function aplicarEscalaVista(zoom: number) {
+    zoomRef.current = zoom;
+    const escala = escalaMarcadorPorZoom(zoom);
+    const compacto = esVistaCompacta(zoom);
+    const compactoCambio = compacto !== compactoRef.current;
+    compactoRef.current = compacto;
+    const ocultarSectores = ocultarNombreSector(zoom);
+
+    for (const [id, m] of marcadoresPunto.current) {
+      const escalaEl = m.getElement().querySelector<HTMLElement>(MK_ESCALA_SELECTOR);
+      if (escalaEl) aplicarTransformEscala(escalaEl, escala);
+      if (compactoCambio) {
+        const p = cbRef.current.puntos.find((x) => x.id === id);
+        if (p) rootsPunto.current.get(id)?.render(renderMarcadorPunto(p, compacto));
+      }
+    }
+
+    for (const [id, m] of marcadoresSector.current) {
+      const anchor = m.getElement();
+      const escalaEl = anchor.querySelector<HTMLElement>(MK_ESCALA_SELECTOR);
+      if (escalaEl) aplicarTransformEscala(escalaEl, escala);
+      const s = cbRef.current.sectores.find((x) => x.id === id);
+      if (!s) continue;
+      const visible =
+        cbRef.current.mostrarSectores &&
+        !cbRef.current.modoEdicion &&
+        !ocultarSectores;
+      anchor.style.display = visible ? "block" : "none";
+    }
+  }
+
+  function crearAnchorMarcador(): HTMLDivElement {
+    const anchor = document.createElement("div");
+    anchor.className = "map-mk-anchor";
+    const escala = document.createElement("div");
+    escala.className = "map-mk-scale";
+    anchor.appendChild(escala);
+    return anchor;
+  }
+
+  function mountMarcador(anchor: HTMLDivElement): HTMLDivElement {
+    const escala = anchor.querySelector(MK_ESCALA_SELECTOR);
+    if (!escala) throw new Error("map-mk-scale ausente");
+    const mount = document.createElement("div");
+    escala.appendChild(mount);
+    return mount;
+  }
+
+  function renderMarcadorPunto(p: PuntoServicio, compacto = esVistaCompacta(zoomRef.current)) {
+    const meta = META_POR_TIPO[p.tipo];
+    let ringColor = estadoColor(p.estado);
+    if (p.estado !== "fuera_servicio") {
+      const li = infoLimpieza(p, cbRef.current.ahora);
+      if (li && li.estado !== "sin_programar") ringColor = li.color;
+    }
+    return (
+      <MarcadorPunto
+        icono={meta.icono}
+        color={meta.color}
+        ringColor={ringColor}
+        numero={numeroPunto(p)}
+        titulo={tituloPunto(p)}
+        detalle={detallePunto(p)}
+        limpieza={textoLimpieza(p, cbRef.current.ahora) ?? ""}
+        fueraServicio={p.estado === "fuera_servicio"}
+        compacto={compacto}
+        cursor={cbRef.current.modoEdicion ? "move" : "pointer"}
+        onClick={() => {
+          if (cbRef.current.modoDibujo !== "none" || cbRef.current.modoEdicion) return;
+          cbRef.current.onSeleccionarPunto(p.id);
+        }}
+      />
+    );
+  }
+
+  function renderMarcadorSector(s: Sector) {
+    const colorSector = s.color || "#2dd4bf";
+    const estado = estadoSector(s, cbRef.current.puntos);
+    const colorEstado = ESTADO_SECTOR_COLOR[estado];
+    return (
+      <MarcadorSector
+        sector={s}
+        colorSector={colorSector}
+        colorEstado={colorEstado}
+        estado={estado}
+      />
+    );
+  }
+
+  function puedePrevisualizarSector(): boolean {
+    return (
+      cbRef.current.mostrarSectores &&
+      !cbRef.current.modoEdicion &&
+      cbRef.current.modoDibujo === "none"
+    );
+  }
+
+  function ocultarPreviewPoligono(): void {
+    popupSectorRef.current?.remove();
+    popupSectorRootRef.current?.unmount();
+    popupSectorRootRef.current = null;
+    popupSectorIdRef.current = null;
+  }
+
+  function mostrarPreviewPoligono(sector: Sector): void {
+    const map = mapRef.current;
+    if (!map) return;
+    if (popupSectorIdRef.current === sector.id) return;
+
+    ocultarPreviewPoligono();
+
+    const mount = document.createElement("div");
+    const root = createRoot(mount);
+    popupSectorRootRef.current = root;
+    popupSectorIdRef.current = sector.id;
+
+    const estado = estadoSector(sector, cbRef.current.puntos);
+    root.render(
+      <PreviewSectorDatos
+        sector={sector}
+        colorEstado={ESTADO_SECTOR_COLOR[estado]}
+        estado={estado}
+        mostrarAccion
+      />,
+    );
+
+    if (!popupSectorRef.current) {
+      popupSectorRef.current = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 10,
+        className: "sector-preview-popup",
+        maxWidth: "260px",
+      });
+    }
+
+    popupSectorRef.current
+      .setDOMContent(mount)
+      .setLngLat(centroide(sector.geom))
+      .addTo(map);
+  }
+
+  function desmontarRoot(roots: Map<string, Root>, id: string) {
+    const root = roots.get(id);
+    if (root) {
+      root.unmount();
+      roots.delete(id);
+    }
+  }
 
   // --- Inicialización única del mapa ---
   useEffect(() => {
@@ -152,18 +331,59 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
       cbRef.current.onVistaCambio?.(zoom);
     });
 
-    map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
-    map.addControl(
-      new maplibregl.GeolocateControl({
-        positionOptions: { enableHighAccuracy: true },
-        trackUserLocation: true,
-        showUserLocation: true,
-      }),
-      "top-right",
-    );
+    map.on("zoom", () => aplicarEscalaVista(map.getZoom()));
+
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
     map.on("load", () => {
+      // Líneas de referencia (debajo de sectores; sin relleno).
+      map.addSource("lineas-src", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: "lineas-solido",
+        type: "line",
+        source: "lineas-src",
+        filter: ["==", ["get", "estilo"], "solido"],
+        paint: {
+          "line-color": ["get", "color"],
+          "line-width": ["get", "ancho"],
+        },
+      });
+      map.addLayer({
+        id: "lineas-punteado",
+        type: "line",
+        source: "lineas-src",
+        filter: ["==", ["get", "estilo"], "punteado"],
+        paint: {
+          "line-color": ["get", "color"],
+          "line-width": ["get", "ancho"],
+          "line-dasharray": [2, 3],
+        },
+      });
+      map.addLayer({
+        id: "lineas-guiones",
+        type: "line",
+        source: "lineas-src",
+        filter: ["==", ["get", "estilo"], "guiones"],
+        paint: {
+          "line-color": ["get", "color"],
+          "line-width": ["get", "ancho"],
+          "line-dasharray": [6, 4],
+        },
+      });
+      for (const capa of CAPAS_LINEA) {
+        map.on("click", capa, (e) => {
+          if (cbRef.current.modoDibujo !== "none" || cbRef.current.modoEdicion) return;
+          const f = e.features?.[0];
+          const id = f?.properties?.id as string | undefined;
+          if (id) cbRef.current.onSeleccionarLinea(id);
+        });
+        map.on("mouseenter", capa, () => (map.getCanvas().style.cursor = "pointer"));
+        map.on("mouseleave", capa, () => (map.getCanvas().style.cursor = ""));
+      }
+
       // Fuentes de datos.
       map.addSource("sectores-src", {
         type: "geojson",
@@ -196,7 +416,24 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
         if (id) cbRef.current.onSeleccionarSector(id);
       });
       map.on("mouseenter", "sectores-fill", () => (map.getCanvas().style.cursor = "pointer"));
-      map.on("mouseleave", "sectores-fill", () => (map.getCanvas().style.cursor = ""));
+      map.on("mouseleave", "sectores-fill", () => {
+        map.getCanvas().style.cursor = "";
+        ocultarPreviewPoligono();
+      });
+
+      // Preview al pasar el mouse sobre el polígono (solo escritorio).
+      if (!window.matchMedia("(pointer: coarse)").matches) {
+        map.on("mousemove", "sectores-fill", (e) => {
+          if (!puedePrevisualizarSector()) {
+            ocultarPreviewPoligono();
+            return;
+          }
+          const id = e.features?.[0]?.properties?.id as string | undefined;
+          if (!id) return;
+          const sector = cbRef.current.sectores.find((x) => x.id === id);
+          if (sector) mostrarPreviewPoligono(sector);
+        });
+      }
 
       // Terra Draw para crear geometrías nuevas.
       const draw = new TerraDraw({
@@ -232,10 +469,27 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
               closingPointOutlineWidth: 2,
             },
           }),
-          // Selección/edición de vértices de sectores existentes.
+          // Línea: clic por vértice; doble clic o Enter para terminar.
+          new TerraDrawLineStringMode({
+            styles: {
+              lineStringColor: "#2dd4bf",
+              lineStringWidth: 3,
+              closingPointColor: "#f59e0b",
+              closingPointWidth: 7,
+              closingPointOutlineColor: "#ffffff",
+              closingPointOutlineWidth: 2,
+            },
+          }),
+          // Selección/edición de vértices de sectores y líneas existentes.
           new TerraDrawSelectMode({
             flags: {
               polygon: {
+                feature: {
+                  draggable: true,
+                  coordinates: { draggable: true, midpoints: true, deletable: true },
+                },
+              },
+              linestring: {
                 feature: {
                   draggable: true,
                   coordinates: { draggable: true, midpoints: true, deletable: true },
@@ -259,6 +513,8 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
             cbRef.current.onSectorDibujado(geom as GeoJSON.Polygon);
           } else if (geom.type === "Point") {
             cbRef.current.onPuntoDibujado(geom as GeoJSON.Point);
+          } else if (geom.type === "LineString") {
+            cbRef.current.onLineaDibujada(geom as GeoJSON.LineString);
           }
         }
         draw.clear();
@@ -272,18 +528,28 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
           const f = snap.find((x) => x.id === id);
           if (f && f.geometry.type === "Polygon") {
             cbRef.current.onEditarSectorGeom(String(id), f.geometry as GeoJSON.Polygon);
+          } else if (f && f.geometry.type === "LineString") {
+            cbRef.current.onEditarLineaGeom(String(id), f.geometry as GeoJSON.LineString);
           }
         }
       });
       drawRef.current = draw;
 
       listoRef.current = true;
+      sincronizarLineas();
       sincronizarSectores();
       sincronizarPuntos();
       aplicarFiltros();
+      aplicarEscalaVista(map.getZoom());
     });
 
     return () => {
+      ocultarPreviewPoligono();
+      popupSectorRef.current = null;
+      for (const [, root] of rootsSector.current) root.unmount();
+      rootsSector.current.clear();
+      for (const [, root] of rootsPunto.current) root.unmount();
+      rootsPunto.current.clear();
       marcadoresSector.current.forEach((m) => m.remove());
       marcadoresSector.current.clear();
       marcadoresPunto.current.forEach((m) => m.remove());
@@ -298,6 +564,32 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
   }, []);
 
   // --- Sincronización de datos ---
+  function sincronizarLineas() {
+    const map = mapRef.current;
+    if (!map || !listoRef.current) return;
+    const src = map.getSource("lineas-src") as maplibregl.GeoJSONSource | undefined;
+    if (!src) return;
+    const features: GeoJSON.Feature[] = [];
+    for (const l of cbRef.current.lineas) {
+      if (!l.geom?.coordinates?.length) {
+        console.warn(`[mapa] Línea ${l.id}: geometría ausente — se omite`);
+        continue;
+      }
+      features.push({
+        type: "Feature",
+        geometry: l.geom,
+        properties: {
+          id: l.id,
+          tipo: l.tipo,
+          color: l.color,
+          estilo: l.estilo,
+          ancho: l.ancho,
+        },
+      });
+    }
+    src.setData({ type: "FeatureCollection", features });
+  }
+
   function sincronizarSectores() {
     const map = mapRef.current;
     if (!map || !listoRef.current) return;
@@ -320,35 +612,52 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
     }
     src.setData({ type: "FeatureCollection", features });
 
-    // Marcadores HTML con el nombre del sector (color personalizado) y un
-    // puntito con el estado (semáforo de cobertura).
+    // Marcadores HTML con el nombre del sector (Badge shadcn) y semáforo de cobertura.
     const vistos = new Set<string>();
+    const ocultarSectores = ocultarNombreSector(zoomRef.current);
     for (const s of cbRef.current.sectores) {
       if (!s.geom?.coordinates) continue;
       vistos.add(s.id);
-      const colorSector = s.color || "#2dd4bf";
-      const colorEstado = ESTADO_SECTOR_COLOR[estadoSector(s, cbRef.current.puntos)];
       let marcador = marcadoresSector.current.get(s.id);
       if (!marcador) {
-        const el = document.createElement("div");
-        el.className = "sector-label";
-        marcador = new maplibregl.Marker({ element: el }).setLngLat(
+        const anchor = crearAnchorMarcador();
+        const root = createRoot(mountMarcador(anchor));
+        rootsSector.current.set(s.id, root);
+        marcador = new maplibregl.Marker({ element: anchor }).setLngLat(
           centroide(s.geom),
         );
         marcador.addTo(map);
         marcadoresSector.current.set(s.id, marcador);
       }
-      const el = marcador.getElement();
-      el.style.cssText = `display:flex;align-items:center;gap:5px;background:${colorSector}33;border:1.5px solid ${colorSector};color:#f1f5f9;font-weight:600;font-size:12px;padding:2px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;`;
-      const dot = document.createElement("span");
-      dot.style.cssText = `display:inline-block;width:8px;height:8px;border-radius:9999px;background:${colorEstado};box-shadow:0 0 0 1.5px #0f172a;`;
-      el.replaceChildren(dot, document.createTextNode(s.nombre));
-      el.style.display =
-        cbRef.current.mostrarSectores && !cbRef.current.modoEdicion ? "flex" : "none";
+      const anchor = marcador.getElement();
+      anchor.style.display =
+        cbRef.current.mostrarSectores &&
+        !cbRef.current.modoEdicion &&
+        !ocultarSectores
+          ? "block"
+          : "none";
+      rootsSector.current.get(s.id)?.render(renderMarcadorSector(s));
       marcador.setLngLat(centroide(s.geom));
+    }
+    if (popupSectorIdRef.current) {
+      const activo = cbRef.current.sectores.find((x) => x.id === popupSectorIdRef.current);
+      if (activo && popupSectorRootRef.current) {
+        const estado = estadoSector(activo, cbRef.current.puntos);
+        popupSectorRootRef.current.render(
+          <PreviewSectorDatos
+            sector={activo}
+            colorEstado={ESTADO_SECTOR_COLOR[estado]}
+            estado={estado}
+            mostrarAccion
+          />,
+        );
+      } else {
+        ocultarPreviewPoligono();
+      }
     }
     for (const [id, m] of marcadoresSector.current) {
       if (!vistos.has(id)) {
+        desmontarRoot(rootsSector.current, id);
         m.remove();
         marcadoresSector.current.delete(id);
       }
@@ -375,26 +684,14 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
         continue;
       }
       vistos.add(p.id);
-      const color = meta.color;
-      // El anillo del ícono refleja el cronómetro de limpieza (si aplica);
-      // si está fuera de servicio, siempre rojo.
-      let eColor = estadoColor(p.estado);
-      if (p.estado !== "fuera_servicio") {
-        const li = infoLimpieza(p, cbRef.current.ahora);
-        if (li && li.estado !== "sin_programar") eColor = li.color;
-      }
       const coords = p.geom.coordinates as [number, number];
 
       let marcador = marcadoresPunto.current.get(p.id);
       if (!marcador) {
-        const el = document.createElement("div");
-        el.className = "punto-mk";
-        el.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          if (cbRef.current.modoDibujo !== "none" || cbRef.current.modoEdicion) return;
-          cbRef.current.onSeleccionarPunto(p.id);
-        });
-        marcador = new maplibregl.Marker({ element: el }).setLngLat(coords);
+        const anchor = crearAnchorMarcador();
+        const root = createRoot(mountMarcador(anchor));
+        rootsPunto.current.set(p.id, root);
+        marcador = new maplibregl.Marker({ element: anchor }).setLngLat(coords);
         marcador.on("dragend", () => {
           const ll = marcador!.getLngLat();
           cbRef.current.onMoverPunto(p.id, [ll.lng, ll.lat]);
@@ -402,43 +699,18 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
         marcador.addTo(map);
         marcadoresPunto.current.set(p.id, marcador);
       }
-      const el = marcador.getElement();
-      el.style.borderColor = color;
-      el.style.opacity = p.estado === "fuera_servicio" ? "0.6" : "1";
-      el.style.cursor = cbRef.current.modoEdicion ? "move" : "pointer";
       marcador.setDraggable(cbRef.current.modoEdicion);
-
-      const icon = document.createElement("span");
-      icon.className = "ic";
-      icon.style.background = `${color}33`;
-      icon.style.boxShadow = `inset 0 0 0 2px ${eColor}`;
-      icon.textContent = meta.icono;
-      const hijos: HTMLElement[] = [icon];
-
-      const num = numeroPunto(p);
-      if (num) {
-        const n = document.createElement("span");
-        n.className = "num";
-        n.textContent = num;
-        hijos.push(n);
-      }
-
-      const etq = document.createElement("span");
-      etq.className = "etq";
-      const det = detallePunto(p);
-      const limp = textoLimpieza(p, cbRef.current.ahora);
-      etq.innerHTML =
-        `<b>${escapar(tituloPunto(p))}</b>` +
-        (det ? `<br>${escapar(det)}` : "") +
-        (limp ? `<br>${escapar(limp)}` : "");
-      hijos.push(etq);
-
-      el.replaceChildren(...hijos);
-      el.style.display = cbRef.current.capasVisibles.has(p.tipo) ? "flex" : "none";
+      rootsPunto.current
+        .get(p.id)
+        ?.render(renderMarcadorPunto(p, esVistaCompacta(zoomRef.current)));
+      marcador.getElement().style.display = cbRef.current.capasVisibles.has(p.tipo)
+        ? "block"
+        : "none";
       marcador.setLngLat(coords);
     }
     for (const [id, m] of marcadoresPunto.current) {
       if (!vistos.has(id)) {
+        desmontarRoot(rootsPunto.current, id);
         m.remove();
         marcadoresPunto.current.delete(id);
       }
@@ -453,15 +725,42 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
       const p = cbRef.current.puntos.find((x) => x.id === id);
       if (!p) continue;
       m.getElement().style.display = cbRef.current.capasVisibles.has(p.tipo)
-        ? "flex"
+        ? "block"
         : "none";
     }
-    // Durante la edición, Terra Draw dibuja los sectores (ocultamos los propios).
-    const vis =
+    // Durante la edición, Terra Draw dibuja sectores y líneas (ocultamos los propios).
+    const visSectores =
       cbRef.current.mostrarSectores && !cbRef.current.modoEdicion ? "visible" : "none";
-    map.setLayoutProperty("sectores-fill", "visibility", vis);
-    map.setLayoutProperty("sectores-line", "visibility", vis);
+    map.setLayoutProperty("sectores-fill", "visibility", visSectores);
+    map.setLayoutProperty("sectores-line", "visibility", visSectores);
+
+    const visLineas =
+      cbRef.current.mostrarLineas && !cbRef.current.modoEdicion ? "visible" : "none";
+    for (const capa of CAPAS_LINEA) {
+      map.setLayoutProperty(capa, "visibility", visLineas);
+    }
+
+    const tipos = [...cbRef.current.lineasVisibles];
+    const filtroTipo: maplibregl.FilterSpecification =
+      tipos.length > 0
+        ? ["in", ["get", "tipo"], ["literal", tipos]]
+        : ["==", ["get", "tipo"], ""];
+
+    const estiloPorCapa: Record<(typeof CAPAS_LINEA)[number], string> = {
+      "lineas-solido": "solido",
+      "lineas-punteado": "punteado",
+      "lineas-guiones": "guiones",
+    };
+    for (const capa of CAPAS_LINEA) {
+      map.setFilter(capa, ["all", ["==", ["get", "estilo"], estiloPorCapa[capa]], filtroTipo]);
+    }
+    if (!puedePrevisualizarSector()) ocultarPreviewPoligono();
   }
+
+  useEffect(() => {
+    sincronizarLineas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.lineas, props.mostrarLineas]);
 
   useEffect(() => {
     sincronizarSectores();
@@ -476,7 +775,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
   useEffect(() => {
     aplicarFiltros();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.capasVisibles, props.mostrarSectores]);
+  }, [props.capasVisibles, props.mostrarSectores, props.mostrarLineas, props.lineasVisibles]);
 
   // --- Modo edición de ubicaciones (arrastrar puntos y vértices de sectores) ---
   useEffect(() => {
@@ -486,7 +785,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
 
     if (props.modoEdicion) {
       draw.clear();
-      const features = cbRef.current.sectores
+      const poligonos = cbRef.current.sectores
         .filter((s) => UUID_RE.test(s.id) && s.geom?.coordinates)
         .map((s) => ({
           id: s.id,
@@ -494,6 +793,15 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
           geometry: s.geom,
           properties: { mode: "polygon" },
         }));
+      const trazos = cbRef.current.lineas
+        .filter((l) => UUID_RE.test(l.id) && l.geom?.coordinates?.length)
+        .map((l) => ({
+          id: l.id,
+          type: "Feature" as const,
+          geometry: l.geom,
+          properties: { mode: "linestring" },
+        }));
+      const features = [...poligonos, ...trazos];
       try {
         if (features.length) draw.addFeatures(features);
       } catch {
@@ -508,9 +816,10 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
     // Puntos arrastrables solo en modo edición.
     for (const [, m] of marcadoresPunto.current) {
       m.setDraggable(props.modoEdicion);
-      m.getElement().style.cursor = props.modoEdicion ? "move" : "pointer";
     }
 
+    sincronizarLineas();
+    sincronizarPuntos();
     sincronizarSectores();
     aplicarFiltros();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -538,6 +847,12 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
     if (props.modoDibujo === "poligono") draw.setMode("polygon");
     else if (props.modoDibujo === "rectangulo") draw.setMode("rectangle");
     else if (props.modoDibujo === "punto") draw.setMode("point");
+    else if (
+      props.modoDibujo === "linea_limite" ||
+      props.modoDibujo === "linea_calle" ||
+      props.modoDibujo === "linea_camineria"
+    )
+      draw.setMode("linestring");
     else draw.setMode("static");
   }, [props.modoDibujo]);
 

@@ -22,6 +22,15 @@ CREATE TABLE IF NOT EXISTS puntos (
 );
 CREATE INDEX IF NOT EXISTS puntos_updated_at_idx ON puntos(updated_at);
 
+CREATE TABLE IF NOT EXISTS lineas (
+  id text PRIMARY KEY,
+  updated_at bigint NOT NULL,
+  updated_by text,
+  deleted boolean NOT NULL DEFAULT false,
+  data jsonb NOT NULL
+);
+CREATE INDEX IF NOT EXISTS lineas_updated_at_idx ON lineas(updated_at);
+
 CREATE TABLE IF NOT EXISTS usuarios (
   id text PRIMARY KEY,
   username text UNIQUE NOT NULL,

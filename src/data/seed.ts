@@ -1,4 +1,5 @@
-import { eliminarPunto, eliminarSector, guardarPunto, guardarSector } from "./repos";
+import { api } from "./api";
+import { eliminarLinea, eliminarPunto, eliminarSector, guardarPunto, guardarSector } from "./repos";
 import { PARQUE_CENTRO, SECTOR_COLORES, type TipoPunto } from "../domain/tipos";
 import { db, nuevoId } from "./db";
 
@@ -40,6 +41,7 @@ export async function cargarEjemplo(): Promise<void> {
         funcion: "Recolección de basura",
       },
     ],
+    carpas: 45,
     poblacion_estimada: 800,
     familias: 200,
     vulnerables: {
@@ -91,10 +93,42 @@ export async function cargarEjemplo(): Promise<void> {
 
 export async function limpiarTodo(): Promise<void> {
   // Borrado suave (encola tombstones) para que la baja se propague al servidor.
-  const [sectores, puntos] = await Promise.all([
+  const [sectores, puntos, lineas] = await Promise.all([
     db.sectores.toArray(),
     db.puntos.toArray(),
+    db.lineas.toArray(),
   ]);
   for (const s of sectores) await eliminarSector(s.id);
   for (const p of puntos) await eliminarPunto(p.id);
+  for (const l of lineas) await eliminarLinea(l.id);
+}
+
+/** Borra mapa local + servidor (admin). Resuelve datos que reaparecen tras limpiar caché. */
+export async function vaciarMapaCompleto(): Promise<{ online: boolean }> {
+  let serverTime: number | undefined;
+  let online = false;
+  try {
+    const r = await api.purgeMapa();
+    serverTime = r.serverTime;
+    online = true;
+  } catch {
+    /* sin conexión o sin sesión: solo vaciado local */
+  }
+
+  await db.transaction("rw", [db.sectores, db.puntos, db.lineas, db.outbox], async () => {
+    await db.sectores.clear();
+    await db.puntos.clear();
+    await db.lineas.clear();
+    await db.outbox.clear();
+  });
+
+  if (serverTime != null) {
+    try {
+      localStorage.setItem("refugio.lastSync", String(serverTime));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return { online };
 }

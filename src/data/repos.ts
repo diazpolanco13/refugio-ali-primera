@@ -1,5 +1,5 @@
 import { db, nuevoId, type OutboxItem } from "./db";
-import type { PuntoServicio, Sector } from "../domain/tipos";
+import type { LineaReferencia, PuntoServicio, Sector } from "../domain/tipos";
 import { getUsuario } from "./auth";
 import { notificarCambioLocal } from "./sync";
 
@@ -87,12 +87,50 @@ export async function eliminarPunto(id: string): Promise<void> {
   });
 }
 
+// ---- Líneas de referencia ----
+
+export async function guardarLinea(
+  datos: Omit<LineaReferencia, "id" | "updated_at" | "updated_by"> & { id?: string },
+): Promise<string> {
+  const id = datos.id ?? nuevoId();
+  const linea: LineaReferencia = {
+    ...datos,
+    id,
+    updated_at: Date.now(),
+    updated_by: usuarioActual(),
+  };
+  await db.lineas.put(linea);
+  await encolar({
+    clave: `lineas:${id}`,
+    entidad: "lineas",
+    id,
+    updated_at: linea.updated_at,
+    deleted: false,
+    data: linea,
+  });
+  return id;
+}
+
+export async function eliminarLinea(id: string): Promise<void> {
+  const previo = await db.lineas.get(id);
+  await db.lineas.delete(id);
+  await encolar({
+    clave: `lineas:${id}`,
+    entidad: "lineas",
+    id,
+    updated_at: Date.now(),
+    deleted: true,
+    data: previo ?? { id },
+  });
+}
+
 // ---- Utilidades ----
 
 export async function exportarJSON(): Promise<string> {
-  const [sectores, puntos] = await Promise.all([
+  const [sectores, puntos, lineas] = await Promise.all([
     db.sectores.toArray(),
     db.puntos.toArray(),
+    db.lineas.toArray(),
   ]);
-  return JSON.stringify({ version: 1, sectores, puntos }, null, 2);
+  return JSON.stringify({ version: 1, sectores, puntos, lineas }, null, 2);
 }

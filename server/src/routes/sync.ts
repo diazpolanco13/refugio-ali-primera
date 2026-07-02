@@ -16,6 +16,7 @@ const filaSchema = z.object({
 const pushSchema = z.object({
   sectores: z.array(filaSchema).optional().default([]),
   puntos: z.array(filaSchema).optional().default([]),
+  lineas: z.array(filaSchema).optional().default([]),
 });
 
 async function filasDesde(db: Db, tabla: Entidad, since: number): Promise<FilaSync[]> {
@@ -60,11 +61,12 @@ export async function rutasSync(app: FastifyInstance) {
   // Pull: cambios desde un timestamp.
   app.get("/api/sync", { preHandler: requireAuth }, async (req) => {
     const since = Number((req.query as { since?: string }).since ?? 0) || 0;
-    const [sectores, puntos] = await Promise.all([
+    const [sectores, puntos, lineas] = await Promise.all([
       filasDesde(app.db, "sectores", since),
       filasDesde(app.db, "puntos", since),
+      filasDesde(app.db, "lineas", since),
     ]);
-    return { sectores, puntos, serverTime: Date.now() };
+    return { sectores, puntos, lineas, serverTime: Date.now() };
   });
 
   // Push: subir cambios locales (visor no puede escribir).
@@ -78,11 +80,63 @@ export async function rutasSync(app: FastifyInstance) {
 
       const sectores = await aplicar(app.db, "sectores", parsed.data.sectores, usuario);
       const puntos = await aplicar(app.db, "puntos", parsed.data.puntos, usuario);
+      const lineas = await aplicar(app.db, "lineas", parsed.data.lineas, usuario);
 
       difundirCambio("sectores", sectores);
       difundirCambio("puntos", puntos);
+      difundirCambio("lineas", lineas);
 
-      return { serverTime: Date.now(), aplicados: { sectores: sectores.length, puntos: puntos.length } };
+      return {
+        serverTime: Date.now(),
+        aplicados: {
+          sectores: sectores.length,
+          puntos: puntos.length,
+          lineas: lineas.length,
+        },
+      };
     },
   );
+
+  // Vaciar mapa en el servidor (solo admin). Marca todo como borrado para que
+  // ningún cliente lo recupere tras limpiar caché o reinstalar la PWA.
+  app.post("/api/sync/purge", { preHandler: requireRol("admin") }, async (req) => {
+    const usuario = (req.user as TokenPayload).username;
+    const tablas: Entidad[] = ["sectores", "puntos", "lineas"];
+    const aplicadas: Record<Entidad, FilaSync[]> = {
+      sectores: [],
+      puntos: [],
+      lineas: [],
+    };
+
+    for (const tabla of tablas) {
+      const rows = await app.db.query<{ id: string; data: unknown; updated_at: number }>(
+        `SELECT id, data, updated_at FROM ${tabla}`,
+      );
+      if (!rows.length) continue;
+      // Timestamp que gana last-write-wins (incluso datos de prueba con fecha futura).
+      const ts = Math.max(Date.now(), ...rows.map((r) => r.updated_at)) + 1;
+      const filas = rows.map((r) => ({
+        id: r.id,
+        updated_at: ts,
+        deleted: true,
+        data: normalizarJsonb(r.data),
+      }));
+      aplicadas[tabla] = await aplicar(app.db, tabla, filas, usuario);
+    }
+
+    difundirCambio("sectores", aplicadas.sectores);
+    difundirCambio("puntos", aplicadas.puntos);
+    difundirCambio("lineas", aplicadas.lineas);
+
+    const serverTime = Date.now();
+    return {
+      ok: true,
+      serverTime,
+      borrados: {
+        sectores: aplicadas.sectores.length,
+        puntos: aplicadas.puntos.length,
+        lineas: aplicadas.lineas.length,
+      },
+    };
+  });
 }

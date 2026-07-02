@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" class="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -7,11 +7,40 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#0f766e" />
+    <meta name="theme-color" content="#0b1120" />
     <title>Sala Situacional — Refugio Parque del Oeste</title>
+    <style>
+      html, body { height: 100%; margin: 0; background: #0b1120; color: #e2e8f0; }
+      #app-splash {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-height: 100dvh; gap: 1rem; font-family: system-ui, sans-serif;
+      }
+      #app-splash .logo {
+        width: 3.5rem; height: 3.5rem; border-radius: 1rem;
+        background: rgba(15, 118, 110, 0.2); display: flex; align-items: center; justify-content: center;
+        font-size: 1.75rem;
+      }
+      #app-splash h1 { margin: 0; font-size: 1.125rem; font-weight: 600; }
+      #app-splash p { margin: 0.25rem 0 0; font-size: 0.875rem; color: #94a3b8; }
+      #app-splash .spin {
+        width: 1.25rem; height: 1.25rem; border: 2px solid #334155;
+        border-top-color: #14b8a6; border-radius: 50%;
+        animation: app-spin 0.8s linear infinite;
+      }
+      @keyframes app-spin { to { transform: rotate(360deg); } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="app-splash" role="status" aria-live="polite" aria-label="Cargando aplicación">
+        <div class="logo" aria-hidden="true">⛺</div>
+        <div style="text-align:center">
+          <h1>Sala Situacional</h1>
+          <p>Refugio Parque del Oeste</p>
+        </div>
+        <div class="spin" aria-hidden="true"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

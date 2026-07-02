@@ -8,6 +8,7 @@ dist-ssr
 # Datos locales / build
 .data
 *.log
+.dev-logs
 dev-dist
 *.tsbuildinfo
 

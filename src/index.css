@@ -1,8 +1,45 @@
 @import "tailwindcss";
 @import "maplibre-gl/dist/maplibre-gl.css";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
   color-scheme: dark;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 html,
@@ -24,74 +61,23 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Marcador de punto: ícono + número; etiqueta al pasar el mouse */
-.punto-mk {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: #0f172aee;
-  border: 2px solid #64748b;
-  border-radius: 9px;
-  padding: 2px 7px 2px 3px;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
-}
-.punto-mk .ic {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  font-size: 14px;
-}
-.punto-mk .num {
-  font-size: 12px;
-  font-weight: 700;
-  color: #f8fafc;
-  padding-right: 2px;
-}
-.punto-mk .etq {
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-bottom: 7px;
-  white-space: nowrap;
-  background: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 7px;
-  padding: 5px 9px;
-  font-size: 11px;
-  line-height: 1.3;
-  color: #e2e8f0;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
-  display: none;
-  pointer-events: none;
-  z-index: 30;
-}
-.punto-mk .etq b {
-  color: #fff;
-  font-weight: 600;
-}
-.punto-mk:hover {
-  z-index: 20;
-}
-.punto-mk:hover .etq {
-  display: block;
+/* MapLibre posiciona .map-mk-anchor con translate; el scale va en el hijo. */
+.map-mk-scale {
+  transform-origin: center center;
 }
 
-/* En dispositivos táctiles: marcadores más grandes (mejor puntería con el dedo)
-   y controles del mapa ampliados. */
+/* Preview de sector siempre encima de otros marcadores HTML del mapa. */
+.maplibregl-marker.sector-mk-elevado,
+.maplibregl-marker:has(.group\/sector:hover) {
+  z-index: 9998 !important;
+}
+
+.sector-preview-popup.maplibregl-popup {
+  z-index: 10000 !important;
+}
+
+/* Controles del mapa más grandes en táctil (mejor puntería). */
 @media (pointer: coarse) {
-  .punto-mk {
-    padding: 3px 9px 3px 4px;
-  }
-  .punto-mk .ic {
-    width: 28px;
-    height: 28px;
-    font-size: 16px;
-  }
   .maplibregl-ctrl button {
     width: 40px !important;
     height: 40px !important;
@@ -107,6 +93,16 @@ button {
   padding: 0.75rem 0.9rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
+.sector-preview-popup .maplibregl-popup-content {
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border-color: var(--border);
+}
+.sector-preview-popup .maplibregl-popup-tip {
+  border-top-color: var(--popover) !important;
+}
 .maplibregl-popup-tip {
   border-top-color: #0f172a !important;
   border-bottom-color: #0f172a !important;
@@ -115,4 +111,93 @@ button {
   color: #94a3b8;
   font-size: 1.1rem;
   padding: 0 0.35rem;
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: 'Geist Variable', sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+.dark {
+  --background: oklch(0.145 0.02 260);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0.02 260);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0.02 260);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.55 0.12 180);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }

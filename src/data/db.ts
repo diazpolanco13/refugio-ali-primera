@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from "dexie";
 import {
   SECTOR_COLORES,
   VULNERABLES_VACIO,
+  type LineaReferencia,
   type PuntoServicio,
   type Sector,
 } from "../domain/tipos";
@@ -10,7 +11,7 @@ import {
 export interface OutboxItem {
   /** Clave = `${entidad}:${id}` (una entrada por entidad+id). */
   clave: string;
-  entidad: "sectores" | "puntos";
+  entidad: "sectores" | "puntos" | "lineas";
   id: string;
   updated_at: number;
   deleted: boolean;
@@ -21,6 +22,7 @@ export interface OutboxItem {
 const db = new Dexie("refugio-parque-oeste") as Dexie & {
   sectores: EntityTable<Sector, "id">;
   puntos: EntityTable<PuntoServicio, "id">;
+  lineas: EntityTable<LineaReferencia, "id">;
   outbox: EntityTable<OutboxItem, "clave">;
 };
 
@@ -90,6 +92,28 @@ db.version(4)
           typeof v.embarazadas === "number" ? v.embarazadas : 0;
         s.vulnerables = { ...VULNERABLES_VACIO, embarazadas };
       });
+  });
+
+// v5: líneas de referencia cartográfica (límites del parque, calles, caminerías).
+db.version(5).stores({
+  sectores: "id, nombre, updated_at",
+  puntos: "id, tipo, estado, updated_at",
+  lineas: "id, tipo, updated_at",
+  outbox: "clave, entidad, updated_at",
+});
+
+// v6: conteo de carpas por sector (censo en campo: primero carpas, luego familias).
+db.version(6)
+  .stores({
+    sectores: "id, nombre, updated_at",
+    puntos: "id, tipo, estado, updated_at",
+    lineas: "id, tipo, updated_at",
+    outbox: "clave, entidad, updated_at",
+  })
+  .upgrade(async (tx) => {
+    await tx.table("sectores").toCollection().modify((s: Record<string, unknown>) => {
+      if (typeof s.carpas !== "number") s.carpas = 0;
+    });
   });
 
 export { db };
