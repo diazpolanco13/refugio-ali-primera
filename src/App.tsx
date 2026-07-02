@@ -10,6 +10,7 @@ import {
   SECTOR_COLORES,
   type LineaReferencia,
   type PuntoServicio,
+  type RegistroDistribucion,
   type Sector,
   type TipoLinea,
   type TipoPunto,
@@ -56,6 +57,11 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
   const sectores = useLiveQuery(() => db.sectores.toArray(), [], [] as Sector[]);
   const puntos = useLiveQuery(() => db.puntos.toArray(), [], [] as PuntoServicio[]);
   const lineas = useLiveQuery(() => db.lineas.toArray(), [], [] as LineaReferencia[]);
+  const distribuciones = useLiveQuery(
+    () => db.distribuciones.toArray(),
+    [],
+    [] as RegistroDistribucion[],
+  );
 
   const [capasVisibles, setCapasVisibles] = useState<Set<TipoPunto>>(
     () => new Set(CATALOGO_TIPOS.map((m) => m.tipo)),
@@ -296,13 +302,14 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
         {tableroAbierto && (
           <PanelFlotante
             titulo="Sala situacional"
-            descripcion="Demografía, alertas y cobertura por sector"
+            descripcion="Demografía, cobertura del parque y alertas"
             icono={<BarChart3 className="size-4 text-primary" />}
             onCerrar={() => setTableroAbierto(false)}
           >
             <Tablero
               sectores={sectores}
               puntos={puntos}
+              distribuciones={distribuciones}
               ahora={ahora}
               puedeEditar={puedeEditar}
               onMarcarLimpio={marcarLimpio}

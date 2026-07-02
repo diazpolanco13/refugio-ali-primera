@@ -1,7 +1,7 @@
 import { PreviewSectorDatos } from "./PreviewSectorDatos";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { EstadoSector, Sector } from "@/domain/tipos";
+import type { Sector } from "@/domain/tipos";
 
 interface Props {
   sector: Pick<
@@ -9,11 +9,9 @@ interface Props {
     "nombre" | "carpas" | "familias" | "poblacion_estimada" | "vulnerables"
   >;
   colorSector: string;
-  colorEstado: string;
-  estado: EstadoSector;
 }
 
-export function MarcadorSector({ sector, colorSector, colorEstado, estado }: Props) {
+export function MarcadorSector({ sector, colorSector }: Props) {
   function elevarMarcador(el: HTMLElement, elevar: boolean) {
     const mk = el.closest(".maplibregl-marker") as HTMLElement | null;
     if (!mk) return;
@@ -42,7 +40,7 @@ export function MarcadorSector({ sector, colorSector, colorEstado, estado }: Pro
       >
         <span
           className="inline-block size-2 shrink-0 rounded-full ring-1 ring-background"
-          style={{ background: colorEstado }}
+          style={{ background: colorSector }}
           aria-hidden
         />
         {sector.nombre}
@@ -56,11 +54,7 @@ export function MarcadorSector({ sector, colorSector, colorEstado, estado }: Pro
           "max-sm:hidden",
         )}
       >
-        <PreviewSectorDatos
-          sector={sector}
-          colorEstado={colorEstado}
-          estado={estado}
-        />
+        <PreviewSectorDatos sector={sector} color={colorSector} />
       </div>
     </div>
   );

@@ -1,24 +1,14 @@
 import { DemografiaResumen } from "@/features/tablero/DemografiaResumen";
-import {
-  totalPoblacion,
-  type EstadoSector,
-  type Sector,
-} from "@/domain/tipos";
+import { totalPoblacion, type Sector } from "@/domain/tipos";
 import { cn } from "@/lib/utils";
-
-const ESTADO_LABEL: Record<EstadoSector, string> = {
-  verde: "Cobertura OK",
-  amarillo: "Brechas menores",
-  rojo: "Brechas críticas",
-};
 
 interface Props {
   sector: Pick<
     Sector,
     "nombre" | "carpas" | "familias" | "poblacion_estimada" | "vulnerables"
   >;
-  colorEstado: string;
-  estado: EstadoSector;
+  /** Color del punto identificador (color del sector). */
+  color?: string;
   /** Muestra “Clic para editar” (p. ej. popup del polígono). */
   mostrarAccion?: boolean;
   className?: string;
@@ -26,8 +16,7 @@ interface Props {
 
 export function PreviewSectorDatos({
   sector,
-  colorEstado,
-  estado,
+  color = "#2dd4bf",
   mostrarAccion = false,
   className,
 }: Props) {
@@ -50,13 +39,10 @@ export function PreviewSectorDatos({
       <div className="flex items-center gap-2">
         <span
           className="inline-block size-2.5 shrink-0 rounded-full ring-1 ring-background"
-          style={{ background: colorEstado }}
+          style={{ background: color }}
           aria-hidden
         />
         <span className="truncate font-semibold text-foreground">{sector.nombre}</span>
-        <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
-          {ESTADO_LABEL[estado]}
-        </span>
       </div>
 
       {stats.length > 0 ? (
@@ -79,5 +65,3 @@ export function PreviewSectorDatos({
     </div>
   );
 }
-
-export { ESTADO_LABEL };

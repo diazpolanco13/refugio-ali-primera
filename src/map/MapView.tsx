@@ -22,7 +22,6 @@ import {
 import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
 import { CAPAS_BASE, VISIBILIDAD_BASE, construirEstilo } from "./estiloMapa";
 import {
-  ESTADO_SECTOR_COLOR,
   GENERO_ICONO,
   GENERO_LABEL,
   META_POR_TIPO,
@@ -36,7 +35,6 @@ import {
   type TipoPunto,
 } from "../domain/tipos";
 import { ESTADOS_PUNTO } from "../domain/tipos";
-import { estadoSector } from "../domain/brechas";
 import { infoLimpieza, textoLimpieza } from "../domain/limpieza";
 import { cargarVista, guardarVista, VISTA_DEFECTO } from "../data/preferencias";
 
@@ -236,16 +234,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
 
   function renderMarcadorSector(s: Sector) {
     const colorSector = s.color || "#2dd4bf";
-    const estado = estadoSector(s, cbRef.current.puntos);
-    const colorEstado = ESTADO_SECTOR_COLOR[estado];
-    return (
-      <MarcadorSector
-        sector={s}
-        colorSector={colorSector}
-        colorEstado={colorEstado}
-        estado={estado}
-      />
-    );
+    return <MarcadorSector sector={s} colorSector={colorSector} />;
   }
 
   function puedePrevisualizarSector(): boolean {
@@ -275,12 +264,10 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
     popupSectorRootRef.current = root;
     popupSectorIdRef.current = sector.id;
 
-    const estado = estadoSector(sector, cbRef.current.puntos);
     root.render(
       <PreviewSectorDatos
         sector={sector}
-        colorEstado={ESTADO_SECTOR_COLOR[estado]}
-        estado={estado}
+        color={sector.color || "#2dd4bf"}
         mostrarAccion
       />,
     );
@@ -642,12 +629,10 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
     if (popupSectorIdRef.current) {
       const activo = cbRef.current.sectores.find((x) => x.id === popupSectorIdRef.current);
       if (activo && popupSectorRootRef.current) {
-        const estado = estadoSector(activo, cbRef.current.puntos);
         popupSectorRootRef.current.render(
           <PreviewSectorDatos
             sector={activo}
-            colorEstado={ESTADO_SECTOR_COLOR[estado]}
-            estado={estado}
+            color={activo.color || "#2dd4bf"}
             mostrarAccion
           />,
         );

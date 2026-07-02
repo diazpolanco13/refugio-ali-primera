@@ -29,8 +29,13 @@ import type {
   RegistroLimpieza,
   Sector,
 } from "@/domain/tipos";
-import { ESTADO_SECTOR_COLOR, META_POR_TIPO, sumarVulnerables } from "@/domain/tipos";
-import { generarAlertas, kpisGlobales } from "@/domain/brechas";
+import { META_POR_TIPO, sumarVulnerables } from "@/domain/tipos";
+import {
+  coberturaGlobal,
+  generarAlertas,
+  kpisGlobales,
+  type Cobertura,
+} from "@/domain/brechas";
 import { formatoDuracion } from "@/domain/limpieza";
 import { resumenSalubridad } from "@/domain/salubridad";
 import {
@@ -123,7 +128,11 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
 
   const kpis = useMemo(() => kpisGlobales(sectores, puntos), [sectores, puntos]);
   const demografia = useMemo(() => sumarVulnerables(sectores), [sectores]);
-  const alertas = useMemo(() => generarAlertas(sectores, puntos), [sectores, puntos]);
+  const cobertura = useMemo(() => coberturaGlobal(sectores, puntos), [sectores, puntos]);
+  const alertas = useMemo(
+    () => generarAlertas(sectores, puntos, distribuciones, ahora),
+    [sectores, puntos, distribuciones, ahora],
+  );
   const serie = useMemo(() => serieDiariaPoblacion(censos), [censos]);
   const variacion = useMemo(() => variacionUltimoDia(serie), [serie]);
   const alimentacion = useMemo(
@@ -244,24 +253,19 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
           <div className="flex flex-col gap-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Estado de sectores</CardTitle>
+                <CardTitle className="text-base">Cobertura de servicios</CardTitle>
+                <CardDescription>
+                  Disponibles vs. necesarios (Esfera) para toda la población del parque
+                </CardDescription>
               </CardHeader>
-              <CardContent className="flex gap-2">
-                <Semaforo
-                  color={ESTADO_SECTOR_COLOR.verde}
-                  n={kpis.sectoresVerde}
-                  label="OK"
-                />
-                <Semaforo
-                  color={ESTADO_SECTOR_COLOR.amarillo}
-                  n={kpis.sectoresAmarillo}
-                  label="Alerta"
-                />
-                <Semaforo
-                  color={ESTADO_SECTOR_COLOR.rojo}
-                  n={kpis.sectoresRojo}
-                  label="Crítico"
-                />
+              <CardContent className="space-y-2.5">
+                {cobertura.every((c) => c.requerido === 0) ? (
+                  <p className="text-sm text-muted-foreground">
+                    Sin población registrada para calcular la cobertura.
+                  </p>
+                ) : (
+                  cobertura.map((c) => <BarraCobertura key={c.tipo} c={c} />)
+                )}
               </CardContent>
             </Card>
 
@@ -599,12 +603,31 @@ function KpiGrande({
   );
 }
 
-function Semaforo({ color, n, label }: { color: string; n: number; label: string }) {
+function BarraCobertura({ c }: { c: Cobertura }) {
+  if (c.requerido === 0) return null;
+  const pct = Math.min(100, c.porcentaje);
+  const color =
+    c.porcentaje >= 100 ? "#22c55e" : c.porcentaje >= 50 ? "#f59e0b" : "#ef4444";
+  const textoColor =
+    c.porcentaje >= 100
+      ? "text-emerald-300"
+      : c.porcentaje >= 50
+        ? "text-amber-300"
+        : "text-red-300";
   return (
-    <div className="flex flex-1 flex-col items-center gap-1 rounded-lg border border-border bg-muted/20 px-2 py-3">
-      <span className="inline-block size-3 rounded-full" style={{ background: color }} />
-      <span className="text-2xl font-bold tabular-nums text-foreground">{n}</span>
-      <span className="text-xs text-muted-foreground">{label}</span>
+    <div title={c.descripcion}>
+      <div className="mb-1 flex items-center justify-between gap-2 text-sm">
+        <span className="flex items-center gap-1.5 text-foreground">
+          <span>{META_POR_TIPO[c.tipo]?.icono ?? "❓"}</span>
+          {META_POR_TIPO[c.tipo]?.label ?? c.tipo}
+        </span>
+        <span className={cn("shrink-0 font-semibold tabular-nums", textoColor)}>
+          {c.disponible}/{c.requerido} · {c.porcentaje}%
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+      </div>
     </div>
   );
 }

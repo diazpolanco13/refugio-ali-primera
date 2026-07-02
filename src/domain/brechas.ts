@@ -1,6 +1,14 @@
-import type { EstadoSector, PuntoServicio, Sector, TipoPunto } from "./tipos";
+import type {
+  PuntoServicio,
+  RegistroDistribucion,
+  Sector,
+  TipoPunto,
+} from "./tipos";
 import { normalizarVulnerables, totalHombres, totalMujeres, totalVulnerables } from "./tipos";
 import { ESTANDARES } from "./estandares";
+import { VENTANAS_COMIDA, type Comida } from "./estandares";
+import { infoLimpieza } from "./limpieza";
+import { claveDiaLocal } from "./distribucion";
 
 /** Point-in-polygon por ray casting. Punto y anillo en [lng, lat]. */
 export function puntoEnPoligono(
@@ -37,41 +45,34 @@ export function cuentaParaEstandar(p: PuntoServicio): boolean {
   return true;
 }
 
-/** Puntos de servicio que caen dentro del polígono de un sector. */
-export function puntosEnSector(
-  sector: Sector,
-  puntos: PuntoServicio[],
-): PuntoServicio[] {
-  if (!sector.geom?.coordinates) return [];
-  return puntos.filter((p) => {
-    if (!p.geom?.coordinates) return false;
-    return puntoEnPoligono(p.geom.coordinates as [number, number], sector.geom);
-  });
-}
-
 export interface Cobertura {
   tipo: TipoPunto;
-  disponible: number; // unidades operativas dentro del sector
+  disponible: number; // unidades operativas en todo el parque
   requerido: number; // unidades necesarias según estándar
   porcentaje: number; // 0-100+
   esencial: boolean;
   descripcion: string;
 }
 
-/** Cobertura de cada servicio con estándar, para un sector. */
-export function calcularCobertura(
-  sector: Sector,
+/**
+ * Cobertura de cada servicio con estándar a nivel de TODO EL PARQUE: cruza la
+ * población (o familias) total del refugio contra los puntos operativos de ese
+ * tipo, sin importar en qué sector caen (los puntos están en ubicaciones fijas
+ * del parque, no por sector).
+ */
+export function coberturaGlobal(
+  sectores: Sector[],
   puntos: PuntoServicio[],
 ): Cobertura[] {
-  const dentro = puntosEnSector(sector, puntos);
+  const poblacion = sectores.reduce((a, s) => a + (s.poblacion_estimada || 0), 0);
+  const familias = sectores.reduce((a, s) => a + (s.familias || 0), 0);
   const resultado: Cobertura[] = [];
 
   for (const est of Object.values(ESTANDARES)) {
     if (!est) continue;
-    const base =
-      (est.base === "familias" ? sector.familias : sector.poblacion_estimada) || 0;
+    const base = (est.base === "familias" ? familias : poblacion) || 0;
     const requerido = base > 0 ? Math.ceil(base / est.personasPorUnidad) : 0;
-    const disponible = dentro.filter(
+    const disponible = puntos.filter(
       (p) => p.tipo === est.tipo && cuentaParaEstandar(p),
     ).length;
     const porcentaje =
@@ -88,21 +89,6 @@ export function calcularCobertura(
   return resultado;
 }
 
-/**
- * Semáforo del sector según servicios esenciales:
- * rojo si algún esencial < 50%, amarillo si algún esencial < 100%, verde si todo cumple.
- */
-export function estadoSector(
-  sector: Sector,
-  puntos: PuntoServicio[],
-): EstadoSector {
-  const esenciales = calcularCobertura(sector, puntos).filter((c) => c.esencial);
-  if (esenciales.length === 0) return "verde";
-  if (esenciales.some((c) => c.porcentaje < 50)) return "rojo";
-  if (esenciales.some((c) => c.porcentaje < 100)) return "amarillo";
-  return "verde";
-}
-
 export interface Alerta {
   nivel: "critico" | "advertencia";
   titulo: string;
@@ -110,27 +96,92 @@ export interface Alerta {
   sector?: string;
 }
 
-/** Genera alertas de sectores en rojo/amarillo y puntos fuera de servicio. */
+/** Nombre legible del servicio para los títulos de alerta. */
+const NOMBRE_SERVICIO: Partial<Record<TipoPunto, string>> = {
+  hidratacion: "Agua",
+  sanitarios: "Letrinas",
+  duchas: "Duchas",
+  salud: "Atención médica",
+  comida: "Puntos de comida",
+  residuos: "Contenedores de basura",
+};
+
+/** Hora local en decimal (13.5 = 13:30) de un timestamp. */
+function horaDecimal(ts: number): number {
+  const d = new Date(ts);
+  return d.getHours() + d.getMinutes() / 60;
+}
+
+/**
+ * Genera las alertas del parque a partir de tres fuentes:
+ * 1. Cobertura global de servicios por debajo del estándar Esfera.
+ * 2. Comidas del día que no llegaron dentro de su ventana horaria.
+ * 3. Aseo vencido (letrinas, duchas o basura sin atender a tiempo).
+ * Más los puntos marcados como fuera de servicio.
+ */
 export function generarAlertas(
   sectores: Sector[],
   puntos: PuntoServicio[],
+  distribuciones: RegistroDistribucion[] = [],
+  ahora: number = Date.now(),
 ): Alerta[] {
   const alertas: Alerta[] = [];
 
-  for (const s of sectores) {
-    const cob = calcularCobertura(s, puntos);
-    for (const c of cob.filter((c) => c.esencial && c.porcentaje < 100)) {
+  // 1. Cobertura global insuficiente.
+  for (const c of coberturaGlobal(sectores, puntos)) {
+    if (c.requerido === 0 || c.porcentaje >= 100) continue;
+    const nombre = NOMBRE_SERVICIO[c.tipo] ?? c.tipo;
+    alertas.push({
+      nivel: c.porcentaje < 50 ? "critico" : "advertencia",
+      titulo: `${nombre} insuficientes (${c.porcentaje}%)`,
+      detalle: `${c.disponible} de ${c.requerido} necesarios. ${c.descripcion}`,
+    });
+  }
+
+  // 2. Comidas no llegadas en su ventana.
+  const diaHoy = claveDiaLocal(ahora);
+  const hora = horaDecimal(ahora);
+  const llegadas = new Set(
+    distribuciones
+      .filter(
+        (r) =>
+          r.clase === "jornada" && r.dia === diaHoy && r.hora_llegada != null,
+      )
+      .map((r) => r.jornada),
+  );
+  for (const comida of Object.keys(VENTANAS_COMIDA) as Comida[]) {
+    if (llegadas.has(comida)) continue;
+    const v = VENTANAS_COMIDA[comida];
+    if (hora >= v.inicio && hora < v.fin) {
       alertas.push({
-        nivel: c.porcentaje < 50 ? "critico" : "advertencia",
-        titulo: `Sector ${s.nombre}: ${c.tipo} insuficiente (${c.porcentaje}%)`,
-        detalle: `${c.disponible} de ${c.requerido} unidades requeridas. ${c.descripcion}`,
-        sector: s.nombre,
+        nivel: "advertencia",
+        titulo: `${v.label} sin registrar`,
+        detalle: `Aún no se ha marcado la llegada de la comida (ventana en curso).`,
+      });
+    } else if (hora >= v.fin) {
+      alertas.push({
+        nivel: "critico",
+        titulo: `${v.label} no llegó`,
+        detalle: `Terminó la ventana horaria y no se registró la llegada de la comida.`,
       });
     }
   }
 
-  const fuera = puntos.filter((p) => p.estado === "fuera_servicio");
-  for (const p of fuera) {
+  // 3. Aseo vencido (letrinas, duchas, basura).
+  for (const p of puntos) {
+    const info = infoLimpieza(p, ahora);
+    if (info?.estado === "vencido") {
+      const accion = p.tipo === "residuos" ? "recolección" : "limpieza";
+      alertas.push({
+        nivel: "advertencia",
+        titulo: `${p.nombre || p.tipo}: ${accion} vencida`,
+        detalle: `Pasó el tiempo programado sin registrar ${accion}.`,
+      });
+    }
+  }
+
+  // 4. Puntos fuera de servicio.
+  for (const p of puntos.filter((p) => p.estado === "fuera_servicio")) {
     alertas.push({
       nivel: "advertencia",
       titulo: `${p.nombre || p.tipo} fuera de servicio`,
@@ -153,9 +204,6 @@ export interface KpisGlobales {
   sectores: number;
   puntosOperativos: number;
   puntosTotal: number;
-  sectoresRojo: number;
-  sectoresAmarillo: number;
-  sectoresVerde: number;
 }
 
 export function kpisGlobales(
@@ -173,7 +221,6 @@ export function kpisGlobales(
     hombresTotal += totalHombres(v);
     mujeresTotal += totalMujeres(v);
   }
-  const estados = sectores.map((s) => estadoSector(s, puntos));
   return {
     poblacionTotal,
     familiasTotal,
@@ -183,8 +230,5 @@ export function kpisGlobales(
     sectores: sectores.length,
     puntosOperativos: puntos.filter((p) => p.estado === "operativo").length,
     puntosTotal: puntos.length,
-    sectoresRojo: estados.filter((e) => e === "rojo").length,
-    sectoresAmarillo: estados.filter((e) => e === "amarillo").length,
-    sectoresVerde: estados.filter((e) => e === "verde").length,
   };
 }

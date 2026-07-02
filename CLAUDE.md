@@ -76,8 +76,8 @@ si no hay `DATABASE_URL`; en prod usa Postgres real.
 
 ```
 src/
-├─ domain/     tipos.ts (modelo + catálogos), estandares.ts (Esfera),
-│              brechas.ts (cobertura/alertas/point-in-polygon), limpieza.ts (cronómetro),
+├─ domain/     tipos.ts (modelo + catálogos), estandares.ts (Esfera + ventanas de comida),
+│              brechas.ts (cobertura GLOBAL del parque + alertas), limpieza.ts (cronómetro),
 │              poblacion.ts (serie diaria de población desde snapshots),
 │              distribucion.ts (resumen de comida/hidratación por jornada),
 │              salubridad.ts (resumen de limpieza de baños/duchas/basura por día)
@@ -224,10 +224,23 @@ Se abre desde el botón **"Pantalla"** de la `Navbar` (link a `/dashboard`).
 Contenido actual: reloj en vivo, KPIs grandes (población, familias, vulnerables,
 sectores, puntos operativos, alertas), **gráfico de área "Registro poblacional por
 fechas"**, **tarjeta "Alimentación de hoy"** (una casilla por jornada con hora de
-llegada y barra de sectores servidos), semáforo de sectores, demografía por
-edad/sexo, alertas y limpieza. Reutiliza las funciones de dominio existentes
-(`kpisGlobales`, `generarAlertas`, `sumarVulnerables`, `infoLimpieza`,
-`resumenDistribucion`) — no duplica lógica.
+llegada y barra de sectores servidos), **tarjeta "Cobertura de servicios"** (global
+del parque), demografía por edad/sexo, alertas y limpieza. Reutiliza las funciones
+de dominio existentes (`kpisGlobales`, `coberturaGlobal`, `generarAlertas`,
+`sumarVulnerables`, `infoLimpieza`, `resumenDistribucion`) — no duplica lógica.
+
+**Cobertura y alertas — GLOBALES del parque (no por sector):** los puntos (agua,
+letrinas, duchas, salud, comida, basura) están en ubicaciones fijas del parque, no
+dentro de los sectores. Por eso `brechas.ts` ya **no** calcula cobertura por sector
+ni pinta semáforo de servicios en el sector; el sector solo lleva censo, demografía
+y responsables. `coberturaGlobal(sectores, puntos)` cruza la población/familias
+total del refugio contra los puntos operativos de cada tipo (estándar Esfera de
+`estandares.ts`). `generarAlertas(sectores, puntos, distribuciones, ahora)` combina:
+(1) cobertura global < 100%, (2) comidas que no llegaron en su ventana horaria
+(`VENTANAS_COMIDA` en `estandares.ts`: desayuno 6-9, almuerzo 11:30-14:30, cena
+17:30-20:30; usa la `hora_llegada` de las jornadas del día), y (3) aseo vencido
+(letrinas/duchas/basura). Ejemplo: 5000 personas y 4 duchas → duchas al ~4% (rojo)
+y alerta crítica.
 
 **Registro poblacional (cómo funciona):**
 - Cada `guardarSector` con cambios de censo llama a `registrarCenso()` (`repos.ts`)
