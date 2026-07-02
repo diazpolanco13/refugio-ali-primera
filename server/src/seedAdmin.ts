@@ -1,4 +1,4 @@
-import { hashPassword } from "./auth.ts";
+import { generarHashId, hashPassword } from "./auth.ts";
 import { config } from "./config.ts";
 import type { Db } from "./db/client.ts";
 
@@ -9,9 +9,16 @@ export async function seedAdmin(db: Db): Promise<void> {
 
   const id = crypto.randomUUID();
   await db.query(
-    `INSERT INTO usuarios (id, username, password_hash, nombre, rol, sector_asignado, created_at)
-     VALUES ($1,$2,$3,$4,'admin',NULL,$5)`,
-    [id, config.adminUser, await hashPassword(config.adminPassword), "Administrador", Date.now()],
+    `INSERT INTO usuarios (id, username, password_hash, nombre, rol, sector_asignado, created_at, hash_id)
+     VALUES ($1,$2,$3,$4,'admin',NULL,$5,$6)`,
+    [
+      id,
+      config.adminUser,
+      await hashPassword(config.adminPassword),
+      "Administrador",
+      Date.now(),
+      generarHashId(id),
+    ],
   );
   console.log(
     `[seed] Usuario admin creado: "${config.adminUser}". ` +

@@ -9,6 +9,10 @@ export interface Usuario {
   rol: Rol;
   /** Sector del que es responsable (solo campo). Puede faltar en sesiones viejas. */
   sector_asignado?: string | null;
+  /** Identificador de sistema para la marca de agua anti-foto. */
+  hash_id?: string | null;
+  /** Mostrar la marca de agua de seguridad en la pantalla de este usuario. */
+  marca_agua?: boolean;
 }
 
 export interface Sesion {

@@ -40,7 +40,6 @@ interface NavbarProps {
   onToggleTablero: () => void;
   onAbrirDistribucion: () => void;
   onAbrirSalubridad: () => void;
-  onAbrirUsuarios: () => void;
   onLimpiarDatos: () => void;
 }
 
@@ -108,7 +107,6 @@ export function Navbar({
   onToggleTablero,
   onAbrirDistribucion,
   onAbrirSalubridad,
-  onAbrirUsuarios,
   onLimpiarDatos,
 }: NavbarProps) {
   const nombre = sesion.user.nombre || sesion.user.username;
@@ -173,18 +171,6 @@ export function Navbar({
           </Link>
         </Button>
 
-        {esAdmin && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 gap-1.5"
-            onClick={onAbrirUsuarios}
-          >
-            <Users className="size-4" />
-            <span className="hidden sm:inline">Usuarios</span>
-          </Button>
-        )}
-
         <Separator orientation="vertical" className="mx-0.5 hidden h-6 sm:block" />
 
         <DropdownMenu>
@@ -229,9 +215,11 @@ export function Navbar({
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onSelect={onAbrirUsuarios}>
-                    <Users />
-                    Gestionar usuarios
+                  <DropdownMenuItem asChild>
+                    <Link to="/usuarios">
+                      <Users />
+                      Gestionar usuarios
+                    </Link>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </>

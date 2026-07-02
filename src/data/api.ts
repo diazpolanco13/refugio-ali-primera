@@ -17,6 +17,25 @@ export interface UsuarioRegistro {
   rol: Rol;
   sector_asignado: string | null;
   created_at: number;
+  jerarquia: string | null;
+  cedula: string | null;
+  responsabilidad: string | null;
+  whatsapp: string | null;
+  telegram: string | null;
+  brazalete: string | null;
+  hash_id: string | null;
+  marca_agua: boolean;
+}
+
+/** Campos ampliados de la ficha de usuario, todos opcionales. */
+export interface DatosFichaUsuario {
+  jerarquia?: string;
+  cedula?: string;
+  responsabilidad?: string;
+  whatsapp?: string;
+  telegram?: string;
+  brazalete?: string;
+  marca_agua?: boolean;
 }
 
 export interface RespuestaPull {
@@ -109,13 +128,15 @@ export const api = {
     return req("/usuarios");
   },
 
-  crearUsuario(body: {
-    username: string;
-    password: string;
-    nombre?: string;
-    rol?: Rol;
-    sector_asignado?: string;
-  }): Promise<UsuarioRegistro> {
+  crearUsuario(
+    body: {
+      username: string;
+      password: string;
+      nombre?: string;
+      rol?: Rol;
+      sector_asignado?: string;
+    } & DatosFichaUsuario,
+  ): Promise<UsuarioRegistro> {
     return req("/usuarios", { method: "POST", body: JSON.stringify(body) });
   },
 
@@ -126,6 +147,13 @@ export const api = {
       rol?: Rol;
       password?: string;
       sector_asignado?: string | null;
+      jerarquia?: string | null;
+      cedula?: string | null;
+      responsabilidad?: string | null;
+      whatsapp?: string | null;
+      telegram?: string | null;
+      brazalete?: string | null;
+      marca_agua?: boolean;
     },
   ): Promise<UsuarioRegistro> {
     return req(`/usuarios/${id}`, { method: "PATCH", body: JSON.stringify(body) });

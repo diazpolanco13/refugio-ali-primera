@@ -32,6 +32,7 @@ import { puedeEditarMapa, puedeGestionarUsuarios, permisosDeRol } from "./domain
 import { detenerSync, iniciarSync, useEstadoSync } from "./data/sync";
 import { useEsMovil } from "./ui/useEsMovil";
 import { Navbar } from "./components/Navbar";
+import { MarcaAgua } from "./components/MarcaAgua";
 import { PanelFlotante } from "./components/PanelFlotante";
 import { PantallaCarga } from "./components/PantallaCarga";
 import { BarChart3 } from "lucide-react";
@@ -79,7 +80,6 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
   const [tableroAbierto, setTableroAbierto] = useState(false);
   const [distribucionAbierto, setDistribucionAbierto] = useState(false);
   const [salubridadAbierto, setSalubridadAbierto] = useState(false);
-  const [usuariosAbierto, setUsuariosAbierto] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [zoom, setZoom] = useState(() => cargarVista().zoom);
   const [ahora, setAhora] = useState(() => Date.now());
@@ -163,7 +163,6 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
         onToggleTablero={() => abrirTablero(!tableroAbierto)}
         onAbrirDistribucion={() => setDistribucionAbierto(true)}
         onAbrirSalubridad={() => setSalubridadAbierto(true)}
-        onAbrirUsuarios={() => setUsuariosAbierto(true)}
         onLimpiarDatos={async () => {
           const { online } = await vaciarMapaCompleto();
           if (!online) {
@@ -337,14 +336,6 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
           />
         )}
 
-        {/* Gestión de usuarios (solo admin) */}
-        {usuariosAbierto && (
-          <GestionUsuarios
-            usuarioActualId={sesion.user.sub}
-            onCerrar={() => setUsuariosAbierto(false)}
-          />
-        )}
-
         {/* Formularios */}
         {pendiente?.clase === "sector" && (
           <SectorForm
@@ -444,11 +435,18 @@ export function App() {
 
   if (arrancando) return <PantallaCarga />;
   if (!sesion) return <Login />;
+  // Marca de agua de seguridad: se muestra salvo que el admin la desactive para
+  // este usuario (sesiones antiguas sin el campo → activada por defecto).
+  const mostrarMarcaAgua = sesion.user.marca_agua !== false;
   return (
-    <Routes>
-      <Route path="/" element={<AppInterna sesion={sesion} />} />
-      <Route path="/dashboard" element={<DashboardView sesion={sesion} />} />
-      <Route path="*" element={<AppInterna sesion={sesion} />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<AppInterna sesion={sesion} />} />
+        <Route path="/dashboard" element={<DashboardView sesion={sesion} />} />
+        <Route path="/usuarios" element={<GestionUsuarios sesion={sesion} />} />
+        <Route path="*" element={<AppInterna sesion={sesion} />} />
+      </Routes>
+      {mostrarMarcaAgua && <MarcaAgua usuario={sesion.user} />}
+    </>
   );
 }

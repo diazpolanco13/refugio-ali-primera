@@ -73,6 +73,20 @@ CREATE TABLE IF NOT EXISTS usuarios (
   created_at bigint NOT NULL
 );
 
+-- Campos ampliados de la ficha del usuario de gestión (migración idempotente).
+-- hash_id: identificador de sistema (se usa en la marca de agua anti-foto).
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS jerarquia text;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cedula text;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS responsabilidad text;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS whatsapp text;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS telegram text;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS brazalete text;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS hash_id text;
+-- Marca de agua de seguridad (anti-foto). Activada por defecto (el admin la
+-- puede desactivar por usuario).
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS marca_agua boolean NOT NULL DEFAULT true;
+CREATE UNIQUE INDEX IF NOT EXISTS usuarios_hash_id_idx ON usuarios(hash_id);
+
 CREATE TABLE IF NOT EXISTS historial (
   id text PRIMARY KEY,
   ts bigint NOT NULL,
@@ -87,7 +101,13 @@ CREATE INDEX IF NOT EXISTS historial_ts_idx ON historial(ts);
 
 export async function bootstrap(db: Db): Promise<void> {
   // Ejecutar sentencia por sentencia (PGlite.query solo admite una a la vez).
-  const sentencias = SQL.split(";")
+  // Quitamos primero las líneas de comentario "--" para que un ";" dentro de un
+  // comentario no parta mal las sentencias.
+  const sinComentarios = SQL.split("\n")
+    .filter((linea) => !linea.trim().startsWith("--"))
+    .join("\n");
+  const sentencias = sinComentarios
+    .split(";")
     .map((s) => s.trim())
     .filter(Boolean);
   for (const s of sentencias) {

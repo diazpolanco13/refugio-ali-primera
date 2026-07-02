@@ -1,9 +1,21 @@
+import { createHash } from "node:crypto";
 import { hash, verify } from "@node-rs/argon2";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { Rol, TokenPayload } from "./types.ts";
 
 export function hashPassword(plano: string): Promise<string> {
   return hash(plano);
+}
+
+/**
+ * Genera el identificador de sistema (hash) de un usuario de forma
+ * determinista a partir de su id. Estable, corto y legible; se usará como
+ * marca de agua para trazar quién fotografía la pantalla.
+ * Formato: XXXX-XXXX (8 hex en mayúsculas).
+ */
+export function generarHashId(id: string): string {
+  const hex = createHash("sha256").update(id).digest("hex").slice(0, 8).toUpperCase();
+  return `${hex.slice(0, 4)}-${hex.slice(4, 8)}`;
 }
 
 export function verifyPassword(hashGuardado: string, plano: string): Promise<boolean> {
