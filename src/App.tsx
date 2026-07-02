@@ -15,7 +15,6 @@ import {
 } from "./domain/tipos";
 import { MapView, type BaseMapa, type MapViewHandle, type ModoDibujo } from "./map/MapView";
 import { ControlesMapa } from "./map/ControlesMapa";
-import { BarraDibujo } from "./map/BarraDibujo";
 import { cargarVista } from "./data/preferencias";
 import { SectorForm } from "./features/sectores/SectorForm";
 import { PuntoForm } from "./features/puntos/PuntoForm";
@@ -236,6 +235,15 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
           conteos={conteos}
           conteosLineas={conteosLineas}
           oculto={esMovil && tableroAbierto}
+          puedeEditar={puedeEditar}
+          modoDibujo={modoDibujo}
+          modoEdicion={modoEdicion}
+          onDibujar={elegirDibujo}
+          onEditar={() => {
+            setModoDibujo("none");
+            setModoEdicion((v) => !v);
+            if (esMovil) setTableroAbierto(false);
+          }}
         />
 
         {/* Banner de dibujo */}
@@ -303,21 +311,6 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
           <GestionUsuarios
             usuarioActualId={sesion.user.sub}
             onCerrar={() => setUsuariosAbierto(false)}
-          />
-        )}
-
-        {/* Barra de herramientas de dibujo (flotante inferior, táctil). Se
-            oculta para el visor, al abrir paneles en móvil, o al editar/dibujar. */}
-        {puedeEditar && !(esMovil && tableroAbierto) && (
-          <BarraDibujo
-            modoDibujo={modoDibujo}
-            modoEdicion={modoEdicion}
-            onDibujar={elegirDibujo}
-            onEditar={() => {
-              setModoDibujo("none");
-              setModoEdicion((v) => !v);
-              if (esMovil) setTableroAbierto(false);
-            }}
           />
         )}
 

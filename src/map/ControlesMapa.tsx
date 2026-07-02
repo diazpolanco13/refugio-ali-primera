@@ -21,6 +21,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Toggle } from "@/components/ui/toggle";
 import { BASES_DISPONIBLES, type BaseMapa } from "@/map/estiloMapa";
+import { ControlDibujo } from "@/map/ControlDibujo";
+import type { ModoDibujo } from "@/map/MapView";
 import { cn } from "@/lib/utils";
 import { Layers, LocateFixed, Map, Minus, Plus } from "lucide-react";
 import type { MapViewHandle } from "@/map/MapView";
@@ -43,8 +45,13 @@ interface ControlesMapaProps {
   onToggleMostrarLineas: () => void;
   conteos: Map<TipoPunto, number>;
   conteosLineas: Map<TipoLinea, number>;
-  /** Ocultar cuando hay paneles móviles abiertos o modo dibujo activo. */
+  /** Ocultar cuando hay paneles móviles abiertos. */
   oculto?: boolean;
+  puedeEditar?: boolean;
+  modoDibujo?: ModoDibujo;
+  modoEdicion?: boolean;
+  onDibujar?: (modo: ModoDibujo) => void;
+  onEditar?: () => void;
 }
 
 export function ControlesMapa({
@@ -63,6 +70,11 @@ export function ControlesMapa({
   conteos,
   conteosLineas,
   oculto,
+  puedeEditar,
+  modoDibujo = "none",
+  modoEdicion = false,
+  onDibujar,
+  onEditar,
 }: ControlesMapaProps) {
   if (oculto) return null;
 
@@ -73,7 +85,7 @@ export function ControlesMapa({
 
   return (
     <>
-      {/* Base + capas */}
+      {/* Base + capas + dibujo */}
       <div className="pointer-events-none absolute left-2 top-2 z-10 flex gap-1">
         <div className="pointer-events-auto flex overflow-hidden rounded-lg border border-border/60 bg-popover/95 shadow-lg backdrop-blur-sm">
           <DropdownMenu>
@@ -179,11 +191,23 @@ export function ControlesMapa({
               </div>
             </PopoverContent>
           </Popover>
+
+          {puedeEditar && onDibujar && onEditar && (
+            <>
+              <Separator orientation="vertical" className="h-9" />
+              <ControlDibujo
+                modoDibujo={modoDibujo}
+                modoEdicion={modoEdicion}
+                onDibujar={onDibujar}
+                onEditar={onEditar}
+              />
+            </>
+          )}
         </div>
       </div>
 
-      {/* Zoom */}
-      <div className="pointer-events-none absolute bottom-2 right-2 z-10">
+      {/* Zoom + centrar */}
+      <div className="pointer-events-none absolute right-2 top-2 z-10">
         <div className="pointer-events-auto flex flex-col overflow-hidden rounded-lg border border-border/60 bg-popover/95 shadow-lg backdrop-blur-sm">
           <Button
             variant="ghost"
