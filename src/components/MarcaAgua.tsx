@@ -38,14 +38,17 @@ export function MarcaAgua({ usuario }: { usuario: Usuario }) {
     minute: "2-digit",
   });
 
-  const linea1 = escaparXml(`${nombre}${hash ? ` · ${hash}` : ""}`);
+  const linea1 = escaparXml(`${nombre}${hash ? `  ·  ${hash}` : ""}`);
   const linea2 = escaparXml(marca);
 
-  // Baldosa SVG con el texto rotado; se repite por todo el viewport.
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='300' height='170'>
-    <g transform='rotate(-28 150 85)' fill='rgb(148,163,184)' font-family='ui-sans-serif,system-ui,sans-serif' font-weight='600'>
-      <text x='150' y='80' text-anchor='middle' font-size='13'>${linea1}</text>
-      <text x='150' y='100' text-anchor='middle' font-size='11' opacity='0.85'>${linea2}</text>
+  // Baldosa SVG amplia y con mucho aire, para que el patrón quede espaciado
+  // (no amontonado) y se lea limpio. El texto va en diagonal y centrado.
+  const W = 460;
+  const H = 320;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${W}' height='${H}'>
+    <g transform='rotate(-24 ${W / 2} ${H / 2})' fill='rgb(148,163,184)' font-family='ui-sans-serif,system-ui,sans-serif' text-anchor='middle'>
+      <text x='${W / 2}' y='${H / 2 - 6}' font-size='15' font-weight='700' letter-spacing='0.5'>${linea1}</text>
+      <text x='${W / 2}' y='${H / 2 + 16}' font-size='11.5' font-weight='500' letter-spacing='1' opacity='0.8'>${linea2}</text>
     </g>
   </svg>`;
   const url = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
@@ -53,10 +56,11 @@ export function MarcaAgua({ usuario }: { usuario: Usuario }) {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-[2147483647] select-none opacity-[0.13] mix-blend-difference"
+      className="pointer-events-none fixed inset-0 z-[2147483647] select-none opacity-[0.07]"
       style={{
         backgroundImage: `url("${url}")`,
         backgroundRepeat: "repeat",
+        backgroundPosition: "center",
       }}
     />
   );
