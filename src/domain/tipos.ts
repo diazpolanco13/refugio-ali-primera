@@ -20,29 +20,42 @@ export type EstadoSector = "verde" | "amarillo" | "rojo";
 
 /**
  * Desglose demográfico del sector por edad y sexo (conteo agregado, sin datos
- * nominales). Los grupos etarios (niñez, adultos, adultos mayores) son
- * excluyentes y suman la población; embarazadas y discapacidad son
- * transversales (subconjuntos que pueden solaparse con los etarios).
+ * nominales). Los grupos etarios (recién nacidos, niñez, adolescentes, adultos,
+ * adultos mayores) son excluyentes y suman la población; embarazadas y
+ * discapacidad/patologías son transversales (subconjuntos que pueden solaparse
+ * con los etarios). `mascotas` es un conteo aparte: NO cuenta como población.
  */
 export interface Vulnerables {
-  // Niñez (0-17)
+  // Recién nacidos / lactantes (0-2)
+  recien_nacidos_h: number;
+  recien_nacidos_m: number;
+  // Niñez (3-11)
   ninos: number; // varones
   ninas: number; // niñas
+  // Adolescentes (12-17)
+  adolescentes_h: number;
+  adolescentes_m: number;
   // Adultos (18-59)
   adultos_h: number;
   adultos_m: number;
   // Adultos mayores (60+)
   adultos_mayores_h: number;
   adultos_mayores_m: number;
-  // Grupos transversales
+  // Grupos transversales (subconjuntos, pueden solaparse con los etarios)
   embarazadas: number;
   discapacidad_h: number;
   discapacidad_m: number;
+  // No poblacional: mascotas del refugio (no suman al total de personas).
+  mascotas: number;
 }
 
 export const VULNERABLES_VACIO: Vulnerables = {
+  recien_nacidos_h: 0,
+  recien_nacidos_m: 0,
   ninos: 0,
   ninas: 0,
+  adolescentes_h: 0,
+  adolescentes_m: 0,
   adultos_h: 0,
   adultos_m: 0,
   adultos_mayores_h: 0,
@@ -50,6 +63,7 @@ export const VULNERABLES_VACIO: Vulnerables = {
   embarazadas: 0,
   discapacidad_h: 0,
   discapacidad_m: 0,
+  mascotas: 0,
 };
 
 /** Normaliza un objeto vulnerables tolerando datos viejos o incompletos. */
@@ -61,12 +75,24 @@ export function normalizarVulnerables(
 
 /** Total de hombres del sector (suma de grupos etarios masculinos). */
 export function totalHombres(v: Vulnerables): number {
-  return (v.ninos || 0) + (v.adultos_h || 0) + (v.adultos_mayores_h || 0);
+  return (
+    (v.recien_nacidos_h || 0) +
+    (v.ninos || 0) +
+    (v.adolescentes_h || 0) +
+    (v.adultos_h || 0) +
+    (v.adultos_mayores_h || 0)
+  );
 }
 
 /** Total de mujeres del sector (suma de grupos etarios femeninos). */
 export function totalMujeres(v: Vulnerables): number {
-  return (v.ninas || 0) + (v.adultos_m || 0) + (v.adultos_mayores_m || 0);
+  return (
+    (v.recien_nacidos_m || 0) +
+    (v.ninas || 0) +
+    (v.adolescentes_m || 0) +
+    (v.adultos_m || 0) +
+    (v.adultos_mayores_m || 0)
+  );
 }
 
 /** Población total del sector según el desglose por edad y sexo. */
@@ -75,14 +101,19 @@ export function totalPoblacion(v: Vulnerables): number {
 }
 
 /**
- * Total de personas en grupos vulnerables prioritarios: niñez, adultos
- * mayores, embarazadas y personas con discapacidad (excluye adultos 18-59
- * sin condición). Es un estimado: puede haber solapamiento entre grupos.
+ * Total de personas en grupos vulnerables prioritarios: recién nacidos, niñez,
+ * adolescentes, adultos mayores, embarazadas y personas con discapacidad/
+ * patologías (excluye adultos 18-59 sin condición y las mascotas). Es un
+ * estimado: puede haber solapamiento entre grupos.
  */
 export function totalVulnerables(v: Vulnerables): number {
   return (
+    (v.recien_nacidos_h || 0) +
+    (v.recien_nacidos_m || 0) +
     (v.ninos || 0) +
     (v.ninas || 0) +
+    (v.adolescentes_h || 0) +
+    (v.adolescentes_m || 0) +
     (v.adultos_mayores_h || 0) +
     (v.adultos_mayores_m || 0) +
     (v.embarazadas || 0) +

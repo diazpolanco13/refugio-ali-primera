@@ -100,7 +100,14 @@ solo lectura). En prod Caddy hace fallback SPA a `index.html`; en la PWA se aña
 
 Conceptos del dominio (ver `src/domain/tipos.ts`):
 - **Sector**: polígono con `color`, `responsables[]` (nombre/telefono/categoria/funcion),
-  censo, familias, vulnerables.
+  censo, familias, vulnerables. El **desglose demográfico** (`Vulnerables` en
+  `tipos.ts`) es por edad y sexo con grupos etarios excluyentes que suman la
+  población: recién nacidos (0-2), niñez (3-11), adolescentes (12-17), adultos
+  (18-59), adultos mayores (60+); más grupos transversales `embarazadas` y
+  `discapacidad/patologías` (subconjuntos que pueden solaparse); y `mascotas`
+  (conteo aparte que **no** suma como población). `normalizarVulnerables` tolera
+  filas viejas sin los campos nuevos (default 0), así que añadir grupos no exige
+  migración de Dexie.
 - **PuntoServicio**: 11 tipos (`hidratacion, comida, salud, sanitarios, duchas,
   residuos, carpa, recreacion, seguridad, energia, acceso`). Campos opcionales por
   tipo: seguridad → `organismo`+`movilidad`; baños/duchas → `genero`+`condicion`

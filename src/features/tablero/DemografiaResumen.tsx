@@ -1,6 +1,7 @@
-import { Baby, Heart } from "lucide-react";
+import { Baby, Heart, PawPrint } from "lucide-react";
 import {
   normalizarVulnerables,
+  totalPoblacion,
   type Vulnerables,
 } from "@/domain/tipos";
 import { Badge } from "@/components/ui/badge";
@@ -61,10 +62,11 @@ export function DemografiaResumen({
 }: Props) {
   const v = normalizarVulnerables(raw);
   const tieneDatos =
-    (v.ninos || v.ninas || v.adultos_h || v.adultos_m || v.adultos_mayores_h || v.adultos_mayores_m) > 0 ||
+    totalPoblacion(v) > 0 ||
     v.embarazadas > 0 ||
     v.discapacidad_h > 0 ||
-    v.discapacidad_m > 0;
+    v.discapacidad_m > 0 ||
+    v.mascotas > 0;
 
   const filas = mostrarEstructura || tieneDatos;
 
@@ -90,10 +92,12 @@ export function DemografiaResumen({
           Por edad y sexo
         </div>
       )}
-      <CeldaSexo siempre={mostrarEstructura} etiqueta="Niñez (0-17)" hombres={v.ninos} mujeres={v.ninas} />
+      <CeldaSexo siempre={mostrarEstructura} etiqueta="Recién nacidos (0-2)" hombres={v.recien_nacidos_h} mujeres={v.recien_nacidos_m} />
+      <CeldaSexo siempre={mostrarEstructura} etiqueta="Niñez (3-11)" hombres={v.ninos} mujeres={v.ninas} />
+      <CeldaSexo siempre={mostrarEstructura} etiqueta="Adolescentes (12-17)" hombres={v.adolescentes_h} mujeres={v.adolescentes_m} />
       <CeldaSexo siempre={mostrarEstructura} etiqueta="Adultos (18-59)" hombres={v.adultos_h} mujeres={v.adultos_m} />
       <CeldaSexo siempre={mostrarEstructura} etiqueta="Adultos mayores (60+)" hombres={v.adultos_mayores_h} mujeres={v.adultos_mayores_m} />
-      <CeldaSexo siempre={mostrarEstructura} etiqueta="Discapacidad" hombres={v.discapacidad_h} mujeres={v.discapacidad_m} />
+      <CeldaSexo siempre={mostrarEstructura} etiqueta="Discapacidad / patologías" hombres={v.discapacidad_h} mujeres={v.discapacidad_m} />
       {(v.embarazadas > 0 || mostrarEstructura) && (
         <div className="flex items-center justify-between gap-2 text-xs">
           <span className="flex items-center gap-1 text-muted-foreground">
@@ -108,6 +112,23 @@ export function DemografiaResumen({
             )}
           >
             {v.embarazadas.toLocaleString("es")}
+          </Badge>
+        </div>
+      )}
+      {(v.mascotas > 0 || mostrarEstructura) && (
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="flex items-center gap-1 text-muted-foreground">
+            <PawPrint className="size-3" />
+            Mascotas
+          </span>
+          <Badge
+            variant="outline"
+            className={cn(
+              "px-1.5",
+              v.mascotas > 0 ? "border-amber-500/30 text-amber-300" : "text-muted-foreground",
+            )}
+          >
+            {v.mascotas.toLocaleString("es")}
           </Badge>
         </div>
       )}

@@ -27,7 +27,8 @@ export function PreviewSectorDatos({
   const tieneCenso = carpas > 0 || familias > 0 || poblacion > 0;
   const tieneDesglose =
     totalPoblacion(sector.vulnerables) > 0 ||
-    (sector.vulnerables?.embarazadas ?? 0) > 0;
+    (sector.vulnerables?.embarazadas ?? 0) > 0 ||
+    (sector.vulnerables?.mascotas ?? 0) > 0;
 
   const stats: string[] = [];
   if (carpas > 0) stats.push(`${carpas} carpas`);

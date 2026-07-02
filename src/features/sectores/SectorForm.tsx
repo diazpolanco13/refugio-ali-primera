@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Loader2,
   MessageCircle,
+  PawPrint,
   Phone,
   Plus,
   Tent,
@@ -531,18 +532,36 @@ export function SectorForm({
                 <div>
                   <Label>Desglose demográfico (por edad y sexo)</Label>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Entrevista carpa por carpa: niños, adultos, adultos mayores, discapacidad y
-                    embarazadas.
+                    Entrevista carpa por carpa: recién nacidos, niñez, adolescentes, adultos,
+                    adultos mayores, discapacidad/patologías, embarazadas y mascotas.
                   </p>
                   <div className="mt-2 space-y-2">
                     <GrupoSexo
-                      titulo="Niñez (0-17)"
+                      titulo="Recién nacidos (0-2)"
+                      etiquetaH="Niños"
+                      etiquetaM="Niñas"
+                      valorH={vulnerables.recien_nacidos_h}
+                      valorM={vulnerables.recien_nacidos_m}
+                      onH={setV("recien_nacidos_h")}
+                      onM={setV("recien_nacidos_m")}
+                      deshabilitado={deshabilitado}
+                    />
+                    <GrupoSexo
+                      titulo="Niñez (3-11)"
                       etiquetaH="Niños"
                       etiquetaM="Niñas"
                       valorH={vulnerables.ninos}
                       valorM={vulnerables.ninas}
                       onH={setV("ninos")}
                       onM={setV("ninas")}
+                      deshabilitado={deshabilitado}
+                    />
+                    <GrupoSexo
+                      titulo="Adolescentes (12-17)"
+                      valorH={vulnerables.adolescentes_h}
+                      valorM={vulnerables.adolescentes_m}
+                      onH={setV("adolescentes_h")}
+                      onM={setV("adolescentes_m")}
                       deshabilitado={deshabilitado}
                     />
                     <GrupoSexo
@@ -562,7 +581,7 @@ export function SectorForm({
                       deshabilitado={deshabilitado}
                     />
                     <GrupoSexo
-                      titulo="Personas con discapacidad"
+                      titulo="Discapacidad / patologías"
                       valorH={vulnerables.discapacidad_h}
                       valorM={vulnerables.discapacidad_m}
                       onH={setV("discapacidad_h")}
@@ -577,6 +596,23 @@ export function SectorForm({
                           value={vulnerables.embarazadas}
                           disabled={deshabilitado}
                           onChange={setV("embarazadas")}
+                        />
+                      </CardContent>
+                    </Card>
+                    <Card size="sm" className="py-2">
+                      <CardContent className="flex items-center justify-between gap-3 px-3">
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <PawPrint className="size-3.5" />
+                          Mascotas
+                          <span className="text-[10px] text-muted-foreground/70">
+                            (no cuenta como población)
+                          </span>
+                        </span>
+                        <NumInput
+                          className="w-24"
+                          value={vulnerables.mascotas}
+                          disabled={deshabilitado}
+                          onChange={setV("mascotas")}
                         />
                       </CardContent>
                     </Card>
