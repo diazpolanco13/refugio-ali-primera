@@ -58,6 +58,12 @@ npm run dev            # http://localhost:3001  (admin/admin1234 la 1ª vez)
 Para la clave opcional de MapTiler: copia `.env.example` → `.env` y pega tu clave
 en `VITE_MAPTILER_KEY` (NO commitear `.env`).
 
+**Atajo (recomendado):** `./reiniciar.sh` levanta backend (:3001) y frontend
+(:5173) en segundo plano de una sola vez. Subcomandos: `update` (git pull ff-only
++ reinicia), `stop`, `logs`. Reinstala dependencias solo si cambió
+`package-lock.json` (p. ej. tras un `git pull`), así no hay que acordarse de correr
+`npm install`. ⚠️ Es **solo desarrollo** (PGlite + Vite); **no** toca producción.
+
 ## Stack
 
 **Frontend:** React 19 + Vite 7 + TypeScript + Tailwind v4 (plugin `@tailwindcss/vite`,
@@ -155,6 +161,21 @@ una nueva hay que tocar, en cliente: `data/db.ts` (tabla + versión + tipo
 `types.ts` (`Entidad`), `routes/sync.ts` (pull/push/difundir). `limpiezas`
 (salubridad y aseo) fue el último añadido siguiendo exactamente este patrón —
 úsalo de referencia.
+
+> 🚨 **PASO OBLIGATORIO AL AÑADIR/EDITAR UNA ENTIDAD: redesplegar producción.**
+> Las tablas se crean con `CREATE TABLE IF NOT EXISTS` en `db/bootstrap.ts`, que
+> **solo corre al (re)arrancar el servidor con el código nuevo**. Si tocas
+> `bootstrap.ts` (o cualquier archivo del backend) tienes que: (1) **push a
+> `main` en GitHub** y (2) **redeploy en Dokploy** (ver sección de despliegue).
+> Sin eso, el servidor viejo **acepta el `POST /api/sync` y responde 200 pero
+> descarta en silencio** el campo desconocido (zod ignora claves no declaradas);
+> el cliente cree que se guardó, **vacía su `outbox`** y el dato queda **atrapado
+> solo en ese dispositivo**. Síntoma clásico: los sectores sí se sincronizan pero
+> la entidad nueva "no aparece en otros equipos". Esto fue exactamente el bug de
+> `lineas` (jul-2026): producción llevaba meses en un commit anterior a que
+> `lineas`/`censos`/`distribuciones`/`limpiezas` existieran, así que esas 4
+> tablas ni siquiera existían en la BD de prod. **Verifica siempre tras deploy**
+> que las tablas existan (comando abajo).
 
 **Fila de sync** = `{ id, updated_at:number, updated_by, deleted:boolean, data:<objeto completo> }`.
 Cada entidad se guarda como **blob JSON + metadatos** → cambiar campos del cliente
@@ -346,7 +367,69 @@ de usuarios (admin) y **viaja en el token JWT** (`TokenPayload` en servidor,
 `Usuario` en `src/data/auth.ts`). ⚠️ Al cambiar el sector de un usuario, debe
 **re-loguearse** para que el token nuevo lo incluya.
 
-## 🚀 Desplegar en el VPS (Docker) — SIGUIENTE PASO
+## 🟢 Producción REAL — corre en Dokploy (no con el `docker-compose.yml` a mano)
+
+> ⚠️ **Lee esto antes de tocar producción.** La app ya está **desplegada y viva**
+> en el VPS **vía Dokploy** (un panel que gestiona los contenedores). El
+> `docker-compose.yml`/`Dockerfile.web`/`Caddyfile` de la raíz son la receta
+> genérica/alternativa manual (sección siguiente), **pero NO es lo que corre**.
+
+**Cómo está montado en Dokploy** (proyecto `refugio-ali-primera`):
+- **Dominio de producción:** `https://m0n1t0r-d3-3v3nt0s.net`.
+- **`refugio-backend`** — servicio *Compose* (`composeId: ACKYOsSdQcksY0vu31loO`).
+  Contiene **Postgres** (`db`, volumen `dbdata`) + **API Node** (`server`). El
+  `server` se **construye desde GitHub**: `build.context =
+  https://github.com/diazpolanco13/refugio-ali-primera.git#main:server`. Es decir,
+  hornea la carpeta `server/` de la rama **`main`** con `server/Dockerfile`.
+  `autoDeploy: true`, `triggerType: push` → un push a `main` **debería**
+  redesplegarlo solo (por webhook), pero **verifica siempre** que ocurrió.
+- **`refugio-ali-primera`** — la **PWA/frontend** (aplicación aparte en Dokploy).
+- El **enrutado/HTTPS** lo hace **Traefik** (de Dokploy), no el `Caddyfile` de la
+  raíz. Los dominios `…/api` y `…/ws` apuntan al servicio `server:3001`.
+- Los **secretos** (DB_PASSWORD, JWT_SECRET, ADMIN_USER/PASSWORD, CORS_ORIGIN) se
+  editan en el panel de Dokploy (env del compose), **no** en un `.env` del repo.
+
+### Desplegar / actualizar producción (Dokploy)
+1. **Sube el código a GitHub `main`** (`git push origin main`). ⚠️ Producción se
+   construye desde `main` en GitHub; si tus commits no llegaron al remoto, el
+   redeploy horneará **código viejo** (esto pasó: el server llevaba meses en un
+   commit anterior a `lineas`). Confirma con `git ls-remote origin main`.
+2. **Redespliega** el compose `refugio-backend` (y la app del frontend si tocaste
+   el cliente). Opciones:
+   - Panel de Dokploy → botón **Redeploy/Rebuild**.
+   - Vía **MCP de Dokploy** (herramienta `compose-redeploy` con el `composeId`
+     de arriba). Este proyecto tiene ese MCP disponible.
+3. **Verifica** que el server nuevo arrancó y creó las tablas (⬇️).
+
+### Verificar producción tras un deploy
+```bash
+# Nombre de los contenedores del compose (prefijo autogenerado por Dokploy):
+docker ps --format '{{.Names}}' | grep refugio    # o busca "…-server-1 / …-db-1"
+
+# 1) Tablas presentes en Postgres (deben estar las 8: sectores, puntos, lineas,
+#    censos, distribuciones, limpiezas, usuarios, historial):
+docker exec <compose>-db-1 psql -U refugio -d refugio -c "\dt"
+
+# 2) La API responde y el pull trae TODAS las entidades:
+curl -s https://m0n1t0r-d3-3v3nt0s.net/api/health         # {"ok":true,"db":"postgres",…}
+TOKEN=$(curl -s https://m0n1t0r-d3-3v3nt0s.net/api/auth/login -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"<ADMIN_PASSWORD>"}' | jq -r .token)
+curl -s "https://m0n1t0r-d3-3v3nt0s.net/api/sync?since=0" -H "Authorization: Bearer $TOKEN" \
+  | jq 'keys'   # debe incluir lineas, censos, distribuciones, limpiezas
+```
+Si falta una tabla → el server corre código viejo: revisa que `main` en GitHub la
+tenga (`git ls-remote`), y vuelve a redesplegar.
+
+> **Recuperar datos "atrapados":** si una entidad estuvo rota en prod, los datos
+> que los usuarios creyeron guardar quedaron **solo en su dispositivo** (su
+> `outbox` se vació con el 200 falso). No se recuperan solos: hay que **volver a
+> editarlos/guardarlos** en el equipo donde están para re-encolarlos (p. ej. abrir
+> la línea y moverle un vértice). Los datos nuevos ya sincronizan normal.
+
+## 🚀 Alternativa manual: desplegar en el VPS con Docker Compose
+
+> Referencia por si algún día se despliega sin Dokploy (o para entender la receta).
+> **Lo que corre hoy es Dokploy** (sección anterior).
 
 Objetivo: dejar la app en `https://TU-DOMINIO` con Postgres + API + Caddy (HTTPS
 automático). VPS del usuario: 6 vCPU / 12 GB / 200 GB, con dominio. Archivos ya

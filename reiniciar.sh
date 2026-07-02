@@ -6,10 +6,17 @@
 #
 # Uso:
 #   ./reiniciar.sh          Reinicia ambos servidores (los deja en segundo plano)
+#   ./reiniciar.sh update   Trae cambios de git (ff-only) y reinicia
 #   ./reiniciar.sh stop     Solo detiene los servidores
 #   ./reiniciar.sh logs     Muestra los logs en vivo (Ctrl-C para salir)
 #
+# En cada arranque reinstala dependencias automáticamente si cambió
+# package-lock.json (p. ej. tras un git pull) — así "todo se actualiza bien".
 # Los logs se guardan en .dev-logs/{backend,frontend}.log
+#
+# OJO: esto es SOLO el entorno de DESARROLLO (backend PGlite + Vite). NO toca
+# producción. La producción corre en Dokploy y se actualiza aparte (ver
+# CLAUDE.md → "Desplegar / actualizar producción (Dokploy)").
 set -uo pipefail
 
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,6 +40,20 @@ esperar() { # $1=url  $2=nombre
   return 1
 }
 
+# Reinstala dependencias si faltan o si package-lock.json cambió desde la última
+# instalación (usa un sello en node_modules). Así, tras un `git pull` que añada o
+# suba deps, quedan instaladas sin tener que acordarse de correr npm install.
+instalar_deps() { # $1=dir  $2=nombre
+  local dir="$1" nombre="$2"
+  local lock="$dir/package-lock.json"
+  local sello="$dir/node_modules/.reiniciar-stamp"
+  if [ ! -d "$dir/node_modules" ] || [ ! -f "$sello" ] \
+     || { [ -f "$lock" ] && [ "$lock" -nt "$sello" ]; }; then
+    echo "→ npm install ($nombre)…"
+    ( cd "$dir" && npm install ) && touch "$sello"
+  fi
+}
+
 case "${1:-restart}" in
   stop)
     detener
@@ -43,14 +64,23 @@ case "${1:-restart}" in
     tail -n 50 -f "$LOGS/backend.log" "$LOGS/frontend.log"
     exit 0
     ;;
+  update)
+    echo "→ Trayendo cambios de git (ff-only)…"
+    if git -C "$RAIZ" pull --ff-only; then
+      echo "→ Repo actualizado."
+    else
+      echo "⚠ No se pudo hacer fast-forward (¿hay commits locales sin subir o"
+      echo "  conflicto?). Revisa 'git status'. Se reinicia con el código actual."
+    fi
+    ;;
 esac
 
 mkdir -p "$LOGS"
 detener
 
-# Instalar dependencias si faltan (primera vez o tras clonar).
-[ -d "$RAIZ/node_modules" ]        || (echo "→ npm install (frontend)…"; cd "$RAIZ" && npm install)
-[ -d "$RAIZ/server/node_modules" ] || (echo "→ npm install (backend)…";  cd "$RAIZ/server" && npm install)
+# Dependencias del frontend y del backend (se saltan si ya están al día).
+instalar_deps "$RAIZ"        "frontend"
+instalar_deps "$RAIZ/server" "backend"
 
 echo "→ Levantando backend (:$PUERTO_API)…"
 ( cd "$RAIZ/server" && setsid nohup npm run dev >"$LOGS/backend.log" 2>&1 & )
