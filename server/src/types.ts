@@ -28,4 +28,4 @@ export interface FilaSync {
   data: unknown;
 }
 
-export type Entidad = "sectores" | "puntos" | "lineas";
+export type Entidad = "sectores" | "puntos" | "lineas" | "censos";

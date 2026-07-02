@@ -1,5 +1,11 @@
-import { db, nuevoId, type OutboxItem } from "./db";
-import type { LineaReferencia, PuntoServicio, Sector } from "../domain/tipos";
+import { claveDia, db, nuevoId, type OutboxItem } from "./db";
+import {
+  normalizarVulnerables,
+  type CensoSnapshot,
+  type LineaReferencia,
+  type PuntoServicio,
+  type Sector,
+} from "../domain/tipos";
 import { getUsuario } from "./auth";
 import { notificarCambioLocal } from "./sync";
 
@@ -15,10 +21,54 @@ async function encolar(item: OutboxItem): Promise<void> {
 
 // ---- Sectores ----
 
+/** ¿Cambiaron los campos de censo entre dos versiones del sector? */
+function censoCambio(previo: Sector | undefined, nuevo: Sector): boolean {
+  if (!previo) return true;
+  if ((previo.poblacion_estimada || 0) !== (nuevo.poblacion_estimada || 0)) return true;
+  if ((previo.familias || 0) !== (nuevo.familias || 0)) return true;
+  if ((previo.carpas || 0) !== (nuevo.carpas || 0)) return true;
+  return (
+    JSON.stringify(normalizarVulnerables(previo.vulnerables)) !==
+    JSON.stringify(normalizarVulnerables(nuevo.vulnerables))
+  );
+}
+
+/**
+ * Registra una foto del censo de un sector. Id determinista por sector+día:
+ * varias ediciones el mismo día colapsan en un solo punto (la última gana),
+ * dejando un dato por sector por día para el gráfico poblacional.
+ */
+export async function registrarCenso(sector: Sector): Promise<void> {
+  const ts = sector.updated_at || Date.now();
+  const id = `censo-${sector.id}-${claveDia(ts)}`;
+  const snap: CensoSnapshot = {
+    id,
+    sector_id: sector.id,
+    sector_nombre: sector.nombre ?? "",
+    ts,
+    poblacion: sector.poblacion_estimada || 0,
+    familias: sector.familias || 0,
+    carpas: sector.carpas || 0,
+    vulnerables: normalizarVulnerables(sector.vulnerables),
+    updated_at: ts,
+    updated_by: sector.updated_by,
+  };
+  await db.censos.put(snap);
+  await encolar({
+    clave: `censos:${id}`,
+    entidad: "censos",
+    id,
+    updated_at: ts,
+    deleted: false,
+    data: snap,
+  });
+}
+
 export async function guardarSector(
   datos: Omit<Sector, "id" | "updated_at" | "updated_by"> & { id?: string },
 ): Promise<string> {
   const id = datos.id ?? nuevoId();
+  const previo = await db.sectores.get(id);
   const sector: Sector = {
     ...datos,
     id,
@@ -34,6 +84,11 @@ export async function guardarSector(
     deleted: false,
     data: sector,
   });
+  // Solo registra una foto del censo cuando cambian los datos poblacionales
+  // (evita ruido al editar nombre, color, responsables o geometría).
+  if (censoCambio(previo, sector)) {
+    await registrarCenso(sector);
+  }
   return id;
 }
 

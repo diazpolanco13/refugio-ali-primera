@@ -2,8 +2,9 @@
 
 > Documento de traspaso. Si eres una IA/desarrollador retomando este proyecto
 > (por ejemplo desde el VPS), **lee esto primero**. Explica qué es, qué está
-> hecho, cómo ejecutarlo y **exactamente qué falta** (Fase 2b) con un plan
-> concreto. El proyecto y sus comentarios están en **español**; mantén ese idioma.
+> hecho, cómo ejecutarlo y **qué falta** (Fase 2c: bitácora, gestión de usuarios,
+> despliegue · Fase 3: overlay del parque, export PDF). El proyecto y sus
+> comentarios están en **español**; mantén ese idioma.
 
 ## Qué es
 
@@ -27,8 +28,10 @@ autoaloja en el VPS del usuario, sin nubes de terceros.
 - ⏳ **Fase 2c:** bitácora "quién marcó limpio/recogió" (usar `POST /api/historial`
   al marcar limpio y en ediciones clave; mostrar en el tablero), gestión de
   usuarios desde la UI (admin), y desplegar en el VPS. **Siguiente trabajo.**
-- ⏳ **Fase 3:** vista sala de control (pantalla grande), overlay de la
-  ilustración del parque, export PDF de reportes.
+- 🟡 **Fase 3 (en progreso):** ✅ **vista sala de control** (`/dashboard`, pantalla
+  grande proyectable) con **registro poblacional por fechas** (gráfico de área).
+  Falta: overlay de la ilustración del parque, export PDF de reportes. Se irá
+  ampliando con más métricas. Ver `src/features/dashboard/DashboardView.tsx`.
 
 La app **ya funciona 100% offline** con Dexie/IndexedDB. El backend solo añade la
 capa compartida multiusuario; **no** debe romper el modo offline.
@@ -54,7 +57,11 @@ en `VITE_MAPTILER_KEY` (NO commitear `.env`).
 
 **Frontend:** React 19 + Vite 7 + TypeScript + Tailwind v4 (plugin `@tailwindcss/vite`,
 sin config) · **MapLibre GL** (mapa) + **Terra Draw** (dibujo) · **Dexie**
-(IndexedDB) · **vite-plugin-pwa**. Sin librería de componentes (todo propio).
+(IndexedDB) · **vite-plugin-pwa** · **react-router-dom** (rutas `/` y `/dashboard`).
+UI con **shadcn/ui** (Radix + cva + `cn()` en `src/lib/utils.ts`, componentes en
+`src/components/ui/`, estilo `radix-nova` en `components.json`) + **recharts** (via
+componente `chart` de shadcn) para gráficos. Quedan restos del sistema propio
+legacy (`src/ui/` Modal + `clases.ts`) en `PuntoForm`/`LineaForm`.
 
 **Backend (`server/`):** **Fastify 5** + **PostgreSQL** (geom como `jsonb`, sin
 PostGIS por ahora) · **@fastify/jwt v10** (JWT) · **@node-rs/argon2** (hash) ·
@@ -66,13 +73,22 @@ si no hay `DATABASE_URL`; en prod usa Postgres real.
 ```
 src/
 ├─ domain/     tipos.ts (modelo + catálogos), estandares.ts (Esfera),
-│              brechas.ts (cobertura/alertas/point-in-polygon), limpieza.ts (cronómetro)
-├─ data/       db.ts (Dexie, versión 2 con migración), repos.ts (guardar/eliminar),
+│              brechas.ts (cobertura/alertas/point-in-polygon), limpieza.ts (cronómetro),
+│              poblacion.ts (serie diaria de población desde snapshots)
+├─ data/       db.ts (Dexie, versión 7 con migraciones), repos.ts (guardar/eliminar),
 │              seed.ts (ejemplo), preferencias.ts (vista guardada en localStorage)
 ├─ map/        MapView.tsx (MapLibre + Terra Draw + marcadores HTML), estiloMapa.ts (bases)
-├─ features/   sectores/SectorForm · puntos/PuntoForm · tablero/Tablero
-└─ ui/         Modal, clases.ts (clases Tailwind reutilizables)
+├─ features/   sectores/SectorForm · puntos/PuntoForm · tablero/Tablero ·
+│              dashboard/DashboardView (sala de control /dashboard)
+├─ components/ Navbar, PanelFlotante, … · ui/ (componentes shadcn: card, chart, badge…)
+├─ lib/        utils.ts (cn())
+└─ ui/         (legacy) Modal, clases.ts (clases Tailwind reutilizables)
 ```
+
+Rutas (react-router en `src/main.tsx` + `src/App.tsx`): `/` = app del mapa
+(`AppInterna`), `/dashboard` = sala de control a pantalla completa (`DashboardView`,
+solo lectura). En prod Caddy hace fallback SPA a `index.html`; en la PWA se añadió
+`navigateFallback` en `vite.config.ts` para deep-link offline a `/dashboard`.
 
 Conceptos del dominio (ver `src/domain/tipos.ts`):
 - **Sector**: polígono con `color`, `responsables[]` (nombre/telefono/categoria/funcion),
@@ -82,7 +98,12 @@ Conceptos del dominio (ver `src/domain/tipos.ts`):
   tipo: seguridad → `organismo`+`movilidad`; baños/duchas → `genero`+`condicion`
   (improvisada no cuenta para el estándar); baños/duchas/basura → cronómetro
   `frecuenciaLimpiezaHoras`+`ultimaLimpieza`.
-- Todo lleva `id`, `updated_at`, `updated_by` (hoy siempre `"local"`).
+- **CensoSnapshot**: foto histórica del censo de un sector (`sector_id`, `ts`,
+  `poblacion`, `familias`, `carpas`, `vulnerables`). **Append-only**: se genera al
+  guardar un sector si cambian sus datos poblacionales. Id determinista
+  `censo-<sectorId>-<YYYY-MM-DD>` → varias ediciones el mismo día colapsan en un
+  punto (una foto por sector por día). Reconstruye la evolución poblacional.
+- Todo lleva `id`, `updated_at`, `updated_by` (con sesión = `user.username`).
 
 ## Backend — contrato de la API (`server/`)
 
@@ -92,10 +113,18 @@ Conceptos del dominio (ver `src/domain/tipos.ts`):
 | POST | `/api/auth/login` | — | `{username,password}` → `{token, user}` |
 | GET | `/api/auth/me` | auth | Payload del token |
 | GET | `/api/usuarios` · POST | admin | Listar / crear usuarios |
-| GET | `/api/sync?since=<ts>` | auth | `{sectores, puntos, serverTime}` con filas cambiadas (incluye `deleted:true`) |
-| POST | `/api/sync` | admin/coordinador/campo | Body `{sectores:[fila], puntos:[fila]}` → upsert **last-write-wins** |
+| GET | `/api/sync?since=<ts>` | auth | `{sectores, puntos, lineas, censos, serverTime}` con filas cambiadas (incluye `deleted:true`) |
+| POST | `/api/sync` | admin/coordinador/campo | Body `{sectores, puntos, lineas, censos}` (arrays de filas) → upsert **last-write-wins** |
+| POST | `/api/sync/purge` | admin | Vaciar mapa (sectores/puntos/lineas). **NO** borra `censos` (histórico se conserva) |
 | GET/POST | `/api/historial` | auth / (no visor) | Bitácora |
 | WS | `/ws?token=<jwt>` | auth | Difunde `{type:"cambio", entidad, filas, serverTime}` |
+
+**Entidades sincronizables** (mismo modelo blob+metadatos, last-write-wins):
+`sectores`, `puntos`, `lineas`, `censos`. Para añadir una nueva hay que tocar, en
+cliente: `data/db.ts` (tabla + versión + tipo `Entidad`/`OutboxItem`),
+`data/api.ts` (pull/push), `data/sync.ts` (`aplicarLote`/pull/push/WS) y en
+servidor: `db/bootstrap.ts` (tabla), `types.ts` (`Entidad`), `routes/sync.ts`
+(pull/push/difundir).
 
 **Fila de sync** = `{ id, updated_at:number, updated_by, deleted:boolean, data:<objeto completo> }`.
 Cada entidad se guarda como **blob JSON + metadatos** → cambiar campos del cliente
@@ -162,6 +191,36 @@ roles, **sin perder el offline**. Archivos: `src/data/auth.ts` (sesión),
 - Al **marcar limpio/recoger basura** y en ediciones clave, `POST /api/historial`
   con `{accion, entidad, entidad_id, detalle}` → registra quién y cuándo. Mostrar
   en el tablero.
+
+## ✅ Sala de control `/dashboard` (Fase 3, en progreso)
+
+Vista independiente a pantalla completa pensada para **proyectar** en la sala
+situacional. Solo lectura (todos los roles), se actualiza sola vía `useLiveQuery`
+sobre Dexie + sync/WebSocket. Archivo: `src/features/dashboard/DashboardView.tsx`.
+Se abre desde el botón **"Pantalla"** de la `Navbar` (link a `/dashboard`).
+
+Contenido actual: reloj en vivo, KPIs grandes (población, familias, vulnerables,
+sectores, puntos operativos, alertas), **gráfico de área "Registro poblacional por
+fechas"**, semáforo de sectores, demografía por edad/sexo, alertas y limpieza.
+Reutiliza las funciones de dominio existentes (`kpisGlobales`, `generarAlertas`,
+`sumarVulnerables`, `infoLimpieza`) — no duplica lógica.
+
+**Registro poblacional (cómo funciona):**
+- Cada `guardarSector` con cambios de censo llama a `registrarCenso()` (`repos.ts`)
+  → crea/actualiza un `CensoSnapshot` (tabla Dexie `censos`) y lo encola en `outbox`.
+- `src/domain/poblacion.ts` → `serieDiariaPoblacion(snaps)` construye la serie por
+  día haciendo **carry-forward** del último censo conocido de cada sector (así el
+  total refleja todo el refugio, no solo lo recensado ese día). `variacionUltimoDia`
+  deriva las entradas/salidas netas del día.
+- La migración Dexie **v7** crea una foto inicial por cada sector existente para que
+  el gráfico no arranque vacío (id determinista → sin duplicar entre dispositivos).
+- Se sincroniza como 4ª entidad (`censos`). El histórico **no** se purga al vaciar
+  el mapa.
+
+**Cómo ampliarlo:** el dashboard es iterativo. Para una nueva métrica: añade su
+cálculo en `domain/` (función pura sobre sectores/puntos/censos), y una tarjeta/serie
+nueva en `DashboardView.tsx`. Para gráficos usa el componente `chart` de shadcn
+(recharts) con `ChartContainer`/`ChartTooltip` y `var(--chart-N)` como colores.
 
 ## 🚀 Desplegar en el VPS (Docker) — SIGUIENTE PASO
 
@@ -249,8 +308,12 @@ docker compose up -d --build     # reconstruye PWA y API (lo que haya cambiado)
   ícono+número+etiqueta hover sin depender de fuentes del mapa (mejor offline).
 - **Cronómetro de limpieza:** el color del anillo se recalcula con un `ahora`
   (tick de 30 s en `App.tsx`). El estado depende de `Date.now()`.
-- **Migración Dexie:** `db.ts` está en versión 2 (migró `coordinador`→`responsables`).
-  Si cambias el esquema local, sube la versión y añade `upgrade`.
+- **Migración Dexie:** `db.ts` está en **versión 7** (v2 `coordinador`→`responsables`,
+  v4 desglose por edad/sexo, v5 líneas, v6 carpas, v7 tabla `censos` + foto inicial
+  por sector). Si cambias el esquema local, sube la versión y añade `upgrade`.
+- **shadcn CLI:** al añadir componentes (`npx shadcn add …`) revisa que el import de
+  `cn` quede como `@/lib/utils` (a veces el CLI lo escribe `src/lib/utils` y rompe
+  Vite). Nuevas deps de UI/gráficos: `react-router-dom`, `recharts`.
 - Un warning de React "changed size between renders" que aparece **solo en el
   entorno de preview del asistente** NO proviene de esta app (se comprobó); no
   aparece en un navegador normal.

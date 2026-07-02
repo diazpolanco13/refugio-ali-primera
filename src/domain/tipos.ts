@@ -190,6 +190,27 @@ export interface Sector {
   updated_by: string;
 }
 
+/**
+ * Foto (snapshot) del censo de un sector en un instante dado. Registro
+ * histórico append-only: nunca se edita, solo se añaden nuevas filas. Permite
+ * reconstruir la evolución poblacional del refugio por fechas (entradas/salidas).
+ */
+export interface CensoSnapshot {
+  id: string;
+  /** Sector al que pertenece la foto. */
+  sector_id: string;
+  /** Nombre del sector al momento de la foto (por si luego cambia/desaparece). */
+  sector_nombre: string;
+  /** Momento del censo (ms). Se agrupa por día en el dashboard. */
+  ts: number;
+  poblacion: number;
+  familias: number;
+  carpas: number;
+  vulnerables: Vulnerables;
+  updated_at: number;
+  updated_by: string;
+}
+
 export interface PuntoServicio {
   id: string;
   tipo: TipoPunto;

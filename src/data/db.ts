@@ -2,16 +2,21 @@ import Dexie, { type EntityTable } from "dexie";
 import {
   SECTOR_COLORES,
   VULNERABLES_VACIO,
+  normalizarVulnerables,
+  type CensoSnapshot,
   type LineaReferencia,
   type PuntoServicio,
   type Sector,
 } from "../domain/tipos";
 
+/** Entidades sincronizables (blob JSON + metadatos, last-write-wins). */
+export type Entidad = "sectores" | "puntos" | "lineas" | "censos";
+
 /** Mutación pendiente de subir al servidor (cola de sincronización). */
 export interface OutboxItem {
   /** Clave = `${entidad}:${id}` (una entrada por entidad+id). */
   clave: string;
-  entidad: "sectores" | "puntos" | "lineas";
+  entidad: Entidad;
   id: string;
   updated_at: number;
   deleted: boolean;
@@ -23,6 +28,7 @@ const db = new Dexie("refugio-parque-oeste") as Dexie & {
   sectores: EntityTable<Sector, "id">;
   puntos: EntityTable<PuntoServicio, "id">;
   lineas: EntityTable<LineaReferencia, "id">;
+  censos: EntityTable<CensoSnapshot, "id">;
   outbox: EntityTable<OutboxItem, "clave">;
 };
 
@@ -116,7 +122,56 @@ db.version(6)
     });
   });
 
+// v7: registro poblacional histórico (snapshots del censo por sector). Al migrar,
+// se crea una foto inicial por cada sector existente (id determinista por
+// sector+día para que todos los dispositivos converjan sin duplicar) y se encola
+// para sincronizar con el servidor.
+db.version(7)
+  .stores({
+    sectores: "id, nombre, updated_at",
+    puntos: "id, tipo, estado, updated_at",
+    lineas: "id, tipo, updated_at",
+    censos: "id, sector_id, ts, updated_at",
+    outbox: "clave, entidad, updated_at",
+  })
+  .upgrade(async (tx) => {
+    const sectores = await tx.table("sectores").toArray();
+    for (const s of sectores as Sector[]) {
+      const ts = s.updated_at || Date.now();
+      const id = `censo-init-${s.id}-${claveDia(ts)}`;
+      const snap: CensoSnapshot = {
+        id,
+        sector_id: s.id,
+        sector_nombre: s.nombre ?? "",
+        ts,
+        poblacion: s.poblacion_estimada || 0,
+        familias: s.familias || 0,
+        carpas: s.carpas || 0,
+        vulnerables: normalizarVulnerables(s.vulnerables),
+        updated_at: ts,
+        updated_by: s.updated_by ?? "local",
+      };
+      await tx.table("censos").put(snap);
+      await tx.table("outbox").put({
+        clave: `censos:${id}`,
+        entidad: "censos",
+        id,
+        updated_at: ts,
+        deleted: false,
+        data: snap,
+      });
+    }
+  });
+
 export { db };
+
+/** Clave de día (YYYY-MM-DD, hora local) a partir de un timestamp en ms. */
+export function claveDia(ts: number): string {
+  const d = new Date(ts);
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mes}-${dia}`;
+}
 
 export function nuevoId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {

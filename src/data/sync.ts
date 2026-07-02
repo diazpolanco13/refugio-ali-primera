@@ -1,9 +1,9 @@
 import { useSyncExternalStore } from "react";
 import type { EntityTable } from "dexie";
-import { db } from "./db";
+import { db, type Entidad } from "./db";
 import { api, type FilaSync } from "./api";
 import { getToken } from "./auth";
-import type { LineaReferencia, PuntoServicio, Sector } from "../domain/tipos";
+import type { CensoSnapshot, LineaReferencia, PuntoServicio, Sector } from "../domain/tipos";
 
 // ---- Estado observable para la UI ----
 export type EstadoSync = "idle" | "sincronizando" | "ok" | "error" | "offline";
@@ -44,7 +44,8 @@ export function reiniciarLastSync(): void {
 type Tabla =
   | EntityTable<Sector, "id">
   | EntityTable<PuntoServicio, "id">
-  | EntityTable<LineaReferencia, "id">;
+  | EntityTable<LineaReferencia, "id">
+  | EntityTable<CensoSnapshot, "id">;
 
 /** Filas antiguas del servidor pueden traer `data` como string JSON. */
 function normalizarData(data: unknown): Record<string, unknown> {
@@ -77,14 +78,22 @@ async function aplicarFila(tabla: Tabla, fila: FilaSync): Promise<void> {
   }
 }
 
-async function aplicarLote(
-  entidad: "sectores" | "puntos" | "lineas",
-  filas: FilaSync[],
-): Promise<void> {
+function tablaDe(entidad: Entidad): Tabla {
+  switch (entidad) {
+    case "sectores":
+      return db.sectores as Tabla;
+    case "puntos":
+      return db.puntos as Tabla;
+    case "lineas":
+      return db.lineas as Tabla;
+    case "censos":
+      return db.censos as Tabla;
+  }
+}
+
+async function aplicarLote(entidad: Entidad, filas: FilaSync[]): Promise<void> {
   if (!filas.length) return;
-  const tabla = (
-    entidad === "sectores" ? db.sectores : entidad === "puntos" ? db.puntos : db.lineas
-  ) as Tabla;
+  const tabla = tablaDe(entidad);
   await db.transaction("rw", tabla, async () => {
     for (const f of filas) await aplicarFila(tabla, f);
   });
@@ -94,10 +103,16 @@ async function aplicarLote(
 async function push(): Promise<void> {
   const items = await db.outbox.toArray();
   if (!items.length) return;
-  const body: { sectores: FilaSync[]; puntos: FilaSync[]; lineas: FilaSync[] } = {
+  const body: {
+    sectores: FilaSync[];
+    puntos: FilaSync[];
+    lineas: FilaSync[];
+    censos: FilaSync[];
+  } = {
     sectores: [],
     puntos: [],
     lineas: [],
+    censos: [],
   };
   for (const it of items) {
     const fila: FilaSync = {
@@ -125,6 +140,7 @@ async function pull(): Promise<void> {
   await aplicarLote("sectores", r.sectores);
   await aplicarLote("puntos", r.puntos);
   await aplicarLote("lineas", r.lineas);
+  await aplicarLote("censos", r.censos ?? []);
   setLastSync(r.serverTime);
 }
 
@@ -159,7 +175,7 @@ function conectarWs(): void {
     try {
       const msg = JSON.parse(ev.data) as {
         type: string;
-        entidad?: "sectores" | "puntos" | "lineas";
+        entidad?: Entidad;
         filas?: FilaSync[];
       };
       if (msg.type === "cambio" && msg.entidad && msg.filas) {

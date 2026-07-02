@@ -31,6 +31,16 @@ CREATE TABLE IF NOT EXISTS lineas (
 );
 CREATE INDEX IF NOT EXISTS lineas_updated_at_idx ON lineas(updated_at);
 
+-- Registro poblacional histórico: fotos del censo por sector (append-only).
+CREATE TABLE IF NOT EXISTS censos (
+  id text PRIMARY KEY,
+  updated_at bigint NOT NULL,
+  updated_by text,
+  deleted boolean NOT NULL DEFAULT false,
+  data jsonb NOT NULL
+);
+CREATE INDEX IF NOT EXISTS censos_updated_at_idx ON censos(updated_at);
+
 CREATE TABLE IF NOT EXISTS usuarios (
   id text PRIMARY KEY,
   username text UNIQUE NOT NULL,

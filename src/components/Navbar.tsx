@@ -1,10 +1,12 @@
 import {
   BarChart3,
   LogOut,
+  MonitorPlay,
   Tent,
   Trash2,
   Users,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import type { Rol } from "@/data/auth";
 import type { Sesion } from "@/data/auth";
 import { cerrarSesion } from "@/data/auth";
@@ -134,6 +136,13 @@ export function Navbar({
         >
           <BarChart3 className="size-4" />
           <span className="hidden sm:inline">Tablero</span>
+        </Button>
+
+        <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
+          <Link to="/dashboard" title="Abrir sala situacional en pantalla completa">
+            <MonitorPlay className="size-4" />
+            <span className="hidden sm:inline">Pantalla</span>
+          </Link>
         </Button>
 
         {esAdmin && (

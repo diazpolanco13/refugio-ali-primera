@@ -45,6 +45,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
+        // Rutas del cliente (/, /dashboard, …) se resuelven al index.html cacheado
+        // para que funcionen offline y con deep-link. Excluye la API y el WS.
+        navigateFallback: "index.html",
+        navigateFallbackDenylist: [/^\/api/, /^\/ws/],
         // Cachea los tiles de satélite/calles ya visitados para uso sin señal.
         runtimeCaching: [
           {

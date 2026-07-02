@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Route, Routes } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "./data/db";
 import { eliminarLinea, eliminarPunto, eliminarSector, guardarLinea, guardarPunto, guardarSector } from "./data/repos";
@@ -20,6 +21,7 @@ import { SectorForm } from "./features/sectores/SectorForm";
 import { PuntoForm } from "./features/puntos/PuntoForm";
 import { LineaForm } from "./features/lineas/LineaForm";
 import { Tablero } from "./features/tablero/Tablero";
+import { DashboardView } from "./features/dashboard/DashboardView";
 import { Login } from "./features/auth/Login";
 import { GestionUsuarios } from "./features/usuarios/GestionUsuarios";
 import { useSesion, type Sesion } from "./data/auth";
@@ -413,5 +415,11 @@ export function App() {
 
   if (arrancando) return <PantallaCarga />;
   if (!sesion) return <Login />;
-  return <AppInterna sesion={sesion} />;
+  return (
+    <Routes>
+      <Route path="/" element={<AppInterna sesion={sesion} />} />
+      <Route path="/dashboard" element={<DashboardView sesion={sesion} />} />
+      <Route path="*" element={<AppInterna sesion={sesion} />} />
+    </Routes>
+  );
 }
