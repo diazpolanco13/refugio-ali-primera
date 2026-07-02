@@ -3,7 +3,13 @@ import type { EntityTable } from "dexie";
 import { db, type Entidad } from "./db";
 import { api, type FilaSync } from "./api";
 import { getToken } from "./auth";
-import type { CensoSnapshot, LineaReferencia, PuntoServicio, Sector } from "../domain/tipos";
+import type {
+  CensoSnapshot,
+  LineaReferencia,
+  PuntoServicio,
+  RegistroDistribucion,
+  Sector,
+} from "../domain/tipos";
 
 // ---- Estado observable para la UI ----
 export type EstadoSync = "idle" | "sincronizando" | "ok" | "error" | "offline";
@@ -45,7 +51,8 @@ type Tabla =
   | EntityTable<Sector, "id">
   | EntityTable<PuntoServicio, "id">
   | EntityTable<LineaReferencia, "id">
-  | EntityTable<CensoSnapshot, "id">;
+  | EntityTable<CensoSnapshot, "id">
+  | EntityTable<RegistroDistribucion, "id">;
 
 /** Filas antiguas del servidor pueden traer `data` como string JSON. */
 function normalizarData(data: unknown): Record<string, unknown> {
@@ -88,6 +95,8 @@ function tablaDe(entidad: Entidad): Tabla {
       return db.lineas as Tabla;
     case "censos":
       return db.censos as Tabla;
+    case "distribuciones":
+      return db.distribuciones as Tabla;
   }
 }
 
@@ -108,11 +117,13 @@ async function push(): Promise<void> {
     puntos: FilaSync[];
     lineas: FilaSync[];
     censos: FilaSync[];
+    distribuciones: FilaSync[];
   } = {
     sectores: [],
     puntos: [],
     lineas: [],
     censos: [],
+    distribuciones: [],
   };
   for (const it of items) {
     const fila: FilaSync = {
@@ -141,6 +152,7 @@ async function pull(): Promise<void> {
   await aplicarLote("puntos", r.puntos);
   await aplicarLote("lineas", r.lineas);
   await aplicarLote("censos", r.censos ?? []);
+  await aplicarLote("distribuciones", r.distribuciones ?? []);
   setLastSync(r.serverTime);
 }
 

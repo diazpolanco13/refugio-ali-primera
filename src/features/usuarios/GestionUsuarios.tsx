@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { Loader2, Pencil, Plus, Users } from "lucide-react";
 import { api, type UsuarioRegistro } from "@/data/api";
 import type { Rol } from "@/data/auth";
+import { db } from "@/data/db";
+import type { Sector } from "@/domain/tipos";
 import { INFO_ROLES, ROLES } from "@/domain/permisos";
 import { BadgeRol } from "@/components/BadgeRol";
 import { PanelFlotante } from "@/components/PanelFlotante";
@@ -29,6 +32,7 @@ type Formulario = {
   password: string;
   nombre: string;
   rol: Rol;
+  sector_asignado: string;
 };
 
 const formVacio = (): Formulario => ({
@@ -36,6 +40,7 @@ const formVacio = (): Formulario => ({
   password: "",
   nombre: "",
   rol: "campo",
+  sector_asignado: "",
 });
 
 function FormUsuario({
@@ -44,6 +49,7 @@ function FormUsuario({
   inicial,
   esEdicion,
   abierto,
+  sectores,
   onGuardar,
   onCerrar,
 }: {
@@ -52,6 +58,7 @@ function FormUsuario({
   inicial: Formulario;
   esEdicion: boolean;
   abierto: boolean;
+  sectores: Sector[];
   onGuardar: (f: Formulario) => Promise<void>;
   onCerrar: () => void;
 }) {
@@ -147,6 +154,29 @@ function FormUsuario({
                 {INFO_ROLES[form.rol].descripcion}
               </p>
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="usuario-sector">Sector asignado (responsable)</Label>
+              <select
+                id="usuario-sector"
+                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30"
+                value={form.sector_asignado}
+                disabled={guardando}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, sector_asignado: e.target.value }))
+                }
+              >
+                <option value="">Sin asignar</option>
+                {sectores.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nombre || s.id}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs leading-snug text-muted-foreground">
+                El responsable de campo solo podrá marcar la comida/hidratación de
+                su sector.
+              </p>
+            </div>
             {error && (
               <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                 {error}
@@ -180,6 +210,7 @@ export function GestionUsuarios({ usuarioActualId, onCerrar }: Props) {
   const [error, setError] = useState("");
   const [creando, setCreando] = useState(false);
   const [editando, setEditando] = useState<UsuarioRegistro | null>(null);
+  const sectores = useLiveQuery(() => db.sectores.toArray(), [], [] as Sector[]);
 
   const recargar = useCallback(async () => {
     setError("");
@@ -203,6 +234,7 @@ export function GestionUsuarios({ usuarioActualId, onCerrar }: Props) {
       password: form.password,
       nombre: form.nombre.trim() || undefined,
       rol: form.rol,
+      sector_asignado: form.sector_asignado || undefined,
     });
     setCreando(false);
     await recargar();
@@ -213,6 +245,7 @@ export function GestionUsuarios({ usuarioActualId, onCerrar }: Props) {
     await api.actualizarUsuario(editando.id, {
       nombre: form.nombre.trim() || null,
       rol: form.rol,
+      sector_asignado: form.sector_asignado || null,
       ...(form.password ? { password: form.password } : {}),
     });
     setEditando(null);
@@ -275,8 +308,14 @@ export function GestionUsuarios({ usuarioActualId, onCerrar }: Props) {
                       )}
                     </div>
                     <div className="truncate text-xs text-muted-foreground">@{u.username}</div>
-                    <div className="mt-1.5">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <BadgeRol rol={u.rol} />
+                      {u.sector_asignado && (
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                          {sectores.find((s) => s.id === u.sector_asignado)?.nombre ??
+                            "Sector asignado"}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <Button
@@ -301,6 +340,7 @@ export function GestionUsuarios({ usuarioActualId, onCerrar }: Props) {
         inicial={formVacio()}
         esEdicion={false}
         abierto={creando}
+        sectores={sectores}
         onGuardar={crear}
         onCerrar={() => setCreando(false)}
       />
@@ -312,9 +352,11 @@ export function GestionUsuarios({ usuarioActualId, onCerrar }: Props) {
           password: "",
           nombre: editando?.nombre ?? "",
           rol: editando?.rol ?? "campo",
+          sector_asignado: editando?.sector_asignado ?? "",
         }}
         esEdicion
         abierto={editando != null}
+        sectores={sectores}
         onGuardar={actualizar}
         onCerrar={() => setEditando(null)}
       />

@@ -5,6 +5,7 @@ import {
   Tent,
   Trash2,
   Users,
+  UtensilsCrossed,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Rol } from "@/data/auth";
@@ -36,6 +37,7 @@ interface NavbarProps {
   estadoSync: EstadoSync;
   tableroAbierto: boolean;
   onToggleTablero: () => void;
+  onAbrirDistribucion: () => void;
   onAbrirUsuarios: () => void;
   onLimpiarDatos: () => void;
 }
@@ -102,6 +104,7 @@ export function Navbar({
   estadoSync,
   tableroAbierto,
   onToggleTablero,
+  onAbrirDistribucion,
   onAbrirUsuarios,
   onLimpiarDatos,
 }: NavbarProps) {
@@ -136,6 +139,17 @@ export function Navbar({
         >
           <BarChart3 className="size-4" />
           <span className="hidden sm:inline">Tablero</span>
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 gap-1.5"
+          onClick={onAbrirDistribucion}
+          title="Registro de distribución de comida e hidratación"
+        >
+          <UtensilsCrossed className="size-4" />
+          <span className="hidden sm:inline">Comida</span>
         </Button>
 
         <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">

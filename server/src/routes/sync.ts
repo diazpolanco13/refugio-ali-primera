@@ -18,6 +18,7 @@ const pushSchema = z.object({
   puntos: z.array(filaSchema).optional().default([]),
   lineas: z.array(filaSchema).optional().default([]),
   censos: z.array(filaSchema).optional().default([]),
+  distribuciones: z.array(filaSchema).optional().default([]),
 });
 
 async function filasDesde(db: Db, tabla: Entidad, since: number): Promise<FilaSync[]> {
@@ -62,13 +63,14 @@ export async function rutasSync(app: FastifyInstance) {
   // Pull: cambios desde un timestamp.
   app.get("/api/sync", { preHandler: requireAuth }, async (req) => {
     const since = Number((req.query as { since?: string }).since ?? 0) || 0;
-    const [sectores, puntos, lineas, censos] = await Promise.all([
+    const [sectores, puntos, lineas, censos, distribuciones] = await Promise.all([
       filasDesde(app.db, "sectores", since),
       filasDesde(app.db, "puntos", since),
       filasDesde(app.db, "lineas", since),
       filasDesde(app.db, "censos", since),
+      filasDesde(app.db, "distribuciones", since),
     ]);
-    return { sectores, puntos, lineas, censos, serverTime: Date.now() };
+    return { sectores, puntos, lineas, censos, distribuciones, serverTime: Date.now() };
   });
 
   // Push: subir cambios locales (visor no puede escribir).
@@ -84,11 +86,18 @@ export async function rutasSync(app: FastifyInstance) {
       const puntos = await aplicar(app.db, "puntos", parsed.data.puntos, usuario);
       const lineas = await aplicar(app.db, "lineas", parsed.data.lineas, usuario);
       const censos = await aplicar(app.db, "censos", parsed.data.censos, usuario);
+      const distribuciones = await aplicar(
+        app.db,
+        "distribuciones",
+        parsed.data.distribuciones,
+        usuario,
+      );
 
       difundirCambio("sectores", sectores);
       difundirCambio("puntos", puntos);
       difundirCambio("lineas", lineas);
       difundirCambio("censos", censos);
+      difundirCambio("distribuciones", distribuciones);
 
       return {
         serverTime: Date.now(),
@@ -97,6 +106,7 @@ export async function rutasSync(app: FastifyInstance) {
           puntos: puntos.length,
           lineas: lineas.length,
           censos: censos.length,
+          distribuciones: distribuciones.length,
         },
       };
     },
@@ -114,6 +124,7 @@ export async function rutasSync(app: FastifyInstance) {
       puntos: [],
       lineas: [],
       censos: [],
+      distribuciones: [],
     };
 
     for (const tabla of tablas) {

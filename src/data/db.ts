@@ -6,11 +6,12 @@ import {
   type CensoSnapshot,
   type LineaReferencia,
   type PuntoServicio,
+  type RegistroDistribucion,
   type Sector,
 } from "../domain/tipos";
 
 /** Entidades sincronizables (blob JSON + metadatos, last-write-wins). */
-export type Entidad = "sectores" | "puntos" | "lineas" | "censos";
+export type Entidad = "sectores" | "puntos" | "lineas" | "censos" | "distribuciones";
 
 /** Mutación pendiente de subir al servidor (cola de sincronización). */
 export interface OutboxItem {
@@ -29,6 +30,7 @@ const db = new Dexie("refugio-parque-oeste") as Dexie & {
   puntos: EntityTable<PuntoServicio, "id">;
   lineas: EntityTable<LineaReferencia, "id">;
   censos: EntityTable<CensoSnapshot, "id">;
+  distribuciones: EntityTable<RegistroDistribucion, "id">;
   outbox: EntityTable<OutboxItem, "clave">;
 };
 
@@ -162,6 +164,17 @@ db.version(7)
       });
     }
   });
+
+// v8: registro de distribución de comida e hidratación (jornadas + entregas por
+// sector). Nueva entidad sincronizable, sin migración de datos previos.
+db.version(8).stores({
+  sectores: "id, nombre, updated_at",
+  puntos: "id, tipo, estado, updated_at",
+  lineas: "id, tipo, updated_at",
+  censos: "id, sector_id, ts, updated_at",
+  distribuciones: "id, clase, dia, jornada, sector_id, updated_at",
+  outbox: "clave, entidad, updated_at",
+});
 
 export { db };
 

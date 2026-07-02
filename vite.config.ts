@@ -45,6 +45,11 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
+        // El bundle principal supera el límite por defecto de Workbox (2 MiB)
+        // tras añadir MapLibre + recharts. Subimos el tope para que igual se
+        // precachee y la PWA siga funcionando offline. (Optimización futura:
+        // code-splitting con manualChunks para reducir el chunk inicial.)
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         // Rutas del cliente (/, /dashboard, …) se resuelven al index.html cacheado
         // para que funcionen offline y con deep-link. Excluye la API y el WS.
         navigateFallback: "index.html",

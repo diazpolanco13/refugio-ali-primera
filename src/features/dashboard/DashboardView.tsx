@@ -12,18 +12,31 @@ import {
   AlertTriangle,
   ArrowLeft,
   Brush,
+  Clock,
   Home,
   Minus,
   ShieldAlert,
   TrendingDown,
   TrendingUp,
+  UtensilsCrossed,
   Users,
 } from "lucide-react";
 import { db } from "@/data/db";
-import type { CensoSnapshot, PuntoServicio, Sector } from "@/domain/tipos";
+import type {
+  CensoSnapshot,
+  PuntoServicio,
+  RegistroDistribucion,
+  Sector,
+} from "@/domain/tipos";
 import { ESTADO_SECTOR_COLOR, META_POR_TIPO, sumarVulnerables } from "@/domain/tipos";
 import { generarAlertas, kpisGlobales } from "@/domain/brechas";
 import { esMantenimiento, formatoDuracion, infoLimpieza } from "@/domain/limpieza";
+import {
+  claveDiaLocal,
+  formatoHora,
+  resumenDistribucion,
+  type ResumenJornada,
+} from "@/domain/distribucion";
 import {
   serieDiariaPoblacion,
   variacionUltimoDia,
@@ -86,6 +99,11 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
   const sectores = useLiveQuery(() => db.sectores.toArray(), [], [] as Sector[]);
   const puntos = useLiveQuery(() => db.puntos.toArray(), [], [] as PuntoServicio[]);
   const censos = useLiveQuery(() => db.censos.toArray(), [], [] as CensoSnapshot[]);
+  const distribuciones = useLiveQuery(
+    () => db.distribuciones.toArray(),
+    [],
+    [] as RegistroDistribucion[],
+  );
   const estadoSync = useEstadoSync();
   const permisos = permisosDeRol(sesion.user.rol);
 
@@ -101,6 +119,10 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
   const alertas = useMemo(() => generarAlertas(sectores, puntos), [sectores, puntos]);
   const serie = useMemo(() => serieDiariaPoblacion(censos), [censos]);
   const variacion = useMemo(() => variacionUltimoDia(serie), [serie]);
+  const alimentacion = useMemo(
+    () => resumenDistribucion(claveDiaLocal(), distribuciones, sectores),
+    [distribuciones, sectores],
+  );
 
   const mantenimiento = useMemo(() => {
     const rank: Record<string, number> = {
@@ -249,6 +271,26 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
           </div>
         </div>
 
+        {/* Alimentación de hoy */}
+        <Card className="mt-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
+              <UtensilsCrossed className="size-4 text-primary" />
+              Alimentación de hoy
+            </CardTitle>
+            <CardDescription>
+              Llegada de la comida e hidratación y sectores servidos por jornada
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              {alimentacion.map((r) => (
+                <JornadaTarjeta key={r.jornada} r={r} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Alertas + limpieza */}
         <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
           <Card>
@@ -339,6 +381,65 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
         <p className="mt-4 text-center text-xs text-muted-foreground">
           Vista de solo lectura · {permisos.etiqueta} · @{sesion.user.username}
         </p>
+      </div>
+    </div>
+  );
+}
+
+function JornadaTarjeta({ r }: { r: ResumenJornada }) {
+  const pct = r.total > 0 ? Math.round((r.servidos / r.total) * 100) : 0;
+  const iniciada = r.horaLlegada != null || r.servidos > 0;
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-2 rounded-lg border bg-muted/20 p-3",
+        r.completo
+          ? "border-emerald-500/40"
+          : iniciada
+            ? "border-amber-500/30"
+            : "border-border",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <span className="text-lg leading-none">{r.icono}</span>
+          <span className="text-sm font-semibold text-foreground">{r.label}</span>
+        </div>
+        {r.completo && (
+          <Badge variant="outline" className="border-emerald-500/40 text-[10px] text-emerald-300">
+            Completo
+          </Badge>
+        )}
+      </div>
+
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+        <Clock className="size-3.5" />
+        {r.horaLlegada ? (
+          <span className="tabular-nums text-foreground">
+            Llegó {formatoHora(r.horaLlegada)}
+          </span>
+        ) : (
+          <span>Sin llegada</span>
+        )}
+      </div>
+
+      <div className="mt-auto">
+        <div className="flex items-baseline justify-between">
+          <span className="text-xl font-bold tabular-nums text-foreground">
+            {r.servidos}
+            <span className="text-sm font-normal text-muted-foreground">/{r.total}</span>
+          </span>
+          <span className="text-[11px] text-muted-foreground">sectores</span>
+        </div>
+        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className={cn(
+              "h-full rounded-full transition-all",
+              r.completo ? "bg-emerald-500" : "bg-primary",
+            )}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
       </div>
     </div>
   );

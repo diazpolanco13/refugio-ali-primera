@@ -17,6 +17,8 @@ export interface TokenPayload {
   username: string;
   nombre: string | null;
   rol: Rol;
+  /** Sector del que es responsable (solo campo). null = ninguno. */
+  sector_asignado: string | null;
 }
 
 // Fila de sincronización (sector o punto): metadatos + blob JSON.
@@ -28,4 +30,4 @@ export interface FilaSync {
   data: unknown;
 }
 
-export type Entidad = "sectores" | "puntos" | "lineas" | "censos";
+export type Entidad = "sectores" | "puntos" | "lineas" | "censos" | "distribuciones";

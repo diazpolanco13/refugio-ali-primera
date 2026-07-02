@@ -24,6 +24,7 @@ export interface RespuestaPull {
   puntos: FilaSync[];
   lineas: FilaSync[];
   censos: FilaSync[];
+  distribuciones: FilaSync[];
   serverTime: number;
 }
 
@@ -70,9 +71,16 @@ export const api = {
     puntos: FilaSync[];
     lineas: FilaSync[];
     censos: FilaSync[];
+    distribuciones: FilaSync[];
   }): Promise<{
     serverTime: number;
-    aplicados: { sectores: number; puntos: number; lineas: number; censos: number };
+    aplicados: {
+      sectores: number;
+      puntos: number;
+      lineas: number;
+      censos: number;
+      distribuciones: number;
+    };
   }> {
     return req("/sync", { method: "POST", body: JSON.stringify(body) });
   },

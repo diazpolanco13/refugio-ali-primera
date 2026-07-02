@@ -24,6 +24,7 @@ import { Tablero } from "./features/tablero/Tablero";
 import { DashboardView } from "./features/dashboard/DashboardView";
 import { Login } from "./features/auth/Login";
 import { GestionUsuarios } from "./features/usuarios/GestionUsuarios";
+import { PanelDistribucion } from "./features/distribucion/PanelDistribucion";
 import { useSesion, type Sesion } from "./data/auth";
 import { puedeEditarMapa, puedeGestionarUsuarios, permisosDeRol } from "./domain/permisos";
 import { detenerSync, iniciarSync, useEstadoSync } from "./data/sync";
@@ -69,6 +70,7 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
   const [pendiente, setPendiente] = useState<Pendiente>(null);
   const [editando, setEditando] = useState<Editando>(null);
   const [tableroAbierto, setTableroAbierto] = useState(false);
+  const [distribucionAbierto, setDistribucionAbierto] = useState(false);
   const [usuariosAbierto, setUsuariosAbierto] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [zoom, setZoom] = useState(() => cargarVista().zoom);
@@ -151,6 +153,7 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
         estadoSync={estadoSync}
         tableroAbierto={tableroAbierto}
         onToggleTablero={() => abrirTablero(!tableroAbierto)}
+        onAbrirDistribucion={() => setDistribucionAbierto(true)}
         onAbrirUsuarios={() => setUsuariosAbierto(true)}
         onLimpiarDatos={async () => {
           const { online } = await vaciarMapaCompleto();
@@ -306,6 +309,14 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
               }}
             />
           </PanelFlotante>
+        )}
+
+        {/* Distribución de comida e hidratación */}
+        {distribucionAbierto && (
+          <PanelDistribucion
+            sesion={sesion}
+            onCerrar={() => setDistribucionAbierto(false)}
+          />
         )}
 
         {/* Gestión de usuarios (solo admin) */}

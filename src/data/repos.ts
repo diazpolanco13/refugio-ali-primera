@@ -2,6 +2,9 @@ import { claveDia, db, nuevoId, type OutboxItem } from "./db";
 import {
   normalizarVulnerables,
   type CensoSnapshot,
+  type EntregaSector,
+  type Jornada,
+  type JornadaComida,
   type LineaReferencia,
   type PuntoServicio,
   type Sector,
@@ -177,6 +180,108 @@ export async function eliminarLinea(id: string): Promise<void> {
     deleted: true,
     data: previo ?? { id },
   });
+}
+
+// ---- Distribución de comida / hidratación ----
+
+/** Id determinista de la cabecera de una jornada (una por día+jornada). */
+function claveJornada(dia: string, jornada: Jornada): string {
+  return `jor-${dia}-${jornada}`;
+}
+
+/** Id determinista de la entrega de un sector (una por día+jornada+sector). */
+function claveEntrega(dia: string, jornada: Jornada, sectorId: string): string {
+  return `ent-${dia}-${jornada}-${sectorId}`;
+}
+
+/**
+ * Registra/actualiza la cabecera logística de una jornada del día (hora de
+ * llegada de la comida, raciones, proveedor). Solo se tocan los campos
+ * indicados; el resto se conserva.
+ */
+export async function guardarJornada(
+  dia: string,
+  jornada: Jornada,
+  datos: {
+    hora_llegada?: number | null;
+    raciones?: number;
+    proveedor?: string;
+    notas?: string;
+  },
+): Promise<void> {
+  const id = claveJornada(dia, jornada);
+  const previo = (await db.distribuciones.get(id)) as JornadaComida | undefined;
+  const now = Date.now();
+  const registro: JornadaComida = {
+    id,
+    clase: "jornada",
+    dia,
+    jornada,
+    hora_llegada:
+      datos.hora_llegada !== undefined ? datos.hora_llegada : previo?.hora_llegada ?? null,
+    raciones: datos.raciones !== undefined ? datos.raciones : previo?.raciones ?? 0,
+    proveedor: datos.proveedor !== undefined ? datos.proveedor : previo?.proveedor ?? "",
+    notas: datos.notas !== undefined ? datos.notas : previo?.notas ?? "",
+    updated_at: now,
+    updated_by: usuarioActual(),
+  };
+  await db.distribuciones.put(registro);
+  await encolar({
+    clave: `distribuciones:${id}`,
+    entidad: "distribuciones",
+    id,
+    updated_at: now,
+    deleted: false,
+    data: registro,
+  });
+}
+
+/**
+ * Marca (o desmarca) que un sector comió/recibió en una jornada. Al marcar
+ * fija la hora de entrega = ahora. Conserva la observación previa.
+ */
+export async function marcarEntrega(
+  sector: { id: string; nombre: string },
+  dia: string,
+  jornada: Jornada,
+  entregado: boolean,
+): Promise<void> {
+  const id = claveEntrega(dia, jornada, sector.id);
+  const previo = (await db.distribuciones.get(id)) as EntregaSector | undefined;
+  const now = Date.now();
+  const registro: EntregaSector = {
+    id,
+    clase: "entrega",
+    dia,
+    jornada,
+    sector_id: sector.id,
+    sector_nombre: sector.nombre ?? "",
+    entregado,
+    hora_entrega: entregado ? now : null,
+    observacion: previo?.observacion ?? "",
+    updated_at: now,
+    updated_by: usuarioActual(),
+  };
+  await db.distribuciones.put(registro);
+  await encolar({
+    clave: `distribuciones:${id}`,
+    entidad: "distribuciones",
+    id,
+    updated_at: now,
+    deleted: false,
+    data: registro,
+  });
+}
+
+/** Marca todos los sectores como servidos en una jornada (admin/coordinador). */
+export async function marcarTodos(
+  sectores: { id: string; nombre: string }[],
+  dia: string,
+  jornada: Jornada,
+): Promise<void> {
+  for (const s of sectores) {
+    await marcarEntrega(s, dia, jornada, true);
+  }
 }
 
 // ---- Utilidades ----

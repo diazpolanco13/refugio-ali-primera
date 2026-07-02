@@ -53,6 +53,7 @@ export async function rutasAuth(app: FastifyInstance) {
       username: u.username,
       nombre: u.nombre,
       rol: u.rol,
+      sector_asignado: u.sector_asignado ?? null,
     };
     const token = app.jwt.sign(payload, { expiresIn: "30d" });
     return { token, user: payload };

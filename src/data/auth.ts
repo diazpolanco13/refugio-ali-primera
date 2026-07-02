@@ -7,6 +7,8 @@ export interface Usuario {
   username: string;
   nombre: string | null;
   rol: Rol;
+  /** Sector del que es responsable (solo campo). Puede faltar en sesiones viejas. */
+  sector_asignado?: string | null;
 }
 
 export interface Sesion {

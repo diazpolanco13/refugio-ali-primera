@@ -211,6 +211,80 @@ export interface CensoSnapshot {
   updated_by: string;
 }
 
+/**
+ * Jornadas fijas de distribución del día. Las tres comidas + merienda y las
+ * rondas de hidratación (agua). Se usan como clave (junto al día) para el
+ * registro de alimentación.
+ */
+export type Jornada =
+  | "desayuno"
+  | "almuerzo"
+  | "cena"
+  | "merienda"
+  | "hidratacion";
+
+export const CATALOGO_JORNADAS: { valor: Jornada; label: string; icono: string }[] = [
+  { valor: "desayuno", label: "Desayuno", icono: "🌅" },
+  { valor: "almuerzo", label: "Almuerzo", icono: "🍽️" },
+  { valor: "cena", label: "Cena", icono: "🌙" },
+  { valor: "merienda", label: "Merienda", icono: "🍪" },
+  { valor: "hidratacion", label: "Hidratación", icono: "💧" },
+];
+
+export const JORNADA_LABEL: Record<Jornada, string> = Object.fromEntries(
+  CATALOGO_JORNADAS.map((j) => [j.valor, j.label]),
+) as Record<Jornada, string>;
+
+export const JORNADA_ICONO: Record<Jornada, string> = Object.fromEntries(
+  CATALOGO_JORNADAS.map((j) => [j.valor, j.icono]),
+) as Record<Jornada, string>;
+
+/**
+ * Cabecera logística de una jornada del día (una por día+jornada). Registra
+ * cuándo llegó la comida al refugio y datos de la ración. La editan
+ * admin/coordinador. Id determinista `jor-<YYYY-MM-DD>-<jornada>`.
+ */
+export interface JornadaComida {
+  id: string;
+  clase: "jornada";
+  /** Día YYYY-MM-DD (hora local). */
+  dia: string;
+  jornada: Jornada;
+  /** Timestamp (ms) en que llegó la comida al refugio. null = aún no llega. */
+  hora_llegada: number | null;
+  /** Raciones recibidas (opcional). */
+  raciones: number;
+  /** Proveedor/origen de la comida (opcional). */
+  proveedor: string;
+  notas: string;
+  updated_at: number;
+  updated_by: string;
+}
+
+/**
+ * Marca de que un sector recibió/comió en una jornada (una por
+ * día+jornada+sector). La marca el responsable de campo (su sector) o
+ * admin/coordinador (cualquier sector). Id `ent-<YYYY-MM-DD>-<jornada>-<sectorId>`.
+ */
+export interface EntregaSector {
+  id: string;
+  clase: "entrega";
+  dia: string;
+  jornada: Jornada;
+  sector_id: string;
+  /** Nombre del sector al momento de la marca (por si luego cambia). */
+  sector_nombre: string;
+  entregado: boolean;
+  /** Timestamp (ms) en que el sector comió/recibió. */
+  hora_entrega: number | null;
+  observacion: string;
+  updated_at: number;
+  updated_by: string;
+}
+
+/** Fila de la entidad sincronizable `distribuciones` (cabecera o entrega). */
+export type RegistroDistribucion = JornadaComida | EntregaSector;
+
 export interface PuntoServicio {
   id: string;
   tipo: TipoPunto;
