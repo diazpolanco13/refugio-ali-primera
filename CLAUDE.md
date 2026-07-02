@@ -32,7 +32,8 @@ autoaloja en el VPS del usuario, sin nubes de terceros.
 - 🟡 **Fase 3 (en progreso):** ✅ **vista sala de control** (`/dashboard`, pantalla
   grande proyectable) con **registro poblacional por fechas** (gráfico de área) y
  ✅ **registro de distribución de comida e hidratación** (panel "Comida" + tarjeta
- "Alimentación de hoy" en el dashboard) y ✅ **team de salubridad y aseo** (panel
+ "Alimentación de hoy" + **gráfico de líneas "Comidas repartidas por fechas"** en el
+ dashboard) y ✅ **team de salubridad y aseo** (panel
  "Aseo": bitácora de limpieza de baños/duchas/basura). Falta: overlay de la ilustración del
   parque, export PDF de reportes. Se irá ampliando con más métricas. Ver
   `src/features/dashboard/DashboardView.tsx` y `src/features/distribucion/`.
@@ -230,11 +231,14 @@ Se abre desde el botón **"Pantalla"** de la `Navbar` (link a `/dashboard`).
 
 Contenido actual: reloj en vivo, KPIs grandes (población, familias, vulnerables,
 sectores, puntos operativos, alertas), **gráfico de área "Registro poblacional por
-fechas"**, **tarjeta "Alimentación de hoy"** (una casilla por jornada con hora de
-llegada y barra de sectores servidos), **tarjeta "Cobertura de servicios"** (global
-del parque), demografía por edad/sexo, alertas y limpieza. Reutiliza las funciones
-de dominio existentes (`kpisGlobales`, `coberturaGlobal`, `generarAlertas`,
-`sumarVulnerables`, `infoLimpieza`, `resumenDistribucion`) — no duplica lógica.
+fechas"**, **gráfico de líneas "Comidas repartidas por fechas"** (una línea por
+jornada: desayuno/almuerzo/cena/merienda/hidratación, para comparar si se reparten
+más desayunos que cenas), **tarjeta "Alimentación de hoy"** (una casilla por jornada
+con hora de llegada y barra de sectores servidos), **tarjeta "Cobertura de servicios"**
+(global del parque), demografía por edad/sexo, alertas y limpieza. Reutiliza las
+funciones de dominio existentes (`kpisGlobales`, `coberturaGlobal`, `generarAlertas`,
+`sumarVulnerables`, `infoLimpieza`, `resumenDistribucion`, `serieComidasPorJornada`)
+— no duplica lógica.
 
 **Cobertura y alertas — GLOBALES del parque (no por sector):** los puntos (agua,
 letrinas, duchas, salud, comida, basura) están en ubicaciones fijas del parque, no
@@ -284,8 +288,12 @@ entregado)` (fija `hora_entrega = now` al marcar), `marcarTodos(...)`.
 
 **Lógica pura (`src/domain/distribucion.ts`):** `resumenDistribucion(dia, registros,
 sectores)` agrupa las filas del día por jornada y calcula progreso `servidos/total`;
-helpers `claveDiaLocal`, `formatoHora`, `horaAInput`/`horaDesdeInput` (para el
-`<input type="time">` de ajuste manual de la hora de llegada).
+`serieComidasPorJornada(registros, sectores, censos)` arma la **serie temporal de
+comidas repartidas por fecha** (suma la población de los sectores servidos en cada
+jornada; toma la población del censo más reciente ≤ ese día con carry-forward, y usa
+la población actual como respaldo si el sector no tiene censos) → alimenta el gráfico
+de líneas del dashboard; helpers `claveDiaLocal`, `formatoHora`, `horaAInput`/
+`horaDesdeInput` (para el `<input type="time">` de ajuste manual de la hora de llegada).
 
 **UI de registro:** `src/features/distribucion/PanelDistribucion.tsx`, abierto desde
 el botón **"Comida"** de la `Navbar` (estado `distribucionAbierto` en `App.tsx`).

@@ -5,6 +5,8 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  Line,
+  LineChart,
   XAxis,
   YAxis,
 } from "recharts";
@@ -42,6 +44,8 @@ import {
   claveDiaLocal,
   formatoHora,
   resumenDistribucion,
+  serieComidasPorJornada,
+  type PuntoComidas,
   type ResumenJornada,
 } from "@/domain/distribucion";
 import {
@@ -63,6 +67,8 @@ import {
 } from "@/components/ui/card";
 import {
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
@@ -73,6 +79,15 @@ import { DemografiaResumen } from "../tablero/DemografiaResumen";
 const chartConfig = {
   poblacion: { label: "Población", color: "var(--chart-1)" },
   familias: { label: "Familias", color: "var(--chart-2)" },
+} satisfies ChartConfig;
+
+// Colores por jornada (distinguibles entre sí, no la escala de grises del tema).
+const chartConfigComidas = {
+  desayuno: { label: "Desayuno", color: "#f59e0b" },
+  almuerzo: { label: "Almuerzo", color: "#38bdf8" },
+  cena: { label: "Cena", color: "#a855f7" },
+  merienda: { label: "Merienda", color: "#22c55e" },
+  hidratacion: { label: "Hidratación", color: "#06b6d4" },
 } satisfies ChartConfig;
 
 /** Reloj en vivo (segundos). Aislado para no re-renderizar los gráficos. */
@@ -138,6 +153,10 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
   const alimentacion = useMemo(
     () => resumenDistribucion(claveDiaLocal(), distribuciones, sectores),
     [distribuciones, sectores],
+  );
+  const serieComidas = useMemo(
+    () => serieComidasPorJornada(distribuciones, sectores, censos),
+    [distribuciones, sectores, censos],
   );
 
   const salubridad = useMemo(
@@ -282,6 +301,40 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
             </Card>
           </div>
         </div>
+
+        {/* Comidas repartidas por jornada (serie temporal) */}
+        <Card className="mt-4">
+          <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+            <div>
+              <CardTitle className="text-base lg:text-lg">
+                Comidas repartidas por fechas
+              </CardTitle>
+              <CardDescription>
+                Platos servidos por jornada (población de los sectores servidos).
+                Permite ver si se reparten más desayunos que cenas.
+              </CardDescription>
+            </div>
+            {serieComidas.length > 0 && (
+              <Badge variant="outline" className="shrink-0 gap-1 tabular-nums text-muted-foreground">
+                <UtensilsCrossed className="size-3.5" />
+                {serieComidas[serieComidas.length - 1].total.toLocaleString("es")} hoy
+              </Badge>
+            )}
+          </CardHeader>
+          <CardContent>
+            {serieComidas.length === 0 ? (
+              <div className="flex h-[32vh] flex-col items-center justify-center gap-2 text-center text-muted-foreground">
+                <UtensilsCrossed className="size-8 opacity-40" />
+                <p className="max-w-sm text-sm">
+                  Aún no hay registros de distribución. Marca en el panel "Comida"
+                  qué sectores han comido para empezar a graficar las jornadas.
+                </p>
+              </div>
+            ) : (
+              <GraficoComidas serie={serieComidas} />
+            )}
+          </CardContent>
+        </Card>
 
         {/* Alimentación de hoy */}
         <Card className="mt-4">
@@ -508,6 +561,63 @@ function GraficoPoblacion({ serie }: { serie: PuntoSerie[] }) {
           strokeWidth={2}
         />
       </AreaChart>
+    </ChartContainer>
+  );
+}
+
+function GraficoComidas({ serie }: { serie: PuntoComidas[] }) {
+  return (
+    <ChartContainer config={chartConfigComidas} className="aspect-auto h-[32vh] w-full">
+      <LineChart accessibilityLayer data={serie} margin={{ left: -12, right: 12, top: 8 }}>
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey="etiqueta"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={24}
+        />
+        <YAxis tickLine={false} axisLine={false} tickMargin={8} width={44} allowDecimals={false} />
+        <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
+        <ChartLegend content={<ChartLegendContent />} />
+        <Line
+          dataKey="desayuno"
+          type="monotone"
+          stroke="var(--color-desayuno)"
+          strokeWidth={2}
+          dot={false}
+        />
+        <Line
+          dataKey="almuerzo"
+          type="monotone"
+          stroke="var(--color-almuerzo)"
+          strokeWidth={2}
+          dot={false}
+        />
+        <Line
+          dataKey="cena"
+          type="monotone"
+          stroke="var(--color-cena)"
+          strokeWidth={2}
+          dot={false}
+        />
+        <Line
+          dataKey="merienda"
+          type="monotone"
+          stroke="var(--color-merienda)"
+          strokeWidth={2}
+          strokeDasharray="4 3"
+          dot={false}
+        />
+        <Line
+          dataKey="hidratacion"
+          type="monotone"
+          stroke="var(--color-hidratacion)"
+          strokeWidth={2}
+          strokeDasharray="4 3"
+          dot={false}
+        />
+      </LineChart>
     </ChartContainer>
   );
 }

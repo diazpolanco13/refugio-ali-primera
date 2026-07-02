@@ -4,6 +4,7 @@
 
 import {
   CATALOGO_JORNADAS,
+  type CensoSnapshot,
   type EntregaSector,
   type Jornada,
   type JornadaComida,
@@ -88,6 +89,117 @@ export function resumenDistribucion(
       servidos,
       total,
       completo: total > 0 && servidos >= total,
+    };
+  });
+}
+
+/** Un día de la serie de comidas repartidas: raciones servidas por jornada. */
+export interface PuntoComidas {
+  /** Inicio del día en ms (para orden y eje temporal). */
+  ts: number;
+  /** Clave de día YYYY-MM-DD. */
+  fecha: string;
+  /** Etiqueta legible para el eje (ej. "24 jun"). */
+  etiqueta: string;
+  desayuno: number;
+  almuerzo: number;
+  cena: number;
+  merienda: number;
+  hidratacion: number;
+  /** Suma de todas las jornadas del día. */
+  total: number;
+}
+
+/** Etiqueta corta en español para el eje del gráfico a partir de "YYYY-MM-DD". */
+function etiquetaDesdeClave(dia: string): string {
+  const [y, mo, d] = dia.split("-").map(Number);
+  return new Date(y, mo - 1, d).toLocaleDateString("es", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+/**
+ * Serie diaria de comidas repartidas por jornada. Para cada día con registro de
+ * distribución, suma la **población de los sectores marcados como servidos** en
+ * cada jornada (un plato por persona del sector). Así se puede comparar, por
+ * fechas, si se reparten más desayunos que cenas (p. ej. gente que sale a
+ * trabajar y no almuerza en el refugio).
+ *
+ * La población de cada sector se toma de su censo más reciente con fecha <= ese
+ * día (carry-forward, igual que la serie poblacional); si el sector no tiene
+ * censos, usa su población actual como respaldo.
+ */
+export function serieComidasPorJornada(
+  registros: RegistroDistribucion[],
+  sectores: Sector[],
+  censos: CensoSnapshot[] = [],
+): PuntoComidas[] {
+  // Población actual por sector (respaldo si no hay censos históricos).
+  const poblacionActual = new Map<string, number>();
+  for (const s of sectores) poblacionActual.set(s.id, s.poblacion_estimada || 0);
+
+  // Censos por sector ordenados por ts, para el carry-forward.
+  const censosPorSector = new Map<string, CensoSnapshot[]>();
+  for (const c of censos) {
+    const arr = censosPorSector.get(c.sector_id) ?? [];
+    arr.push(c);
+    censosPorSector.set(c.sector_id, arr);
+  }
+  for (const arr of censosPorSector.values()) arr.sort((a, b) => a.ts - b.ts);
+
+  const poblacionEnDia = (sectorId: string, finDia: number): number => {
+    const arr = censosPorSector.get(sectorId);
+    if (arr && arr.length) {
+      let val: number | null = null;
+      for (const c of arr) {
+        if (c.ts <= finDia) val = c.poblacion || 0;
+        else break;
+      }
+      if (val != null) return val;
+    }
+    return poblacionActual.get(sectorId) ?? 0;
+  };
+
+  // Agrupar por día → jornada → conjunto de sectores servidos (sin duplicar).
+  const porDia = new Map<string, Map<Jornada, Set<string>>>();
+  for (const r of registros) {
+    if (!esEntrega(r) || !r.entregado) continue;
+    const mj = porDia.get(r.dia) ?? new Map<Jornada, Set<string>>();
+    const set = mj.get(r.jornada) ?? new Set<string>();
+    set.add(r.sector_id);
+    mj.set(r.jornada, set);
+    porDia.set(r.dia, mj);
+  }
+
+  const dias = [...porDia.keys()].sort();
+  return dias.map((dia) => {
+    const [y, mo, d] = dia.split("-").map(Number);
+    const ts = new Date(y, mo - 1, d).getTime();
+    const finDia = new Date(y, mo - 1, d, 23, 59, 59, 999).getTime();
+    const mj = porDia.get(dia)!;
+    const sumar = (j: Jornada): number => {
+      const set = mj.get(j);
+      if (!set) return 0;
+      let total = 0;
+      for (const sid of set) total += poblacionEnDia(sid, finDia);
+      return total;
+    };
+    const desayuno = sumar("desayuno");
+    const almuerzo = sumar("almuerzo");
+    const cena = sumar("cena");
+    const merienda = sumar("merienda");
+    const hidratacion = sumar("hidratacion");
+    return {
+      ts,
+      fecha: dia,
+      etiqueta: etiquetaDesdeClave(dia),
+      desayuno,
+      almuerzo,
+      cena,
+      merienda,
+      hidratacion,
+      total: desayuno + almuerzo + cena + merienda + hidratacion,
     };
   });
 }
