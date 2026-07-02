@@ -7,11 +7,18 @@ import {
   type LineaReferencia,
   type PuntoServicio,
   type RegistroDistribucion,
+  type RegistroLimpieza,
   type Sector,
 } from "../domain/tipos";
 
 /** Entidades sincronizables (blob JSON + metadatos, last-write-wins). */
-export type Entidad = "sectores" | "puntos" | "lineas" | "censos" | "distribuciones";
+export type Entidad =
+  | "sectores"
+  | "puntos"
+  | "lineas"
+  | "censos"
+  | "distribuciones"
+  | "limpiezas";
 
 /** Mutación pendiente de subir al servidor (cola de sincronización). */
 export interface OutboxItem {
@@ -31,6 +38,7 @@ const db = new Dexie("refugio-parque-oeste") as Dexie & {
   lineas: EntityTable<LineaReferencia, "id">;
   censos: EntityTable<CensoSnapshot, "id">;
   distribuciones: EntityTable<RegistroDistribucion, "id">;
+  limpiezas: EntityTable<RegistroLimpieza, "id">;
   outbox: EntityTable<OutboxItem, "clave">;
 };
 
@@ -173,6 +181,18 @@ db.version(8).stores({
   lineas: "id, tipo, updated_at",
   censos: "id, sector_id, ts, updated_at",
   distribuciones: "id, clase, dia, jornada, sector_id, updated_at",
+  outbox: "clave, entidad, updated_at",
+});
+
+// v9: bitácora de salubridad y aseo (limpiezas de baños/duchas/basura, quién y
+// cuándo). Nueva entidad sincronizable, sin migración de datos previos.
+db.version(9).stores({
+  sectores: "id, nombre, updated_at",
+  puntos: "id, tipo, estado, updated_at",
+  lineas: "id, tipo, updated_at",
+  censos: "id, sector_id, ts, updated_at",
+  distribuciones: "id, clase, dia, jornada, sector_id, updated_at",
+  limpiezas: "id, punto_id, dia, ts, updated_at",
   outbox: "clave, entidad, updated_at",
 });
 

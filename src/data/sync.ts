@@ -8,6 +8,7 @@ import type {
   LineaReferencia,
   PuntoServicio,
   RegistroDistribucion,
+  RegistroLimpieza,
   Sector,
 } from "../domain/tipos";
 
@@ -52,7 +53,8 @@ type Tabla =
   | EntityTable<PuntoServicio, "id">
   | EntityTable<LineaReferencia, "id">
   | EntityTable<CensoSnapshot, "id">
-  | EntityTable<RegistroDistribucion, "id">;
+  | EntityTable<RegistroDistribucion, "id">
+  | EntityTable<RegistroLimpieza, "id">;
 
 /** Filas antiguas del servidor pueden traer `data` como string JSON. */
 function normalizarData(data: unknown): Record<string, unknown> {
@@ -97,6 +99,8 @@ function tablaDe(entidad: Entidad): Tabla {
       return db.censos as Tabla;
     case "distribuciones":
       return db.distribuciones as Tabla;
+    case "limpiezas":
+      return db.limpiezas as Tabla;
   }
 }
 
@@ -118,12 +122,14 @@ async function push(): Promise<void> {
     lineas: FilaSync[];
     censos: FilaSync[];
     distribuciones: FilaSync[];
+    limpiezas: FilaSync[];
   } = {
     sectores: [],
     puntos: [],
     lineas: [],
     censos: [],
     distribuciones: [],
+    limpiezas: [],
   };
   for (const it of items) {
     const fila: FilaSync = {
@@ -153,6 +159,7 @@ async function pull(): Promise<void> {
   await aplicarLote("lineas", r.lineas);
   await aplicarLote("censos", r.censos ?? []);
   await aplicarLote("distribuciones", r.distribuciones ?? []);
+  await aplicarLote("limpiezas", r.limpiezas ?? []);
   setLastSync(r.serverTime);
 }
 

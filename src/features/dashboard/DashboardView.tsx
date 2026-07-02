@@ -26,11 +26,13 @@ import type {
   CensoSnapshot,
   PuntoServicio,
   RegistroDistribucion,
+  RegistroLimpieza,
   Sector,
 } from "@/domain/tipos";
 import { ESTADO_SECTOR_COLOR, META_POR_TIPO, sumarVulnerables } from "@/domain/tipos";
 import { generarAlertas, kpisGlobales } from "@/domain/brechas";
-import { esMantenimiento, formatoDuracion, infoLimpieza } from "@/domain/limpieza";
+import { formatoDuracion } from "@/domain/limpieza";
+import { resumenSalubridad } from "@/domain/salubridad";
 import {
   claveDiaLocal,
   formatoHora,
@@ -104,6 +106,11 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
     [],
     [] as RegistroDistribucion[],
   );
+  const limpiezas = useLiveQuery(
+    () => db.limpiezas.toArray(),
+    [],
+    [] as RegistroLimpieza[],
+  );
   const estadoSync = useEstadoSync();
   const permisos = permisosDeRol(sesion.user.rol);
 
@@ -124,6 +131,10 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
     [distribuciones, sectores],
   );
 
+  const salubridad = useMemo(
+    () => resumenSalubridad(claveDiaLocal(), puntos, limpiezas, ahora),
+    [puntos, limpiezas, ahora],
+  );
   const mantenimiento = useMemo(() => {
     const rank: Record<string, number> = {
       vencido: 0,
@@ -131,15 +142,12 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
       sin_programar: 2,
       ok: 3,
     };
-    return puntos
-      .filter((p) => esMantenimiento(p.tipo))
-      .map((p) => ({ p, info: infoLimpieza(p, ahora) }))
-      .sort(
-        (a, b) =>
-          (rank[a.info?.estado ?? "ok"] ?? 3) - (rank[b.info?.estado ?? "ok"] ?? 3),
-      );
-  }, [puntos, ahora]);
-  const vencidos = mantenimiento.filter((m) => m.info?.estado === "vencido").length;
+    return [...salubridad.puntos].sort(
+      (a, b) =>
+        (rank[a.info?.estado ?? "ok"] ?? 3) - (rank[b.info?.estado ?? "ok"] ?? 3),
+    );
+  }, [salubridad]);
+  const vencidos = salubridad.vencidos;
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
@@ -343,7 +351,7 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
                 </p>
               ) : (
                 <ul className="space-y-1.5">
-                  {mantenimiento.map(({ p, info }) => (
+                  {mantenimiento.map(({ punto: p, info, vecesHoy, meta, cumpleMeta, ultima, ultimaPor }) => (
                     <li
                       key={p.id}
                       className="flex items-center gap-2 rounded-lg bg-muted/20 px-3 py-2"
@@ -360,9 +368,10 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
                           {p.nombre || META_POR_TIPO[p.tipo]?.label || p.tipo}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {p.ultimaLimpieza
-                            ? `Hace ${formatoDuracion(ahora - p.ultimaLimpieza)}`
+                          {ultima
+                            ? `Hace ${formatoDuracion(ahora - ultima)}`
                             : "Sin registro"}
+                          {ultimaPor ? ` · @${ultimaPor}` : ""}
                           {info?.venceEnMs != null &&
                             info.estado !== "sin_programar" &&
                             (info.venceEnMs >= 0
@@ -370,6 +379,17 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
                               : ` · vencida hace ${formatoDuracion(Math.abs(info.venceEnMs))}`)}
                         </div>
                       </div>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "shrink-0 tabular-nums",
+                          cumpleMeta
+                            ? "border-emerald-500/40 text-emerald-500"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {vecesHoy}/{meta}
+                      </Badge>
                     </li>
                   ))}
                 </ul>

@@ -2,6 +2,7 @@ import {
   BarChart3,
   LogOut,
   MonitorPlay,
+  SprayCan,
   Tent,
   Trash2,
   Users,
@@ -38,6 +39,7 @@ interface NavbarProps {
   tableroAbierto: boolean;
   onToggleTablero: () => void;
   onAbrirDistribucion: () => void;
+  onAbrirSalubridad: () => void;
   onAbrirUsuarios: () => void;
   onLimpiarDatos: () => void;
 }
@@ -105,6 +107,7 @@ export function Navbar({
   tableroAbierto,
   onToggleTablero,
   onAbrirDistribucion,
+  onAbrirSalubridad,
   onAbrirUsuarios,
   onLimpiarDatos,
 }: NavbarProps) {
@@ -150,6 +153,17 @@ export function Navbar({
         >
           <UtensilsCrossed className="size-4" />
           <span className="hidden sm:inline">Comida</span>
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 gap-1.5"
+          onClick={onAbrirSalubridad}
+          title="Salubridad y aseo: limpieza de baños, duchas y basura"
+        >
+          <SprayCan className="size-4" />
+          <span className="hidden sm:inline">Aseo</span>
         </Button>
 
         <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">

@@ -31,8 +31,9 @@ autoaloja en el VPS del usuario, sin nubes de terceros.
   (`src/features/usuarios/GestionUsuarios.tsx`), incluyendo asignar `sector_asignado`.
 - 🟡 **Fase 3 (en progreso):** ✅ **vista sala de control** (`/dashboard`, pantalla
   grande proyectable) con **registro poblacional por fechas** (gráfico de área) y
-  ✅ **registro de distribución de comida e hidratación** (panel "Comida" + tarjeta
-  "Alimentación de hoy" en el dashboard). Falta: overlay de la ilustración del
+ ✅ **registro de distribución de comida e hidratación** (panel "Comida" + tarjeta
+ "Alimentación de hoy" en el dashboard) y ✅ **team de salubridad y aseo** (panel
+ "Aseo": bitácora de limpieza de baños/duchas/basura). Falta: overlay de la ilustración del
   parque, export PDF de reportes. Se irá ampliando con más métricas. Ver
   `src/features/dashboard/DashboardView.tsx` y `src/features/distribucion/`.
 
@@ -78,12 +79,14 @@ src/
 ├─ domain/     tipos.ts (modelo + catálogos), estandares.ts (Esfera),
 │              brechas.ts (cobertura/alertas/point-in-polygon), limpieza.ts (cronómetro),
 │              poblacion.ts (serie diaria de población desde snapshots),
-│              distribucion.ts (resumen de comida/hidratación por jornada)
-├─ data/       db.ts (Dexie, versión 8 con migraciones), repos.ts (guardar/eliminar),
+│              distribucion.ts (resumen de comida/hidratación por jornada),
+│              salubridad.ts (resumen de limpieza de baños/duchas/basura por día)
+├─ data/       db.ts (Dexie, versión 9 con migraciones), repos.ts (guardar/eliminar),
 │              seed.ts (ejemplo), preferencias.ts (vista guardada en localStorage)
 ├─ map/        MapView.tsx (MapLibre + Terra Draw + marcadores HTML), estiloMapa.ts (bases)
 ├─ features/   sectores/SectorForm · puntos/PuntoForm · tablero/Tablero ·
 │              distribucion/PanelDistribucion (registro de comida) ·
+│              salubridad/PanelSalubridad (limpieza de baños/duchas/basura) ·
 │              dashboard/DashboardView (sala de control /dashboard)
 ├─ components/ Navbar, PanelFlotante, … · ui/ (componentes shadcn: card, chart, badge…)
 ├─ lib/        utils.ts (cn())
@@ -130,15 +133,20 @@ Conceptos del dominio (ver `src/domain/tipos.ts`):
 | POST | `/api/sync` | admin/coordinador/campo | Body `{sectores, puntos, lineas, censos, distribuciones}` (arrays de filas) → upsert **last-write-wins** |
 | POST | `/api/sync/purge` | admin | Vaciar mapa (sectores/puntos/lineas). **NO** borra `censos` ni `distribuciones` (histórico se conserva) |
 | GET/POST | `/api/historial` | auth / (no visor) | Bitácora |
+
+> `GET /api/sync` y `POST /api/sync` incluyen también `limpiezas` (bitácora de
+> salubridad/aseo). `/api/sync/purge` **no** borra `censos`, `distribuciones` ni
+> `limpiezas` (el histórico se conserva).
 | WS | `/ws?token=<jwt>` | auth | Difunde `{type:"cambio", entidad, filas, serverTime}` |
 
 **Entidades sincronizables** (mismo modelo blob+metadatos, last-write-wins):
-`sectores`, `puntos`, `lineas`, `censos`, `distribuciones`. Para añadir una nueva
-hay que tocar, en cliente: `data/db.ts` (tabla + versión + tipo `Entidad`/`OutboxItem`),
-`data/api.ts` (pull/push), `data/sync.ts` (`aplicarLote`/`tablaDe`/pull/push/WS) y en
-servidor: `db/bootstrap.ts` (tabla), `types.ts` (`Entidad`), `routes/sync.ts`
-(pull/push/difundir). `distribuciones` fue el último añadido (Fase 3) siguiendo
-exactamente este patrón — úsalo de referencia.
+`sectores`, `puntos`, `lineas`, `censos`, `distribuciones`, `limpiezas`. Para añadir
+una nueva hay que tocar, en cliente: `data/db.ts` (tabla + versión + tipo
+`Entidad`/`OutboxItem`), `data/api.ts` (pull/push), `data/sync.ts`
+(`aplicarLote`/`tablaDe`/pull/push/WS) y en servidor: `db/bootstrap.ts` (tabla),
+`types.ts` (`Entidad`), `routes/sync.ts` (pull/push/difundir). `limpiezas`
+(salubridad y aseo) fue el último añadido siguiendo exactamente este patrón —
+úsalo de referencia.
 
 **Fila de sync** = `{ id, updated_at:number, updated_by, deleted:boolean, data:<objeto completo> }`.
 Cada entidad se guarda como **blob JSON + metadatos** → cambiar campos del cliente
@@ -269,6 +277,42 @@ marcar "Ya comió".
 (`sector_asignado`); **admin/coordinador** marcan cualquier sector, usan "Marcar
 todos" y editan la logística de la jornada; **visor** solo lectura.
 
+## ✅ Salubridad y aseo (Fase 3)
+
+Team de limpieza del refugio: recolección de basura, limpieza de letrinas
+portátiles y del área de duchas. Como el parque no tiene botes ni baños en todos
+los sectores, la gente acude a **puntos concretos del parque** → el módulo opera
+sobre los **puntos del mapa** de tipo `sanitarios`, `duchas` y `residuos` (no por
+sector, a diferencia de la comida). Las letrinas deben limpiarse **mín. 2 veces/día**.
+
+**Datos:** entidad sincronizable `limpiezas` (6.ª entidad), bitácora **append-only**:
+cada marca "limpio/recogido" es su propia fila `RegistroLimpieza`
+(`{ id:limp-<puntoId>-<ts>, punto_id, punto_tipo, punto_nombre, ts, dia, notas }`),
+así se registra quién y cuándo, y varios responsables marcan sin pisarse. No se
+purga al vaciar el mapa. Ver `src/domain/tipos.ts`.
+
+**Funciones (`src/data/repos.ts`):** `marcarLimpieza(punto, notas?)` crea el evento
+en `limpiezas` **y** actualiza `punto.ultimaLimpieza` (mantiene vivo el cronómetro
+del mapa de `src/domain/limpieza.ts`); `deshacerUltimaLimpieza(punto, dia)`
+(tombstone del último evento del día + recalcula `ultimaLimpieza`).
+
+**Lógica pura (`src/domain/salubridad.ts`):** `metaLimpiezasDia(punto)` (veces/día
+objetivo derivada de `frecuenciaLimpiezaHoras`, mín. 2) y `resumenSalubridad(dia,
+puntos, registros)` → por punto `{ info, vecesHoy, meta, cumpleMeta, ultima,
+ultimaPor }` + totales (`vencidos`, `pendientesMeta`). Reutiliza `esMantenimiento`
+e `infoLimpieza` de `limpieza.ts` (no duplica el cronómetro).
+
+**UI:** `src/features/salubridad/PanelSalubridad.tsx`, abierto desde el botón
+**"Aseo"** de la `Navbar` (estado `salubridadAbierto` en `App.tsx`). Filtro por tipo
+(Todos/Baños/Duchas/Basura), y por punto: anillo de estado, "X/meta hoy", última
+limpieza + `@usuario`, botón "Limpio" (y "Deshacer"). El botón "marcar limpio" del
+mapa (`marcarLimpio` en `App.tsx`) también usa `marcarLimpieza` → deja bitácora. El
+dashboard enriquece la tarjeta "Limpieza y recolección" con "X/meta hoy" y el último
+responsable.
+
+**Permisos:** admin/coordinador/campo marcan cualquier punto; visor solo lectura
+(los baños son ubicaciones compartidas del parque, no atadas a un sector).
+
 **`sector_asignado`:** vincula un usuario de campo con su sector. Se asigna en la UI
 de usuarios (admin) y **viaja en el token JWT** (`TokenPayload` en servidor,
 `Usuario` en `src/data/auth.ts`). ⚠️ Al cambiar el sector de un usuario, debe
@@ -361,10 +405,10 @@ docker compose up -d --build     # reconstruye PWA y API (lo que haya cambiado)
   ícono+número+etiqueta hover sin depender de fuentes del mapa (mejor offline).
 - **Cronómetro de limpieza:** el color del anillo se recalcula con un `ahora`
   (tick de 30 s en `App.tsx`). El estado depende de `Date.now()`.
-- **Migración Dexie:** `db.ts` está en **versión 8** (v2 `coordinador`→`responsables`,
-  v4 desglose por edad/sexo, v5 líneas, v6 carpas, v7 tabla `censos` + foto inicial
-  por sector, v8 tabla `distribuciones`). Si cambias el esquema local, sube la
-  versión y añade `upgrade`.
+- **Migración Dexie:** `db.ts` está en **versión 9** (v2 `coordinador`→`responsables`,
+ v4 desglose por edad/sexo, v5 líneas, v6 carpas, v7 tabla `censos` + foto inicial
+ por sector, v8 tabla `distribuciones`, v9 tabla `limpiezas`). Si cambias el esquema
+ local, sube la versión y añade `upgrade`.
 - **shadcn CLI:** al añadir componentes (`npx shadcn add …`) revisa que el import de
   `cn` quede como `@/lib/utils` (a veces el CLI lo escribe `src/lib/utils` y rompe
   Vite). Nuevas deps de UI/gráficos: `react-router-dom`, `recharts`.

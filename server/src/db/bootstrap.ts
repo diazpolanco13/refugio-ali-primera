@@ -52,6 +52,17 @@ CREATE TABLE IF NOT EXISTS distribuciones (
 );
 CREATE INDEX IF NOT EXISTS distribuciones_updated_at_idx ON distribuciones(updated_at);
 
+-- Bitácora de salubridad y aseo: eventos de limpieza/recolección de puntos
+-- (baños, duchas, basura) con quién y cuándo (append-only, last-write-wins).
+CREATE TABLE IF NOT EXISTS limpiezas (
+  id text PRIMARY KEY,
+  updated_at bigint NOT NULL,
+  updated_by text,
+  deleted boolean NOT NULL DEFAULT false,
+  data jsonb NOT NULL
+);
+CREATE INDEX IF NOT EXISTS limpiezas_updated_at_idx ON limpiezas(updated_at);
+
 CREATE TABLE IF NOT EXISTS usuarios (
   id text PRIMARY KEY,
   username text UNIQUE NOT NULL,

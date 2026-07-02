@@ -7,6 +7,7 @@ import {
   type JornadaComida,
   type LineaReferencia,
   type PuntoServicio,
+  type RegistroLimpieza,
   type Sector,
 } from "../domain/tipos";
 import { getUsuario } from "./auth";
@@ -282,6 +283,74 @@ export async function marcarTodos(
   for (const s of sectores) {
     await marcarEntrega(s, dia, jornada, true);
   }
+}
+
+// ---- Salubridad y aseo (bitácora de limpieza) ----
+
+/**
+ * Registra que un punto de mantenimiento (baño, ducha, basura) fue limpiado /
+ * recogido. Crea una fila append-only en la bitácora `limpiezas` (quién +
+ * cuándo) y además actualiza `ultimaLimpieza` del punto para mantener vivo el
+ * cronómetro del mapa. Cada marca es su propia fila → varios responsables
+ * marcan el mismo día sin pisarse.
+ */
+export async function marcarLimpieza(
+  punto: PuntoServicio,
+  notas: string = "",
+): Promise<void> {
+  const ts = Date.now();
+  const dia = claveDia(ts);
+  const id = `limp-${punto.id}-${ts}`;
+  const registro: RegistroLimpieza = {
+    id,
+    punto_id: punto.id,
+    punto_tipo: punto.tipo,
+    punto_nombre: punto.nombre ?? "",
+    ts,
+    dia,
+    notas,
+    updated_at: ts,
+    updated_by: usuarioActual(),
+  };
+  await db.limpiezas.put(registro);
+  await encolar({
+    clave: `limpiezas:${id}`,
+    entidad: "limpiezas",
+    id,
+    updated_at: ts,
+    deleted: false,
+    data: registro,
+  });
+  // Mantener el cronómetro del punto sincronizado con la última limpieza.
+  await guardarPunto({ ...punto, ultimaLimpieza: ts });
+}
+
+/**
+ * Deshace la última limpieza registrada de un punto en un día (tombstone del
+ * evento). Recalcula `ultimaLimpieza` del punto con el evento previo que quede.
+ */
+export async function deshacerUltimaLimpieza(
+  punto: PuntoServicio,
+  dia: string,
+): Promise<void> {
+  const eventos = (
+    await db.limpiezas.where("punto_id").equals(punto.id).toArray()
+  ).sort((a, b) => b.ts - a.ts);
+  const ultimo = eventos.find((e) => e.dia === dia);
+  if (!ultimo) return;
+  const now = Date.now();
+  await db.limpiezas.delete(ultimo.id);
+  await encolar({
+    clave: `limpiezas:${ultimo.id}`,
+    entidad: "limpiezas",
+    id: ultimo.id,
+    updated_at: now,
+    deleted: true,
+    data: ultimo,
+  });
+  // La nueva "última limpieza" es el evento anterior que aún exista.
+  const previo = eventos.find((e) => e.id !== ultimo.id);
+  await guardarPunto({ ...punto, ultimaLimpieza: previo?.ts ?? undefined });
 }
 
 // ---- Utilidades ----

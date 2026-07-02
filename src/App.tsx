@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "./data/db";
-import { eliminarLinea, eliminarPunto, eliminarSector, guardarLinea, guardarPunto, guardarSector } from "./data/repos";
+import { eliminarLinea, eliminarPunto, eliminarSector, guardarLinea, guardarPunto, guardarSector, marcarLimpieza } from "./data/repos";
 import { vaciarMapaCompleto } from "./data/seed";
 import {
   CATALOGO_LINEAS,
@@ -25,6 +25,7 @@ import { DashboardView } from "./features/dashboard/DashboardView";
 import { Login } from "./features/auth/Login";
 import { GestionUsuarios } from "./features/usuarios/GestionUsuarios";
 import { PanelDistribucion } from "./features/distribucion/PanelDistribucion";
+import { PanelSalubridad } from "./features/salubridad/PanelSalubridad";
 import { useSesion, type Sesion } from "./data/auth";
 import { puedeEditarMapa, puedeGestionarUsuarios, permisosDeRol } from "./domain/permisos";
 import { detenerSync, iniciarSync, useEstadoSync } from "./data/sync";
@@ -71,6 +72,7 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
   const [editando, setEditando] = useState<Editando>(null);
   const [tableroAbierto, setTableroAbierto] = useState(false);
   const [distribucionAbierto, setDistribucionAbierto] = useState(false);
+  const [salubridadAbierto, setSalubridadAbierto] = useState(false);
   const [usuariosAbierto, setUsuariosAbierto] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [zoom, setZoom] = useState(() => cargarVista().zoom);
@@ -100,7 +102,7 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
 
   async function marcarLimpio(id: string) {
     const p = puntos.find((x) => x.id === id);
-    if (p) await guardarPunto({ ...p, ultimaLimpieza: Date.now() });
+    if (p) await marcarLimpieza(p);
   }
 
   const conteos = useMemo(() => {
@@ -154,6 +156,7 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
         tableroAbierto={tableroAbierto}
         onToggleTablero={() => abrirTablero(!tableroAbierto)}
         onAbrirDistribucion={() => setDistribucionAbierto(true)}
+        onAbrirSalubridad={() => setSalubridadAbierto(true)}
         onAbrirUsuarios={() => setUsuariosAbierto(true)}
         onLimpiarDatos={async () => {
           const { online } = await vaciarMapaCompleto();
@@ -316,6 +319,14 @@ function AppInterna({ sesion }: { sesion: Sesion }) {
           <PanelDistribucion
             sesion={sesion}
             onCerrar={() => setDistribucionAbierto(false)}
+          />
+        )}
+
+        {/* Salubridad y aseo (limpieza de baños, duchas y basura) */}
+        {salubridadAbierto && (
+          <PanelSalubridad
+            sesion={sesion}
+            onCerrar={() => setSalubridadAbierto(false)}
           />
         )}
 

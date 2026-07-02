@@ -285,6 +285,30 @@ export interface EntregaSector {
 /** Fila de la entidad sincronizable `distribuciones` (cabecera o entrega). */
 export type RegistroDistribucion = JornadaComida | EntregaSector;
 
+/**
+ * Evento de la bitácora de salubridad y aseo (entidad sincronizable
+ * `limpiezas`). Cada marca "limpio/recogido" de un punto de mantenimiento
+ * (baños, duchas, basura) es una fila propia **append-only**: registra quién,
+ * cuándo y sobre qué punto, para reconstruir el historial del día y el
+ * cumplimiento de la meta (mín. veces/día). Id `limp-<puntoId>-<ts>`.
+ */
+export interface RegistroLimpieza {
+  id: string;
+  /** Punto de servicio al que pertenece la limpieza. */
+  punto_id: string;
+  /** Tipo del punto al momento (sanitarios | duchas | residuos). */
+  punto_tipo: TipoPunto;
+  /** Nombre del punto al momento (por si luego cambia/desaparece). */
+  punto_nombre: string;
+  /** Momento de la limpieza (ms). */
+  ts: number;
+  /** Día YYYY-MM-DD (hora local) para agrupar el conteo diario. */
+  dia: string;
+  notas: string;
+  updated_at: number;
+  updated_by: string;
+}
+
 export interface PuntoServicio {
   id: string;
   tipo: TipoPunto;

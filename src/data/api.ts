@@ -25,6 +25,7 @@ export interface RespuestaPull {
   lineas: FilaSync[];
   censos: FilaSync[];
   distribuciones: FilaSync[];
+  limpiezas: FilaSync[];
   serverTime: number;
 }
 
@@ -72,6 +73,7 @@ export const api = {
     lineas: FilaSync[];
     censos: FilaSync[];
     distribuciones: FilaSync[];
+    limpiezas: FilaSync[];
   }): Promise<{
     serverTime: number;
     aplicados: {
@@ -80,6 +82,7 @@ export const api = {
       lineas: number;
       censos: number;
       distribuciones: number;
+      limpiezas: number;
     };
   }> {
     return req("/sync", { method: "POST", body: JSON.stringify(body) });

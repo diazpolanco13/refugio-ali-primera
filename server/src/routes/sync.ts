@@ -19,6 +19,7 @@ const pushSchema = z.object({
   lineas: z.array(filaSchema).optional().default([]),
   censos: z.array(filaSchema).optional().default([]),
   distribuciones: z.array(filaSchema).optional().default([]),
+  limpiezas: z.array(filaSchema).optional().default([]),
 });
 
 async function filasDesde(db: Db, tabla: Entidad, since: number): Promise<FilaSync[]> {
@@ -63,14 +64,24 @@ export async function rutasSync(app: FastifyInstance) {
   // Pull: cambios desde un timestamp.
   app.get("/api/sync", { preHandler: requireAuth }, async (req) => {
     const since = Number((req.query as { since?: string }).since ?? 0) || 0;
-    const [sectores, puntos, lineas, censos, distribuciones] = await Promise.all([
-      filasDesde(app.db, "sectores", since),
-      filasDesde(app.db, "puntos", since),
-      filasDesde(app.db, "lineas", since),
-      filasDesde(app.db, "censos", since),
-      filasDesde(app.db, "distribuciones", since),
-    ]);
-    return { sectores, puntos, lineas, censos, distribuciones, serverTime: Date.now() };
+    const [sectores, puntos, lineas, censos, distribuciones, limpiezas] =
+      await Promise.all([
+        filasDesde(app.db, "sectores", since),
+        filasDesde(app.db, "puntos", since),
+        filasDesde(app.db, "lineas", since),
+        filasDesde(app.db, "censos", since),
+        filasDesde(app.db, "distribuciones", since),
+        filasDesde(app.db, "limpiezas", since),
+      ]);
+    return {
+      sectores,
+      puntos,
+      lineas,
+      censos,
+      distribuciones,
+      limpiezas,
+      serverTime: Date.now(),
+    };
   });
 
   // Push: subir cambios locales (visor no puede escribir).
@@ -92,12 +103,19 @@ export async function rutasSync(app: FastifyInstance) {
         parsed.data.distribuciones,
         usuario,
       );
+      const limpiezas = await aplicar(
+        app.db,
+        "limpiezas",
+        parsed.data.limpiezas,
+        usuario,
+      );
 
       difundirCambio("sectores", sectores);
       difundirCambio("puntos", puntos);
       difundirCambio("lineas", lineas);
       difundirCambio("censos", censos);
       difundirCambio("distribuciones", distribuciones);
+      difundirCambio("limpiezas", limpiezas);
 
       return {
         serverTime: Date.now(),
@@ -107,6 +125,7 @@ export async function rutasSync(app: FastifyInstance) {
           lineas: lineas.length,
           censos: censos.length,
           distribuciones: distribuciones.length,
+          limpiezas: limpiezas.length,
         },
       };
     },
@@ -125,6 +144,7 @@ export async function rutasSync(app: FastifyInstance) {
       lineas: [],
       censos: [],
       distribuciones: [],
+      limpiezas: [],
     };
 
     for (const tabla of tablas) {
