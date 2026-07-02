@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   CATALOGO_LINEAS,
   CATALOGO_TIPOS,
@@ -24,7 +24,7 @@ import { BASES_DISPONIBLES, type BaseMapa } from "@/map/estiloMapa";
 import { ControlDibujo } from "@/map/ControlDibujo";
 import type { ModoDibujo } from "@/map/MapView";
 import { cn } from "@/lib/utils";
-import { Layers, LocateFixed, Map, Minus, Plus } from "lucide-react";
+import { Layers, Loader2, LocateFixed, Map, Minus, Plus, Tent } from "lucide-react";
 import type { MapViewHandle } from "@/map/MapView";
 
 const btnMapa =
@@ -76,11 +76,25 @@ export function ControlesMapa({
   onDibujar,
   onEditar,
 }: ControlesMapaProps) {
+  const [ubicando, setUbicando] = useState(false);
+
   if (oculto) return null;
 
   function ajustarZoom(delta: number) {
     const z = Math.min(20, Math.max(13, Math.round((zoom + delta) * 10) / 10));
     mapaRef.current?.setZoom(z);
+  }
+
+  async function localizarme() {
+    if (ubicando) return;
+    setUbicando(true);
+    try {
+      await mapaRef.current?.localizar();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "No se pudo obtener la ubicación.");
+    } finally {
+      setUbicando(false);
+    }
   }
 
   return (
@@ -234,11 +248,26 @@ export function ControlesMapa({
             variant="ghost"
             size="icon-sm"
             className={cn(btnMapa, "border-t border-border/60")}
+            onClick={localizarme}
+            disabled={ubicando}
+            aria-label="Mi ubicación (GPS)"
+            title="Mi ubicación (GPS)"
+          >
+            {ubicando ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <LocateFixed className="size-4" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className={cn(btnMapa, "border-t border-border/60")}
             onClick={() => mapaRef.current?.volverAlParque()}
             aria-label="Centrar en el parque"
             title="Centrar en el parque"
           >
-            <LocateFixed className="size-4" />
+            <Tent className="size-4" />
           </Button>
         </div>
       </div>

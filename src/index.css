@@ -113,6 +113,51 @@ button {
   padding: 0 0.35rem;
 }
 
+/* "Mi ubicación" (GPS): punto azul con pulso + cono de dirección (brújula),
+   estilo Google Maps. El cono rota según la orientación del dispositivo. */
+.user-loc {
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
+.user-loc-dot {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 9999px;
+  background: #2563eb;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 rgba(37, 99, 235, 0.5);
+  animation: user-loc-pulse 2s ease-out infinite;
+}
+.user-loc-beam {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  width: 80px;
+  height: 80px;
+  /* translate para centrar el apex del cono sobre el punto; rotate lo aplica JS. */
+  transform: translate(-50%, -50%);
+  transform-origin: 50% 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.12s linear,
+    opacity 0.3s ease;
+}
+@keyframes user-loc-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 16px rgba(37, 99, 235, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', sans-serif;

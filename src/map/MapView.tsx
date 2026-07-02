@@ -81,6 +81,44 @@ const UUID_RE =
 export interface MapViewHandle {
   setZoom: (z: number) => void;
   volverAlParque: () => void;
+  /** Centra el mapa en la ubicación GPS del dispositivo. Rechaza con un mensaje legible si falla. */
+  localizar: () => Promise<void>;
+}
+
+// Evento de orientación con el campo propietario de iOS (brújula).
+interface EventoOrientacion extends DeviceOrientationEvent {
+  webkitCompassHeading?: number;
+}
+// En iOS 13+ hay que pedir permiso explícito (dentro de un gesto del usuario).
+type DOEConPermiso = {
+  requestPermission?: () => Promise<"granted" | "denied">;
+};
+
+// Cono de dirección (estilo Google Maps): apex en el centro (40,40), abre hacia
+// arriba (norte = 0°). El gradiente lo hace opaco junto al punto y transparente
+// en la punta.
+const CONO_SVG = `<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="cono-grad" cx="40" cy="40" r="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563eb" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <path d="M40 40 L18 8 A36 36 0 0 1 62 8 Z" fill="url(#cono-grad)"/>
+</svg>`;
+
+/** Mensaje legible para los errores de geolocalización. */
+function mensajeUbicacion(err: GeolocationPositionError): string {
+  switch (err.code) {
+    case err.PERMISSION_DENIED:
+      return "Permiso de ubicación denegado. Actívalo para este sitio en el navegador.";
+    case err.POSITION_UNAVAILABLE:
+      return "Ubicación no disponible. Verifica que el GPS esté encendido.";
+    case err.TIMEOUT:
+      return "Se agotó el tiempo para obtener la ubicación. Inténtalo de nuevo.";
+    default:
+      return "No se pudo obtener la ubicación.";
+  }
 }
 
 function centroide(poligono: GeoJSON.Polygon | undefined): [number, number] {
@@ -152,6 +190,11 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
   const popupSectorRef = useRef<maplibregl.Popup | null>(null);
   const popupSectorRootRef = useRef<Root | null>(null);
   const popupSectorIdRef = useRef<string | null>(null);
+  const marcadorUsuarioRef = useRef<maplibregl.Marker | null>(null);
+  const brujulaElRef = useRef<HTMLDivElement | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const orientHandlerRef = useRef<((e: DeviceOrientationEvent) => void) | null>(null);
+  const ultimaCoordRef = useRef<[number, number] | null>(null);
 
   // Refs a callbacks para no re-registrar listeners.
   const cbRef = useRef(props);
@@ -286,6 +329,70 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
       .setDOMContent(mount)
       .setLngLat(centroide(sector.geom))
       .addTo(map);
+  }
+
+  // --- Ubicación GPS del usuario (punto azul + cono de dirección) ---
+  function pintarUsuario(map: maplibregl.Map, coords: [number, number]) {
+    if (!marcadorUsuarioRef.current) {
+      const cont = document.createElement("div");
+      cont.className = "user-loc";
+      const cono = document.createElement("div");
+      cono.className = "user-loc-beam";
+      cono.innerHTML = CONO_SVG;
+      const dot = document.createElement("div");
+      dot.className = "user-loc-dot";
+      cont.appendChild(cono);
+      cont.appendChild(dot);
+      brujulaElRef.current = cono;
+      marcadorUsuarioRef.current = new maplibregl.Marker({ element: cont })
+        .setLngLat(coords)
+        .addTo(map);
+    } else {
+      marcadorUsuarioRef.current.setLngLat(coords);
+    }
+    ultimaCoordRef.current = coords;
+  }
+
+  function aplicarHeading(grados: number) {
+    const el = brujulaElRef.current;
+    if (!el) return;
+    el.style.opacity = "1";
+    el.style.transform = `translate(-50%, -50%) rotate(${grados}deg)`;
+  }
+
+  function iniciarBrujula() {
+    if (orientHandlerRef.current) return;
+    const handler = (e: DeviceOrientationEvent) => {
+      const ev = e as EventoOrientacion;
+      let heading: number | null = null;
+      if (typeof ev.webkitCompassHeading === "number") {
+        // iOS: 0 = norte, sentido horario (ya es la orientación de la brújula).
+        heading = ev.webkitCompassHeading;
+      } else if (e.absolute && typeof e.alpha === "number") {
+        // Android: alpha es antihorario desde el norte; corregimos por la
+        // rotación de la pantalla.
+        const anguloPantalla =
+          typeof screen !== "undefined" && screen.orientation
+            ? screen.orientation.angle
+            : 0;
+        heading = (360 - e.alpha + anguloPantalla) % 360;
+      }
+      if (heading != null && !Number.isNaN(heading)) aplicarHeading(heading);
+    };
+    orientHandlerRef.current = handler;
+    window.addEventListener("deviceorientationabsolute", handler, true);
+    window.addEventListener("deviceorientation", handler, true);
+  }
+
+  async function pedirPermisoOrientacion() {
+    const doe = DeviceOrientationEvent as unknown as DOEConPermiso;
+    if (typeof doe?.requestPermission === "function") {
+      try {
+        await doe.requestPermission();
+      } catch {
+        /* permiso denegado: seguimos solo con el punto de ubicación */
+      }
+    }
   }
 
   function desmontarRoot(roots: Map<string, Root>, id: string) {
@@ -541,6 +648,17 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
       marcadoresSector.current.clear();
       marcadoresPunto.current.forEach((m) => m.remove());
       marcadoresPunto.current.clear();
+      marcadorUsuarioRef.current?.remove();
+      marcadorUsuarioRef.current = null;
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      if (orientHandlerRef.current) {
+        window.removeEventListener("deviceorientationabsolute", orientHandlerRef.current, true);
+        window.removeEventListener("deviceorientation", orientHandlerRef.current, true);
+        orientHandlerRef.current = null;
+      }
       drawRef.current?.stop();
       drawRef.current = null;
       map.remove();
@@ -851,6 +969,78 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView(props, 
         center: VISTA_DEFECTO.center,
         zoom: VISTA_DEFECTO.zoom,
         duration: 600,
+      });
+    },
+    localizar: async () => {
+      const map = mapRef.current;
+      if (!map) throw new Error("El mapa no está listo.");
+      // La geolocalización solo funciona en contextos seguros (HTTPS o
+      // localhost). Por IP con http:// el navegador la bloquea.
+      if (!window.isSecureContext) {
+        throw new Error(
+          "El GPS requiere conexión segura (HTTPS). Funciona en el dominio publicado o en localhost, no por IP con http://.",
+        );
+      }
+      if (!("geolocation" in navigator)) {
+        throw new Error("Este dispositivo no soporta geolocalización.");
+      }
+
+      // Brújula: pedir permiso (iOS) y empezar a escuchar la orientación para el
+      // cono de dirección.
+      await pedirPermisoOrientacion();
+      iniciarBrujula();
+
+      // Si ya estamos rastreando, solo recentrar en la última posición conocida.
+      if (watchIdRef.current != null) {
+        if (ultimaCoordRef.current) {
+          map.flyTo({
+            center: ultimaCoordRef.current,
+            zoom: Math.max(map.getZoom(), 17),
+            duration: 600,
+          });
+        }
+        return;
+      }
+
+      // Seguimiento continuo de la posición (el punto sigue al usuario).
+      await new Promise<void>((resolve, reject) => {
+        let primero = true;
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          (pos) => {
+            const coords: [number, number] = [
+              pos.coords.longitude,
+              pos.coords.latitude,
+            ];
+            pintarUsuario(map, coords);
+            // Si el dispositivo da rumbo por GPS al moverse y no hay brújula,
+            // úsalo como respaldo para orientar el cono.
+            if (
+              !orientHandlerRef.current &&
+              typeof pos.coords.heading === "number" &&
+              !Number.isNaN(pos.coords.heading) &&
+              (pos.coords.speed ?? 0) > 0
+            ) {
+              aplicarHeading(pos.coords.heading);
+            }
+            if (primero) {
+              primero = false;
+              map.flyTo({
+                center: coords,
+                zoom: Math.max(map.getZoom(), 17),
+                duration: 800,
+              });
+              resolve();
+            }
+          },
+          (err) => {
+            if (primero) {
+              primero = false;
+              watchIdRef.current = null;
+              reject(new Error(mensajeUbicacion(err)));
+            }
+          },
+          { enableHighAccuracy: true, timeout: 10_000, maximumAge: 2_000 },
+        );
       });
     },
   }));
