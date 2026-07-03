@@ -24,11 +24,14 @@ import {
   ESTADOS_CENTRO,
   normalizarCentro,
   poblacionCentro,
+  totalPersonalOperativo,
+  personasLogistica,
   type CapacidadCentro,
   type CentroTransitorio,
   type ContactoReporte,
   type EstadoCentro,
   type ItemRequerimiento,
+  type PersonalCentro,
   type SeguridadCentro,
   type ServiciosCentro,
 } from "@/domain/centrosTransitorios";
@@ -39,6 +42,7 @@ import {
   type Vulnerables,
 } from "@/domain/tipos";
 import { DesgloseDemografico } from "@/features/censo/DesgloseDemografico";
+import { DesglosePersonal } from "@/features/censo/DesglosePersonal";
 import {
   FormularioContacto,
   FormularioSeguridad,
@@ -116,6 +120,7 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
   const [requerimientos, setRequerimientos] = useState<ItemRequerimiento[]>(base.requerimientos);
   const [capacidad, setCapacidad] = useState<CapacidadCentro>(base.capacidad);
   const [ocupacion, setOcupacion] = useState<Vulnerables>(base.ocupacion);
+  const [personal, setPersonal] = useState<PersonalCentro>(base.personal);
   const [familias, setFamilias] = useState(base.familias_ocupadas);
   const [responsables, setResponsables] = useState<Responsable[]>(base.responsables);
   const [fotoUrl, setFotoUrl] = useState(base.foto_url);
@@ -131,6 +136,14 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
     ocupacion,
     total_afectados: totalAfectados,
     censo_en_proceso: censoEnProceso,
+  });
+  const personalTotal = totalPersonalOperativo(personal);
+  const logistica = personasLogistica({
+    ...centro,
+    ocupacion,
+    total_afectados: totalAfectados,
+    censo_en_proceso: censoEnProceso,
+    personal,
   });
   const hayStorage = supabaseDisponible();
 
@@ -199,6 +212,7 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
           })),
         capacidad,
         ocupacion,
+        personal,
         familias_ocupadas: familias,
         responsables: responsables
           .filter((r) => r.nombre.trim() || r.telefono.trim())
@@ -453,8 +467,20 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
             <div>
               <Label className="text-sm font-semibold">Población afectada</Label>
               <p className="mt-1 text-xs text-muted-foreground">
-                Total reportado:{" "}
+                Refugiados:{" "}
                 <span className="font-semibold text-foreground">{ocupados.toLocaleString("es")}</span>
+                {personalTotal > 0 && (
+                  <>
+                    {" "}
+                    · Personal:{" "}
+                    <span className="font-semibold text-foreground">
+                      {personalTotal.toLocaleString("es")}
+                    </span>
+                  </>
+                )}
+                {" "}
+                · Logística total:{" "}
+                <span className="font-semibold text-foreground">{logistica.toLocaleString("es")}</span>
                 {censoEnProceso && " (censo detallado en proceso)"}
               </p>
               <div className="mt-2 grid grid-cols-2 gap-2">
@@ -505,6 +531,23 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
                   vulnerables={ocupacion}
                   onCampo={(campo, valor) =>
                     setOcupacion((prev) => ({ ...prev, [campo]: valor }))
+                  }
+                  deshabilitado={soloLectura}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold">Personal operativo</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Funcionarios, salud y justicia desplegados en el centro. Se suman a los refugiados
+                para calcular agua, comida y baños.
+              </p>
+              <div className="mt-3">
+                <DesglosePersonal
+                  personal={personal}
+                  onCampo={(campo, valor) =>
+                    setPersonal((prev) => ({ ...prev, [campo]: valor }))
                   }
                   deshabilitado={soloLectura}
                 />

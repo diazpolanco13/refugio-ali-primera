@@ -11,7 +11,9 @@
 
 import {
   normalizarCentro,
+  personasLogistica,
   poblacionCentro,
+  totalPersonalOperativo,
   type CentroTransitorio,
 } from "./centrosTransitorios";
 import { AGUA_LITROS_PERSONA_DIA, ESTANDARES } from "./estandares";
@@ -184,6 +186,13 @@ function analizarAgua(
 export type SemaforoCentro = "verde" | "amarillo" | "rojo" | "sin_datos";
 
 export interface AnalisisCentro {
+  /** Refugiados / población afectada alojada. */
+  refugiados: number;
+  /** Personal operativo desplegado (funcionarios, salud, justicia). */
+  personal: number;
+  /** Refugiados + personal → demanda real de agua, comida y baños. */
+  personasLogistica: number;
+  /** @deprecated Alias de `refugiados` (compatibilidad con UI existente). */
   ocupados: number;
   familias: number;
   /** Recursos contables (camas, baños, duchas, basura). Agua va aparte. */
@@ -200,7 +209,7 @@ export interface AnalisisCentro {
   semaforo: SemaforoCentro;
 }
 
-/** Personas actualmente alojadas en el centro (desglose o total preliminar). */
+/** Refugiados alojados en el centro (sin contar personal operativo). */
 export function ocupadosDe(centro: CentroTransitorio): number {
   return poblacionCentro(centro);
 }
@@ -218,14 +227,16 @@ function pct(ocupados: number, cap: number): number {
 export function analisisCentro(centro: CentroTransitorio): AnalisisCentro {
   const c = normalizarCentro(centro);
   const cap = c.capacidad;
-  const ocupados = poblacionCentro(centro);
+  const refugiados = poblacionCentro(centro);
+  const personal = totalPersonalOperativo(c.personal);
+  const logistica = personasLogistica(centro);
   const familias = c.familias_ocupadas;
 
-  // Unidades que DEBERÍAN existir para la población/familias actuales (Esfera).
-  const reqCamas = ocupados;
-  const reqPocetas = ocupados > 0 ? Math.ceil(ocupados / PERSONAS_POR_POCETA) : 0;
-  const reqDuchas = ocupados > 0 ? Math.ceil(ocupados / PERSONAS_POR_DUCHA) : 0;
-  const reqLavaderos = ocupados > 0 ? Math.ceil(ocupados / PERSONAS_POR_LAVADERO) : 0;
+  // Unidades que DEBERÍAN existir para refugiados + personal (Esfera).
+  const reqCamas = logistica;
+  const reqPocetas = logistica > 0 ? Math.ceil(logistica / PERSONAS_POR_POCETA) : 0;
+  const reqDuchas = logistica > 0 ? Math.ceil(logistica / PERSONAS_POR_DUCHA) : 0;
+  const reqLavaderos = logistica > 0 ? Math.ceil(logistica / PERSONAS_POR_LAVADERO) : 0;
   const reqContenedores = familias > 0 ? Math.ceil(familias / FAMILIAS_POR_CONTENEDOR) : 0;
 
   const recursos: RecursoAnalisis[] = [
@@ -242,8 +253,8 @@ export function analisisCentro(centro: CentroTransitorio): AnalisisCentro {
       cuentaParaCupo: true,
       sinNecesidad: reqCamas === 0,
       cobertura: cobertura(cap.camas_operativas, reqCamas),
-      margen: cap.camas_operativas - ocupados,
-      porcentaje: pct(ocupados, cap.camas_operativas),
+      margen: cap.camas_operativas - logistica,
+      porcentaje: pct(logistica, cap.camas_operativas),
     },
     {
       clave: "pocetas",
@@ -258,8 +269,8 @@ export function analisisCentro(centro: CentroTransitorio): AnalisisCentro {
       cuentaParaCupo: true,
       sinNecesidad: reqPocetas === 0,
       cobertura: cobertura(cap.pocetas_operativas, reqPocetas),
-      margen: cap.pocetas_operativas * PERSONAS_POR_POCETA - ocupados,
-      porcentaje: pct(ocupados, cap.pocetas_operativas * PERSONAS_POR_POCETA),
+      margen: cap.pocetas_operativas * PERSONAS_POR_POCETA - logistica,
+      porcentaje: pct(logistica, cap.pocetas_operativas * PERSONAS_POR_POCETA),
     },
     {
       clave: "duchas",
@@ -274,8 +285,8 @@ export function analisisCentro(centro: CentroTransitorio): AnalisisCentro {
       cuentaParaCupo: true,
       sinNecesidad: reqDuchas === 0,
       cobertura: cobertura(cap.duchas_operativas, reqDuchas),
-      margen: cap.duchas_operativas * PERSONAS_POR_DUCHA - ocupados,
-      porcentaje: pct(ocupados, cap.duchas_operativas * PERSONAS_POR_DUCHA),
+      margen: cap.duchas_operativas * PERSONAS_POR_DUCHA - logistica,
+      porcentaje: pct(logistica, cap.duchas_operativas * PERSONAS_POR_DUCHA),
     },
     {
       clave: "lavaderos",
@@ -313,13 +324,16 @@ export function analisisCentro(centro: CentroTransitorio): AnalisisCentro {
     },
   ];
 
-  const agua = analizarAgua(cap.agua_tanque, cap.agua_operativa, cap.agua_litros, ocupados);
+  const agua = analizarAgua(cap.agua_tanque, cap.agua_operativa, cap.agua_litros, logistica);
 
   const medidos = recursos.filter((r) => r.medido && r.cuentaParaCupo);
 
   if (medidos.length === 0) {
     return {
-      ocupados,
+      refugiados,
+      personal,
+      personasLogistica: logistica,
+      ocupados: refugiados,
       familias,
       recursos,
       agua,
@@ -332,9 +346,9 @@ export function analisisCentro(centro: CentroTransitorio): AnalisisCentro {
   }
 
   const capacidadEfectiva = Math.min(...medidos.map((r) => r.capacidadPersonas));
-  const cupoReal = Math.max(0, capacidadEfectiva - ocupados);
+  const cupoReal = Math.max(0, capacidadEfectiva - logistica);
   const cuelloBotella = medidos.reduce((min, r) => (r.margen < min.margen ? r : min), medidos[0]);
-  const porcentajeOcupacion = pct(ocupados, capacidadEfectiva);
+  const porcentajeOcupacion = pct(logistica, capacidadEfectiva);
 
   let semaforo: SemaforoCentro;
   if (porcentajeOcupacion >= 100) semaforo = "rojo";
@@ -342,7 +356,10 @@ export function analisisCentro(centro: CentroTransitorio): AnalisisCentro {
   else semaforo = "verde";
 
   return {
-    ocupados,
+    refugiados,
+    personal,
+    personasLogistica: logistica,
+    ocupados: refugiados,
     familias,
     recursos,
     agua,

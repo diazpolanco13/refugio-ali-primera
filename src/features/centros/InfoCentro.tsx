@@ -1,5 +1,5 @@
 import { ExternalLink } from "lucide-react";
-import { metaCuerpoDe, type CentroTransitorio } from "@/domain/centrosTransitorios";
+import { metaCuerpoDe, poblacionCentro, type CentroTransitorio } from "@/domain/centrosTransitorios";
 import { analisisCentro, COLOR_SEMAFORO } from "@/domain/capacidadCentros";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +12,7 @@ interface Props {
 export function InfoCentro({ centro, className }: Props) {
   const meta = metaCuerpoDe(centro.cuerpo);
   const analisis = analisisCentro(centro);
+  const refugiados = poblacionCentro(centro);
   const colorSemaforo = COLOR_SEMAFORO[analisis.semaforo];
 
   return (
@@ -60,9 +61,12 @@ export function InfoCentro({ centro, className }: Props) {
 
       <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-1.5 text-[11px]">
         <span className="text-muted-foreground">
-          {analisis.ocupados > 0
-            ? `${analisis.ocupados.toLocaleString("es")} alojados`
+          {refugiados > 0
+            ? `${refugiados.toLocaleString("es")} refugiados`
             : "Sin ocupación registrada"}
+          {analisis.personal > 0 && (
+            <> · {analisis.personal.toLocaleString("es")} personal</>
+          )}
         </span>
         <span className="font-semibold" style={{ color: colorSemaforo }}>
           {analisis.cupoReal != null ? `Cupo: +${analisis.cupoReal.toLocaleString("es")}` : "Sin datos"}

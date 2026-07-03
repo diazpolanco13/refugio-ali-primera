@@ -329,6 +329,8 @@ export interface CentroTransitorio {
   capacidad?: CapacidadCentro;
   /** Ocupación actual por edad y sexo (mismo desglose que los sectores). */
   ocupacion?: Vulnerables;
+  /** Personal operativo desplegado (funcionarios, salud, justicia). */
+  personal?: PersonalCentro;
   familias_ocupadas?: number;
   /** Responsables del centro con teléfono para contacto (llamar/WhatsApp). */
   responsables?: Responsable[];
@@ -343,6 +345,7 @@ export interface CentroTransitorio {
 export interface CentroNormalizado extends CentroTransitorio {
   capacidad: CapacidadCentro;
   ocupacion: Vulnerables;
+  personal: PersonalCentro;
   familias_ocupadas: number;
   responsables: Responsable[];
   foto_url: string;
@@ -366,6 +369,7 @@ export function normalizarCentro(c: CentroTransitorio): CentroNormalizado {
     ...c,
     capacidad: normalizarCapacidad(c.capacidad),
     ocupacion: normalizarVulnerables(c.ocupacion),
+    personal: normalizarPersonal(c.personal),
     familias_ocupadas: c.familias_ocupadas ?? 0,
     responsables: Array.isArray(c.responsables) ? c.responsables : [],
     foto_url: c.foto_url ?? "",
@@ -394,6 +398,74 @@ export function poblacionCentro(c: CentroTransitorio): number {
   const desdeDesglose = totalPoblacion(norm.ocupacion);
   if (desdeDesglose > 0) return desdeDesglose;
   return norm.total_afectados;
+}
+
+/**
+ * Personal operativo desplegado en el centro (no refugiados). Se suma a la
+ * población afectada para calcular demanda de agua, comida, baños y duchas.
+ */
+export interface PersonalCentro {
+  /** Funcionarios administrativos / apoyo logístico del centro. */
+  funcionarios: number;
+  medicos: number;
+  psicologos: number;
+  /** Tribunal Supremo de Justicia / jueces de paz. */
+  justicia_tjs: number;
+  /** Ministerio Público. */
+  justicia_mp: number;
+  /** Defensoría del Pueblo. */
+  justicia_defensoria: number;
+}
+
+export const PERSONAL_VACIO: PersonalCentro = {
+  funcionarios: 0,
+  medicos: 0,
+  psicologos: 0,
+  justicia_tjs: 0,
+  justicia_mp: 0,
+  justicia_defensoria: 0,
+};
+
+export function normalizarPersonal(
+  p: Partial<PersonalCentro> | null | undefined,
+): PersonalCentro {
+  const base = { ...PERSONAL_VACIO, ...(p ?? {}) };
+  return {
+    funcionarios: Math.max(0, Number(base.funcionarios) || 0),
+    medicos: Math.max(0, Number(base.medicos) || 0),
+    psicologos: Math.max(0, Number(base.psicologos) || 0),
+    justicia_tjs: Math.max(0, Number(base.justicia_tjs) || 0),
+    justicia_mp: Math.max(0, Number(base.justicia_mp) || 0),
+    justicia_defensoria: Math.max(0, Number(base.justicia_defensoria) || 0),
+  };
+}
+
+/** Total de personal operativo (todas las categorías). */
+export function totalPersonalOperativo(p: Partial<PersonalCentro> | null | undefined): number {
+  const n = normalizarPersonal(p);
+  return (
+    n.funcionarios +
+    n.medicos +
+    n.psicologos +
+    n.justicia_tjs +
+    n.justicia_mp +
+    n.justicia_defensoria
+  );
+}
+
+/** Total de funcionarios de justicia (TJS + MP + Defensoría). */
+export function totalJusticia(p: Partial<PersonalCentro> | null | undefined): number {
+  const n = normalizarPersonal(p);
+  return n.justicia_tjs + n.justicia_mp + n.justicia_defensoria;
+}
+
+/**
+ * Headcount para logística (agua, comida, baños): refugiados + personal
+ * operativo desplegado en el centro.
+ */
+export function personasLogistica(c: CentroTransitorio): number {
+  const norm = normalizarCentro(c);
+  return poblacionCentro(c) + totalPersonalOperativo(norm.personal);
 }
 
 /** Centro de Caracas usado para centrar el mapa general (aprox. Plaza Venezuela). */

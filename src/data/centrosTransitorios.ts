@@ -39,6 +39,14 @@ export const LEVANTAMIENTO_DEMO_CENTRO_10: Partial<CentroTransitorio> = {
   total_afectados: 195,
   familias_ocupadas: 60,
   censo_en_proceso: true,
+  personal: {
+    funcionarios: 12,
+    medicos: 4,
+    psicologos: 2,
+    justicia_tjs: 1,
+    justicia_mp: 1,
+    justicia_defensoria: 1,
+  },
   novedades:
     "Estamos en el proceso de Censo y recolección de información para la caracterización y perfilar a los Adultos",
   requerimientos: [

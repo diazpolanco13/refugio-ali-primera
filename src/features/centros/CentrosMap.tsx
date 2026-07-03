@@ -3,7 +3,14 @@ import { createRoot, type Root } from "react-dom/client";
 import maplibregl from "maplibre-gl";
 import { toPng } from "html-to-image";
 import { CAPAS_BASE, VISIBILIDAD_BASE, construirEstilo, type BaseMapa } from "@/map/estiloMapa";
-import { CARACAS_CENTRO, CARACAS_ZOOM, metaCuerpoDe, type CentroTransitorio } from "@/domain/centrosTransitorios";
+import {
+  CARACAS_CENTRO,
+  CARACAS_ZOOM,
+  metaCuerpoDe,
+  normalizarCentro,
+  poblacionCentro,
+  type CentroTransitorio,
+} from "@/domain/centrosTransitorios";
 import { analisisCentro, COLOR_SEMAFORO } from "@/domain/capacidadCentros";
 import { MarcadorCentro } from "./MarcadorCentro";
 import { InfoCentro } from "./InfoCentro";
@@ -116,12 +123,16 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
         marcadores.current.set(c.id, marcador);
       }
       const analisis = analisisCentro(c);
+      const refugiados = poblacionCentro(c);
+      const funcionarios = normalizarCentro(c).personal.funcionarios;
       roots.current.get(c.id)?.render(
         <MarcadorCentro
           icono={meta.icono}
           logo={meta.logo}
           color={meta.color}
           seleccionado={cbRef.current.seleccionado === c.id}
+          refugiados={refugiados}
+          funcionarios={funcionarios}
           semaforoColor={
             analisis.semaforo === "sin_datos" ? null : COLOR_SEMAFORO[analisis.semaforo]
           }

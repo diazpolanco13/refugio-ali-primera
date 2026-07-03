@@ -5,37 +5,90 @@ interface Props {
   logo: string | null;
   color: string;
   seleccionado: boolean;
+  /** Refugiados alojados. */
+  refugiados?: number;
+  /** Funcionarios de apoyo desplegados (campo `personal.funcionarios`). */
+  funcionarios?: number;
   /** Color del semáforo de ocupación (punto de estado). null = no mostrar. */
   semaforoColor?: string | null;
   onClick: () => void;
 }
 
+function fmtCompacto(n: number): string {
+  if (n >= 10_000) return `${Math.round(n / 1000)}k`;
+  if (n >= 1_000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return n.toLocaleString("es");
+}
+
 /**
- * Marcador HTML circular: logo/escudo del cuerpo sobre fondo blanco, con anillo
- * de color por cuerpo y un punto de estado (semáforo de ocupación) en la esquina.
+ * Marcador HTML: píldora horizontal con logo del cuerpo + refugiados / funcionarios,
+ * o solo el círculo del cuerpo si no hay datos de población ni personal.
  */
-export function MarcadorCentro({ icono, logo, color, seleccionado, semaforoColor, onClick }: Props) {
+export function MarcadorCentro({
+  icono,
+  logo,
+  color,
+  seleccionado,
+  refugiados = 0,
+  funcionarios = 0,
+  semaforoColor,
+  onClick,
+}: Props) {
+  const conContador = refugiados > 0 || funcionarios > 0;
+
+  const iconoCuerpo = (
+    <span
+      className={cn(
+        "flex shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white",
+        conContador ? "size-7" : "size-8",
+      )}
+      style={{ borderColor: color }}
+    >
+      {logo ? (
+        <img src={logo} alt="" className="size-full object-cover" draggable={false} />
+      ) : (
+        <span className={cn("leading-none", conContador ? "text-sm" : "text-base")}>{icono}</span>
+      )}
+    </span>
+  );
+
+  const titulo =
+    conContador &&
+    `${refugiados.toLocaleString("es")} refugiados · ${funcionarios.toLocaleString("es")} funcionarios de apoyo`;
+
   return (
     <div
-      className="relative cursor-pointer select-none"
+      className={cn(
+        "relative cursor-pointer select-none transition-transform",
+        seleccionado && "scale-110",
+      )}
+      title={titulo || undefined}
       onClick={(ev) => {
         ev.stopPropagation();
         onClick();
       }}
     >
-      <div
-        className={cn(
-          "flex size-8 items-center justify-center overflow-hidden rounded-full border-2 bg-white shadow-lg transition-transform",
-          seleccionado && "scale-125 ring-2 ring-white",
-        )}
-        style={{ borderColor: color }}
-      >
-        {logo ? (
-          <img src={logo} alt="" className="size-full object-cover" draggable={false} />
-        ) : (
-          <span className="text-base leading-none">{icono}</span>
-        )}
-      </div>
+      {conContador ? (
+        <div
+          className={cn(
+            "flex items-center gap-1 rounded-full border-2 bg-slate-950/95 py-0.5 pl-0.5 pr-2 shadow-lg",
+            seleccionado && "ring-2 ring-white/90",
+          )}
+          style={{ borderColor: color }}
+        >
+          {iconoCuerpo}
+          <span className="whitespace-nowrap text-[11px] font-bold tabular-nums leading-none text-white">
+            {fmtCompacto(refugiados)}
+            <span className="mx-0.5 font-normal text-white/55">/</span>
+            {fmtCompacto(funcionarios)}
+          </span>
+        </div>
+      ) : (
+        <div className={cn("rounded-full shadow-lg", seleccionado && "ring-2 ring-white")}>
+          {iconoCuerpo}
+        </div>
+      )}
+
       {semaforoColor && (
         <span
           className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-white shadow"

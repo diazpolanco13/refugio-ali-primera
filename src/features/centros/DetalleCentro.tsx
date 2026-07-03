@@ -1,5 +1,6 @@
 import {
   BedDouble,
+  ChevronDown,
   ClipboardList,
   Droplets,
   ExternalLink,
@@ -16,7 +17,9 @@ import {
   ESTADOS_CENTRO,
   metaCuerpoDe,
   normalizarCentro,
+  normalizarPersonal,
   poblacionCentro,
+  totalJusticia,
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
 import {
@@ -30,15 +33,18 @@ import {
 import { CATEGORIAS_RESPONSABLE } from "@/domain/tipos";
 import { AccionesContacto } from "@/components/AccionesContacto";
 import { DemografiaResumen } from "@/features/tablero/DemografiaResumen";
-import {
-  GridServicios,
-  TarjetaContacto,
-  TarjetaSeguridad,
-} from "@/features/centros/LevantamientoCentro";
+import { PersonalResumen } from "@/features/censo/PersonalResumen";
+import { TarjetaContacto, TarjetaSeguridad } from "@/features/centros/LevantamientoCentro";
 import { ListaRequerimientos } from "@/features/centros/RequerimientosCentro";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 const ICONO_RECURSO: Record<ClaveRecurso, React.ReactNode> = {
   camas: <BedDouble className="size-3.5 text-primary" />,
@@ -83,12 +89,53 @@ const ETIQUETA_SEMAFORO: Record<string, string> = {
   sin_datos: "Sin datos de capacidad",
 };
 
+/** Número grande para lectura rápida en el panel del centro. */
+function KpiGrande({
+  etiqueta,
+  valor,
+  clase,
+  anchoCompleto,
+}: {
+  etiqueta: string;
+  valor: number;
+  clase?: string;
+  anchoCompleto?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border border-border/80 bg-muted/25 px-3 py-2.5 text-center",
+        anchoCompleto && "col-span-full",
+      )}
+    >
+      <div className={cn("text-2xl font-bold tabular-nums leading-none text-foreground", clase)}>
+        {valor.toLocaleString("es")}
+      </div>
+      <div className="mt-1 text-[11px] font-medium text-muted-foreground">{etiqueta}</div>
+    </div>
+  );
+}
+
+/** Subtotal compacto (p. ej. médicos, justicia). */
+function MiniKpi({ etiqueta, valor }: { etiqueta: string; valor: number }) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-muted/15 px-2 py-1.5 text-center">
+      <div className="text-lg font-bold tabular-nums leading-none text-foreground">
+        {valor.toLocaleString("es")}
+      </div>
+      <div className="mt-0.5 text-[10px] leading-tight text-muted-foreground">{etiqueta}</div>
+    </div>
+  );
+}
+
 /** Ficha de detalle de un centro: foto, contactos, capacidad vs ocupación. */
 export function DetalleCentro({ centro, puedeEditar, onEditar }: Props) {
   const c = normalizarCentro(centro);
   const meta = metaCuerpoDe(centro.cuerpo);
   const analisis = analisisCentro(centro);
   const poblacion = poblacionCentro(centro);
+  const personal = normalizarPersonal(c.personal);
+  const justicia = totalJusticia(personal);
   const estadoInfo = ESTADOS_CENTRO.find((e) => e.valor === c.estado);
   const colorSemaforo = COLOR_SEMAFORO[analisis.semaforo];
   const ubicacion = [c.estado_federativo, c.municipio, centro.parroquia.replace(/^Parroquia\s/i, "")]
@@ -195,33 +242,88 @@ export function DetalleCentro({ centro, puedeEditar, onEditar }: Props) {
       {/* III · Seguridad */}
       <TarjetaSeguridad seguridad={c.seguridad} organismoCatalogo={centro.cuerpo} />
 
-      {/* IV · Salud */}
-      <div>
-        <p className="mb-2 text-xs font-semibold text-foreground">Salud y apoyo</p>
-        <GridServicios servicios={c.servicios} />
-      </div>
-
-      {/* V · Población */}
+      {/* V · Población — totales visibles, detalle desplegable */}
       <div className="rounded-xl border border-border bg-card/60 p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="text-xs font-semibold text-foreground">Población afectada</p>
-          <span className="text-[11px] text-muted-foreground">
-            {poblacion.toLocaleString("es")} personas · {analisis.familias.toLocaleString("es")}{" "}
-            familias
-          </span>
+        <p className="text-xs font-semibold text-foreground">Población afectada</p>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <KpiGrande etiqueta="Refugiados" valor={poblacion} clase="text-sky-300" />
+          <KpiGrande etiqueta="Familias" valor={analisis.familias} />
         </div>
         {c.censo_en_proceso && (
-          <Badge variant="outline" className="mb-2 border-amber-500/40 text-[10px] text-amber-500">
+          <Badge
+            variant="outline"
+            className="mt-2 border-amber-500/40 text-[10px] text-amber-500"
+          >
             Censo demográfico en proceso
           </Badge>
         )}
-        {c.total_afectados > 0 && c.censo_en_proceso && (
-          <p className="mb-2 text-[11px] text-muted-foreground">
-            Total preliminar: {c.total_afectados.toLocaleString("es")} afectados (desglose pendiente)
-          </p>
-        )}
-        <DemografiaResumen vulnerables={c.ocupacion} mostrarEstructura />
+        <Collapsible className="mt-2">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="group flex w-full items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
+            >
+              Ver desglose demográfico
+              <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2 space-y-2">
+            {c.total_afectados > 0 && c.censo_en_proceso && (
+              <p className="text-[11px] text-muted-foreground">
+                Total preliminar: {c.total_afectados.toLocaleString("es")} afectados (desglose
+                pendiente)
+              </p>
+            )}
+            <DemografiaResumen vulnerables={c.ocupacion} mostrarEstructura />
+          </CollapsibleContent>
+        </Collapsible>
       </div>
+
+      {/* Personal operativo — totales visibles, detalle desplegable */}
+      <div className="rounded-xl border border-border bg-card/60 p-3">
+        <p className="text-xs font-semibold text-foreground">Personal operativo</p>
+        <div className="mt-2">
+          <KpiGrande etiqueta="Total desplegado" valor={analisis.personal} anchoCompleto />
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <MiniKpi etiqueta="Funcionarios" valor={personal.funcionarios} />
+          <MiniKpi etiqueta="Médicos" valor={personal.medicos} />
+          <MiniKpi etiqueta="Psicólogos" valor={personal.psicologos} />
+          <MiniKpi etiqueta="Justicia" valor={justicia} />
+        </div>
+        <Collapsible className="mt-2">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="group flex w-full items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
+            >
+              Ver detalle por categoría
+              <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <PersonalResumen personal={c.personal} mostrarEstructura />
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+
+      {/* Total logístico (agua, comida, baños) */}
+      {(analisis.refugiados > 0 || analisis.personal > 0) && (
+        <div className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-4 py-3 text-center">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-teal-400/90">
+            Logística · agua, comida, baños
+          </p>
+          <p className="mt-0.5 text-3xl font-bold tabular-nums text-foreground">
+            {analisis.personasLogistica.toLocaleString("es")}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {analisis.refugiados.toLocaleString("es")} refugiados
+            {analisis.personal > 0 && (
+              <> + {analisis.personal.toLocaleString("es")} personal</>
+            )}
+          </p>
+        </div>
+      )}
 
       {/* Requerimientos logísticos */}
       {c.requerimientos.some((r) => r.concepto.trim() && r.cantidad > 0) && (
@@ -239,7 +341,12 @@ export function DetalleCentro({ centro, puedeEditar, onEditar }: Props) {
         <div className="mb-2 flex items-center justify-between">
           <p className="text-xs font-semibold text-foreground">Capacidad vs. ocupación</p>
           <span className="text-[11px] text-muted-foreground">
-            {analisis.ocupados.toLocaleString("es")} alojados
+            {analisis.refugiados.toLocaleString("es")} refugiados
+            {analisis.personal > 0 && (
+              <> + {analisis.personal.toLocaleString("es")} personal</>
+            )}
+            {" · "}
+            {analisis.personasLogistica.toLocaleString("es")} logística
           </span>
         </div>
 

@@ -61,12 +61,14 @@ explícita del usuario, jul-2026): las **fotos de los centros** se guardan en
   parque, export PDF de reportes. Se irá ampliando con más métricas. Ver
   `src/features/dashboard/DashboardView.tsx` y `src/features/distribucion/`.
 - 🟢 **Fase 4 — FOCO ACTUAL: red de 50 Centros Transitorios** (`/centros`): ✅
-  registro de estado por centro (capacidad instalada/operativa de camas, duchas,
-  pocetas, agua y basura; ocupación demográfica; responsables; foto), ✅ vista de
-  detalle con **cuello de botella** (cupo real según Esfera), ✅ **tablero
-  comparativo** para reubicar refugiados y ✅ formulario de registro **por pestañas**
-  (General/Capacidad/Ocupación/Contactos). Foto vía **Supabase Storage**. Ver
-  sección "Red de Centros Transitorios" y `src/features/centros/`.
+  registro de estado por centro (levantamiento de campo secciones I–VI, capacidad,
+  ocupación demográfica, **personal operativo**, requerimientos logísticos,
+  responsables, foto), ✅ marcadores en mapa con **refugiados / funcionarios**,
+  ✅ panel de detalle con KPIs visibles y desgloses desplegables, ✅ **cuello de
+  botella** (cupo real según Esfera, incluyendo personal en la logística de agua/
+  comida/baños), ✅ **tablero comparativo** y ✅ formulario **por pestañas**.
+  Foto vía **Supabase Storage** (también en prod Dokploy). Ver sección "Red de
+  Centros Transitorios" y `src/features/centros/`.
 
 La app **ya funciona 100% offline** con Dexie/IndexedDB (la foto de centros es la
 única función que requiere conexión). El backend solo añade la capa compartida
@@ -75,13 +77,15 @@ multiusuario; **no** debe romper el modo offline.
 ### Qué falta / próximos pasos (dirección: la red de centros)
 
 - ✅ **Supabase configurado** (jul-2026): proyecto `xzwifkckkakldnzkdeby`, bucket
-  público `centros-fotos` creado (5MB, solo imágenes) con políticas RLS de subida, y
-  `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` en `.env`. La subida de fotos ya
-  funciona en dev. Falta: poner esas dos `VITE_*` también en el build de producción
-  (Dokploy) para que la foto funcione en prod. Ver sección "Foto vía Supabase".
-- 🚀 **Redesplegar producción**: la entidad `centros` es nueva → **push a `main` +
-  redeploy en Dokploy** y verificar que la tabla `centros` exista (ver checklist de
-  despliegue). Sin esto, el estado de los centros no se sincroniza entre equipos.
+  público `centros-fotos` (5MB, RLS de subida). `VITE_SUPABASE_*` en `.env` local
+  **y** en el build de producción (Dokploy app `refugio-ali-primera`). Ver sección
+  "Foto vía Supabase".
+- ✅ **Backend `centros` en prod** (jul-2026): tabla creada, sync operativo. El
+  compose `refugio-backend` tiene webhook GitHub con `watchPaths: ["server/**"]`.
+- ⚠️ **Dev vs prod — bases distintas:** en desarrollo, Vite proxya `/api` a
+  `localhost:3001` (PGlite). Ediciones en localhost **no** llegan solas a producción;
+  hay que guardar en `https://m0n1t0r-d3-3v3nt0s.net` (o empujar datos manualmente).
+  Las fotos sí van a Supabase compartido; la `foto_url` viaja con el sync del centro.
 - 📊 **Dashboard de la red**: hoy `/dashboard` es del parque; falta una vista de
   sala de control **agregada de todos los centros** (población total en la red,
   centros saturados, cupo total disponible, mapa de calor por parroquia).
@@ -150,9 +154,9 @@ src/
 │              distribucion/PanelDistribucion (registro de comida) ·
 │              salubridad/PanelSalubridad (limpieza de baños/duchas/basura) ·
 │              dashboard/DashboardView (sala de control /dashboard) ·
-│              censo/DesgloseDemografico (grid demográfico compartido) ·
+│              censo/DesgloseDemografico, DesglosePersonal, PersonalResumen ·
 │              centros/ (FOCO: CentrosView, CentrosMap, MarcadorCentro, InfoCentro,
-│                        DetalleCentro, TableroCentros, CentroForm)
+│                        DetalleCentro, TableroCentros, CentroForm, LevantamientoCentro)
 ├─ components/ Navbar, PanelFlotante, … · ui/ (componentes shadcn: card, chart, badge…)
 ├─ lib/        utils.ts (cn())
 └─ ui/         (legacy) Modal, clases.ts (clases Tailwind reutilizables)
@@ -441,31 +445,37 @@ migración v10 (id determinista `centro-01`…`centro-50`, `updated_at` bajo par
 cualquier edición gane) y también vía `sembrarCentrosSiVacio()` en instalaciones
 nuevas. Solo las **ediciones** se sincronizan; el catálogo base viaja en el bundle.
 El tipo `CentroTransitorio` (en `src/domain/centrosTransitorios.ts`) suma a los
-campos base los mutables (opcionales, con `normalizarCentro()`): `capacidad`
-(`CapacidadCentro`: camas/duchas/pocetas/contenedores **instaladas vs operativas**
-+ agua tanque/operativa/litros), `ocupacion` (`Vulnerables`, mismo desglose por
-edad/sexo que los sectores), `familias_ocupadas`, `responsables` (`Responsable[]`
-con teléfono para llamar/WhatsApp), `foto_url`, `estado` (preparación/operativo/
-saturado/cerrado) y `notas`.
+campos base los mutables (opcionales, con `normalizarCentro()`): levantamiento de
+campo (secciones I–VI: identificación, coordinación, seguridad, servicios sí/no,
+población, novedades), `requerimientos[]`, `capacidad` (`CapacidadCentro`: camas/
+duchas/pocetas/lavaderos/contenedores **instaladas vs operativas** + agua tanque/
+operativa/litros), `ocupacion` (`Vulnerables`, mismo desglose por edad/sexo que
+los sectores), **`personal`** (`PersonalCentro`: funcionarios, médicos, psicólogos,
+justicia TJS/MP/Defensoría), `familias_ocupadas`, `responsables`, `foto_url`,
+`estado` y `notas`. Helpers: `poblacionCentro()` (refugiados), `totalPersonalOperativo()`,
+`personasLogistica()` (refugiados + personal → demanda de agua/comida/baños).
 
 **Lógica de cuello de botella** (`src/domain/capacidadCentros.ts`, pura, análoga a
-`brechas.ts`): `analisisCentro(centro)` calcula por recurso operativo cuántas
-personas soporta según ratios Esfera (pocetas 1/20, duchas 1/50, agua 15 l/persona
-/día; camas 1:1), toma la **capacidad efectiva = mínimo** entre los recursos
-medidos, y de ahí el **`cupoReal`** (personas que aún puede recibir) y el
-**`cuelloDeBotella`** (el recurso que limita). Ejemplo: 100 camas pero 2 pocetas
-operativas → cuello = pocetas, cupo real bajo. Recursos sin datos no fuerzan el
-cupo a 0. Semáforo verde/amarillo/rojo por % de ocupación.
+`brechas.ts`): `analisisCentro(centro)` usa **`personasLogistica`** (no solo
+refugiados) para calcular requerimientos Esfera (pocetas 1/20, duchas 1/50, agua
+15 l/persona/día; camas 1:1), toma la **capacidad efectiva = mínimo** entre los
+recursos medidos, y de ahí **`cupoReal`** y **`cuelloDeBotella`**. Semáforo
+verde/amarillo/rojo por % de ocupación. El análisis expone `refugiados`, `personal`
+y `personasLogistica` por separado.
 
-**UI:** `CentrosView` (conmutador **Mapa / Tablero**). En el mapa, cada marcador
-lleva el logo de su cuerpo + un **punto de estado** (semáforo). Al seleccionar un
-centro se abre `DetalleCentro` (foto, dirección + Maps, responsables con
-llamar/WhatsApp, y **capacidad vs ocupación** con barras por recurso y el cuello
-resaltado). `TableroCentros` compara todos los centros ordenados por cupo real
-(a dónde mandar gente). `CentroForm` registra/edita todo con un formulario **por
-pestañas** (General / Capacidad / Ocupación / Contactos; reutiliza el grid
-demográfico compartido `src/features/censo/DesgloseDemografico.tsx`, extraído de
-`SectorForm`). Permisos: admin/coordinador/campo editan; **visor solo lectura**.
+**UI:** `CentrosView` (conmutador **Mapa / Tablero**). En el mapa, `MarcadorCentro`
+es una **píldora horizontal**: logo del cuerpo + **`refugiados / funcionarios`**
+(ej. `200 / 25`) + punto de semáforo. Al seleccionar un centro, `DetalleCentro`
+prioriza lo operativo a simple vista: KPIs grandes de **refugiados** y **familias**,
+**personal total** (mini-totales por categoría), tarjeta de **logística** (agua,
+comida, baños); los desgloses demográfico y de personal van en **secciones
+desplegables**. Ya no muestra "Salud y apoyo" (sí/no) en detalle — eso queda en el
+formulario pestaña IV; los conteos numéricos viven en `personal`. También: foto,
+Maps, coordinación, seguridad, requerimientos, capacidad vs ocupación, responsables.
+`TableroCentros` compara centros por cupo real. `CentroForm` por pestañas I–VI +
+Requerimientos, Capacidad, Contactos; **personal operativo** se edita en **V ·
+Población** (`DesglosePersonal.tsx`). Permisos: admin/coordinador/campo editan;
+**visor solo lectura**.
 
 **Foto vía Supabase Storage:** la foto se sube a un bucket **público**
 `centros-fotos` de Supabase (`src/data/supabase.ts`: comprime a JPEG ~1280px antes
@@ -501,8 +511,9 @@ que usa Supabase: todo lo demás vive en el backend/sync propio.
   `server` se **construye desde GitHub**: `build.context =
   https://github.com/diazpolanco13/refugio-ali-primera.git#main:server`. Es decir,
   hornea la carpeta `server/` de la rama **`main`** con `server/Dockerfile`.
-  `autoDeploy: true`, `triggerType: push` → un push a `main` **debería**
-  redesplegarlo solo (por webhook), pero **verifica siempre** que ocurrió.
+  `autoDeploy: true`, `triggerType: push`, `githubId` conectado y
+  `watchPaths: ["server/**"]` → un push a `main` que toque `server/` **debería**
+  redesplegarlo solo (verifica siempre en el panel).
 - **`refugio-ali-primera`** — la **PWA/frontend** (aplicación aparte en Dokploy).
 - El **enrutado/HTTPS** lo hace **Traefik** (de Dokploy), no el `Caddyfile` de la
   raíz. Los dominios `…/api` y `…/ws` apuntan al servicio `server:3001`.
