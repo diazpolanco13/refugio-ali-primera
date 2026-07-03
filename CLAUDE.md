@@ -1,22 +1,45 @@
 # CLAUDE.md — Guía para continuar el proyecto
 
 > Documento de traspaso. Si eres una IA/desarrollador retomando este proyecto
-> (por ejemplo desde el VPS), **lee esto primero**. Explica qué es, qué está
-> hecho, cómo ejecutarlo y **qué falta** (Fase 2c: bitácora, despliegue · Fase 3:
-> overlay del parque, export PDF). El proyecto y sus comentarios están en
-> **español**; mantén ese idioma.
+> (por ejemplo desde el VPS), **lee esto primero**. Explica qué es, hacia dónde
+> va, qué está hecho, cómo ejecutarlo y qué falta. El proyecto y sus comentarios
+> están en **español**; mantén ese idioma.
 
 ## Qué es
 
-**Sala Situacional** para el monitoreo del **refugio transitorio del Parque del
-Oeste "Alí Primera"** (Caracas/La Guaira), tras la tragedia del 24-jun-2026.
-Herramienta de gestión de campamento (CCCM): mapa georreferenciado con sectores
-y capas de servicios, detección de brechas vs. estándares humanitarios (Esfera),
-cronómetro de limpieza, y funcionamiento **offline-first**. Objetivo: planificar,
-distribuir responsabilidades por sector y decidir con datos.
+Herramienta de **gestión humanitaria (CCCM)** para la emergencia de Caracas/La
+Guaira tras la tragedia del **24-jun-2026**. Nació como **Sala Situacional** de un
+solo refugio, el **Parque del Oeste "Alí Primera"** (mapa georreferenciado por
+sectores, capas de servicios, brechas vs. estándares humanitarios **Esfera**,
+cronómetro de limpieza, distribución de comida y salubridad), y **funciona
+offline-first**.
+
+> 🔀 **DIRECCIÓN ACTUAL DEL PROYECTO (jul-2026) — LÉELO.** El Parque "Alí Primera"
+> se está **desalojando** y su población se redistribuye en una **red de ~50
+> Centros Transitorios** repartidos por el Área Metropolitana y Gran Caracas. Por
+> eso el foco del proyecto **migró de un solo refugio a gestionar toda la red de
+> centros**. El trabajo nuevo se concentra en la vista **`/centros`** (Fase 4):
+> registrar el **estado, capacidad y ocupación** de cada centro y decidir **a dónde
+> reubicar gente** (cupo real / cuello de botella). La herramienta original de Alí
+> Primera (ruta `/`) **se conserva y se reutiliza** (mismo modelo demográfico
+> `Vulnerables`, mismos estándares Esfera, mismo motor de sync), pero **ya no es el
+> centro del producto**: es un refugio más (de hecho, de salida). Si vas a construir
+> algo nuevo, hazlo pensando en **la red de centros**, no en un único parque.
+
+**Dos implementaciones (rutas):**
+- **`/`** — herramienta original del Parque "Alí Primera": mapa por sectores +
+  puntos de servicio + líneas, tablero, distribución de comida, salubridad
+  (`AppInterna` en `src/App.tsx`). Legado activo, en modo mantenimiento.
+- **`/centros`** — **gestión de la red de 50 Centros Transitorios** (el foco de
+  hoy): estado/capacidad/ocupación por centro, detalle con cuello de botella y
+  tablero comparativo para reubicar (`src/features/centros/`).
+- **`/dashboard`** — sala de control proyectable (hoy centrada en el parque; a
+  futuro debería cubrir la red — ver "Qué falta").
 
 Contexto humanitario/estatal en Venezuela → **soberanía de datos**: todo se
-autoaloja en el VPS del usuario, sin nubes de terceros.
+autoaloja en el VPS del usuario, sin nubes de terceros. **Única excepción** (decisión
+explícita del usuario, jul-2026): las **fotos de los centros** se guardan en
+**Supabase Storage** (solo la imagen; los datos siguen en el backend propio).
 
 ## Estado actual
 
@@ -37,9 +60,36 @@ autoaloja en el VPS del usuario, sin nubes de terceros.
  "Aseo": bitácora de limpieza de baños/duchas/basura). Falta: overlay de la ilustración del
   parque, export PDF de reportes. Se irá ampliando con más métricas. Ver
   `src/features/dashboard/DashboardView.tsx` y `src/features/distribucion/`.
+- 🟢 **Fase 4 — FOCO ACTUAL: red de 50 Centros Transitorios** (`/centros`): ✅
+  registro de estado por centro (capacidad instalada/operativa de camas, duchas,
+  pocetas, agua y basura; ocupación demográfica; responsables; foto), ✅ vista de
+  detalle con **cuello de botella** (cupo real según Esfera), ✅ **tablero
+  comparativo** para reubicar refugiados y ✅ formulario de registro **por pestañas**
+  (General/Capacidad/Ocupación/Contactos). Foto vía **Supabase Storage**. Ver
+  sección "Red de Centros Transitorios" y `src/features/centros/`.
 
-La app **ya funciona 100% offline** con Dexie/IndexedDB. El backend solo añade la
-capa compartida multiusuario; **no** debe romper el modo offline.
+La app **ya funciona 100% offline** con Dexie/IndexedDB (la foto de centros es la
+única función que requiere conexión). El backend solo añade la capa compartida
+multiusuario; **no** debe romper el modo offline.
+
+### Qué falta / próximos pasos (dirección: la red de centros)
+
+- ✅ **Supabase configurado** (jul-2026): proyecto `xzwifkckkakldnzkdeby`, bucket
+  público `centros-fotos` creado (5MB, solo imágenes) con políticas RLS de subida, y
+  `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` en `.env`. La subida de fotos ya
+  funciona en dev. Falta: poner esas dos `VITE_*` también en el build de producción
+  (Dokploy) para que la foto funcione en prod. Ver sección "Foto vía Supabase".
+- 🚀 **Redesplegar producción**: la entidad `centros` es nueva → **push a `main` +
+  redeploy en Dokploy** y verificar que la tabla `centros` exista (ver checklist de
+  despliegue). Sin esto, el estado de los centros no se sincroniza entre equipos.
+- 📊 **Dashboard de la red**: hoy `/dashboard` es del parque; falta una vista de
+  sala de control **agregada de todos los centros** (población total en la red,
+  centros saturados, cupo total disponible, mapa de calor por parroquia).
+- 🔁 **Traslados**: hoy el tablero es comparativo (decides tú). Falta (si se pide)
+  registrar/rastrear **movimientos de refugiados entre centros** y, opcionalmente,
+  un motor de sugerencias de reubicación.
+- 🧩 **Legado del parque** (`/`): pendientes menores heredados — bitácora completa
+  (Fase 2c), overlay de la ilustración del parque y export PDF de reportes.
 
 ## Cómo ejecutar (desarrollo)
 
@@ -68,7 +118,8 @@ en `VITE_MAPTILER_KEY` (NO commitear `.env`).
 
 **Frontend:** React 19 + Vite 7 + TypeScript + Tailwind v4 (plugin `@tailwindcss/vite`,
 sin config) · **MapLibre GL** (mapa) + **Terra Draw** (dibujo) · **Dexie**
-(IndexedDB) · **vite-plugin-pwa** · **react-router-dom** (rutas `/` y `/dashboard`).
+(IndexedDB) · **vite-plugin-pwa** · **react-router-dom** (rutas `/`, `/centros` y
+`/dashboard`) · **Supabase JS** (solo para subir fotos de centros).
 UI con **shadcn/ui** (Radix + cva + `cn()` en `src/lib/utils.ts`, componentes en
 `src/components/ui/`, estilo `radix-nova` en `components.json`) + **recharts** (via
 componente `chart` de shadcn) para gráficos. Quedan restos del sistema propio
@@ -87,23 +138,31 @@ src/
 │              brechas.ts (cobertura GLOBAL del parque + alertas), limpieza.ts (cronómetro),
 │              poblacion.ts (serie diaria de población desde snapshots),
 │              distribucion.ts (resumen de comida/hidratación por jornada),
-│              salubridad.ts (resumen de limpieza de baños/duchas/basura por día)
-├─ data/       db.ts (Dexie, versión 9 con migraciones), repos.ts (guardar/eliminar),
-│              seed.ts (ejemplo), preferencias.ts (vista guardada en localStorage)
+│              salubridad.ts (resumen de limpieza de baños/duchas/basura por día),
+│              centrosTransitorios.ts (modelo del centro + normalizar),
+│              capacidadCentros.ts (cupo real / cuello de botella según Esfera)
+├─ data/       db.ts (Dexie, versión 10 con migraciones), repos.ts (guardar/eliminar),
+│              centrosTransitorios.ts (catálogo estático de los 50 centros),
+│              supabase.ts (subida de foto de centro), seed.ts (ejemplo),
+│              preferencias.ts (vista guardada en localStorage)
 ├─ map/        MapView.tsx (MapLibre + Terra Draw + marcadores HTML), estiloMapa.ts (bases)
 ├─ features/   sectores/SectorForm · puntos/PuntoForm · tablero/Tablero ·
 │              distribucion/PanelDistribucion (registro de comida) ·
 │              salubridad/PanelSalubridad (limpieza de baños/duchas/basura) ·
-│              dashboard/DashboardView (sala de control /dashboard)
+│              dashboard/DashboardView (sala de control /dashboard) ·
+│              censo/DesgloseDemografico (grid demográfico compartido) ·
+│              centros/ (FOCO: CentrosView, CentrosMap, MarcadorCentro, InfoCentro,
+│                        DetalleCentro, TableroCentros, CentroForm)
 ├─ components/ Navbar, PanelFlotante, … · ui/ (componentes shadcn: card, chart, badge…)
 ├─ lib/        utils.ts (cn())
 └─ ui/         (legacy) Modal, clases.ts (clases Tailwind reutilizables)
 ```
 
-Rutas (react-router en `src/main.tsx` + `src/App.tsx`): `/` = app del mapa
-(`AppInterna`), `/dashboard` = sala de control a pantalla completa (`DashboardView`,
+Rutas (react-router en `src/main.tsx` + `src/App.tsx`): `/` = app del mapa del
+parque (`AppInterna`), **`/centros` = red de Centros Transitorios (`CentrosView`,
+foco actual)**, `/dashboard` = sala de control a pantalla completa (`DashboardView`,
 solo lectura). En prod Caddy hace fallback SPA a `index.html`; en la PWA se añadió
-`navigateFallback` en `vite.config.ts` para deep-link offline a `/dashboard`.
+`navigateFallback` en `vite.config.ts` para deep-link offline a esas rutas.
 
 Conceptos del dominio (ver `src/domain/tipos.ts`):
 - **Sector**: polígono con `color`, `responsables[]` (nombre/telefono/categoria/funcion),
@@ -149,17 +208,17 @@ Conceptos del dominio (ver `src/domain/tipos.ts`):
 | GET/POST | `/api/historial` | auth / (no visor) | Bitácora |
 
 > `GET /api/sync` y `POST /api/sync` incluyen también `limpiezas` (bitácora de
-> salubridad/aseo). `/api/sync/purge` **no** borra `censos`, `distribuciones` ni
-> `limpiezas` (el histórico se conserva).
+> salubridad/aseo) y `centros` (red de Centros Transitorios). `/api/sync/purge`
+> **no** borra `censos`, `distribuciones`, `limpiezas` ni `centros` (se conservan).
 | WS | `/ws?token=<jwt>` | auth | Difunde `{type:"cambio", entidad, filas, serverTime}` |
 
 **Entidades sincronizables** (mismo modelo blob+metadatos, last-write-wins):
-`sectores`, `puntos`, `lineas`, `censos`, `distribuciones`, `limpiezas`. Para añadir
-una nueva hay que tocar, en cliente: `data/db.ts` (tabla + versión + tipo
-`Entidad`/`OutboxItem`), `data/api.ts` (pull/push), `data/sync.ts`
+`sectores`, `puntos`, `lineas`, `censos`, `distribuciones`, `limpiezas`, `centros`.
+Para añadir una nueva hay que tocar, en cliente: `data/db.ts` (tabla + versión +
+tipo `Entidad`/`OutboxItem`), `data/api.ts` (pull/push), `data/sync.ts`
 (`aplicarLote`/`tablaDe`/pull/push/WS) y en servidor: `db/bootstrap.ts` (tabla),
-`types.ts` (`Entidad`), `routes/sync.ts` (pull/push/difundir). `limpiezas`
-(salubridad y aseo) fue el último añadido siguiendo exactamente este patrón —
+`types.ts` (`Entidad`), `routes/sync.ts` (pull/push/difundir). `centros` (red de
+Centros Transitorios) fue el último añadido siguiendo exactamente este patrón —
 úsalo de referencia.
 
 > 🚨 **PASO OBLIGATORIO AL AÑADIR/EDITAR UNA ENTIDAD: redesplegar producción.**
@@ -367,6 +426,67 @@ de usuarios (admin) y **viaja en el token JWT** (`TokenPayload` en servidor,
 `Usuario` en `src/data/auth.ts`). ⚠️ Al cambiar el sector de un usuario, debe
 **re-loguearse** para que el token nuevo lo incluya.
 
+## ✅ Red de Centros Transitorios (`/centros`, Fase 4) — FOCO ACTUAL DEL PROYECTO
+
+El Parque "Alí Primera" se está desalojando y su gente se distribuye en una **red
+de ~50 centros transitorios** de Caracas. **Gestionar esta red es la dirección
+actual del producto** (ver "Qué es"). La ruta `/centros` (`src/features/centros/`)
+permite **registrar el estado de cada centro** y decidir a dónde reubicar refugiados
+con criterio. Aquí es donde debería concentrarse el trabajo nuevo.
+
+**Datos:** 7.ª entidad sincronizable `centros`. Los 50 centros vienen de un
+**catálogo estático** (`src/data/centrosTransitorios.ts`: nombre, cuerpo de
+seguridad, parroquia, dirección, coordenadas) que se **siembra** en Dexie en la
+migración v10 (id determinista `centro-01`…`centro-50`, `updated_at` bajo para que
+cualquier edición gane) y también vía `sembrarCentrosSiVacio()` en instalaciones
+nuevas. Solo las **ediciones** se sincronizan; el catálogo base viaja en el bundle.
+El tipo `CentroTransitorio` (en `src/domain/centrosTransitorios.ts`) suma a los
+campos base los mutables (opcionales, con `normalizarCentro()`): `capacidad`
+(`CapacidadCentro`: camas/duchas/pocetas/contenedores **instaladas vs operativas**
++ agua tanque/operativa/litros), `ocupacion` (`Vulnerables`, mismo desglose por
+edad/sexo que los sectores), `familias_ocupadas`, `responsables` (`Responsable[]`
+con teléfono para llamar/WhatsApp), `foto_url`, `estado` (preparación/operativo/
+saturado/cerrado) y `notas`.
+
+**Lógica de cuello de botella** (`src/domain/capacidadCentros.ts`, pura, análoga a
+`brechas.ts`): `analisisCentro(centro)` calcula por recurso operativo cuántas
+personas soporta según ratios Esfera (pocetas 1/20, duchas 1/50, agua 15 l/persona
+/día; camas 1:1), toma la **capacidad efectiva = mínimo** entre los recursos
+medidos, y de ahí el **`cupoReal`** (personas que aún puede recibir) y el
+**`cuelloDeBotella`** (el recurso que limita). Ejemplo: 100 camas pero 2 pocetas
+operativas → cuello = pocetas, cupo real bajo. Recursos sin datos no fuerzan el
+cupo a 0. Semáforo verde/amarillo/rojo por % de ocupación.
+
+**UI:** `CentrosView` (conmutador **Mapa / Tablero**). En el mapa, cada marcador
+lleva el logo de su cuerpo + un **punto de estado** (semáforo). Al seleccionar un
+centro se abre `DetalleCentro` (foto, dirección + Maps, responsables con
+llamar/WhatsApp, y **capacidad vs ocupación** con barras por recurso y el cuello
+resaltado). `TableroCentros` compara todos los centros ordenados por cupo real
+(a dónde mandar gente). `CentroForm` registra/edita todo con un formulario **por
+pestañas** (General / Capacidad / Ocupación / Contactos; reutiliza el grid
+demográfico compartido `src/features/censo/DesgloseDemografico.tsx`, extraído de
+`SectorForm`). Permisos: admin/coordinador/campo editan; **visor solo lectura**.
+
+**Foto vía Supabase Storage:** la foto se sube a un bucket **público**
+`centros-fotos` de Supabase (`src/data/supabase.ts`: comprime a JPEG ~1280px antes
+de subir) y se guarda solo la **URL** dentro del dato del centro. Requiere
+`VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (ver `.env.example`); sin ellas la
+app funciona igual pero el botón de foto queda desactivado. Es el **único** dato
+que usa Supabase: todo lo demás vive en el backend/sync propio.
+
+> ⚠️ **Gotcha RLS (si recreas el proyecto Supabase):** un bucket "público" solo
+> hace públicas las **lecturas**; para **subir** con la anon key (la app NO usa
+> Supabase Auth → todo va como rol `anon`) hay que crear políticas en
+> `storage.objects`. Las que ya están puestas: `insert`/`update`/`select` para
+> `anon, authenticated` con `bucket_id = 'centros-fotos'` (sin `delete`). Se
+> aplicaron con el MCP de Supabase (`apply_migration`). El proyecto ya está
+> configurado (bucket público 5MB, solo imágenes) y verificado (subida anon 200,
+> lectura pública 200). El **MCP de Supabase** está en `.cursor/mcp.json`
+> (gitignored) — transporte hosted/OAuth, scopeado a este proyecto.
+
+> 🚨 Al ser entidad nueva: **push a `main` + redeploy en Dokploy** y verificar que
+> la tabla `centros` exista en Postgres (ver checklist de despliegue).
+
 ## 🟢 Producción REAL — corre en Dokploy (no con el `docker-compose.yml` a mano)
 
 > ⚠️ **Lee esto antes de tocar producción.** La app ya está **desplegada y viva**
@@ -406,8 +526,8 @@ de usuarios (admin) y **viaja en el token JWT** (`TokenPayload` en servidor,
 # Nombre de los contenedores del compose (prefijo autogenerado por Dokploy):
 docker ps --format '{{.Names}}' | grep refugio    # o busca "…-server-1 / …-db-1"
 
-# 1) Tablas presentes en Postgres (deben estar las 8: sectores, puntos, lineas,
-#    censos, distribuciones, limpiezas, usuarios, historial):
+# 1) Tablas presentes en Postgres (deben estar las 9: sectores, puntos, lineas,
+#    censos, distribuciones, limpiezas, centros, usuarios, historial):
 docker exec <compose>-db-1 psql -U refugio -d refugio -c "\dt"
 
 # 2) La API responde y el pull trae TODAS las entidades:
@@ -516,10 +636,11 @@ docker compose up -d --build     # reconstruye PWA y API (lo que haya cambiado)
   ícono+número+etiqueta hover sin depender de fuentes del mapa (mejor offline).
 - **Cronómetro de limpieza:** el color del anillo se recalcula con un `ahora`
   (tick de 30 s en `App.tsx`). El estado depende de `Date.now()`.
-- **Migración Dexie:** `db.ts` está en **versión 9** (v2 `coordinador`→`responsables`,
+- **Migración Dexie:** `db.ts` está en **versión 10** (v2 `coordinador`→`responsables`,
  v4 desglose por edad/sexo, v5 líneas, v6 carpas, v7 tabla `censos` + foto inicial
- por sector, v8 tabla `distribuciones`, v9 tabla `limpiezas`). Si cambias el esquema
- local, sube la versión y añade `upgrade`.
+ por sector, v8 tabla `distribuciones`, v9 tabla `limpiezas`, v10 tabla `centros` +
+ siembra del catálogo estático de los 50 centros). Si cambias el esquema local, sube
+ la versión y añade `upgrade`.
 - **shadcn CLI:** al añadir componentes (`npx shadcn add …`) revisa que el import de
   `cn` quede como `@/lib/utils` (a veces el CLI lo escribe `src/lib/utils` y rompe
   Vite). Nuevas deps de UI/gráficos: `react-router-dom`, `recharts`.

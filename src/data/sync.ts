@@ -11,6 +11,7 @@ import type {
   RegistroLimpieza,
   Sector,
 } from "../domain/tipos";
+import type { CentroTransitorio } from "../domain/centrosTransitorios";
 
 // ---- Estado observable para la UI ----
 export type EstadoSync = "idle" | "sincronizando" | "ok" | "error" | "offline";
@@ -54,7 +55,8 @@ type Tabla =
   | EntityTable<LineaReferencia, "id">
   | EntityTable<CensoSnapshot, "id">
   | EntityTable<RegistroDistribucion, "id">
-  | EntityTable<RegistroLimpieza, "id">;
+  | EntityTable<RegistroLimpieza, "id">
+  | EntityTable<CentroTransitorio, "id">;
 
 /** Filas antiguas del servidor pueden traer `data` como string JSON. */
 function normalizarData(data: unknown): Record<string, unknown> {
@@ -71,7 +73,7 @@ function normalizarData(data: unknown): Record<string, unknown> {
 
 async function aplicarFila(tabla: Tabla, fila: FilaSync): Promise<void> {
   const local = await tabla.get(fila.id);
-  if (local && local.updated_at > fila.updated_at) return; // lo local es más nuevo
+  if (local && (local.updated_at ?? 0) > fila.updated_at) return; // lo local es más nuevo
   if (fila.deleted) {
     await tabla.delete(fila.id);
   } else {
@@ -101,6 +103,8 @@ function tablaDe(entidad: Entidad): Tabla {
       return db.distribuciones as Tabla;
     case "limpiezas":
       return db.limpiezas as Tabla;
+    case "centros":
+      return db.centros as Tabla;
   }
 }
 
@@ -123,6 +127,7 @@ async function push(): Promise<void> {
     censos: FilaSync[];
     distribuciones: FilaSync[];
     limpiezas: FilaSync[];
+    centros: FilaSync[];
   } = {
     sectores: [],
     puntos: [],
@@ -130,6 +135,7 @@ async function push(): Promise<void> {
     censos: [],
     distribuciones: [],
     limpiezas: [],
+    centros: [],
   };
   for (const it of items) {
     const fila: FilaSync = {
@@ -160,6 +166,7 @@ async function pull(): Promise<void> {
   await aplicarLote("censos", r.censos ?? []);
   await aplicarLote("distribuciones", r.distribuciones ?? []);
   await aplicarLote("limpiezas", r.limpiezas ?? []);
+  await aplicarLote("centros", r.centros ?? []);
   setLastSync(r.serverTime);
 }
 

@@ -1,0 +1,371 @@
+// Análisis de capacidad vs. ocupación de un Centro Transitorio (lógica pura,
+// análoga a `brechas.ts`). Responde dos preguntas distintas:
+//   1. ¿Cuánta gente MÁS puede recibir con seguridad? → "cupo real": el mínimo
+//      entre camas, baños y duchas operativos (estándar Esfera). El recurso con
+//      menos margen es el que "fija el límite".
+//   2. ¿El agua está garantizada? → el agua NO limita cuántas personas caben
+//      (un tanque no fija headcount), sino por CUÁNTO TIEMPO alcanza. Se mide
+//      como autonomía en días y se acompaña de una recomendación accionable
+//      (garantizar reposición recurrente), porque un tanque es almacenamiento,
+//      no suministro continuo.
+
+import {
+  normalizarCentro,
+  poblacionCentro,
+  type CentroTransitorio,
+} from "./centrosTransitorios";
+import { AGUA_LITROS_PERSONA_DIA, ESTANDARES } from "./estandares";
+
+/** Ratios Esfera: personas cubiertas por una unidad operativa. */
+const PERSONAS_POR_POCETA = ESTANDARES.sanitarios?.personasPorUnidad ?? 20;
+const PERSONAS_POR_DUCHA = ESTANDARES.duchas?.personasPorUnidad ?? 50;
+/** Lavaderos / lavado de ropa: 1 por cada N personas (Esfera 2018). */
+const PERSONAS_POR_LAVADERO = 100;
+/** Contenedores de basura: 1 por cada N familias (Esfera, base familias). */
+const FAMILIAS_POR_CONTENEDOR = ESTANDARES.residuos?.personasPorUnidad ?? 10;
+
+export type ClaveRecurso = "camas" | "pocetas" | "duchas" | "lavaderos" | "contenedores";
+
+export interface RecursoAnalisis {
+  clave: ClaveRecurso;
+  label: string;
+  /** Unidades instaladas / operativas. */
+  instaladas: number;
+  operativas: number;
+  /** Unidades operativas que DEBERÍAN existir para la población/familias actuales. */
+  requeridas: number;
+  /** Unidad para mostrar ("camas", "baños", "duchas", "contenedores"). */
+  unidad: string;
+  /** Explicación del estándar usado para `requeridas` (para el info/tooltip). */
+  descripcionEstandar: string;
+  /** Personas que soporta el recurso operativo según su ratio. */
+  capacidadPersonas: number;
+  /** ¿Hay dato suficiente para evaluar este recurso? */
+  medido: boolean;
+  /** ¿Entra en el cálculo de cupo real / recurso que fija el límite? */
+  cuentaParaCupo: boolean;
+  /** No hay población → la necesidad es 0 (no aplica cobertura). */
+  sinNecesidad: boolean;
+  /** % de cobertura de la necesidad (operativas / requeridas). */
+  cobertura: number;
+  /** Personas adicionales que aún soporta (capacidadPersonas - ocupados). */
+  margen: number;
+  /** % de uso del recurso (ocupados / capacidadPersonas). */
+  porcentaje: number;
+}
+
+/** % de cobertura operativas vs. necesarias. Sin necesidad → 100 (cubierto). */
+function cobertura(operativas: number, requeridas: number): number {
+  if (requeridas <= 0) return 100;
+  return Math.round((operativas / requeridas) * 100);
+}
+
+// ---------------------------------------------------------------------------
+// Agua: no es un recurso "contable" como camas, es almacenamiento con autonomía.
+// ---------------------------------------------------------------------------
+
+export type EstadoAgua = "ok" | "atencion" | "critico" | "sin_datos";
+
+export interface AnalisisAgua {
+  /** Hay tanque con capacidad registrada. */
+  medido: boolean;
+  tanque: boolean;
+  /** El suministro está operativo (llega/funciona). */
+  operativa: boolean;
+  /** Capacidad del tanque (litros). */
+  litros: number;
+  /** Estándar de consumo usado (L por persona/día). */
+  litrosPersonaDia: number;
+  /** Consumo estimado del centro por día (personas × estándar). */
+  consumoDiaL: number;
+  /** Días que dura el tanque sin reposición. null si no hay consumo. */
+  autonomiaDias: number | null;
+  estado: EstadoAgua;
+  /** Mensaje accionable para el jefe del centro. */
+  recomendacion: string;
+  /** Explicación del estándar (para el info/tooltip). */
+  descripcionEstandar: string;
+}
+
+function fmtDias(d: number): string {
+  if (d < 1) return "menos de 1 día";
+  const r = Math.floor(d);
+  return `${r} día${r === 1 ? "" : "s"}`;
+}
+
+function analizarAgua(
+  tanque: boolean,
+  operativa: boolean,
+  litros: number,
+  ocupados: number,
+): AnalisisAgua {
+  const litrosPersonaDia = AGUA_LITROS_PERSONA_DIA;
+  const consumoDiaL = ocupados * litrosPersonaDia;
+  const medido = tanque && litros > 0;
+  const descripcionEstandar =
+    `Esfera 2018: ${litrosPersonaDia} L por persona/día para uso doméstico (aseo, ` +
+    `pocetas, cocina, bebida y lavado de ropa). Es el mínimo; el consumo real suele ` +
+    `ser mayor. El tanque solo almacena: la clave es reponerlo antes de que se agote.`;
+
+  const base = {
+    medido,
+    tanque,
+    operativa,
+    litros,
+    litrosPersonaDia,
+    consumoDiaL,
+    descripcionEstandar,
+  };
+
+  if (!medido) {
+    return {
+      ...base,
+      autonomiaDias: null,
+      estado: "sin_datos",
+      recomendacion: "Registra si hay tanque y su capacidad en litros.",
+    };
+  }
+
+  const autonomiaDias = consumoDiaL > 0 ? litros / consumoDiaL : null;
+
+  if (!operativa) {
+    return {
+      ...base,
+      autonomiaDias,
+      estado: "critico",
+      recomendacion:
+        "El tanque no tiene suministro operativo. Restablecer el agua es prioritario.",
+    };
+  }
+
+  if (autonomiaDias == null) {
+    return {
+      ...base,
+      autonomiaDias,
+      estado: "ok",
+      recomendacion: "Sin población alojada: no hay consumo por ahora.",
+    };
+  }
+
+  if (autonomiaDias < 1) {
+    return {
+      ...base,
+      autonomiaDias,
+      estado: "critico",
+      recomendacion:
+        `El tanque cubre menos de 1 día para ${ocupados.toLocaleString("es")} personas. ` +
+        `Reponer hoy y asegurar suministro diario.`,
+    };
+  }
+
+  if (autonomiaDias < 3) {
+    return {
+      ...base,
+      autonomiaDias,
+      estado: "atencion",
+      recomendacion:
+        `El tanque cubre ~${fmtDias(autonomiaDias)} para ${ocupados.toLocaleString("es")} ` +
+        `personas. Programar reposición frecuente; en zonas sin agua diaria, no esperar a que se vacíe.`,
+    };
+  }
+
+  return {
+    ...base,
+    autonomiaDias,
+    estado: "ok",
+    recomendacion:
+      `El tanque cubre ~${fmtDias(autonomiaDias)} para ${ocupados.toLocaleString("es")} ` +
+      `personas. Garantizar la reposición recurrente (el agua puede no llegar a diario).`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+
+export type SemaforoCentro = "verde" | "amarillo" | "rojo" | "sin_datos";
+
+export interface AnalisisCentro {
+  ocupados: number;
+  familias: number;
+  /** Recursos contables (camas, baños, duchas, basura). Agua va aparte. */
+  recursos: RecursoAnalisis[];
+  agua: AnalisisAgua;
+  /** Capacidad efectiva = mínima capacidadPersonas entre recursos que cuentan. */
+  capacidadEfectiva: number | null;
+  /** Personas adicionales que puede recibir con seguridad (>= 0). */
+  cupoReal: number | null;
+  /** Recurso que fija el límite (menor margen). null si no hay datos. */
+  cuelloBotella: RecursoAnalisis | null;
+  /** % de ocupación respecto a la capacidad efectiva. */
+  porcentajeOcupacion: number | null;
+  semaforo: SemaforoCentro;
+}
+
+/** Personas actualmente alojadas en el centro (desglose o total preliminar). */
+export function ocupadosDe(centro: CentroTransitorio): number {
+  return poblacionCentro(centro);
+}
+
+function pct(ocupados: number, cap: number): number {
+  if (cap <= 0) return ocupados > 0 ? 999 : 0;
+  return Math.round((ocupados / cap) * 100);
+}
+
+/**
+ * Análisis completo de capacidad/ocupación de un centro. Solo se consideran los
+ * recursos con datos ("medido"): un recurso sin instalar no fuerza el cupo a 0
+ * (se asume "no medido") — así un centro recién creado no aparece saturado.
+ */
+export function analisisCentro(centro: CentroTransitorio): AnalisisCentro {
+  const c = normalizarCentro(centro);
+  const cap = c.capacidad;
+  const ocupados = poblacionCentro(centro);
+  const familias = c.familias_ocupadas;
+
+  // Unidades que DEBERÍAN existir para la población/familias actuales (Esfera).
+  const reqCamas = ocupados;
+  const reqPocetas = ocupados > 0 ? Math.ceil(ocupados / PERSONAS_POR_POCETA) : 0;
+  const reqDuchas = ocupados > 0 ? Math.ceil(ocupados / PERSONAS_POR_DUCHA) : 0;
+  const reqLavaderos = ocupados > 0 ? Math.ceil(ocupados / PERSONAS_POR_LAVADERO) : 0;
+  const reqContenedores = familias > 0 ? Math.ceil(familias / FAMILIAS_POR_CONTENEDOR) : 0;
+
+  const recursos: RecursoAnalisis[] = [
+    {
+      clave: "camas",
+      label: "Camas",
+      unidad: "camas",
+      descripcionEstandar: "1 cama/colchón por cada persona alojada.",
+      instaladas: cap.camas_instaladas,
+      operativas: cap.camas_operativas,
+      requeridas: reqCamas,
+      capacidadPersonas: cap.camas_operativas,
+      medido: cap.camas_instaladas > 0,
+      cuentaParaCupo: true,
+      sinNecesidad: reqCamas === 0,
+      cobertura: cobertura(cap.camas_operativas, reqCamas),
+      margen: cap.camas_operativas - ocupados,
+      porcentaje: pct(ocupados, cap.camas_operativas),
+    },
+    {
+      clave: "pocetas",
+      label: "Pocetas / baños",
+      unidad: "baños",
+      descripcionEstandar: `Esfera 2018: 1 baño/letrina por cada ${PERSONAS_POR_POCETA} personas (mediano plazo; 1:50 en fase inicial). Objetivo 3:1 mujeres:hombres.`,
+      instaladas: cap.pocetas_instaladas,
+      operativas: cap.pocetas_operativas,
+      requeridas: reqPocetas,
+      capacidadPersonas: cap.pocetas_operativas * PERSONAS_POR_POCETA,
+      medido: cap.pocetas_instaladas > 0,
+      cuentaParaCupo: true,
+      sinNecesidad: reqPocetas === 0,
+      cobertura: cobertura(cap.pocetas_operativas, reqPocetas),
+      margen: cap.pocetas_operativas * PERSONAS_POR_POCETA - ocupados,
+      porcentaje: pct(ocupados, cap.pocetas_operativas * PERSONAS_POR_POCETA),
+    },
+    {
+      clave: "duchas",
+      label: "Duchas",
+      unidad: "duchas",
+      descripcionEstandar: `Esfera 2018: máx. ${PERSONAS_POR_DUCHA} personas por instalación de baño/ducha.`,
+      instaladas: cap.duchas_instaladas,
+      operativas: cap.duchas_operativas,
+      requeridas: reqDuchas,
+      capacidadPersonas: cap.duchas_operativas * PERSONAS_POR_DUCHA,
+      medido: cap.duchas_instaladas > 0,
+      cuentaParaCupo: true,
+      sinNecesidad: reqDuchas === 0,
+      cobertura: cobertura(cap.duchas_operativas, reqDuchas),
+      margen: cap.duchas_operativas * PERSONAS_POR_DUCHA - ocupados,
+      porcentaje: pct(ocupados, cap.duchas_operativas * PERSONAS_POR_DUCHA),
+    },
+    {
+      clave: "lavaderos",
+      label: "Lavaderos de ropa",
+      unidad: "lavaderos",
+      descripcionEstandar: `Esfera 2018: máx. ${PERSONAS_POR_LAVADERO} personas por instalación de lavado de ropa. Lavar ropa con frecuencia consume mucha agua: súmalo a la demanda del tanque.`,
+      instaladas: cap.lavaderos_instalados,
+      operativas: cap.lavaderos_operativos,
+      requeridas: reqLavaderos,
+      // Servicio de higiene; no fija el headcount → no entra en el cupo de personas.
+      capacidadPersonas: 0,
+      medido: cap.lavaderos_instalados > 0,
+      cuentaParaCupo: false,
+      sinNecesidad: reqLavaderos === 0,
+      cobertura: cobertura(cap.lavaderos_operativos, reqLavaderos),
+      margen: 0,
+      porcentaje: 0,
+    },
+    {
+      clave: "contenedores",
+      label: "Contenedores de basura",
+      unidad: "contenedores",
+      descripcionEstandar: `Esfera: 1 contenedor de basura por cada ${FAMILIAS_POR_CONTENEDOR} familias.`,
+      instaladas: cap.contenedores_instalados,
+      operativas: cap.contenedores_operativos,
+      requeridas: reqContenedores,
+      // Se mide por familias, no por personas → no entra en el cupo de personas.
+      capacidadPersonas: 0,
+      medido: cap.contenedores_instalados > 0,
+      cuentaParaCupo: false,
+      sinNecesidad: reqContenedores === 0,
+      cobertura: cobertura(cap.contenedores_operativos, reqContenedores),
+      margen: 0,
+      porcentaje: 0,
+    },
+  ];
+
+  const agua = analizarAgua(cap.agua_tanque, cap.agua_operativa, cap.agua_litros, ocupados);
+
+  const medidos = recursos.filter((r) => r.medido && r.cuentaParaCupo);
+
+  if (medidos.length === 0) {
+    return {
+      ocupados,
+      familias,
+      recursos,
+      agua,
+      capacidadEfectiva: null,
+      cupoReal: null,
+      cuelloBotella: null,
+      porcentajeOcupacion: null,
+      semaforo: "sin_datos",
+    };
+  }
+
+  const capacidadEfectiva = Math.min(...medidos.map((r) => r.capacidadPersonas));
+  const cupoReal = Math.max(0, capacidadEfectiva - ocupados);
+  const cuelloBotella = medidos.reduce((min, r) => (r.margen < min.margen ? r : min), medidos[0]);
+  const porcentajeOcupacion = pct(ocupados, capacidadEfectiva);
+
+  let semaforo: SemaforoCentro;
+  if (porcentajeOcupacion >= 100) semaforo = "rojo";
+  else if (porcentajeOcupacion >= 80) semaforo = "amarillo";
+  else semaforo = "verde";
+
+  return {
+    ocupados,
+    familias,
+    recursos,
+    agua,
+    capacidadEfectiva,
+    cupoReal,
+    cuelloBotella,
+    porcentajeOcupacion,
+    semaforo,
+  };
+}
+
+/** Color del semáforo para pintar marcadores/tarjetas. */
+export const COLOR_SEMAFORO: Record<SemaforoCentro, string> = {
+  verde: "#22c55e",
+  amarillo: "#f59e0b",
+  rojo: "#ef4444",
+  sin_datos: "#64748b",
+};
+
+/** Color por estado del agua. */
+export const COLOR_ESTADO_AGUA: Record<EstadoAgua, string> = {
+  ok: "#22c55e",
+  atencion: "#f59e0b",
+  critico: "#ef4444",
+  sin_datos: "#64748b",
+};

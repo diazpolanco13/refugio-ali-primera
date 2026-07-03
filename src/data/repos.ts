@@ -10,6 +10,7 @@ import {
   type RegistroLimpieza,
   type Sector,
 } from "../domain/tipos";
+import type { CentroTransitorio } from "../domain/centrosTransitorios";
 import { getUsuario } from "./auth";
 import { notificarCambioLocal } from "./sync";
 
@@ -351,6 +352,33 @@ export async function deshacerUltimaLimpieza(
   // La nueva "última limpieza" es el evento anterior que aún exista.
   const previo = eventos.find((e) => e.id !== ultimo.id);
   await guardarPunto({ ...punto, ultimaLimpieza: previo?.ts ?? undefined });
+}
+
+// ---- Centros Transitorios (estado, capacidad y ocupación) ----
+
+/**
+ * Guarda/actualiza el estado de un centro (capacidad, ocupación, responsables,
+ * foto, estado). El `id` viene del catálogo (`centro-01`…), así que siempre es
+ * un upsert last-write-wins. Encola la fila para sincronizar.
+ */
+export async function guardarCentro(
+  datos: Omit<CentroTransitorio, "updated_at" | "updated_by">,
+): Promise<string> {
+  const centro: CentroTransitorio = {
+    ...datos,
+    updated_at: Date.now(),
+    updated_by: usuarioActual(),
+  };
+  await db.centros.put(centro);
+  await encolar({
+    clave: `centros:${centro.id}`,
+    entidad: "centros",
+    id: centro.id,
+    updated_at: centro.updated_at as number,
+    deleted: false,
+    data: centro,
+  });
+  return centro.id;
 }
 
 // ---- Utilidades ----

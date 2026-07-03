@@ -63,6 +63,17 @@ CREATE TABLE IF NOT EXISTS limpiezas (
 );
 CREATE INDEX IF NOT EXISTS limpiezas_updated_at_idx ON limpiezas(updated_at);
 
+-- Red de Centros Transitorios: estado, capacidad (instalada/operativa) y
+-- ocupación demográfica de cada refugio (upsert, last-write-wins).
+CREATE TABLE IF NOT EXISTS centros (
+  id text PRIMARY KEY,
+  updated_at bigint NOT NULL,
+  updated_by text,
+  deleted boolean NOT NULL DEFAULT false,
+  data jsonb NOT NULL
+);
+CREATE INDEX IF NOT EXISTS centros_updated_at_idx ON centros(updated_at);
+
 CREATE TABLE IF NOT EXISTS usuarios (
   id text PRIMARY KEY,
   username text UNIQUE NOT NULL,

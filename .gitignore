@@ -17,3 +17,6 @@ dev-dist
 !.vscode/extensions.json
 .idea
 .DS_Store
+
+# MCP (puede contener tokens/credenciales)
+.cursor/mcp.json

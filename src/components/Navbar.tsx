@@ -1,6 +1,7 @@
 import {
   BarChart3,
   LogOut,
+  MapPinned,
   MonitorPlay,
   SprayCan,
   Tent,
@@ -168,6 +169,13 @@ export function Navbar({
           <Link to="/dashboard" title="Abrir sala situacional en pantalla completa">
             <MonitorPlay className="size-4" />
             <span className="hidden sm:inline">Pantalla</span>
+          </Link>
+        </Button>
+
+        <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
+          <Link to="/centros" title="Mapa general de los Centros Transitorios de Caracas">
+            <MapPinned className="size-4" />
+            <span className="hidden sm:inline">Centros</span>
           </Link>
         </Button>
 

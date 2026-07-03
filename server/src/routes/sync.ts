@@ -20,6 +20,7 @@ const pushSchema = z.object({
   censos: z.array(filaSchema).optional().default([]),
   distribuciones: z.array(filaSchema).optional().default([]),
   limpiezas: z.array(filaSchema).optional().default([]),
+  centros: z.array(filaSchema).optional().default([]),
 });
 
 async function filasDesde(db: Db, tabla: Entidad, since: number): Promise<FilaSync[]> {
@@ -64,7 +65,7 @@ export async function rutasSync(app: FastifyInstance) {
   // Pull: cambios desde un timestamp.
   app.get("/api/sync", { preHandler: requireAuth }, async (req) => {
     const since = Number((req.query as { since?: string }).since ?? 0) || 0;
-    const [sectores, puntos, lineas, censos, distribuciones, limpiezas] =
+    const [sectores, puntos, lineas, censos, distribuciones, limpiezas, centros] =
       await Promise.all([
         filasDesde(app.db, "sectores", since),
         filasDesde(app.db, "puntos", since),
@@ -72,6 +73,7 @@ export async function rutasSync(app: FastifyInstance) {
         filasDesde(app.db, "censos", since),
         filasDesde(app.db, "distribuciones", since),
         filasDesde(app.db, "limpiezas", since),
+        filasDesde(app.db, "centros", since),
       ]);
     return {
       sectores,
@@ -80,6 +82,7 @@ export async function rutasSync(app: FastifyInstance) {
       censos,
       distribuciones,
       limpiezas,
+      centros,
       serverTime: Date.now(),
     };
   });
@@ -109,6 +112,7 @@ export async function rutasSync(app: FastifyInstance) {
         parsed.data.limpiezas,
         usuario,
       );
+      const centros = await aplicar(app.db, "centros", parsed.data.centros, usuario);
 
       difundirCambio("sectores", sectores);
       difundirCambio("puntos", puntos);
@@ -116,6 +120,7 @@ export async function rutasSync(app: FastifyInstance) {
       difundirCambio("censos", censos);
       difundirCambio("distribuciones", distribuciones);
       difundirCambio("limpiezas", limpiezas);
+      difundirCambio("centros", centros);
 
       return {
         serverTime: Date.now(),
@@ -126,6 +131,7 @@ export async function rutasSync(app: FastifyInstance) {
           censos: censos.length,
           distribuciones: distribuciones.length,
           limpiezas: limpiezas.length,
+          centros: centros.length,
         },
       };
     },
@@ -135,8 +141,8 @@ export async function rutasSync(app: FastifyInstance) {
   // ningún cliente lo recupere tras limpiar caché o reinstalar la PWA.
   app.post("/api/sync/purge", { preHandler: requireRol("admin") }, async (req) => {
     const usuario = (req.user as TokenPayload).username;
-    // El histórico poblacional (censos) NO se purga: se conserva aunque se
-    // vacíe el mapa.
+    // El histórico poblacional (censos), la distribución, la bitácora de
+    // limpieza y los centros NO se purgan: se conservan aunque se vacíe el mapa.
     const tablas: Entidad[] = ["sectores", "puntos", "lineas"];
     const aplicadas: Record<Entidad, FilaSync[]> = {
       sectores: [],
@@ -145,6 +151,7 @@ export async function rutasSync(app: FastifyInstance) {
       censos: [],
       distribuciones: [],
       limpiezas: [],
+      centros: [],
     };
 
     for (const tabla of tablas) {

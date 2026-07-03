@@ -56,4 +56,5 @@ export type Entidad =
   | "lineas"
   | "censos"
   | "distribuciones"
-  | "limpiezas";
+  | "limpiezas"
+  | "centros";

@@ -23,6 +23,7 @@ import { PuntoForm } from "./features/puntos/PuntoForm";
 import { LineaForm } from "./features/lineas/LineaForm";
 import { Tablero } from "./features/tablero/Tablero";
 import { DashboardView } from "./features/dashboard/DashboardView";
+import { CentrosView } from "./features/centros/CentrosView";
 import { Login } from "./features/auth/Login";
 import { GestionUsuarios } from "./features/usuarios/GestionUsuarios";
 import { PanelDistribucion } from "./features/distribucion/PanelDistribucion";
@@ -443,6 +444,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<AppInterna sesion={sesion} />} />
         <Route path="/dashboard" element={<DashboardView sesion={sesion} />} />
+        <Route path="/centros" element={<CentrosView sesion={sesion} />} />
         <Route path="/usuarios" element={<GestionUsuarios sesion={sesion} />} />
         <Route path="*" element={<AppInterna sesion={sesion} />} />
       </Routes>
