@@ -172,7 +172,7 @@ export function CentrosView({ sesion }: Props) {
               onClick={() => setVista("tablero")}
             >
               <LayoutGrid className="size-3.5" />
-              <span className="hidden sm:inline">Tablero</span>
+              <span className="hidden sm:inline">Prioridades</span>
             </Button>
           </div>
 
