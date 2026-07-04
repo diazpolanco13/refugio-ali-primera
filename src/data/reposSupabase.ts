@@ -431,14 +431,12 @@ async function leerCentro(id: string): Promise<CentroTransitorio | undefined> {
 }
 
 /**
- * Guarda/actualiza el estado de un centro. El `id` viene del catálogo
- * (`centro-01`…), así que es siempre un upsert last-write-wins.
- *
- * GAP documentado: NO se actualiza la columna `geom` (PostGIS) desde aquí.
- * supabase-js no soporta llamadas a funciones PostGIS directamente, y la
- * migración de Fase 1 ya inicializa `geom` desde el catálogo. Para actualizar
- * `geom` se requiere el RPC `upsert_centro` definido en
- * `supabase/functions.sql` (TODO: aplicarlo en una próxima fase).
+ * Guarda/actualiza el estado de un centro (crea la fila si no existe: sirve
+ * tanto para editar como para registrar centros nuevos). Usa el RPC
+ * `upsert_centro` (SECURITY INVOKER, ver `supabase/functions.sql`) para que en
+ * la misma llamada se actualice el blob `data` y la columna PostGIS `geom` con
+ * las coordenadas del centro — algo que supabase-js no puede hacer con un
+ * upsert normal. Las políticas RLS de `centros` siguen aplicando.
  */
 export async function guardarCentro(
   datos: Omit<CentroTransitorio, "updated_at" | "updated_by">,
@@ -449,13 +447,14 @@ export async function guardarCentro(
     updated_at: Date.now(),
     updated_by: usuarioActual(),
   };
-  await upsertFila("centros", {
-    id: centro.id,
-    updated_at: centro.updated_at as number,
-    updated_by: centro.updated_by ?? usuarioActual(),
-    deleted: false,
-    data: centro,
+  const [lng, lat] = centro.geom?.coordinates ?? [null, null];
+  const { error } = await supabase.rpc("upsert_centro", {
+    p_id: centro.id,
+    p_data: centro,
+    p_lng: lng,
+    p_lat: lat,
   });
+  if (error) throw new Error(`[reposSupabase] upsert_centro: ${error.message}`);
 
   // Snapshot diario de ocupación (histórico) si la ocupación cambió.
   if (ocupacionCambio(previo, centro)) {
@@ -480,6 +479,18 @@ export async function guardarCentro(
     }
   }
   return centro.id;
+}
+
+/**
+ * Elimina un centro (borrado suave, igual que el resto de entidades). La fila
+ * queda con `deleted: true`, así que desaparece de la UI pero el histórico de
+ * `ocupaciones_centros` sigue reconstruible. Nota: como el centro deja de
+ * estar en el catálogo activo, sus snapshots dejan de aportar a las series
+ * agregadas de la red (que iteran sobre los centros no borrados).
+ */
+export async function eliminarCentro(id: string): Promise<void> {
+  const previo = await leerCentro(id);
+  await borrarSuave("centros", id, previo ?? { id });
 }
 
 // ---- Utilidades de exportación (compatibilidad con legacy) ----

@@ -1,3190 +1,3326 @@
 {
-  "reporte": {
-    "fuente": "DATA CENTRAL 03JUL26.xlsx",
-    "fecha_reporte": "2026-07-03",
-    "descripcion": "Levantamiento de campo de la red de Centros Transitorios de Caracas tras la tragedia del 24-jun-2026. Una IA puede consumir este JSON para actualizar los campos mutables de cada centro en la app (ver `src/domain/centrosTransitorios.ts` para el modelo completo).",
-    "totales_reporte": {
-      "centros": 49,
-      "personas": 3690,
-      "familias": 1382
-    },
-    "totales_extraidos": {
-      "centros": 49,
-      "personas": 3697,
-      "familias": 1382
-    },
-    "catalogo_ids_faltantes": [],
-    "notas_consolidacion": [
-      "centro-25: 2 apariciones duplicadas en el Excel, se tomó la más completa (CM YOHANA CARDOZO)",
-      "centro-50: 2 apariciones duplicadas en el Excel, se tomó la más completa (CM YOHANA CARDOZO)",
-      "centro-03: consolidados 3 edificios (Colombia/Perú/Ecuador) → total 332, familias 85"
-    ],
-    "mapeo_manual": {
-      "centro-36": "CEN SIMONCITO 'MAMA ROSA' (CEIN Mamá Rosa, Urb La Limonera — fuzzy match falló por el prefijo 'Simoncito')"
-    }
+ "reporte": {
+  "fuente": "DATA CENTRAL 03JUL26.xlsx",
+  "fecha_reporte": "2026-07-03",
+  "descripcion": "Levantamiento de campo de la red de Centros Transitorios de Caracas tras la tragedia del 24-jun-2026. Una IA puede consumir este JSON para actualizar los campos mutables de cada centro en la app (ver `src/domain/centrosTransitorios.ts` para el modelo completo).",
+  "totales_reporte": {
+   "centros": 49,
+   "personas": 3690,
+   "familias": 1382
   },
-  "centros": {
-    "centro-09": {
-      "id": "centro-09",
-      "nombre": "ETI Leonardo Infante",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "MIRANDA",
-      "municipio": "SUCRE",
-      "parroquia": "PETARE",
-      "coord_politico": {
-        "nombre": "JOSE  PERDOMO",
-        "cedula": "6506555",
-        "telefono": "0412-9851839",
-        "ente": "MINISTERIO DE DESARROLLO MINERO E INDUSTRIAS BASICAS"
-      },
-      "seguridad": {
-        "nombre": "C/G JESUS VILORIA",
-        "cedula": "15584882",
-        "telefono": "0426-520-8455",
-        "organismo": "SEBIN",
-        "personal_mando": 17,
-        "vehiculos": 1
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": true,
-        "psicologo": true,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 12,
-      "familias_ocupadas": 1,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 2,
-        "ninas": 2,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 1,
-        "adultos_m": 1,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 1,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 1,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
-      "_meta": {
-        "nombre_excel": "ETI LEONARDO INFANTE",
-        "hoja": "CM FEREICO GUZMAN",
-        "coordenadas_excel": ""
-      }
-    },
-    "centro-10": {
-      "id": "centro-10",
-      "nombre": "U. E. N. Mariano Picón Salas",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "SUCRE",
-      "parroquia": "MIRANDA",
-      "coord_politico": {
-        "nombre": "JHONATAHAN SAYAGO",
-        "cedula": "19650607",
-        "telefono": "0414-2310314",
-        "ente": "ALCALDIA MUNICIPIO SUCRE"
-      },
-      "seguridad": {
-        "nombre": "P/C HENRY NAVEDA",
-        "cedula": "9413629",
-        "telefono": "0412-4693297",
-        "organismo": "SEBIN",
-        "personal_mando": 15,
-        "vehiculos": 5
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": true,
-        "psicologo": true,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 195,
-      "familias_ocupadas": 60,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 1,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
-      "_meta": {
-        "nombre_excel": "UEN MARIANO PICON SALAS",
-        "hoja": "CM FEREICO GUZMAN",
-        "coordenadas_excel": ""
-      }
-    },
-    "centro-12": {
-      "id": "centro-12",
-      "nombre": "UE Cesar Rengifo",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "ALTAGRACIAS",
-      "coord_politico": {
-        "nombre": "MIGUEL FIGUEROA",
-        "cedula": "11405763",
-        "telefono": "4122944519",
-        "ente": "VICEMINISTRO DE  CULTURA AUDIOVISUAL"
-      },
-      "seguridad": {
-        "nombre": "SAUL BRISEÑO",
-        "cedula": "11994338",
-        "telefono": "4142513102",
-        "organismo": "SEBIN",
-        "personal_mando": 9,
-        "vehiculos": 1
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 16,
-      "familias_ocupadas": 6,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 2,
-        "ninas": 3,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 3,
-        "adultos_mayores_m": 2,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: P/I. SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: C/G SAÚL BRISEÑO",
-      "_meta": {
-        "nombre_excel": "ESCUELA NACIONAL DE ARTES ESCÉNICAS CESAR RENGIFO",
-        "hoja": "CM CARLOS GAMBOA",
-        "coordenadas_excel": "10°30'43.9\"N\n60°54'54.6W"
-      }
-    },
-    "centro-14": {
-      "id": "centro-14",
-      "nombre": "CE Miguel Antonio Caro",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "SUCRE",
-      "coord_politico": {
-        "nombre": "NAHUM FERNÁNDEZ",
-        "cedula": "16023409",
-        "telefono": "",
-        "ente": "JEFE DE GOBIERNO DEL DISTRITO CAPITAL"
-      },
-      "seguridad": {
-        "nombre": "C/G  EDWIN CUENCA",
-        "cedula": "",
-        "telefono": "4125650123",
-        "organismo": "PNB",
-        "personal_mando": 150,
-        "vehiculos": 3
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": false,
-        "psicologo": true,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 881,
-      "familias_ocupadas": 280,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 171,
-        "ninas": 194,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 22,
-        "adultos_m": 75,
-        "adultos_mayores_h": 11,
-        "adultos_mayores_m": 16,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 1,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: PROF. C. JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JOSÉ AGUANA NÚÑEZ",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.939777,
-          10.5145612
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "LICEO MIGUEL ANTONIO CARO",
-        "hoja": "CM RAFAEL AGUANA",
-        "coordenadas_excel": "10.5145612, - 66.939777"
-      }
-    },
-    "centro-13": {
-      "id": "centro-13",
-      "nombre": "UEN Armando Zuloaga",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "SAN JOSÉ",
-      "coord_politico": {
-        "nombre": "Andry Selene Aparicio V.",
-        "cedula": "16320508",
-        "telefono": "4129064285",
-        "ente": "MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN"
-      },
-      "seguridad": {
-        "nombre": "Myor Ibarra Rincón Nilsmerc",
-        "cedula": "16228651",
-        "telefono": "0416.490.24.73",
-        "organismo": "DGCIM",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. C. JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JOSÉ AGUANA NÚÑEZ",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.91097222222223,
-          10.511944444444444
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "U.E. Armando Zuloaga Blanco",
-        "hoja": "CM RAFAEL AGUANA",
-        "coordenadas_excel": "10°30'43.0\" - 66°54'39.5\""
-      }
-    },
-    "centro-15": {
-      "id": "centro-15",
-      "nombre": "ETI Rafael Vega",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "SUCRE",
-      "coord_politico": {
-        "nombre": "Vicemin. Francisco Fonseca",
-        "cedula": "",
-        "telefono": "4145945228",
-        "ente": "Ministerio del Poder Popular para la Alimentación"
-      },
-      "seguridad": {
-        "nombre": "Cnel Humberto Arellano",
-        "cedula": "7827089",
-        "telefono": "4166090090",
-        "organismo": "CICPC y PNB",
-        "personal_mando": 23,
-        "vehiculos": 2
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": true,
-        "psicologo": true,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 1,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. C. JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JOSÉ AGUANA NÚÑEZ",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.96133333333334,
-          10.506944444444445
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "Complejo Educativo ETI Rafael Vegas",
-        "hoja": "CM RAFAEL AGUANA",
-        "coordenadas_excel": "10°30'25.0\" - 66°57'40.8\""
-      }
-    },
-    "centro-25": {
-      "id": "centro-25",
-      "nombre": "UEN Pedro Pontes",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "LA VEGA",
-      "coord_politico": {
-        "nombre": "MANUEL RINCÓN",
-        "cedula": "14287553",
-        "telefono": "0414-2792671",
-        "ente": "CONTRALORIA GENERAL DE LA REPUBLICA"
-      },
-      "seguridad": {
-        "nombre": "COMISARIO RAMON ARCA",
-        "cedula": "13283833",
-        "telefono": "0414-1184886",
-        "organismo": "PNB",
-        "personal_mando": 10,
-        "vehiculos": 5
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G CARDOZZO",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.94944444444445,
-          10.472833333333334
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "UEN PEDRO PONTES",
-        "hoja": "CM YOHANA CARDOZO",
-        "coordenadas_excel": "10°28'22.2\"N 66°56'58.0\"W"
-      }
-    },
-    "centro-24": {
-      "id": "centro-24",
-      "nombre": "UE Jose Ignacio Paz Castillo",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "LA PASTORA",
-      "coord_politico": {
-        "nombre": "MILAGROS CARRILLO",
-        "cedula": "15795265",
-        "telefono": "0412-5554962",
-        "ente": "SALA DE AUTOGOBIERNO COMUNA ESTA TIERRA ES NUESTRA"
-      },
-      "seguridad": {
-        "nombre": "WILMER CISNEROS",
-        "cedula": "13823585",
-        "telefono": "0412-9615675",
-        "organismo": "ODDI CUADRANTE DE PAZ",
-        "personal_mando": 30,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 42,
-      "familias_ocupadas": 8,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 7,
-        "ninas": 6,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 9,
-        "adultos_m": 5,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 1,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G CARDOZZO",
-      "_meta": {
-        "nombre_excel": "UE. JOSE IGNACIO PAZ CASTILLO",
-        "hoja": "CM YOHANA CARDOZO",
-        "coordenadas_excel": ""
-      }
-    },
-    "centro-23": {
-      "id": "centro-23",
-      "nombre": "Liceo Agustín Aveledo",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "LA PASTORA",
-      "coord_politico": {
-        "nombre": "RAMON DANIEL MANIGLIA DARWICH",
-        "cedula": "16432329",
-        "telefono": "",
-        "ente": "PEQUIVEN"
-      },
-      "seguridad": {
-        "nombre": "",
-        "cedula": "",
-        "telefono": "",
-        "organismo": "",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": null,
-        "ambulancias": null,
-        "psicologo": null,
-        "contacto_juez_paz": null
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G CARDOZZO",
-      "_meta": {
-        "nombre_excel": "LICEO AGUSTIN AVELEDO",
-        "hoja": "CM YOHANA CARDOZO",
-        "coordenadas_excel": "G38H+6H9, Caracas 1010, Distrito Capital"
-      }
-    },
-    "centro-50": {
-      "id": "centro-50",
-      "nombre": "Escuela Internacional de Liderazgo Antonio José de Sucre",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "MIRANDA",
-      "municipio": "SUCRE",
-      "parroquia": "FILAS DE MARICHE",
-      "coord_politico": {
-        "nombre": "KENEDY MORALES",
-        "cedula": "20288753",
-        "telefono": "0424-2796932",
-        "ente": "MINISTERIO DE EDUCACION Y COMUNAS"
-      },
-      "seguridad": {
-        "nombre": "COMISARIO JOSE SANCHEZ",
-        "cedula": "12297171",
-        "telefono": "0412-7287070",
-        "organismo": "PNB / POLI MIRANDA",
-        "personal_mando": 23,
-        "vehiculos": 1
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": false,
-        "psicologo": true,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 91,
-      "familias_ocupadas": 37,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 19,
-        "ninas": 19,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 2,
-        "adultos_m": 3,
-        "adultos_mayores_h": 3,
-        "adultos_mayores_m": 2,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 1,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: PROF. XXXX\nSupervisor SEBIN: C/G XXXXX",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.74211111111111,
-          10.4465
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "ESCUELA INTERNACIONAL DE LIDERAZGO ANTONIO JOSE DE SUCRE",
-        "hoja": "CM YOHANA CARDOZO",
-        "coordenadas_excel": "10°26'47.4\"N 66°44'31.6\"W"
-      }
-    },
-    "centro-11": {
-      "id": "centro-11",
-      "nombre": "UE Jesús Enrique Lossada",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "EL RECREO",
-      "coord_politico": {
-        "nombre": "ANGEL BLANCO",
-        "cedula": "15701930",
-        "telefono": "0424-1465948",
-        "ente": "MINISTERIO DE COMERCIO EXTERIOR"
-      },
-      "seguridad": {
-        "nombre": "CJ ESPARTACO HERMANDEZ",
-        "cedula": "13463285",
-        "telefono": "0424-2090472",
-        "organismo": "SEBIN",
-        "personal_mando": 9,
-        "vehiculos": 1
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G JOSE ROZO",
-      "_meta": {
-        "nombre_excel": "UE. JESUS ENRIQUE LOZADA",
-        "hoja": "CG JOSE ROZO",
-        "coordenadas_excel": "10° 30' 13\" LN 66° 52' 10\" LO"
-      }
-    },
-    "centro-02": {
-      "id": "centro-02",
-      "nombre": "UEN Francisco Pimentel",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "STA. TERESA",
-      "coord_politico": {
-        "nombre": "NORLAN RAMOS",
-        "cedula": "23639410",
-        "telefono": "0412-9046707",
-        "ente": "SENIAT"
-      },
-      "seguridad": {
-        "nombre": "CNEL. HENRY CUBILLAN",
-        "cedula": "15714816",
-        "telefono": "0414-6514656",
-        "organismo": "GNB",
-        "personal_mando": 20,
-        "vehiculos": 1
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": true,
-        "psicologo": true,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 585,
-      "familias_ocupadas": 311,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 106,
-        "ninas": 108,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 3,
-        "adultos_m": 56,
-        "adultos_mayores_h": 12,
-        "adultos_mayores_m": 37,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 1,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G JOSE ROZO",
-      "_meta": {
-        "nombre_excel": "UN. FRANCISCO PIMENTEL",
-        "hoja": "CG JOSE ROZO",
-        "coordenadas_excel": "10° 29' 47\" LN. 66° 55' 5\" LO"
-      }
-    },
-    "centro-01": {
-      "id": "centro-01",
-      "nombre": "UEN Pedro Emilio Coll",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "COCHE",
-      "coord_politico": {
-        "nombre": "LUISA DAYANA MARTÍNEZ",
-        "cedula": "12085619",
-        "telefono": "0412-5930036",
-        "ente": "MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN"
-      },
-      "seguridad": {
-        "nombre": "CAP. PÉREZ PÉREZ GERALD",
-        "cedula": "19606799",
-        "telefono": "0416-9492603",
-        "organismo": "GNB",
-        "personal_mando": 16,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": true,
-        "psicologo": true,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 1,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G JOSE ROZO",
-      "_meta": {
-        "nombre_excel": "U.E.N. PEDRO EMILIO COLL",
-        "hoja": "CG JOSE ROZO",
-        "coordenadas_excel": "10.4508° N, 66.9227° O"
-      }
-    },
-    "centro-41": {
-      "id": "centro-41",
-      "nombre": "EU Conopoima",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "EL HATILLO",
-      "coord_politico": {
-        "nombre": "MARÍA BELLY",
-        "cedula": "8649914",
-        "telefono": "0412-9203517",
-        "ente": "SUPERINTENDENCIA DE LA ACTIVIDAD ASEGURADORA (SUDIASEG)"
-      },
-      "seguridad": {
-        "nombre": "",
-        "cedula": "",
-        "telefono": "",
-        "organismo": "",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": true,
-        "psicologo": false,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 0,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: C/J LEIDY BRISEÑO",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.821548,
-          10.423575
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "UNIDAD EDUCATIVA NACIONAL CONOPOIMA",
-        "hoja": "CG CARLOS CONTRERAS",
-        "coordenadas_excel": "10.423575,-66.821548"
-      }
-    },
-    "centro-38": {
-      "id": "centro-38",
-      "nombre": "CEIN Lino Clemente, Baruta",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "BARUTA",
-      "coord_politico": {
-        "nombre": "JOSE CONTRERAS",
-        "cedula": "33968532",
-        "telefono": "4241875291",
-        "ente": "INSTITUTO VENEZOLANO DE LOS SEGUROS SOCIALES (IVSS)"
-      },
-      "seguridad": {
-        "nombre": "",
-        "cedula": "",
-        "telefono": "",
-        "organismo": "",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": true,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 1,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: COM. WIZULEIDYS MÚJICA",
-      "_meta": {
-        "nombre_excel": "UNIDAD  EDUCATIVA NACIONAL LINO DE CLEMENTE",
-        "hoja": "CG CARLOS CONTRERAS",
-        "coordenadas_excel": "10°27'31.1N y 66°51'56.3W"
-      }
-    },
-    "centro-40": {
-      "id": "centro-40",
-      "nombre": "UEN EI Libertador",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "CHACAO",
-      "coord_politico": {
-        "nombre": "CRISMER LAUCHO",
-        "cedula": "13432322",
-        "telefono": "4144668829",
-        "ente": "MINISTERIO DE HÁBITAT Y VIVIENDA"
-      },
-      "seguridad": {
-        "nombre": "",
-        "cedula": "",
-        "telefono": "",
-        "organismo": "",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: COM. WENDY SANTAELLA",
-      "_meta": {
-        "nombre_excel": "UEN EL LIBERTADOR",
-        "hoja": "CG CARLOS CONTRERAS",
-        "coordenadas_excel": "10°30,29''N,66°06''O"
-      }
-    },
-    "centro-39": {
-      "id": "centro-39",
-      "nombre": "UEN Jesús Maria Alfaro, Cafetal",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "CAFETAL",
-      "coord_politico": {
-        "nombre": "YARISOL BERRIOS",
-        "cedula": "13564199",
-        "telefono": "0412-9906973",
-        "ente": "INSTITUTO NACIONAL DE LOS ESPACIOS ACUATICOS."
-      },
-      "seguridad": {
-        "nombre": "",
-        "cedula": "",
-        "telefono": "",
-        "organismo": "",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: COM. KELY SANTIAGO",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.832184,
-          10.464064
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "UNIDAD EDUCATIVA NACIONAL  JESÚS MARIA ALFARO ZAMORA",
-        "hoja": "CG CARLOS CONTRERAS",
-        "coordenadas_excel": "10.464064,-66.832184"
-      }
-    },
-    "centro-46": {
-      "id": "centro-46",
-      "nombre": "CEN Ana Maria Campos, Filas de Mariche",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "MIRANDA",
-      "municipio": "SUCRE",
-      "parroquia": "FILAS DE MARICHE",
-      "coord_politico": {
-        "nombre": "JOSÉ VICENTE RANGEL S.",
-        "cedula": "V-16.876.384",
-        "telefono": "0414-3298498",
-        "ente": "INST. MUNIC. AUTÓNOMO DE PROTECC. SANEAM. (IMAPSAS)"
-      },
-      "seguridad": {
-        "nombre": "POR DESIGNAR",
-        "cedula": "",
-        "telefono": "",
-        "organismo": "POLICÍA MUNICIPAL DE SUCRE",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": null,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.7445583,
-          10.4484739
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "CEN ANA MARÍA CAMPOS",
-        "hoja": "CG JOSE MARTINEZ",
-        "coordenadas_excel": "10.4484739,-66.7445583,16"
-      }
-    },
-    "centro-47": {
-      "id": "centro-47",
-      "nombre": "CEN Mariscal Sucre, La Dolorita",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "MIRANDA",
-      "municipio": "SUCRE",
-      "parroquia": "LA DOLORITA",
-      "coord_politico": {
-        "nombre": "CNEL (EJB) JOSÉ ZAMBRANO",
-        "cedula": "V-13.468.262",
-        "telefono": "0416-6135483",
-        "ente": "MINISTERIO DEL PODER POPULAR PARA INDUSTRIA Y COMERCIO"
-      },
-      "seguridad": {
-        "nombre": "COMISARIO JOSÉ ARIAS",
-        "cedula": "",
-        "telefono": "",
-        "organismo": "ALCALDÍA DEL MUNICIPIO SUCRE",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": null,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.7630672,
-          10.4620216
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "CEN MARISCAL SUCRE",
-        "hoja": "CG JOSE MARTINEZ",
-        "coordenadas_excel": "10.4620216-66.7630672"
-      }
-    },
-    "centro-48": {
-      "id": "centro-48",
-      "nombre": "CEN Francisco Iznardi",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "MIRANDA",
-      "municipio": "SUCRE",
-      "parroquia": "PETARE",
-      "coord_politico": {
-        "nombre": "ANA KATIUSCA LEÓN TORRES",
-        "cedula": "V-11.689.472",
-        "telefono": "0424-1697101",
-        "ente": "CONSEJO LEGISLATIVO DEL ESTADO MIRANDA"
-      },
-      "seguridad": {
-        "nombre": "I/J SALANDI DRAIMER",
-        "cedula": "V-15.758.276",
-        "telefono": "4128269486",
-        "organismo": "POLIMIRANDA",
-        "personal_mando": 2,
-        "vehiculos": 1
-      },
-      "servicios": {
-        "medicos": null,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.7575537,
-          10.4589414
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "UNIDAD EDUC. ESTADAL FRANCISCO IZNARDI",
-        "hoja": "CG JOSE MARTINEZ",
-        "coordenadas_excel": "10.4589414-66.7575537"
-      }
-    },
-    "centro-49": {
-      "id": "centro-49",
-      "nombre": "UEN Jose de Jesús Arocha, Petare",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "MIRANDA",
-      "municipio": "SUCRE",
-      "parroquia": "PETARE",
-      "coord_politico": {
-        "nombre": "GABRIELA BERRIOS",
-        "cedula": "SE PROCESA",
-        "telefono": "0412-6051385",
-        "ente": "CORPOELEC"
-      },
-      "seguridad": {
-        "nombre": "I/J OGLIS AGUIRRE",
-        "cedula": "SE PROCESA",
-        "telefono": "0414-3967801",
-        "organismo": "POLISUCRE",
-        "personal_mando": 3,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": null,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.8064085,
-          10.4767121
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "UEN DR. JOSÉ DE JESÚS AROCHA",
-        "hoja": "CG JOSE MARTINEZ",
-        "coordenadas_excel": "10.4767121,-66.8064085"
-      }
-    },
-    "centro-05": {
-      "id": "centro-05",
-      "nombre": "EBN Dr. Guillermo Delgado Palacios",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "El VALLE",
-      "coord_politico": {
-        "nombre": "CAPITAN EDAGAR CAMAUTE",
-        "cedula": "19128177",
-        "telefono": "4143695140",
-        "ente": "CANTV"
-      },
-      "seguridad": {
-        "nombre": "TENIENTE MARCO ANTONIO RICO BARRIOS",
-        "cedula": "27698045",
-        "telefono": "4243283894",
-        "organismo": "GUARDIA NACIONAL BOLIVARINA",
-        "personal_mando": 18,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G RONNY GALDONAS",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.919522,
-          10.459301
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "UNIDAD EDUCATIVA NACIONAL DOCTOR GUILLERMO DELGADO PALACIOS",
-        "hoja": "CG RONNY GALDONAS",
-        "coordenadas_excel": "10.459301, - 66.919522"
-      }
-    },
-    "centro-04": {
-      "id": "centro-04",
-      "nombre": "Liceo Jose Avalos",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "El VALLE",
-      "coord_politico": {
-        "nombre": "Diputado  Jesús Farias",
-        "cedula": "26468654",
-        "telefono": "",
-        "ente": "BANCO CENTRAL DE VENEZUELA  PADRINO"
-      },
-      "seguridad": {
-        "nombre": "PRIMER TENIENTE LUIS PEREZ CASTILLO",
-        "cedula": "26468654",
-        "telefono": "4242979359",
-        "organismo": "Guardia del pueblo",
-        "personal_mando": 118,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": false,
-        "psicologo": true,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 1,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G RONNY GALDONAS",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.91113,
-          10.463444
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "LICEO  JOSE AVALO",
-        "hoja": "CG RONNY GALDONAS",
-        "coordenadas_excel": "10.463444 - 66.911130"
-      }
-    },
-    "centro-03": {
-      "id": "centro-03",
-      "nombre": "UEN Gran Colombia",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "Santa Rosalía",
-      "coord_politico": {
-        "nombre": "Marcos Rodolfo Pulgar Salas",
-        "cedula": "14262225",
-        "telefono": "0412-5551533",
-        "ente": "Ministerio de la Juventud"
-      },
-      "seguridad": {
-        "nombre": "Primer Ttte Rodríguez Robles Ivan",
-        "cedula": "26509561",
-        "telefono": "0426-4632103",
-        "organismo": "Guardia Nacional",
-        "personal_mando": 10,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": false,
-        "psicologo": true,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 332,
-      "familias_ocupadas": 85,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 43,
-        "ninas": 55,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 35,
-        "adultos_m": 8,
-        "adultos_mayores_h": 7,
-        "adultos_mayores_m": 10,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 1,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G RONNY GALDONAS",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.90808333333334,
-          10.4795
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "U.E.N Gran Colombia 1 -EDIF. Colombia Edif.Colombia + U.E.N. Gran Colombia 2-  Edif. Perú + U.E.N Gran Colombia 3- Edif. Ecuador",
-        "hoja": "CG RONNY GALDONAS",
-        "coordenadas_excel": "10°28'46.2\"N 66°54'29.1\"W",
-        "edificios_consolidados": [
-          "U.E.N Gran Colombia 1 -EDIF. Colombia Edif.Colombia",
-          "U.E.N. Gran Colombia 2-  Edif. Perú",
-          "U.E.N Gran Colombia 3- Edif. Ecuador"
-        ]
-      }
-    },
-    "centro-16": {
-      "id": "centro-16",
-      "nombre": "Liceo Juan Landaeta",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "SUCRE",
-      "parroquia": "SUCRE",
-      "coord_politico": {
-        "nombre": "RICHARD ARGUELLO",
-        "cedula": "V-12.864.816",
-        "telefono": "4127029010",
-        "ente": "MINISTERIO DE OBRAS PÙBLICAS"
-      },
-      "seguridad": {
-        "nombre": "JOSÈ GREGORIO DUQUE",
-        "cedula": "V-16.288.943",
-        "telefono": "0414-1050207",
-        "organismo": "MINISTERIO DE OBRAS PÙBLICAS",
-        "personal_mando": 20,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": null,
-        "ambulancias": null,
-        "psicologo": null,
-        "contacto_juez_paz": null
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
-      "_meta": {
-        "nombre_excel": "Unidad Educativa Nacional Juan Landaeta",
-        "hoja": "CG RAMON YEPEZ",
-        "coordenadas_excel": "https://maps.app.goo.gl/zwtLS1DzLN5N3M5M7?g_st=ac"
-      }
-    },
-    "centro-17": {
-      "id": "centro-17",
-      "nombre": "UE Gervacio Artigas",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "SUCRE",
-      "coord_politico": {
-        "nombre": "FRANCISCO PADRON",
-        "cedula": "V- 17.642.632",
-        "telefono": "0412-9639421",
-        "ente": "BANCO DEL TERESO"
-      },
-      "seguridad": {
-        "nombre": "G/B MANUEL  SÀNCHEZ",
-        "cedula": "V- 6.237.188",
-        "telefono": "0412-4375482",
-        "organismo": "",
-        "personal_mando": 26,
-        "vehiculos": 5
-      },
-      "servicios": {
-        "medicos": null,
-        "ambulancias": null,
-        "psicologo": null,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 232,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
-      "_meta": {
-        "nombre_excel": "Complejo Educativo José Gervasio Artigas",
-        "hoja": "CG RAMON YEPEZ",
-        "coordenadas_excel": ""
-      }
-    },
-    "centro-18": {
-      "id": "centro-18",
-      "nombre": "Liceo Juan Lovera",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "MACARAO",
-      "coord_politico": {
-        "nombre": "DOUGLAS JOSE MATERAN",
-        "cedula": "V- 12.544.751",
-        "telefono": "0426-5118821",
-        "ente": "ALCALDIA DE CARACAS"
-      },
-      "seguridad": {
-        "nombre": "CARLOS EDUARDO SÀNCHEZ GUILLÈN",
-        "cedula": "V- 16.412.127",
-        "telefono": "0424-7053216",
-        "organismo": "CICPC",
-        "personal_mando": 10,
-        "vehiculos": 2
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": null,
-        "contacto_juez_paz": null
-      },
-      "total_afectados": 62,
-      "familias_ocupadas": 19,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 7,
-        "ninas": 11,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 5,
-        "adultos_m": 14,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 2,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
-      "_meta": {
-        "nombre_excel": "Liceo Bolivariano Juan Lovera",
-        "hoja": "CG RAMON YEPEZ",
-        "coordenadas_excel": ""
-      }
-    },
-    "centro-19": {
-      "id": "centro-19",
-      "nombre": "CE Claudio Feliciano",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "MACARAO",
-      "coord_politico": {
-        "nombre": "ERICA CASTRO",
-        "cedula": "V-24.529.081",
-        "telefono": "0412-2974318",
-        "ente": "GOBIERNO DE CARACAS/UBCH JEFA DE CENTRO ELECTORAL"
-      },
-      "seguridad": {
-        "nombre": "",
-        "cedula": "",
-        "telefono": "",
-        "organismo": "",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": null,
-        "ambulancias": null,
-        "psicologo": null,
-        "contacto_juez_paz": null
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
-      "_meta": {
-        "nombre_excel": "Unidad Educativa Nacional Claudio Feliciano",
-        "hoja": "CG RAMON YEPEZ",
-        "coordenadas_excel": ""
-      }
-    },
-    "centro-06": {
-      "id": "centro-06",
-      "nombre": "Liceo Judith Liendo",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "El Valle",
-      "coord_politico": {
-        "nombre": "José Luis Rebolledo Monjes",
-        "cedula": "16669861",
-        "telefono": "0426-5740423/ 0422-0180832",
-        "ente": "Ministerio de Pesca y Acuicultura"
-      },
-      "seguridad": {
-        "nombre": "Capitán Ángel  Mestra Jovito Leandro",
-        "cedula": "21550535",
-        "telefono": "4120778964",
-        "organismo": "Guarda Nacional Bolivariana \n- NÚMERO DE PERSONAL A SU MANDO: 18",
-        "personal_mando": 18,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 0,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G GONLALEZ MARRON",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.91609766425218,
-          10.458042889648349
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "UNIDAD EDUCATIVA NACIONAL MAESTRA JUDITH LIENDO",
-        "hoja": "CG LUIS GONZALEZ",
-        "coordenadas_excel": "10.458042889648349, -66.91609766425218"
-      }
-    },
-    "centro-07": {
-      "id": "centro-07",
-      "nombre": "UEN Generala Manuela Sáenz, Fuerte Tiuna",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "El Valle",
-      "coord_politico": {
-        "nombre": "Viceministro José Fragoza",
-        "cedula": "SE PROCESA",
-        "telefono": "SE PROCESA",
-        "ente": "Ministerio del Poder Popular de Atención de las Aguas"
-      },
-      "seguridad": {
-        "nombre": "Sargento Primero Herrera Griego Ángel José",
-        "cedula": "30378501",
-        "telefono": "0412-9035741",
-        "organismo": "Guardia Nacional Bolivariana",
-        "personal_mando": 1,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G GONLALEZ MARRON",
-      "_meta": {
-        "nombre_excel": "Unidad Educativa Generala Manuela Sáenz",
-        "hoja": "CG LUIS GONZALEZ",
-        "coordenadas_excel": ""
-      }
-    },
-    "centro-08": {
-      "id": "centro-08",
-      "nombre": "Liceo Leopoldo Aguerevere",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "Sanj Pedro",
-      "coord_politico": {
-        "nombre": "Gladys Gricelda Rodríguez Boyer",
-        "cedula": "6221358",
-        "telefono": "4241510728",
-        "ente": "Procuraduría General de la Republica"
-      },
-      "seguridad": {
-        "nombre": "Primer Teniente Gutiérrez Moreno Cesar Yldemar",
-        "cedula": "21137333",
-        "telefono": "4124039012",
-        "organismo": "Guardia Nacional Bolivariana",
-        "personal_mando": 19,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 218,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G GONLALEZ MARRON",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.88907597868587,
-          10.486147663059322
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "Liceo Leopoldo Aguerrevere",
-        "hoja": "CG LUIS GONZALEZ",
-        "coordenadas_excel": "10.486147663059322, -66.88907597868587"
-      }
-    },
-    "centro-45": {
-      "id": "centro-45",
-      "nombre": "UEN Generalisimo Francisco de Miranda, Filas de Mariche",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "MIRANDA",
-      "municipio": "SUCRE",
-      "parroquia": "FILAS DE MARICHE",
-      "coord_politico": {
-        "nombre": "DIPUTADO JULIO TORO",
-        "cedula": "",
-        "telefono": "4121783963",
-        "ente": "MINISTERIO DE INDUSTRIA Y COMERCIO"
-      },
-      "seguridad": {
-        "nombre": "DIRECTOR DEL COLEGIO ALI TORO",
-        "cedula": "",
-        "telefono": "4127190447",
-        "organismo": "POLISUCRE",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.84784642940987,
-          10.487837315324562
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "UEN GENERALISIMO FRANCISCO DE MIRANDA",
-        "hoja": "CG JUMMY BETANCOURT",
-        "coordenadas_excel": "10.487837315324562, -66.84784642940987"
-      }
-    },
-    "centro-43": {
-      "id": "centro-43",
-      "nombre": "UEN Rafael Napoleón Baite",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "MIRANDA",
-      "municipio": "SUCRE",
-      "parroquia": "PETARE",
-      "coord_politico": {
-        "nombre": "Franco Sánchez",
-        "cedula": "",
-        "telefono": "4169863505",
-        "ente": "ALCALDIA MCPIO. SUCRE"
-      },
-      "seguridad": {
-        "nombre": "Ana Rodríguez",
-        "cedula": "",
-        "telefono": "4127302975",
-        "organismo": "POLISUCRE",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.7977097,
-          10.48179059571
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "UEN Rafael Napoleón Baute",
-        "hoja": "CG JUMMY BETANCOURT",
-        "coordenadas_excel": "10.48179059571, -66.7977097"
-      }
-    },
-    "centro-44": {
-      "id": "centro-44",
-      "nombre": "CEN Negro Primero Caucaguita",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "MIRANDA",
-      "municipio": "SUCRE",
-      "parroquia": "CAUCAGUITA",
-      "coord_politico": {
-        "nombre": "JORGE FERNÁNDEZ",
-        "cedula": "",
-        "telefono": "4129285800",
-        "ente": "DIRECTOR DEL COLEGIO"
-      },
-      "seguridad": {
-        "nombre": "JORGE FERNÁNDEZ",
-        "cedula": "",
-        "telefono": "4129285800",
-        "organismo": "POLISUCRE",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.74088119994545,
-          10.484968722090283
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "CEN NEGRO PRIMERO CAUCAGUITA",
-        "hoja": "CG JUMMY BETANCOURT",
-        "coordenadas_excel": "10.484968722090283, -66.74088119994545"
-      }
-    },
-    "centro-42": {
-      "id": "centro-42",
-      "nombre": "CEN Luis Beltran Prieto Figueroa",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "MIRANDA",
-      "municipio": "SUCRE",
-      "parroquia": "PETARE",
-      "coord_politico": {
-        "nombre": "Sethisis Machado",
-        "cedula": "",
-        "telefono": "4242485989",
-        "ente": "ALCLADIA MCPIO.  SUCRE"
-      },
-      "seguridad": {
-        "nombre": "Com. Eduardo Fernández",
-        "cedula": "",
-        "telefono": "4141639484",
-        "organismo": "",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.82645090433157,
-          10.493542878911027
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "CEN LUIS BELTRÁN PRIETO FIGUEROA",
-        "hoja": "CG JUMMY BETANCOURT",
-        "coordenadas_excel": "10.493542878911027, -66.82645090433157"
-      }
-    },
-    "centro-30": {
-      "id": "centro-30",
-      "nombre": "UEE Adolfo Nava Coronado",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "Miranda",
-      "municipio": "Baruta",
-      "parroquia": "El Cafetal",
-      "coord_politico": {
-        "nombre": "Anabel  Pereira Fernandez",
-        "cedula": "14122851",
-        "telefono": "",
-        "ente": "Ministerio de Economia y Finanzas"
-      },
-      "seguridad": {
-        "nombre": "Maikel Jesus Carrero",
-        "cedula": "26016473",
-        "telefono": "0424 143 9479",
-        "organismo": "Bandes",
-        "personal_mando": 2,
-        "vehiculos": 2
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.85952777777777,
-          10.449083333333334
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "UEE Adolfo Navas Coronado",
-        "hoja": "CG PEREZ LOPEZ",
-        "coordenadas_excel": "10°26'56.7\"N 66°51'34.3\" W"
-      }
-    },
-    "centro-28": {
-      "id": "centro-28",
-      "nombre": "UEN Tito Salas",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "Miranda",
-      "municipio": "Baruta",
-      "parroquia": "las minas",
-      "coord_politico": {
-        "nombre": "Jesús Teina",
-        "cedula": "5976970",
-        "telefono": "4226040708",
-        "ente": "comuna primera fortaleza del rozario"
-      },
-      "seguridad": {
-        "nombre": "Miguel ramirez",
-        "cedula": "20282742",
-        "telefono": "0424 143 9479",
-        "organismo": "DGCIM",
-        "personal_mando": 0,
-        "vehiculos": 1
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
-      "_meta": {
-        "nombre_excel": "unidad educativa tito salas",
-        "hoja": "CG PEREZ LOPEZ",
-        "coordenadas_excel": ""
-      }
-    },
-    "centro-26": {
-      "id": "centro-26",
-      "nombre": "UE Luis Hurtado",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "El Junkito",
-      "coord_politico": {
-        "nombre": "José Luis Unda",
-        "cedula": "11204636",
-        "telefono": "4265238480",
-        "ente": "Ministerio de la Comuna"
-      },
-      "seguridad": {
-        "nombre": "Eber Manrrique",
-        "cedula": "20364893",
-        "telefono": "0424-253-92-80",
-        "organismo": "P.N.B / Milicia.",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": false,
-        "psicologo": true,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 151,
-      "familias_ocupadas": 19,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 11,
-        "ninas": 19,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 22,
-        "adultos_m": 21,
-        "adultos_mayores_h": 6,
-        "adultos_mayores_m": 18,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 1,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          67.00311111111111,
-          10.485555555555555
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "U.E.N. Luis Hurtado Higuera",
-        "hoja": "CG PEREZ LOPEZ",
-        "coordenadas_excel": "10°29'08.0\"N 67°00'11.2\"W"
-      }
-    },
-    "centro-29": {
-      "id": "centro-29",
-      "nombre": "UEN Sorocaima",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "Miranda",
-      "municipio": "Baruta",
-      "parroquia": "Baruta , Nuestra Señora del Rosario",
-      "coord_politico": {
-        "nombre": "",
-        "cedula": "",
-        "telefono": "",
-        "ente": ""
-      },
-      "seguridad": {
-        "nombre": "",
-        "cedula": "",
-        "telefono": "",
-        "organismo": "",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
-      "_meta": {
-        "nombre_excel": "U.E.N SOROCAIMA",
-        "hoja": "CG PEREZ LOPEZ",
-        "coordenadas_excel": ""
-      }
-    },
-    "centro-27": {
-      "id": "centro-27",
-      "nombre": "UEN Eduardo Crema",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "El Paraiso",
-      "coord_politico": {
-        "nombre": "María Quinterro",
-        "cedula": "",
-        "telefono": "4241842634",
-        "ente": "Min. de Ciencia y Tecnologia"
-      },
-      "seguridad": {
-        "nombre": "Miguel Briceño",
-        "cedula": "16564276",
-        "telefono": "0412-218-53-20",
-        "organismo": "Min Ciencia y Tecnologia",
-        "personal_mando": 6,
-        "vehiculos": 1
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": true,
-        "psicologo": true,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 1,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
-      "geom": {
-        "type": "Point",
-        "coordinates": [
-          66.930506,
-          10.489793
-        ]
-      },
-      "_meta": {
-        "nombre_excel": "U.E.N. Eduardo Crema",
-        "hoja": "CG PEREZ LOPEZ",
-        "coordenadas_excel": "10.489793,-66.930506"
-      }
-    },
-    "centro-31": {
-      "id": "centro-31",
-      "nombre": "UEN Alejo Fortique",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. MIRANDA",
-      "municipio": "BARUTA",
-      "parroquia": "BARUTA",
-      "coord_politico": {
-        "nombre": "JAVIER DUARTE",
-        "cedula": "15856974",
-        "telefono": "4120216626",
-        "ente": "MINISTERIO DE SERVICIOS PENITENCIARIOS"
-      },
-      "seguridad": {
-        "nombre": "MAYOR (GNB) MICHAEL NUÑEZ",
-        "cedula": "19224750",
-        "telefono": "4123082834",
-        "organismo": "SERVICIO PENITENCIARIO",
-        "personal_mando": 50,
-        "vehiculos": 1
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": false,
-        "psicologo": true,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 1,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G CARLOS ORTEGA",
-      "_meta": {
-        "nombre_excel": "UE. ALEJO FORTIQUE",
-        "hoja": "CG CARLOS ORTEGA",
-        "coordenadas_excel": "10° 43' 07\" LN 66° 87' 57\" LO"
-      }
-    },
-    "centro-32": {
-      "id": "centro-32",
-      "nombre": "CE Andres Bello",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "La Candelaria",
-      "coord_politico": {
-        "nombre": "Lesguis Pajedes",
-        "cedula": "se procesa",
-        "telefono": "4241261096",
-        "ente": "Cocejal y enlace Político de la Candelari"
-      },
-      "seguridad": {
-        "nombre": "Mayor Enrique Olmos",
-        "cedula": "10864836",
-        "telefono": "4169181873",
-        "organismo": "MILICIA",
-        "personal_mando": 15,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": false,
-        "psicologo": true,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 184,
-      "familias_ocupadas": 39,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 33,
-        "ninas": 17,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 7,
-        "adultos_mayores_h": 74,
-        "adultos_mayores_m": 5,
-        "embarazadas": 2,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 1,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G CARLOS ORTEGA",
-      "_meta": {
-        "nombre_excel": "Andrés Bello",
-        "hoja": "CG CARLOS ORTEGA",
-        "coordenadas_excel": "10° 50' 18\" LN 66° 90' 37\" LO"
-      }
-    },
-    "centro-33": {
-      "id": "centro-33",
-      "nombre": "UENB coronel Carlos Delgado Chalboud",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "Coche",
-      "coord_politico": {
-        "nombre": "Varguin González",
-        "cedula": "SE PROCESA",
-        "telefono": "4141243722",
-        "ente": "INH JULIO LEÓN HEREDIA"
-      },
-      "seguridad": {
-        "nombre": "José Luis Veramendez",
-        "cedula": "14322227",
-        "telefono": "4124093315",
-        "organismo": "POLICIA MUNICIPIO LIBERTADOR",
-        "personal_mando": 6,
-        "vehiculos": 1
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": true,
-        "psicologo": true,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 417,
-      "familias_ocupadas": 417,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 85,
-        "ninas": 84,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 36,
-        "adultos_mayores_h": 22,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 1,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G CARLOS ORTEGA",
-      "_meta": {
-        "nombre_excel": "UENB Carlos Deelgado Charlboud",
-        "hoja": "CG CARLOS ORTEGA",
-        "coordenadas_excel": "10° 30' 13\" LN 66° 52' 10\" LO"
-      }
-    },
-    "centro-37": {
-      "id": "centro-37",
-      "nombre": "UEN Josefa Irausquin Lopez, El Cafetal",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "MIRANDA",
-      "municipio": "BARUTA",
-      "parroquia": "CAFETAL",
-      "coord_politico": {
-        "nombre": "DULCE MORAN",
-        "cedula": "5419397",
-        "telefono": "0416-6187987",
-        "ente": "PSUV"
-      },
-      "seguridad": {
-        "nombre": "NO POSEE",
-        "cedula": "",
-        "telefono": "",
-        "organismo": "",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 100,
-      "familias_ocupadas": 25,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
-      "_meta": {
-        "nombre_excel": "U.E.N JOSEFA IRASQUIN LOPEZ",
-        "hoja": "CJ GODOY",
-        "coordenadas_excel": ""
-      }
-    },
-    "centro-36": {
-      "id": "centro-36",
-      "nombre": "CEIN Mamá Rosa, Urb La Limonera",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "MIRANDA",
-      "municipio": "BARUTA",
-      "parroquia": "NUESTRA SEÑORA DER ROSARIO",
-      "coord_politico": {
-        "nombre": "TRIDIS CONTRERAS",
-        "cedula": "23685256",
-        "telefono": "0412-8798199",
-        "ente": "CANCILLERIA"
-      },
-      "seguridad": {
-        "nombre": "T/C GNB EDWIN CARABALO",
-        "cedula": "14841540",
-        "telefono": "0414-7935343",
-        "organismo": "GNB",
-        "personal_mando": 10,
-        "vehiculos": 1
-      },
-      "servicios": {
-        "medicos": false,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 67,
-      "familias_ocupadas": 17,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 16,
-        "ninas": 11,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 8,
-        "adultos_mayores_h": 3,
-        "adultos_mayores_m": 2,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
-      "_meta": {
-        "nombre_excel": "CEN SIMONCITO \"MAMA ROSA\"",
-        "hoja": "CJ GODOY",
-        "coordenadas_excel": ""
-      }
-    },
-    "centro-34": {
-      "id": "centro-34",
-      "nombre": "UED Juan Antonio Perez Bonal",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "SUCRE",
-      "coord_politico": {
-        "nombre": "YOMAIRE LUCENA",
-        "cedula": "15332837",
-        "telefono": "0412-9532387",
-        "ente": "MINISTERIO COMUNA"
-      },
-      "seguridad": {
-        "nombre": "C/J OCTAVIO BARRUETA",
-        "cedula": "11158734",
-        "telefono": "0412-5957846",
-        "organismo": "POLICARACAS",
-        "personal_mando": 8,
-        "vehiculos": 1
-      },
-      "servicios": {
-        "medicos": true,
-        "ambulancias": true,
-        "psicologo": false,
-        "contacto_juez_paz": true
-      },
-      "total_afectados": 112,
-      "familias_ocupadas": 58,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 22,
-        "ninas": 25,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 1,
-        "adultos_m": 0,
-        "adultos_mayores_h": 2,
-        "adultos_mayores_m": 7,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 1,
-        "psicologos": 0,
-        "justicia_tjs": 1,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
-      "_meta": {
-        "nombre_excel": "UE JUAN ANTONIO PEREZ BONALDE",
-        "hoja": "CJ GODOY",
-        "coordenadas_excel": ""
-      }
-    },
-    "centro-22": {
-      "id": "centro-22",
-      "nombre": "UEN Pablo Vila",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "EL PARAISO",
-      "coord_politico": {
-        "nombre": "DRA. MARÍA QUINTERO",
-        "cedula": "",
-        "telefono": "424-1842634",
-        "ente": "MINISTERIO DEL PODER POPULAR DE LA CIENCIA Y LA TECNÓLOGIA"
-      },
-      "seguridad": {
-        "nombre": "",
-        "cedula": "",
-        "telefono": "",
-        "organismo": "",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": null,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: C/G JORGE MEDINA",
-      "_meta": {
-        "nombre_excel": "UEN PABLO VILA",
-        "hoja": "CG NOVO ",
-        "coordenadas_excel": "10.489243/66.919248"
-      }
-    },
-    "centro-21": {
-      "id": "centro-21",
-      "nombre": "UEN Vicente Gil",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "SAN BERNARDINO",
-      "coord_politico": {
-        "nombre": "MILAGROS SALINAS",
-        "cedula": "",
-        "telefono": "0426-0550754",
-        "ente": "SAREN"
-      },
-      "seguridad": {
-        "nombre": "NO DESIGNADO",
-        "cedula": "",
-        "telefono": "",
-        "organismo": "",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": null,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: C/G JORGE MEDINA",
-      "_meta": {
-        "nombre_excel": "UEN VICENTE GIL",
-        "hoja": "CG NOVO ",
-        "coordenadas_excel": "10.517917/66.900161"
-      }
-    },
-    "centro-20": {
-      "id": "centro-20",
-      "nombre": "UE Luis Padrino",
-      "fecha_levantamiento": "2026-07-03",
-      "estado_federativo": "DTTO. CAPITAL",
-      "municipio": "LIBERTADOR",
-      "parroquia": "SAN JUAN",
-      "coord_politico": {
-        "nombre": "EILEN GONZÁLEZ",
-        "cedula": "",
-        "telefono": "0424-7816132",
-        "ente": "MINISTERIO DEL PODER POPULAR PARA SERVICIOS PENITENCIARIOS"
-      },
-      "seguridad": {
-        "nombre": "JOSÉ GRANADO",
-        "cedula": "V-11.009.357",
-        "telefono": "",
-        "organismo": "",
-        "personal_mando": 0,
-        "vehiculos": 0
-      },
-      "servicios": {
-        "medicos": null,
-        "ambulancias": false,
-        "psicologo": false,
-        "contacto_juez_paz": false
-      },
-      "total_afectados": 0,
-      "familias_ocupadas": 0,
-      "ocupacion": {
-        "recien_nacidos_h": 0,
-        "recien_nacidos_m": 0,
-        "ninos": 0,
-        "ninas": 0,
-        "adolescentes_h": 0,
-        "adolescentes_m": 0,
-        "adultos_h": 0,
-        "adultos_m": 0,
-        "adultos_mayores_h": 0,
-        "adultos_mayores_m": 0,
-        "embarazadas": 0,
-        "discapacidad_h": 0,
-        "discapacidad_m": 0,
-        "mascotas": 0
-      },
-      "personal": {
-        "funcionarios": 0,
-        "medicos": 0,
-        "psicologos": 0,
-        "justicia_tjs": 0,
-        "justicia_mp": 0,
-        "justicia_defensoria": 0
-      },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: C/G JORGE MEDINA",
-      "_meta": {
-        "nombre_excel": "UE LUIS PADRINO",
-        "hoja": "CG NOVO ",
-        "coordenadas_excel": "10.491/66.931"
-      }
-    }
+  "totales_extraidos": {
+   "centros": 51,
+   "personas": 3697,
+   "familias": 1382
   },
-  "descartados": [],
-  "schema": {
-    "descripcion": "Cada centro es un Partial<CentroTransitorio>. Los campos mutables a actualizar son: total_afectados, familias_ocupadas, ocupacion, coord_politico, seguridad, servicios, personal, novedades, parroquia, municipio, estado_federativo, fecha_levantamiento, estado, geom (si hay coordenadas). El campo `_meta` es informativo (no pertenece al modelo) — contiene el nombre tal como aparecía en el Excel, la hoja y las coordenadas en crudo.",
-    "ocupacion": "Mapeo demográfico: ninos=NIÑOS, ninas=NIÑAS, adultos_mayores_h=ADULTOS MAYORES, adultos_mayores_m=ADULTAS MAYORES, adultos_h=HOMBRES-NIÑOS-ADULTOS_MAYORES_H, adultos_m=MUJERES-NIÑAS-ADULTAS_MAYORES_M. Totaliza HOMBRES+MUJERES. discapacidad_m=PER. CON DISCAPACIDAD (no separado por sexo en el Excel).",
-    "personal": "funcionarios=0 (no viene en el Excel); medicos/psicologos/justicia_tjs=1 cuando el SÍ/NO correspondiente es true.",
-    "estado": "operativo si total_afectados>0, sino preparacion."
+  "catalogo_ids_faltantes": [],
+  "notas_consolidacion": [
+   "centro-25: 2 apariciones duplicadas en el Excel, se tomó la más completa (CM YOHANA CARDOZO)",
+   "centro-50: 2 apariciones duplicadas en el Excel, se tomó la más completa (CM YOHANA CARDOZO)",
+   "2026-07-04: auditoría vs Excel — corregidos adultos_h/adultos_m (HOMBRES/MUJERES del Excel son adultos 18-59, no totales por sexo), recuperadas las novedades reales de la sección VI y los servicios SI/NO faltantes",
+   "2026-07-04: Gran Colombia dividida en 3 centros por edificio — centro-03 (Edif. Colombia, 180/62), centro-51 (Edif. Perú, 83/23) y centro-52 (Edif. Ecuador, 69/0, censo en proceso); geoms desplazados ~±0.0005° para no solapar marcadores",
+   "2026-07-04: corregido el signo de las longitudes en los geom del JSON (eran positivas, Caracas es longitud oeste)"
+  ],
+  "mapeo_manual": {
+   "centro-36": "CEN SIMONCITO 'MAMA ROSA' (CEIN Mamá Rosa, Urb La Limonera — fuzzy match falló por el prefijo 'Simoncito')"
   }
+ },
+ "centros": {
+  "centro-09": {
+   "id": "centro-09",
+   "nombre": "ETI Leonardo Infante",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "MIRANDA",
+   "municipio": "SUCRE",
+   "parroquia": "PETARE",
+   "coord_politico": {
+    "nombre": "JOSE  PERDOMO",
+    "cedula": "6506555",
+    "telefono": "0412-9851839",
+    "ente": "MINISTERIO DE DESARROLLO MINERO E INDUSTRIAS BASICAS"
+   },
+   "seguridad": {
+    "nombre": "C/G JESUS VILORIA",
+    "cedula": "15584882",
+    "telefono": "0426-520-8455",
+    "organismo": "SEBIN",
+    "personal_mando": 17,
+    "vehiculos": 1
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": true,
+    "psicologo": true,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 12,
+   "familias_ocupadas": 1,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 2,
+    "ninas": 2,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 3,
+    "adultos_m": 4,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 1,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "SE ESTIMA QUE PARA EL DIA DE HOY COMIENCE A LLEGAR LOS DEMAS GRUPOS DE DAMNIFICADOS\nAnalista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
+   "_meta": {
+    "nombre_excel": "ETI LEONARDO INFANTE",
+    "hoja": "CM FEREICO GUZMAN",
+    "coordenadas_excel": ""
+   }
+  },
+  "centro-10": {
+   "id": "centro-10",
+   "nombre": "U. E. N. Mariano Picón Salas",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "SUCRE",
+   "parroquia": "MIRANDA",
+   "coord_politico": {
+    "nombre": "JHONATAHAN SAYAGO",
+    "cedula": "19650607",
+    "telefono": "0414-2310314",
+    "ente": "ALCALDIA MUNICIPIO SUCRE"
+   },
+   "seguridad": {
+    "nombre": "P/C HENRY NAVEDA",
+    "cedula": "9413629",
+    "telefono": "0412-4693297",
+    "organismo": "SEBIN",
+    "personal_mando": 15,
+    "vehiculos": 5
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": true,
+    "psicologo": true,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 195,
+   "familias_ocupadas": 60,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "LA UNIDAD EDUCATIVA SE ENCUENTRA EN PROCESO DE CENSO Y RECOLECCION DE INFORMACION\nAnalista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
+   "_meta": {
+    "nombre_excel": "UEN MARIANO PICON SALAS",
+    "hoja": "CM FEREICO GUZMAN",
+    "coordenadas_excel": ""
+   }
+  },
+  "centro-12": {
+   "id": "centro-12",
+   "nombre": "UE Cesar Rengifo",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "ALTAGRACIAS",
+   "coord_politico": {
+    "nombre": "MIGUEL FIGUEROA",
+    "cedula": "11405763",
+    "telefono": "4122944519",
+    "ente": "VICEMINISTRO DE  CULTURA AUDIOVISUAL"
+   },
+   "seguridad": {
+    "nombre": "SAUL BRISEÑO",
+    "cedula": "11994338",
+    "telefono": "4142513102",
+    "organismo": "SEBIN",
+    "personal_mando": 9,
+    "vehiculos": 1
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 16,
+   "familias_ocupadas": 6,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 2,
+    "ninas": 3,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 2,
+    "adultos_m": 4,
+    "adultos_mayores_h": 3,
+    "adultos_mayores_m": 2,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "SE RETIRARON DOS CIUDADANOS POR VOLUNTAD PROPIA (SE LEVANTÓ ACTA)\nSE RECIBIO UN CAPTA HUELLAS POR PARTE DEL DIPUTADO PEDRO INFANTE, CON MULTIPLES FALLAS; REGISTRO MULTIPLE DEL MISMO AFECTADO, NO IMPRIME REGISTRO PARA AUDITORIAS, NO ESPECIFICA EL CENTRO.\nAnalista SAE: P/I. SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: C/G SAÚL BRISEÑO",
+   "_meta": {
+    "nombre_excel": "ESCUELA NACIONAL DE ARTES ESCÉNICAS CESAR RENGIFO",
+    "hoja": "CM CARLOS GAMBOA",
+    "coordenadas_excel": "10°30'43.9\"N\n60°54'54.6W"
+   }
+  },
+  "centro-14": {
+   "id": "centro-14",
+   "nombre": "CE Miguel Antonio Caro",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "SUCRE",
+   "coord_politico": {
+    "nombre": "NAHUM FERNÁNDEZ",
+    "cedula": "16023409",
+    "telefono": "",
+    "ente": "JEFE DE GOBIERNO DEL DISTRITO CAPITAL"
+   },
+   "seguridad": {
+    "nombre": "C/G  EDWIN CUENCA",
+    "cedula": "",
+    "telefono": "4125650123",
+    "organismo": "PNB",
+    "personal_mando": 150,
+    "vehiculos": 3
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": false,
+    "psicologo": true,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 881,
+   "familias_ocupadas": 280,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 171,
+    "ninas": 194,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 204,
+    "adultos_m": 285,
+    "adultos_mayores_h": 11,
+    "adultos_mayores_m": 16,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "El Ministerio de Obras Públicas esta arreglando los baños del Liceo, actualmente utilizan baños portátiles en el Parque Alí Primera\nPDVSA les suministra la alimentación y 500 comidas preparan al frente de la Escuela\nTienen problemas para que les llegue el Agua Potable\nAnalista SAE: PROF. C. JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JOSÉ AGUANA NÚÑEZ",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.939777,
+     10.5145612
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "LICEO MIGUEL ANTONIO CARO",
+    "hoja": "CM RAFAEL AGUANA",
+    "coordenadas_excel": "10.5145612, - 66.939777"
+   }
+  },
+  "centro-13": {
+   "id": "centro-13",
+   "nombre": "UEN Armando Zuloaga",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "SAN JOSÉ",
+   "coord_politico": {
+    "nombre": "Andry Selene Aparicio V.",
+    "cedula": "16320508",
+    "telefono": "4129064285",
+    "ente": "MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN"
+   },
+   "seguridad": {
+    "nombre": "Myor Ibarra Rincón Nilsmerc",
+    "cedula": "16228651",
+    "telefono": "0416.490.24.73",
+    "organismo": "DGCIM",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "En espera de la llegada de los dagnificados\nBaños con deterioro\nAnalista SAE: PROF. C. JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JOSÉ AGUANA NÚÑEZ",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.91097222222223,
+     10.511944444444444
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "U.E. Armando Zuloaga Blanco",
+    "hoja": "CM RAFAEL AGUANA",
+    "coordenadas_excel": "10°30'43.0\" - 66°54'39.5\""
+   }
+  },
+  "centro-15": {
+   "id": "centro-15",
+   "nombre": "ETI Rafael Vega",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "SUCRE",
+   "coord_politico": {
+    "nombre": "Vicemin. Francisco Fonseca",
+    "cedula": "",
+    "telefono": "4145945228",
+    "ente": "Ministerio del Poder Popular para la Alimentación"
+   },
+   "seguridad": {
+    "nombre": "Cnel Humberto Arellano",
+    "cedula": "7827089",
+    "telefono": "4166090090",
+    "organismo": "CICPC y PNB",
+    "personal_mando": 23,
+    "vehiculos": 2
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": true,
+    "psicologo": true,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "Se espera que el plantel sea utilizado solo para personas bajo observación médica.\nCuentan con comedor con capacidad para 400 comenzales\nCarece de gas directo, solo cuentan con 2 bombonas de 18 y 01 de 43 kg\nAnalista SAE: PROF. C. JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JOSÉ AGUANA NÚÑEZ",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.96133333333334,
+     10.506944444444445
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "Complejo Educativo ETI Rafael Vegas",
+    "hoja": "CM RAFAEL AGUANA",
+    "coordenadas_excel": "10°30'25.0\" - 66°57'40.8\""
+   }
+  },
+  "centro-25": {
+   "id": "centro-25",
+   "nombre": "UEN Pedro Pontes",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "LA VEGA",
+   "coord_politico": {
+    "nombre": "MANUEL RINCÓN",
+    "cedula": "14287553",
+    "telefono": "0414-2792671",
+    "ente": "CONTRALORIA GENERAL DE LA REPUBLICA"
+   },
+   "seguridad": {
+    "nombre": "COMISARIO RAMON ARCA",
+    "cedula": "13283833",
+    "telefono": "0414-1184886",
+    "organismo": "PNB",
+    "personal_mando": 10,
+    "vehiculos": 5
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "EL CENTRO SE ENCUENTRA EN FASE DE HABILITACIÓN DE ESPACIOS\nEL CDI DE LA COMUNIDAD APOYARA CON LOS CASOS DE SALUD\nAL APERTURAR, LA CONTRALORIA HABILITARA UN SERVICIO MÉDICO QUE INCLUIRA PSICOLÓGIA\nAnalista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G CARDOZZO",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.94944444444445,
+     10.472833333333334
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "UEN PEDRO PONTES",
+    "hoja": "CM YOHANA CARDOZO",
+    "coordenadas_excel": "10°28'22.2\"N 66°56'58.0\"W"
+   }
+  },
+  "centro-24": {
+   "id": "centro-24",
+   "nombre": "UE Jose Ignacio Paz Castillo",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "LA PASTORA",
+   "coord_politico": {
+    "nombre": "MILAGROS CARRILLO",
+    "cedula": "15795265",
+    "telefono": "0412-5554962",
+    "ente": "SALA DE AUTOGOBIERNO COMUNA ESTA TIERRA ES NUESTRA"
+   },
+   "seguridad": {
+    "nombre": "WILMER CISNEROS",
+    "cedula": "13823585",
+    "telefono": "0412-9615675",
+    "organismo": "ODDI CUADRANTE DE PAZ",
+    "personal_mando": 30,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 42,
+   "familias_ocupadas": 8,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 7,
+    "ninas": 6,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 16,
+    "adultos_m": 12,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 1,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "DEFICIT DE INSUMOS MEDICOS, LIMPIEZA, ALIMENTACION, VENTILADORES DORMITORIOS\nEL CAMPAMENTO  ESTA REESTRUCTURANDO LOS BAÑOS Y HABILITANDO LA DUCHAS, INTERNET Y SERVICIO DE AGUA (TANQUES, TAMBORES Y BOMBAS DE AGUA).\nAnalista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G CARDOZZO",
+   "_meta": {
+    "nombre_excel": "UE. JOSE IGNACIO PAZ CASTILLO",
+    "hoja": "CM YOHANA CARDOZO",
+    "coordenadas_excel": ""
+   }
+  },
+  "centro-23": {
+   "id": "centro-23",
+   "nombre": "Liceo Agustín Aveledo",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "LA PASTORA",
+   "coord_politico": {
+    "nombre": "RAMON DANIEL MANIGLIA DARWICH",
+    "cedula": "16432329",
+    "telefono": "",
+    "ente": "PEQUIVEN"
+   },
+   "seguridad": {
+    "nombre": "",
+    "cedula": "",
+    "telefono": "",
+    "organismo": "",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": null,
+    "ambulancias": null,
+    "psicologo": null,
+    "contacto_juez_paz": null
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "NO TIENE EL NUM DE TLF DEL RESPONSABLE POLITICO\nNO HAN DESIGNADO JEFE DE SEGURIDAD\nSE MANTIENE CONTACTO CON JORGE MOTA ( 0412-7341506 / 29.622.807) Y JOEL MANGARRE ( 0414-0288030 / 10.151.257), RESPONSABLES PRESENTES EN EL LUGAR.\nSE ESTAN HACIENDO ADECUCAIONES DE MANTENIMIENTO/INSTALACIONES EN EL CAMPAMENTO.\nAnalista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G CARDOZZO",
+   "_meta": {
+    "nombre_excel": "LICEO AGUSTIN AVELEDO",
+    "hoja": "CM YOHANA CARDOZO",
+    "coordenadas_excel": "G38H+6H9, Caracas 1010, Distrito Capital"
+   }
+  },
+  "centro-50": {
+   "id": "centro-50",
+   "nombre": "Escuela Internacional de Liderazgo Antonio José de Sucre",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "MIRANDA",
+   "municipio": "SUCRE",
+   "parroquia": "FILAS DE MARICHE",
+   "coord_politico": {
+    "nombre": "KENEDY MORALES",
+    "cedula": "20288753",
+    "telefono": "0424-2796932",
+    "ente": "MINISTERIO DE EDUCACION Y COMUNAS"
+   },
+   "seguridad": {
+    "nombre": "COMISARIO JOSE SANCHEZ",
+    "cedula": "12297171",
+    "telefono": "0412-7287070",
+    "organismo": "PNB / POLI MIRANDA",
+    "personal_mando": 23,
+    "vehiculos": 1
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": false,
+    "psicologo": true,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 91,
+   "familias_ocupadas": 37,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 19,
+    "ninas": 19,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 24,
+    "adultos_m": 24,
+    "adultos_mayores_h": 3,
+    "adultos_mayores_m": 2,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "CARENTES DE INSUMOS MEDICOS.\nCARENCIA DE INSUMOS MÉDICOS (LISTADO)\nNO CUENTAN CON DISTRIBUCIÓN DE ALIMENTOS/ NINGÚN ENTE LOS PROVEE.\nAnalista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: C/G BRITO",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.74211111111111,
+     10.4465
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "ESCUELA INTERNACIONAL DE LIDERAZGO ANTONIO JOSE DE SUCRE",
+    "hoja": "CM YOHANA CARDOZO",
+    "coordenadas_excel": "10°26'47.4\"N 66°44'31.6\"W"
+   }
+  },
+  "centro-11": {
+   "id": "centro-11",
+   "nombre": "UE Jesús Enrique Lossada",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "EL RECREO",
+   "coord_politico": {
+    "nombre": "ANGEL BLANCO",
+    "cedula": "15701930",
+    "telefono": "0424-1465948",
+    "ente": "MINISTERIO DE COMERCIO EXTERIOR"
+   },
+   "seguridad": {
+    "nombre": "CJ ESPARTACO HERMANDEZ",
+    "cedula": "13463285",
+    "telefono": "0424-2090472",
+    "organismo": "SEBIN",
+    "personal_mando": 9,
+    "vehiculos": 1
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "FALTA DE COORDINACION PARA LA ALIMENTACION DEL PERSONAL DE SEGURIDAD.\nHAY COLCHONES PERO NO HAN LLEGADO LAS LITERAS.\nTRABAJOS EN ELECTRICIDAD Y BAÑOS.\nAnalista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G JOSE ROZO",
+   "_meta": {
+    "nombre_excel": "UE. JESUS ENRIQUE LOZADA",
+    "hoja": "CG JOSE ROZO",
+    "coordenadas_excel": "10° 30' 13\" LN 66° 52' 10\" LO"
+   }
+  },
+  "centro-02": {
+   "id": "centro-02",
+   "nombre": "UEN Francisco Pimentel",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "STA. TERESA",
+   "coord_politico": {
+    "nombre": "NORLAN RAMOS",
+    "cedula": "23639410",
+    "telefono": "0412-9046707",
+    "ente": "SENIAT"
+   },
+   "seguridad": {
+    "nombre": "CNEL. HENRY CUBILLAN",
+    "cedula": "15714816",
+    "telefono": "0414-6514656",
+    "organismo": "GNB",
+    "personal_mando": 20,
+    "vehiculos": 1
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": true,
+    "psicologo": true,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 585,
+   "familias_ocupadas": 311,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 106,
+    "ninas": 108,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 121,
+    "adultos_m": 201,
+    "adultos_mayores_h": 12,
+    "adultos_mayores_m": 37,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G JOSE ROZO",
+   "_meta": {
+    "nombre_excel": "UN. FRANCISCO PIMENTEL",
+    "hoja": "CG JOSE ROZO",
+    "coordenadas_excel": "10° 29' 47\" LN. 66° 55' 5\" LO"
+   }
+  },
+  "centro-01": {
+   "id": "centro-01",
+   "nombre": "UEN Pedro Emilio Coll",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "COCHE",
+   "coord_politico": {
+    "nombre": "LUISA DAYANA MARTÍNEZ",
+    "cedula": "12085619",
+    "telefono": "0412-5930036",
+    "ente": "MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN"
+   },
+   "seguridad": {
+    "nombre": "CAP. PÉREZ PÉREZ GERALD",
+    "cedula": "19606799",
+    "telefono": "0416-9492603",
+    "organismo": "GNB",
+    "personal_mando": 16,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": true,
+    "psicologo": true,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "NOMBRE DEL JEFE DE SEGURIDAD CORONEL LEONARDO  MALAGUERA, ESTE DESIGNA RESPONSABLE  AL CAPITAN PÉREZ PÉREZ GERALD.\nVEHICCULOS DEL COMANDO RURAL GNB  43-1 EL HATILLO.\nBAÑOS PRINCIPALES ESTÁN EN FASE DE CONSTRUCCIÓN.\nAnalista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G JOSE ROZO",
+   "_meta": {
+    "nombre_excel": "U.E.N. PEDRO EMILIO COLL",
+    "hoja": "CG JOSE ROZO",
+    "coordenadas_excel": "10.4508° N, 66.9227° O"
+   }
+  },
+  "centro-41": {
+   "id": "centro-41",
+   "nombre": "EU Conopoima",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "EL HATILLO",
+   "coord_politico": {
+    "nombre": "MARÍA BELLY",
+    "cedula": "8649914",
+    "telefono": "0412-9203517",
+    "ente": "SUPERINTENDENCIA DE LA ACTIVIDAD ASEGURADORA (SUDIASEG)"
+   },
+   "seguridad": {
+    "nombre": "",
+    "cedula": "",
+    "telefono": "",
+    "organismo": "",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": true,
+    "psicologo": false,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 0,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "NO CUENTA CON PERSONAL DE SEGURIDAD ASIGNADO\nNO CUENTA CON CAMAS NI COBIJAS (SOLO COLCHONES)\nNO CUENTA CON DUCHAS\nSERVICIO DE AGUA RACIONADO ( MIERCOLES A DOMINGO)\nAnalista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: C/J LEIDY BRISEÑO",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.821548,
+     10.423575
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "UNIDAD EDUCATIVA NACIONAL CONOPOIMA",
+    "hoja": "CG CARLOS CONTRERAS",
+    "coordenadas_excel": "10.423575,-66.821548"
+   }
+  },
+  "centro-38": {
+   "id": "centro-38",
+   "nombre": "CEIN Lino Clemente, Baruta",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "BARUTA",
+   "coord_politico": {
+    "nombre": "JOSE CONTRERAS",
+    "cedula": "33968532",
+    "telefono": "4241875291",
+    "ente": "INSTITUTO VENEZOLANO DE LOS SEGUROS SOCIALES (IVSS)"
+   },
+   "seguridad": {
+    "nombre": "",
+    "cedula": "",
+    "telefono": "",
+    "organismo": "",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": true,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 1,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "NO CUENTA CON PERSONAL DE SEGURIDAD ASIGNADO\nZONA IDE ALTA PELIGROSIDAD\nFALLAS DE ALUMBRADO PÚBLICO\nZONA DE OPOSICIÓN\nAnalista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: COM. WIZULEIDYS MÚJICA",
+   "_meta": {
+    "nombre_excel": "UNIDAD  EDUCATIVA NACIONAL LINO DE CLEMENTE",
+    "hoja": "CG CARLOS CONTRERAS",
+    "coordenadas_excel": "10°27'31.1N y 66°51'56.3W"
+   }
+  },
+  "centro-40": {
+   "id": "centro-40",
+   "nombre": "UEN EI Libertador",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "CHACAO",
+   "coord_politico": {
+    "nombre": "CRISMER LAUCHO",
+    "cedula": "13432322",
+    "telefono": "4144668829",
+    "ente": "MINISTERIO DE HÁBITAT Y VIVIENDA"
+   },
+   "seguridad": {
+    "nombre": "",
+    "cedula": "",
+    "telefono": "",
+    "organismo": "",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "NO SE CONSIDERA APTO PARA REFUGIO\nNO CUENTA CON PERSONAL DE SEGURIDAD ASIGNADO\nAnalista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: COM. WENDY SANTAELLA",
+   "_meta": {
+    "nombre_excel": "UEN EL LIBERTADOR",
+    "hoja": "CG CARLOS CONTRERAS",
+    "coordenadas_excel": "10°30,29''N,66°06''O"
+   }
+  },
+  "centro-39": {
+   "id": "centro-39",
+   "nombre": "UEN Jesús Maria Alfaro, Cafetal",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "CAFETAL",
+   "coord_politico": {
+    "nombre": "YARISOL BERRIOS",
+    "cedula": "13564199",
+    "telefono": "0412-9906973",
+    "ente": "INSTITUTO NACIONAL DE LOS ESPACIOS ACUATICOS."
+   },
+   "seguridad": {
+    "nombre": "",
+    "cedula": "",
+    "telefono": "",
+    "organismo": "",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "FRACTURA EN LOS TANQUES DE AGUA\nFUGA DE GAS EN LA COCINA\nNO CUENTA CON PERSONAL DE SEGURIDAD ASIGNADO\nAnalista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: COM. KELY SANTIAGO",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.832184,
+     10.464064
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "UNIDAD EDUCATIVA NACIONAL  JESÚS MARIA ALFARO ZAMORA",
+    "hoja": "CG CARLOS CONTRERAS",
+    "coordenadas_excel": "10.464064,-66.832184"
+   }
+  },
+  "centro-46": {
+   "id": "centro-46",
+   "nombre": "CEN Ana Maria Campos, Filas de Mariche",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "MIRANDA",
+   "municipio": "SUCRE",
+   "parroquia": "FILAS DE MARICHE",
+   "coord_politico": {
+    "nombre": "JOSÉ VICENTE RANGEL S.",
+    "cedula": "V-16.876.384",
+    "telefono": "0414-3298498",
+    "ente": "INST. MUNIC. AUTÓNOMO DE PROTECC. SANEAM. (IMAPSAS)"
+   },
+   "seguridad": {
+    "nombre": "POR DESIGNAR",
+    "cedula": "",
+    "telefono": "",
+    "organismo": "POLICÍA MUNICIPAL DE SUCRE",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": null,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "CAPACIDAD PARA 200 PERSONAS, SE PREVE RECIBIR A 120 PERSONAS\nINSTALACIONES EN FASE DE ACONDICIONAMIENTO, SE ESPERA LLEGADA DE ENSERES E INSUMOS.\nCAPTAHUELLAS ASIGNADOS AL COORDINADOR POLITICO\nASEGURAMIENTO ESTARÁ A CARGO DE 10 FUNCIONARIOS DE POLISUCRE\nAnalista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.7445583,
+     10.4484739
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "CEN ANA MARÍA CAMPOS",
+    "hoja": "CG JOSE MARTINEZ",
+    "coordenadas_excel": "10.4484739,-66.7445583,16"
+   }
+  },
+  "centro-47": {
+   "id": "centro-47",
+   "nombre": "CEN Mariscal Sucre, La Dolorita",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "MIRANDA",
+   "municipio": "SUCRE",
+   "parroquia": "LA DOLORITA",
+   "coord_politico": {
+    "nombre": "CNEL (EJB) JOSÉ ZAMBRANO",
+    "cedula": "V-13.468.262",
+    "telefono": "0416-6135483",
+    "ente": "MINISTERIO DEL PODER POPULAR PARA INDUSTRIA Y COMERCIO"
+   },
+   "seguridad": {
+    "nombre": "COMISARIO JOSÉ ARIAS",
+    "cedula": "",
+    "telefono": "",
+    "organismo": "ALCALDÍA DEL MUNICIPIO SUCRE",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": null,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "CENTRO NO APTO, SIN CONDICIONES DE SEGURIDAD\nCENTRO EN FASE DE ACONDICIONAMIENTO\nFACHADAS Y PAREDES AFECTADAS DURANTE LOS TERREMOTOS\nAnalista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.7630672,
+     10.4620216
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "CEN MARISCAL SUCRE",
+    "hoja": "CG JOSE MARTINEZ",
+    "coordenadas_excel": "10.4620216-66.7630672"
+   }
+  },
+  "centro-48": {
+   "id": "centro-48",
+   "nombre": "CEN Francisco Iznardi",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "MIRANDA",
+   "municipio": "SUCRE",
+   "parroquia": "PETARE",
+   "coord_politico": {
+    "nombre": "ANA KATIUSCA LEÓN TORRES",
+    "cedula": "V-11.689.472",
+    "telefono": "0424-1697101",
+    "ente": "CONSEJO LEGISLATIVO DEL ESTADO MIRANDA"
+   },
+   "seguridad": {
+    "nombre": "I/J SALANDI DRAIMER",
+    "cedula": "V-15.758.276",
+    "telefono": "4128269486",
+    "organismo": "POLIMIRANDA",
+    "personal_mando": 2,
+    "vehiculos": 1
+   },
+   "servicios": {
+    "medicos": null,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "LA SUDEBAN, ES LA ENCARGADA DEL SUMINISTRO LOGÍSTICO\nCENTRO TRANSITORIO EN FASE DE ACONDICIONAMIENTO\nNO CUENTA CON EL SERVICIO DE ELECTRICIDAD Y ESTÁN TRABAJANDO PARA REESTABLECERLO.\nCAPACIDAD PARA ATENDER 150 PERSONAS, SE ESPERA RECIBIR ENTRE 120 Y 150 PERSONAS\nAnalista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.7575537,
+     10.4589414
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "UNIDAD EDUC. ESTADAL FRANCISCO IZNARDI",
+    "hoja": "CG JOSE MARTINEZ",
+    "coordenadas_excel": "10.4589414-66.7575537"
+   }
+  },
+  "centro-49": {
+   "id": "centro-49",
+   "nombre": "UEN Jose de Jesús Arocha, Petare",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "MIRANDA",
+   "municipio": "SUCRE",
+   "parroquia": "PETARE",
+   "coord_politico": {
+    "nombre": "GABRIELA BERRIOS",
+    "cedula": "SE PROCESA",
+    "telefono": "0412-6051385",
+    "ente": "CORPOELEC"
+   },
+   "seguridad": {
+    "nombre": "I/J OGLIS AGUIRRE",
+    "cedula": "SE PROCESA",
+    "telefono": "0414-3967801",
+    "organismo": "POLISUCRE",
+    "personal_mando": 3,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": null,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "CENTRO EN FASE DE ACONDICIONAMIENTO\nPREVE RECIBIR 50 PERSONAS\nFUERON ASIGNADOS LOS CAPTAHUELLAS\nAnalista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.8064085,
+     10.4767121
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "UEN DR. JOSÉ DE JESÚS AROCHA",
+    "hoja": "CG JOSE MARTINEZ",
+    "coordenadas_excel": "10.4767121,-66.8064085"
+   }
+  },
+  "centro-05": {
+   "id": "centro-05",
+   "nombre": "EBN Dr. Guillermo Delgado Palacios",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "El VALLE",
+   "coord_politico": {
+    "nombre": "CAPITAN EDAGAR CAMAUTE",
+    "cedula": "19128177",
+    "telefono": "4143695140",
+    "ente": "CANTV"
+   },
+   "seguridad": {
+    "nombre": "TENIENTE MARCO ANTONIO RICO BARRIOS",
+    "cedula": "27698045",
+    "telefono": "4243283894",
+    "organismo": "GUARDIA NACIONAL BOLIVARINA",
+    "personal_mando": 18,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "EN EL PRESITADO CENTRO TRANSICITORIO  ESTAN  INICIANDO LAS ADECUACIÓN DE LOS ESPACIOS PARA RECIBIR LA LOGÍSTICA Y EL PERSONAL QUE VAN ATENDER A LOS REFUGIADOS QUE ESTA ESTA PREVISTO RECIBIRLOS PARA EL DÍA LUNES 06JUL26\nAnalista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G RONNY GALDONAS",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.919522,
+     10.459301
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "UNIDAD EDUCATIVA NACIONAL DOCTOR GUILLERMO DELGADO PALACIOS",
+    "hoja": "CG RONNY GALDONAS",
+    "coordenadas_excel": "10.459301, - 66.919522"
+   }
+  },
+  "centro-04": {
+   "id": "centro-04",
+   "nombre": "Liceo Jose Avalos",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "El VALLE",
+   "coord_politico": {
+    "nombre": "Diputado  Jesús Farias",
+    "cedula": "26468654",
+    "telefono": "",
+    "ente": "BANCO CENTRAL DE VENEZUELA  PADRINO"
+   },
+   "seguridad": {
+    "nombre": "PRIMER TENIENTE LUIS PEREZ CASTILLO",
+    "cedula": "26468654",
+    "telefono": "4242979359",
+    "organismo": "Guardia del pueblo",
+    "personal_mando": 118,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": false,
+    "psicologo": true,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "Están adecuando las instalaciones para recibir a los refugiados\nAnalista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G RONNY GALDONAS",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.91113,
+     10.463444
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "LICEO  JOSE AVALO",
+    "hoja": "CG RONNY GALDONAS",
+    "coordenadas_excel": "10.463444 - 66.911130"
+   }
+  },
+  "centro-03": {
+   "id": "centro-03",
+   "nombre": "UEN Gran Colombia — Edif. Colombia",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "Santa Rosalía",
+   "coord_politico": {
+    "nombre": "Marcos Rodolfo Pulgar Salas",
+    "cedula": "14262225",
+    "telefono": "0412-5551533",
+    "ente": "Ministerio de la Juventud"
+   },
+   "seguridad": {
+    "nombre": "Primer Ttte Rodríguez Robles Ivan",
+    "cedula": "26509561",
+    "telefono": "0426-4632103",
+    "organismo": "Guardia Nacional",
+    "personal_mando": 10,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": false,
+    "psicologo": true,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 180,
+   "familias_ocupadas": 62,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 27,
+    "ninas": 40,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 57,
+    "adultos_m": 40,
+    "adultos_mayores_h": 6,
+    "adultos_mayores_m": 10,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "Reportan que les hace falta el capta de huellas para mejor control de los refugiados\nAnalista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G RONNY GALDONAS",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.90808333333334,
+     10.4795
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "U.E.N Gran Colombia 1 -EDIF. Colombia Edif.Colombia",
+    "hoja": "CG RONNY GALDONAS",
+    "coordenadas_excel": "10°28'46.2\"N 66°54'29.1\"W"
+   }
+  },
+  "centro-16": {
+   "id": "centro-16",
+   "nombre": "Liceo Juan Landaeta",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "SUCRE",
+   "parroquia": "SUCRE",
+   "coord_politico": {
+    "nombre": "RICHARD ARGUELLO",
+    "cedula": "V-12.864.816",
+    "telefono": "4127029010",
+    "ente": "MINISTERIO DE OBRAS PÙBLICAS"
+   },
+   "seguridad": {
+    "nombre": "JOSÈ GREGORIO DUQUE",
+    "cedula": "V-16.288.943",
+    "telefono": "0414-1050207",
+    "organismo": "MINISTERIO DE OBRAS PÙBLICAS",
+    "personal_mando": 20,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": null,
+    "ambulancias": null,
+    "psicologo": null,
+    "contacto_juez_paz": null
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "CENSO EN PROCESO\nAnalista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
+   "_meta": {
+    "nombre_excel": "Unidad Educativa Nacional Juan Landaeta",
+    "hoja": "CG RAMON YEPEZ",
+    "coordenadas_excel": "https://maps.app.goo.gl/zwtLS1DzLN5N3M5M7?g_st=ac"
+   }
+  },
+  "centro-17": {
+   "id": "centro-17",
+   "nombre": "UE Gervacio Artigas",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "SUCRE",
+   "coord_politico": {
+    "nombre": "FRANCISCO PADRON",
+    "cedula": "V- 17.642.632",
+    "telefono": "0412-9639421",
+    "ente": "BANCO DEL TERESO"
+   },
+   "seguridad": {
+    "nombre": "G/B MANUEL  SÀNCHEZ",
+    "cedula": "V- 6.237.188",
+    "telefono": "0412-4375482",
+    "organismo": "",
+    "personal_mando": 26,
+    "vehiculos": 5
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": true,
+    "psicologo": true,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 232,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "EL PLANTEL EDUCATIVO CUENTA CON 03 NIVELES Y UNA CAPACIDAD PARA 400 PERSONAS.\nBAÑOS MASCULINOS 18, 30 FEMENINAS 8 SE ESTÀN HABILITANDO BAÑOS PORTÀTILES)\nAnalista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
+   "_meta": {
+    "nombre_excel": "Complejo Educativo José Gervasio Artigas",
+    "hoja": "CG RAMON YEPEZ",
+    "coordenadas_excel": ""
+   }
+  },
+  "centro-18": {
+   "id": "centro-18",
+   "nombre": "Liceo Juan Lovera",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "MACARAO",
+   "coord_politico": {
+    "nombre": "DOUGLAS JOSE MATERAN",
+    "cedula": "V- 12.544.751",
+    "telefono": "0426-5118821",
+    "ente": "ALCALDIA DE CARACAS"
+   },
+   "seguridad": {
+    "nombre": "CARLOS EDUARDO SÀNCHEZ GUILLÈN",
+    "cedula": "V- 16.412.127",
+    "telefono": "0424-7053216",
+    "organismo": "CICPC",
+    "personal_mando": 10,
+    "vehiculos": 2
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": null,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 62,
+   "familias_ocupadas": 19,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 7,
+    "ninas": 11,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 12,
+    "adultos_m": 25,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 2,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "PERSONA CON DISCAPACIDAD:02 \n*ZULAY CORREA \nPOR ACV\nC.I: v-10380990\n*JOMELIS SILVA \nV-14891823\n ESQUIZOFRENIA.\nADOLESCENTES:07\nMASCULINO: 03\n FEMENINOS: 04\nCON ESPACIOS PARA LA COCINA, SIN OPERATIVIDAD.\n BAÑOS OPERATIVOS \n AGUA RECURRENTE\n20 CORCHONETAS \n02 CANINOS\nAnalista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
+   "_meta": {
+    "nombre_excel": "Liceo Bolivariano Juan Lovera",
+    "hoja": "CG RAMON YEPEZ",
+    "coordenadas_excel": ""
+   }
+  },
+  "centro-19": {
+   "id": "centro-19",
+   "nombre": "CE Claudio Feliciano",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "MACARAO",
+   "coord_politico": {
+    "nombre": "ERICA CASTRO",
+    "cedula": "V-24.529.081",
+    "telefono": "0412-2974318",
+    "ente": "GOBIERNO DE CARACAS/UBCH JEFA DE CENTRO ELECTORAL"
+   },
+   "seguridad": {
+    "nombre": "",
+    "cedula": "",
+    "telefono": "",
+    "organismo": "",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": null,
+    "ambulancias": null,
+    "psicologo": null,
+    "contacto_juez_paz": null
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "SE ESTIMA EL INGRESO DE 280 PERSONAS CON UN APROXIMADO DE 52 FAMILIA\nAREA PARA COCINA: SI\nBAÑOS : SI \nAREA DE ESPARCIMIENTO: SI\nINFORMACIÒN  EMITIDA POR: RAILU DENISSE BLANCO MORALES\nC.I: V-17691709\nTLF: 0424121416\nCARGO: DIRECTORA DE GESTION HUMANA  DEL  MINISTERIO DEL PODER POPULAR PARA LA EDUCACION.\nAnalista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
+   "_meta": {
+    "nombre_excel": "Unidad Educativa Nacional Claudio Feliciano",
+    "hoja": "CG RAMON YEPEZ",
+    "coordenadas_excel": ""
+   }
+  },
+  "centro-06": {
+   "id": "centro-06",
+   "nombre": "Liceo Judith Liendo",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "El Valle",
+   "coord_politico": {
+    "nombre": "José Luis Rebolledo Monjes",
+    "cedula": "16669861",
+    "telefono": "0426-5740423/ 0422-0180832",
+    "ente": "Ministerio de Pesca y Acuicultura"
+   },
+   "seguridad": {
+    "nombre": "Capitán Ángel  Mestra Jovito Leandro",
+    "cedula": "21550535",
+    "telefono": "4120778964",
+    "organismo": "Guarda Nacional Bolivariana \n- NÚMERO DE PERSONAL A SU MANDO: 18",
+    "personal_mando": 18,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 0,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "En el Campamento se sostuvo entrevista con la Ciudadana Isabel Noguera, Gerente Corporativo de Seguridad Física de PDVSA, Teléfono de contacto 0412-2635289, quién manifestó la instalación de un Circuito Cerrado de Cámaras de Seguridad en el referido plantel.\nAnalista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G GONLALEZ MARRON",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.91609766425218,
+     10.458042889648349
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "UNIDAD EDUCATIVA NACIONAL MAESTRA JUDITH LIENDO",
+    "hoja": "CG LUIS GONZALEZ",
+    "coordenadas_excel": "10.458042889648349, -66.91609766425218"
+   }
+  },
+  "centro-07": {
+   "id": "centro-07",
+   "nombre": "UEN Generala Manuela Sáenz, Fuerte Tiuna",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "El Valle",
+   "coord_politico": {
+    "nombre": "Viceministro José Fragoza",
+    "cedula": "SE PROCESA",
+    "telefono": "SE PROCESA",
+    "ente": "Ministerio del Poder Popular de Atención de las Aguas"
+   },
+   "seguridad": {
+    "nombre": "Sargento Primero Herrera Griego Ángel José",
+    "cedula": "30378501",
+    "telefono": "0412-9035741",
+    "organismo": "Guardia Nacional Bolivariana",
+    "personal_mando": 1,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "En espera de la designación como Campamento Transitorio.\nAnalista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G GONLALEZ MARRON",
+   "_meta": {
+    "nombre_excel": "Unidad Educativa Generala Manuela Sáenz",
+    "hoja": "CG LUIS GONZALEZ",
+    "coordenadas_excel": ""
+   }
+  },
+  "centro-08": {
+   "id": "centro-08",
+   "nombre": "Liceo Leopoldo Aguerevere",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "Sanj Pedro",
+   "coord_politico": {
+    "nombre": "Gladys Gricelda Rodríguez Boyer",
+    "cedula": "6221358",
+    "telefono": "4241510728",
+    "ente": "Procuraduría General de la Republica"
+   },
+   "seguridad": {
+    "nombre": "Primer Teniente Gutiérrez Moreno Cesar Yldemar",
+    "cedula": "21137333",
+    "telefono": "4124039012",
+    "organismo": "Guardia Nacional Bolivariana",
+    "personal_mando": 19,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 218,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "218, aún sin desglosar por género ni edad.\nSe logro observar que se mantienen en labores de acondicionamiento de la infraestructura (Construcción de baños), por parte de la Procuraduría General de la Republica, ente encantado del Campamento transitorio.\nAnalista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G GONLALEZ MARRON",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.88907597868587,
+     10.486147663059322
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "Liceo Leopoldo Aguerrevere",
+    "hoja": "CG LUIS GONZALEZ",
+    "coordenadas_excel": "10.486147663059322, -66.88907597868587"
+   }
+  },
+  "centro-45": {
+   "id": "centro-45",
+   "nombre": "UEN Generalisimo Francisco de Miranda, Filas de Mariche",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "MIRANDA",
+   "municipio": "SUCRE",
+   "parroquia": "FILAS DE MARICHE",
+   "coord_politico": {
+    "nombre": "DIPUTADO JULIO TORO",
+    "cedula": "",
+    "telefono": "4121783963",
+    "ente": "MINISTERIO DE INDUSTRIA Y COMERCIO"
+   },
+   "seguridad": {
+    "nombre": "DIRECTOR DEL COLEGIO ALI TORO",
+    "cedula": "",
+    "telefono": "4127190447",
+    "organismo": "POLISUCRE",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "FALTA COCINA, ILUMINACIÓN Y DUCHAS.\nEs espera de los dagnificados\nAnalista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.84784642940987,
+     10.487837315324562
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "UEN GENERALISIMO FRANCISCO DE MIRANDA",
+    "hoja": "CG JUMMY BETANCOURT",
+    "coordenadas_excel": "10.487837315324562, -66.84784642940987"
+   }
+  },
+  "centro-43": {
+   "id": "centro-43",
+   "nombre": "UEN Rafael Napoleón Baite",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "MIRANDA",
+   "municipio": "SUCRE",
+   "parroquia": "PETARE",
+   "coord_politico": {
+    "nombre": "Franco Sánchez",
+    "cedula": "",
+    "telefono": "4169863505",
+    "ente": "ALCALDIA MCPIO. SUCRE"
+   },
+   "seguridad": {
+    "nombre": "Ana Rodríguez",
+    "cedula": "",
+    "telefono": "4127302975",
+    "organismo": "POLISUCRE",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "Falla en drenaje de pocetas, tanque de agua, filtros y bombas de agua.\nEn espera de los dagnificados\nAnalista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.7977097,
+     10.48179059571
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "UEN Rafael Napoleón Baute",
+    "hoja": "CG JUMMY BETANCOURT",
+    "coordenadas_excel": "10.48179059571, -66.7977097"
+   }
+  },
+  "centro-44": {
+   "id": "centro-44",
+   "nombre": "CEN Negro Primero Caucaguita",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "MIRANDA",
+   "municipio": "SUCRE",
+   "parroquia": "CAUCAGUITA",
+   "coord_politico": {
+    "nombre": "JORGE FERNÁNDEZ",
+    "cedula": "",
+    "telefono": "4129285800",
+    "ente": "DIRECTOR DEL COLEGIO"
+   },
+   "seguridad": {
+    "nombre": "JORGE FERNÁNDEZ",
+    "cedula": "",
+    "telefono": "4129285800",
+    "organismo": "POLISUCRE",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "Proceso de organización de los dagnificados por espacios.\nEn espera de los dagnificados\nAnalista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.74088119994545,
+     10.484968722090283
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "CEN NEGRO PRIMERO CAUCAGUITA",
+    "hoja": "CG JUMMY BETANCOURT",
+    "coordenadas_excel": "10.484968722090283, -66.74088119994545"
+   }
+  },
+  "centro-42": {
+   "id": "centro-42",
+   "nombre": "CEN Luis Beltran Prieto Figueroa",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "MIRANDA",
+   "municipio": "SUCRE",
+   "parroquia": "PETARE",
+   "coord_politico": {
+    "nombre": "Sethisis Machado",
+    "cedula": "",
+    "telefono": "4242485989",
+    "ente": "ALCLADIA MCPIO.  SUCRE"
+   },
+   "seguridad": {
+    "nombre": "Com. Eduardo Fernández",
+    "cedula": "",
+    "telefono": "4141639484",
+    "organismo": "",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "En espera de los dagnificados\nAnalista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.82645090433157,
+     10.493542878911027
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "CEN LUIS BELTRÁN PRIETO FIGUEROA",
+    "hoja": "CG JUMMY BETANCOURT",
+    "coordenadas_excel": "10.493542878911027, -66.82645090433157"
+   }
+  },
+  "centro-30": {
+   "id": "centro-30",
+   "nombre": "UEE Adolfo Nava Coronado",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "Miranda",
+   "municipio": "Baruta",
+   "parroquia": "El Cafetal",
+   "coord_politico": {
+    "nombre": "Anabel  Pereira Fernandez",
+    "cedula": "14122851",
+    "telefono": "",
+    "ente": "Ministerio de Economia y Finanzas"
+   },
+   "seguridad": {
+    "nombre": "Maikel Jesus Carrero",
+    "cedula": "26016473",
+    "telefono": "0424 143 9479",
+    "organismo": "Bandes",
+    "personal_mando": 2,
+    "vehiculos": 2
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "EL CENTRO SE ENCUENTRA EN ACONDICIONAMIENTO, SE TIENE ESTIMADO RECIBIR 60 PERSONAS. AUN ESTAN CONFIRMANDO INFORMACION.\nAnalista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.85952777777777,
+     10.449083333333334
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "UEE Adolfo Navas Coronado",
+    "hoja": "CG PEREZ LOPEZ",
+    "coordenadas_excel": "10°26'56.7\"N 66°51'34.3\" W"
+   }
+  },
+  "centro-28": {
+   "id": "centro-28",
+   "nombre": "UEN Tito Salas",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "Miranda",
+   "municipio": "Baruta",
+   "parroquia": "las minas",
+   "coord_politico": {
+    "nombre": "Jesús Teina",
+    "cedula": "5976970",
+    "telefono": "4226040708",
+    "ente": "comuna primera fortaleza del rozario"
+   },
+   "seguridad": {
+    "nombre": "Miguel ramirez",
+    "cedula": "20282742",
+    "telefono": "0424 143 9479",
+    "organismo": "DGCIM",
+    "personal_mando": 0,
+    "vehiculos": 1
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "EL CENTRO SE ENCUENTRA EN ACONDICIONAMIENTO\n TODAVIA ESTAN A LA ESPERA DE LAS PERSONAS QUE SE VAN A HOSPEDAR EN EL RECINTO\nNOTA: TODAVIA ESTAN A LA ESPERA DE LAS PERSONAS QUE SE VAN A HOSPEDAR EN EL RECINT\nAnalista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
+   "_meta": {
+    "nombre_excel": "unidad educativa tito salas",
+    "hoja": "CG PEREZ LOPEZ",
+    "coordenadas_excel": ""
+   }
+  },
+  "centro-26": {
+   "id": "centro-26",
+   "nombre": "UE Luis Hurtado",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "El Junkito",
+   "coord_politico": {
+    "nombre": "José Luis Unda",
+    "cedula": "11204636",
+    "telefono": "4265238480",
+    "ente": "Ministerio de la Comuna"
+   },
+   "seguridad": {
+    "nombre": "Eber Manrrique",
+    "cedula": "20364893",
+    "telefono": "0424-253-92-80",
+    "organismo": "P.N.B / Milicia.",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": false,
+    "psicologo": true,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 151,
+   "familias_ocupadas": 19,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 11,
+    "ninas": 19,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 39,
+    "adultos_m": 58,
+    "adultos_mayores_h": 6,
+    "adultos_mayores_m": 18,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -67.00311111111111,
+     10.485555555555555
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "U.E.N. Luis Hurtado Higuera",
+    "hoja": "CG PEREZ LOPEZ",
+    "coordenadas_excel": "10°29'08.0\"N 67°00'11.2\"W"
+   }
+  },
+  "centro-29": {
+   "id": "centro-29",
+   "nombre": "UEN Sorocaima",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "Miranda",
+   "municipio": "Baruta",
+   "parroquia": "Baruta , Nuestra Señora del Rosario",
+   "coord_politico": {
+    "nombre": "",
+    "cedula": "",
+    "telefono": "",
+    "ente": ""
+   },
+   "seguridad": {
+    "nombre": "",
+    "cedula": "",
+    "telefono": "",
+    "organismo": "",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "EL CENTRO SE ENCUENTRA EN ACONDICIONAMIENTO, SE TIENE ESTIMADO RECIBIR 80 PERSONAS. AUN ESTÁN CONFIRMANDO INFORMACIÓN.\n‎EL CENTRO SE ENCUENTRA EN ACONDICIONAMIENTO, SE TIENE ESTIMADO RECIBIR 80 PERSONAS. AUN ESTÁN CONFIRMANDO INFORMACIÓN.\n‎EL CENTRO SE ENCUENTRA EN ACONDICIONAMIENTO, SE TIENE ESTIMADO RECIBIR 80 PERSONAS. AUN ESTÁN CONFIRMANDO INFORMACIÓN.\n‎\nNota : solo se encuentra el personal de mantenimiento , así mismo el encargado es el ciudadano JHONATAN RINCON CEDULA C.IV- 14.074.408\nAnalista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
+   "_meta": {
+    "nombre_excel": "U.E.N SOROCAIMA",
+    "hoja": "CG PEREZ LOPEZ",
+    "coordenadas_excel": ""
+   }
+  },
+  "centro-27": {
+   "id": "centro-27",
+   "nombre": "UEN Eduardo Crema",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "El Paraiso",
+   "coord_politico": {
+    "nombre": "María Quinterro",
+    "cedula": "",
+    "telefono": "4241842634",
+    "ente": "Min. de Ciencia y Tecnologia"
+   },
+   "seguridad": {
+    "nombre": "Miguel Briceño",
+    "cedula": "16564276",
+    "telefono": "0412-218-53-20",
+    "organismo": "Min Ciencia y Tecnologia",
+    "personal_mando": 6,
+    "vehiculos": 1
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": true,
+    "psicologo": true,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.930506,
+     10.489793
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "U.E.N. Eduardo Crema",
+    "hoja": "CG PEREZ LOPEZ",
+    "coordenadas_excel": "10.489793,-66.930506"
+   }
+  },
+  "centro-31": {
+   "id": "centro-31",
+   "nombre": "UEN Alejo Fortique",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. MIRANDA",
+   "municipio": "BARUTA",
+   "parroquia": "BARUTA",
+   "coord_politico": {
+    "nombre": "JAVIER DUARTE",
+    "cedula": "15856974",
+    "telefono": "4120216626",
+    "ente": "MINISTERIO DE SERVICIOS PENITENCIARIOS"
+   },
+   "seguridad": {
+    "nombre": "MAYOR (GNB) MICHAEL NUÑEZ",
+    "cedula": "19224750",
+    "telefono": "4123082834",
+    "organismo": "SERVICIO PENITENCIARIO",
+    "personal_mando": 50,
+    "vehiculos": 1
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": false,
+    "psicologo": true,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "LAS ADECUACIONES LAS ESTA ASUMIENDO EL SERVICIO PENITENCIARIO CON PRIVADOS DE LIBERTAD, A LA HORA EQUIPO DE PDVSA INGRESA PARA LA INSTALACIÓN DE CÁMARAS\nAnalista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G CARLOS ORTEGA",
+   "_meta": {
+    "nombre_excel": "UE. ALEJO FORTIQUE",
+    "hoja": "CG CARLOS ORTEGA",
+    "coordenadas_excel": "10° 43' 07\" LN 66° 87' 57\" LO"
+   }
+  },
+  "centro-32": {
+   "id": "centro-32",
+   "nombre": "CE Andres Bello",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "La Candelaria",
+   "coord_politico": {
+    "nombre": "Lesguis Pajedes",
+    "cedula": "se procesa",
+    "telefono": "4241261096",
+    "ente": "Cocejal y enlace Político de la Candelari"
+   },
+   "seguridad": {
+    "nombre": "Mayor Enrique Olmos",
+    "cedula": "10864836",
+    "telefono": "4169181873",
+    "organismo": "MILICIA",
+    "personal_mando": 15,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": false,
+    "psicologo": true,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 184,
+   "familias_ocupadas": 39,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 33,
+    "ninas": 17,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 26,
+    "adultos_m": 29,
+    "adultos_mayores_h": 74,
+    "adultos_mayores_m": 5,
+    "embarazadas": 2,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "DOS EMBARAZADA, DOS ADULTOS MAYORES UNO (01) DISCAPACIDAD VISUAL, UNO (01) CON DIABETES, EN LA INTALACIONES DE CE ANRES BELLOS SIN NOVEDAD\nAnalista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G CARLOS ORTEGA",
+   "_meta": {
+    "nombre_excel": "Andrés Bello",
+    "hoja": "CG CARLOS ORTEGA",
+    "coordenadas_excel": "10° 50' 18\" LN 66° 90' 37\" LO"
+   }
+  },
+  "centro-33": {
+   "id": "centro-33",
+   "nombre": "UENB coronel Carlos Delgado Chalboud",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "Coche",
+   "coord_politico": {
+    "nombre": "Varguin González",
+    "cedula": "SE PROCESA",
+    "telefono": "4141243722",
+    "ente": "INH JULIO LEÓN HEREDIA"
+   },
+   "seguridad": {
+    "nombre": "José Luis Veramendez",
+    "cedula": "14322227",
+    "telefono": "4124093315",
+    "organismo": "POLICIA MUNICIPIO LIBERTADOR",
+    "personal_mando": 6,
+    "vehiculos": 1
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": true,
+    "psicologo": true,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 417,
+   "familias_ocupadas": 417,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 85,
+    "ninas": 84,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 106,
+    "adultos_m": 120,
+    "adultos_mayores_h": 22,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 1,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "MANTENIMIENTO DE OBRAS PUBLICAS,  CHEQUEO HIDROBEN, INFRAESTRUCTURA EN ÓPTIMAS CONDICIONES\nAnalista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G CARLOS ORTEGA",
+   "_meta": {
+    "nombre_excel": "UENB Carlos Deelgado Charlboud",
+    "hoja": "CG CARLOS ORTEGA",
+    "coordenadas_excel": "10° 30' 13\" LN 66° 52' 10\" LO"
+   }
+  },
+  "centro-37": {
+   "id": "centro-37",
+   "nombre": "UEN Josefa Irausquin Lopez, El Cafetal",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "MIRANDA",
+   "municipio": "BARUTA",
+   "parroquia": "CAFETAL",
+   "coord_politico": {
+    "nombre": "DULCE MORAN",
+    "cedula": "5419397",
+    "telefono": "0416-6187987",
+    "ente": "PSUV"
+   },
+   "seguridad": {
+    "nombre": "NO POSEE",
+    "cedula": "",
+    "telefono": "",
+    "organismo": "",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 100,
+   "familias_ocupadas": 25,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "SE ENCUENTRAN REALIZANSO CENSO A LOS DAMNIFICADOS\nAnalista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
+   "_meta": {
+    "nombre_excel": "U.E.N JOSEFA IRASQUIN LOPEZ",
+    "hoja": "CJ GODOY",
+    "coordenadas_excel": ""
+   }
+  },
+  "centro-36": {
+   "id": "centro-36",
+   "nombre": "CEIN Mamá Rosa, Urb La Limonera",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "MIRANDA",
+   "municipio": "BARUTA",
+   "parroquia": "NUESTRA SEÑORA DER ROSARIO",
+   "coord_politico": {
+    "nombre": "TRIDIS CONTRERAS",
+    "cedula": "23685256",
+    "telefono": "0412-8798199",
+    "ente": "CANCILLERIA"
+   },
+   "seguridad": {
+    "nombre": "T/C GNB EDWIN CARABALO",
+    "cedula": "14841540",
+    "telefono": "0414-7935343",
+    "organismo": "GNB",
+    "personal_mando": 10,
+    "vehiculos": 1
+   },
+   "servicios": {
+    "medicos": false,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 67,
+   "familias_ocupadas": 17,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 16,
+    "ninas": 11,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 14,
+    "adultos_m": 21,
+    "adultos_mayores_h": 3,
+    "adultos_mayores_m": 2,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "COCINA INOPFERATIVA, NO POSEE NEVERA, NO POSEE AIRE ACONDICIONADOS , BAÑOS SIN DUCHA\nAnalista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
+   "_meta": {
+    "nombre_excel": "CEN SIMONCITO \"MAMA ROSA\"",
+    "hoja": "CJ GODOY",
+    "coordenadas_excel": ""
+   }
+  },
+  "centro-34": {
+   "id": "centro-34",
+   "nombre": "UED Juan Antonio Perez Bonal",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "SUCRE",
+   "coord_politico": {
+    "nombre": "YOMAIRE LUCENA",
+    "cedula": "15332837",
+    "telefono": "0412-9532387",
+    "ente": "MINISTERIO COMUNA"
+   },
+   "seguridad": {
+    "nombre": "C/J OCTAVIO BARRUETA",
+    "cedula": "11158734",
+    "telefono": "0412-5957846",
+    "organismo": "POLICARACAS",
+    "personal_mando": 8,
+    "vehiculos": 1
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": true,
+    "psicologo": false,
+    "contacto_juez_paz": true
+   },
+   "total_afectados": 112,
+   "familias_ocupadas": 58,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 22,
+    "ninas": 25,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 25,
+    "adultos_m": 31,
+    "adultos_mayores_h": 2,
+    "adultos_mayores_m": 7,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 0,
+    "justicia_tjs": 1,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "SE CREQUIERE VENTILADORES , LA COCINA NO ESTA OPERATIVA ,SE REQUIERE TENSIOMETRO\nAnalista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
+   "_meta": {
+    "nombre_excel": "UE JUAN ANTONIO PEREZ BONALDE",
+    "hoja": "CJ GODOY",
+    "coordenadas_excel": ""
+   }
+  },
+  "centro-22": {
+   "id": "centro-22",
+   "nombre": "UEN Pablo Vila",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "EL PARAISO",
+   "coord_politico": {
+    "nombre": "DRA. MARÍA QUINTERO",
+    "cedula": "",
+    "telefono": "424-1842634",
+    "ente": "MINISTERIO DEL PODER POPULAR DE LA CIENCIA Y LA TECNÓLOGIA"
+   },
+   "seguridad": {
+    "nombre": "",
+    "cedula": "",
+    "telefono": "",
+    "organismo": "",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": null,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "EL CENTRO NO SE ENCUENTRA APTO, DEBIDO A CONDICIONES DE INFRAESTRUCTURA\nENTE ASIGNADO REALIZÓ EVALUACIÓN DE LAS INSTALACIONES\nAnalista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: C/G JORGE MEDINA",
+   "_meta": {
+    "nombre_excel": "UEN PABLO VILA",
+    "hoja": "CG NOVO ",
+    "coordenadas_excel": "10.489243/66.919248"
+   }
+  },
+  "centro-21": {
+   "id": "centro-21",
+   "nombre": "UEN Vicente Gil",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "SAN BERNARDINO",
+   "coord_politico": {
+    "nombre": "MILAGROS SALINAS",
+    "cedula": "",
+    "telefono": "0426-0550754",
+    "ente": "SAREN"
+   },
+   "seguridad": {
+    "nombre": "NO DESIGNADO",
+    "cedula": "",
+    "telefono": "",
+    "organismo": "",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": null,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "CENTRO POR ACONDICIONAMIENTO DE INSTALACIONES\nEN EL CENTRO NO SE ENCUENTRAN AUTORIDADES PRESENTES\nAnalista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: C/G JORGE MEDINA",
+   "_meta": {
+    "nombre_excel": "UEN VICENTE GIL",
+    "hoja": "CG NOVO ",
+    "coordenadas_excel": "10.517917/66.900161"
+   }
+  },
+  "centro-20": {
+   "id": "centro-20",
+   "nombre": "UE Luis Padrino",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "SAN JUAN",
+   "coord_politico": {
+    "nombre": "EILEN GONZÁLEZ",
+    "cedula": "",
+    "telefono": "0424-7816132",
+    "ente": "MINISTERIO DEL PODER POPULAR PARA SERVICIOS PENITENCIARIOS"
+   },
+   "seguridad": {
+    "nombre": "JOSÉ GRANADO",
+    "cedula": "V-11.009.357",
+    "telefono": "",
+    "organismo": "",
+    "personal_mando": 0,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": null,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 0,
+   "familias_ocupadas": 0,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "preparacion",
+   "novedades": "NO SE ENCUENTRAN AUTORIDADES PRESENTES.\nINSTALACIONES SE ENCUENTRAN EN ACONDICIONAMIENTO (OBREROS TRABAJANDO)\nAnalista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: C/G JORGE MEDINA",
+   "_meta": {
+    "nombre_excel": "UE LUIS PADRINO",
+    "hoja": "CG NOVO ",
+    "coordenadas_excel": "10.491/66.931"
+   }
+  },
+  "centro-51": {
+   "id": "centro-51",
+   "nombre": "UEN Gran Colombia — Edif. Perú",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "Santa Rosalía",
+   "cuerpo": "Guardia Nacional Bolivariana",
+   "coord_politico": {
+    "nombre": "Emely González",
+    "cedula": "18363475",
+    "telefono": "0416-4218626",
+    "ente": "Gobierno del Distrito Capital / Subsecretaría de Misiones y Grandes Misiones / Ministerio de Pueblos Indígenas (Mariam Guevara, C.I. 18417658, telf. 0416-6133198)"
+   },
+   "seguridad": {
+    "nombre": "Sgto. My. 3ra Páez Vielma José Sebastián",
+    "cedula": "19969757",
+    "telefono": "0412-0120706",
+    "organismo": "Guardia del Pueblo",
+    "personal_mando": 8,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": true,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 83,
+   "familias_ocupadas": 23,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 16,
+    "ninas": 15,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 28,
+    "adultos_m": 23,
+    "adultos_mayores_h": 1,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 1,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "La Población indígena son del sector los corales. Y de tanaguarenas en la Guaira, el campamento ha sido visitado por diferentes Fundaciones:\nGabriela Vargas CI 18143318 telf. 0412-6008050 Fundación CEDESEX.\nGepsi Marques CI 13978615 telf. 0416-5364763 Fundación Mentalink.\nSolicitan Dotación de tanques de agua.\nAnalista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G RONNY GALDONAS",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.9092427,
+     10.4781598
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "U.E.N. Gran Colombia 2-  Edif. Perú",
+    "hoja": "CG RONNY GALDONAS",
+    "coordenadas_excel": "10°28'46.2\"N 66°54'29.1\"W"
+   }
+  },
+  "centro-52": {
+   "id": "centro-52",
+   "nombre": "UEN Gran Colombia — Edif. Ecuador",
+   "fecha_levantamiento": "2026-07-03",
+   "estado_federativo": "DTTO. CAPITAL",
+   "municipio": "LIBERTADOR",
+   "parroquia": "Santa Rosalía",
+   "cuerpo": "Guardia Nacional Bolivariana",
+   "coord_politico": {
+    "nombre": "Aurora Araujo",
+    "cedula": "4817315",
+    "telefono": "0424-2181193",
+    "ente": "Ministerio de Educación"
+   },
+   "seguridad": {
+    "nombre": "Sgto. My. 3ra Páez Vielma José Sebastián",
+    "cedula": "19969757",
+    "telefono": "0412-0110706",
+    "organismo": "Guardia del Pueblo en compañía de la Guardia Nacional",
+    "personal_mando": 8,
+    "vehiculos": 0
+   },
+   "servicios": {
+    "medicos": null,
+    "ambulancias": false,
+    "psicologo": false,
+    "contacto_juez_paz": false
+   },
+   "total_afectados": 69,
+   "familias_ocupadas": 0,
+   "censo_en_proceso": true,
+   "ocupacion": {
+    "recien_nacidos_h": 0,
+    "recien_nacidos_m": 0,
+    "ninos": 0,
+    "ninas": 0,
+    "adolescentes_h": 0,
+    "adolescentes_m": 0,
+    "adultos_h": 0,
+    "adultos_m": 0,
+    "adultos_mayores_h": 0,
+    "adultos_mayores_m": 0,
+    "embarazadas": 0,
+    "discapacidad_h": 0,
+    "discapacidad_m": 0,
+    "mascotas": 0
+   },
+   "personal": {
+    "funcionarios": 0,
+    "medicos": 0,
+    "psicologos": 0,
+    "justicia_tjs": 0,
+    "justicia_mp": 0,
+    "justicia_defensoria": 0
+   },
+   "estado": "operativo",
+   "novedades": "Se están instalando y no están discriminados por sexo. Solo la cantidad en general\nNecesidad del sistema de huella. La seguridad nocturna está por parte de los vigilantes del Ministerio de Educación\nAnalista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G RONNY GALDONAS",
+   "geom": {
+    "type": "Point",
+    "coordinates": [
+     -66.9102427,
+     10.4775598
+    ]
+   },
+   "_meta": {
+    "nombre_excel": "U.E.N Gran Colombia 3- Edif. Ecuador",
+    "hoja": "CG RONNY GALDONAS",
+    "coordenadas_excel": "10°28'46.2\"N 66°54'29.1\"W"
+   }
+  }
+ },
+ "descartados": [],
+ "schema": {
+  "descripcion": "Cada centro es un Partial<CentroTransitorio>. Los campos mutables a actualizar son: total_afectados, familias_ocupadas, ocupacion, coord_politico, seguridad, servicios, personal, novedades, parroquia, municipio, estado_federativo, fecha_levantamiento, estado, geom (si hay coordenadas). El campo `_meta` es informativo (no pertenece al modelo) — contiene el nombre tal como aparecía en el Excel, la hoja y las coordenadas en crudo.",
+  "ocupacion": "Mapeo demográfico: ninos=NIÑOS, ninas=NIÑAS, adultos_mayores_h=ADULTOS MAYORES, adultos_mayores_m=ADULTAS MAYORES, adultos_h=HOMBRES-NIÑOS-ADULTOS_MAYORES_H, adultos_m=MUJERES-NIÑAS-ADULTAS_MAYORES_M. Totaliza HOMBRES+MUJERES. discapacidad_m=PER. CON DISCAPACIDAD (no separado por sexo en el Excel).",
+  "personal": "funcionarios=0 (no viene en el Excel); medicos/psicologos/justicia_tjs=1 cuando el SÍ/NO correspondiente es true.",
+  "estado": "operativo si total_afectados>0, sino preparacion."
+ }
 }

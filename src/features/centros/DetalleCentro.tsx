@@ -20,6 +20,7 @@ import {
   normalizarPersonal,
   poblacionCentro,
   totalJusticia,
+  ubicacionCentro,
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
 import {
@@ -139,9 +140,7 @@ export function DetalleCentro({ centro, puedeEditar, onEditar }: Props) {
   const justicia = totalJusticia(personal);
   const estadoInfo = ESTADOS_CENTRO.find((e) => e.valor === c.estado);
   const colorSemaforo = COLOR_SEMAFORO[analisis.semaforo];
-  const ubicacion = [c.estado_federativo, c.municipio, centro.parroquia.replace(/^Parroquia\s/i, "")]
-    .filter(Boolean)
-    .join(" · ");
+  const ubicacion = ubicacionCentro(centro);
 
   return (
     <div className="space-y-4">

@@ -28,8 +28,10 @@ interface Props {
   onCambiarBase: (base: BaseMapa) => void;
   seleccionado: string | null;
   onSeleccionar: (id: string | null) => void;
-  /** Abrir el detalle completo del centro seleccionado (botón "Ver detalle" de la nube). */
-  onAbrirDetalle?: () => void;
+  /** Indica si el panel DetalleCentro está abierto (estado "presionado" del botón "detalles"). */
+  detalleAbierto: boolean;
+  /** Alternar (abrir/cerrar) el panel de detalle completo del centro seleccionado. */
+  onToggleDetalle?: () => void;
   onExportar?: () => void;
   exportando?: boolean;
 }
@@ -41,7 +43,7 @@ export interface CentrosMapHandle {
 }
 
 export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMap(
-  { centros, baseMapa, onCambiarBase, seleccionado, onSeleccionar, onAbrirDetalle, onExportar, exportando },
+  { centros, baseMapa, onCambiarBase, seleccionado, detalleAbierto, onSeleccionar, onToggleDetalle, onExportar, exportando },
   ref,
 ) {
   const contenedorRef = useRef<HTMLDivElement>(null);
@@ -56,8 +58,8 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   const guardarVistaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [gpsActivo, setGpsActivo] = useState(false);
 
-  const cbRef = useRef({ centros, seleccionado, onSeleccionar, onAbrirDetalle });
-  cbRef.current = { centros, seleccionado, onSeleccionar, onAbrirDetalle };
+  const cbRef = useRef({ centros, seleccionado, detalleAbierto, onSeleccionar, onToggleDetalle });
+  cbRef.current = { centros, seleccionado, detalleAbierto, onSeleccionar, onToggleDetalle };
 
   function persistirVista() {
     const map = mapRef.current;
@@ -141,13 +143,24 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     popupRootRef.current = null;
   }
 
+  function renderPopupContent(centro: CentroTransitorio) {
+    if (!popupRootRef.current) return;
+    popupRootRef.current.render(
+      <InfoCentro
+        centro={centro}
+        detalleAbierto={cbRef.current.detalleAbierto}
+        onToggleDetalle={cbRef.current.onToggleDetalle}
+      />,
+    );
+  }
+
   function mostrarPopup(map: maplibregl.Map, centro: CentroTransitorio) {
     if (!centro.geom) return;
     ocultarPopup();
     const mount = document.createElement("div");
     const root = createRoot(mount);
     popupRootRef.current = root;
-    root.render(<InfoCentro centro={centro} onAbrirDetalle={cbRef.current.onAbrirDetalle} />);
+    renderPopupContent(centro);
 
     popupRef.current = new maplibregl.Popup({
       closeButton: true,
@@ -269,6 +282,15 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seleccionado]);
+
+  // Refresca el contenido del popup cuando cambia el estado del panel, para que
+  // el botón "detalles" refleje el estado "presionado" sin reabrir la nube.
+  useEffect(() => {
+    if (!seleccionado || !popupRootRef.current) return;
+    const centro = cbRef.current.centros.find((c) => c.id === seleccionado);
+    if (centro) renderPopupContent(centro);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detalleAbierto]);
 
   function aplicarBase() {
     const map = mapRef.current;

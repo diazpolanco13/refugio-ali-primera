@@ -6,6 +6,7 @@ import {
   Droplets,
   HeartPulse,
   Loader2,
+  LocateFixed,
   MapPin,
   Package,
   Phone,
@@ -17,16 +18,19 @@ import {
   Trash,
   Users,
 } from "lucide-react";
-import { nuevoId, guardarCentro } from "@/data/reposSupabase";
+import { nuevoId, guardarCentro, eliminarCentro } from "@/data/reposSupabase";
 import { subirFotoCentro, supabaseDisponible } from "@/data/supabase";
 import {
+  CATALOGO_CUERPOS,
   ESTADOS_CENTRO,
   normalizarCentro,
+  normalizarCuerpo,
   poblacionCentro,
   totalPersonalOperativo,
   personasLogistica,
   type CapacidadCentro,
   type CentroTransitorio,
+  type ClaveCuerpo,
   type ContactoReporte,
   type EstadoCentro,
   type ItemRequerimiento,
@@ -60,6 +64,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumInput } from "@/components/ui/num-input";
@@ -69,8 +84,13 @@ import { cn } from "@/lib/utils";
 interface Props {
   centro: CentroTransitorio;
   soloLectura?: boolean;
+  /** true cuando el centro aún no existe en la base (alta de un centro nuevo). */
+  esNuevo?: boolean;
   onCerrar: () => void;
 }
+
+/** Grupos logísticos válidos del listado de la red. */
+const GRUPOS_CENTRO = ["Área Metropolitana", "Gran Caracas"] as const;
 
 type Pestana =
   | "identificacion"
@@ -121,11 +141,26 @@ function asegurarIdsResponsables(lista: Responsable[]): Responsable[] {
 }
 
 /** Formulario de registro/edición del estado de un centro transitorio. */
-export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
+export function CentroForm({ centro, soloLectura = false, esNuevo = false, onCerrar }: Props) {
   const base = normalizarCentro(centro);
 
   const [pestana, setPestana] = useState<Pestana>("identificacion");
   const [estado, setEstado] = useState<EstadoCentro>(base.estado);
+  const [nombre, setNombre] = useState(base.nombre);
+  const [grupo, setGrupo] = useState(base.grupo || GRUPOS_CENTRO[0]);
+  const [cuerpo, setCuerpo] = useState(base.cuerpo ?? "");
+  const [parroquia, setParroquia] = useState(base.parroquia ?? "");
+  const [direccion, setDireccion] = useState(base.direccion ?? "");
+  const [mapsUrl, setMapsUrl] = useState(base.mapsUrl ?? "");
+  // Coordenadas como texto para permitir edición parcial ("-66.9", "10.48…").
+  const [latTexto, setLatTexto] = useState(
+    base.geom ? String(base.geom.coordinates[1]) : "",
+  );
+  const [lngTexto, setLngTexto] = useState(
+    base.geom ? String(base.geom.coordinates[0]) : "",
+  );
+  const [buscandoGps, setBuscandoGps] = useState(false);
+  const [errorCoords, setErrorCoords] = useState<string | null>(null);
   const [fechaLevantamiento, setFechaLevantamiento] = useState(base.fecha_levantamiento);
   const [estadoFederativo, setEstadoFederativo] = useState(base.estado_federativo);
   const [municipio, setMunicipio] = useState(base.municipio);
@@ -150,6 +185,7 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const [errorFoto, setErrorFoto] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
   const inputFotoRef = useRef<HTMLInputElement>(null);
 
@@ -174,6 +210,51 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
     (valor: number | boolean) =>
       setCapacidad((prev) => ({ ...prev, [campo]: valor }));
 
+  /**
+   * Convierte los textos de lat/lng al GeoJSON Point del centro. Devuelve
+   * `null` si ambos campos están vacíos (centro sin ubicar) y `"error"` si hay
+   * texto pero no forma una coordenada válida (lat -90..90, lng -180..180).
+   */
+  function parsearCoordenadas(): GeoJSON.Point | null | "error" {
+    const latStr = latTexto.trim().replace(",", ".");
+    const lngStr = lngTexto.trim().replace(",", ".");
+    if (!latStr && !lngStr) return null;
+    const lat = Number(latStr);
+    const lng = Number(lngStr);
+    if (
+      !latStr ||
+      !lngStr ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      Math.abs(lat) > 90 ||
+      Math.abs(lng) > 180
+    ) {
+      return "error";
+    }
+    return { type: "Point", coordinates: [lng, lat] };
+  }
+
+  function usarGps() {
+    if (!navigator.geolocation) {
+      setErrorCoords("Tu navegador no soporta geolocalización (GPS).");
+      return;
+    }
+    setErrorCoords(null);
+    setBuscandoGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatTexto(pos.coords.latitude.toFixed(6));
+        setLngTexto(pos.coords.longitude.toFixed(6));
+        setBuscandoGps(false);
+      },
+      () => {
+        setErrorCoords("No se pudo obtener tu ubicación. Revisa los permisos del navegador.");
+        setBuscandoGps(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000 },
+    );
+  }
+
   async function onFotoSeleccionada(ev: React.ChangeEvent<HTMLInputElement>) {
     const file = ev.target.files?.[0];
     ev.target.value = "";
@@ -193,10 +274,30 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
   async function guardar() {
     if (soloLectura) return;
     setErrorGuardado(null);
+    if (!nombre.trim()) {
+      setPestana("identificacion");
+      setErrorGuardado("El centro necesita un nombre.");
+      return;
+    }
+    const geom = parsearCoordenadas();
+    if (geom === "error") {
+      setPestana("identificacion");
+      setErrorGuardado(
+        "Coordenadas inválidas: revisa latitud y longitud (ej. 10.48061 y -66.90360).",
+      );
+      return;
+    }
     setGuardando(true);
     try {
       await guardarCentro({
         ...centro,
+        nombre: nombre.trim(),
+        grupo,
+        cuerpo,
+        parroquia: parroquia.trim(),
+        direccion: direccion.trim(),
+        mapsUrl: mapsUrl.trim(),
+        geom,
         estado,
         fecha_levantamiento: fechaLevantamiento,
         estado_federativo: estadoFederativo.trim(),
@@ -263,6 +364,22 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
     }
   }
 
+  async function eliminar() {
+    setErrorGuardado(null);
+    setEliminando(true);
+    try {
+      await eliminarCentro(centro.id);
+      onCerrar();
+    } catch (err) {
+      console.error("[CentroForm] error eliminando centro:", err);
+      setErrorGuardado(
+        err instanceof Error ? err.message : "No se pudo eliminar el centro.",
+      );
+    } finally {
+      setEliminando(false);
+    }
+  }
+
   function agregarResponsable() {
     setResponsables((prev) => [
       ...prev,
@@ -285,10 +402,16 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
       >
         <DialogHeader className="px-5 py-4 sm:px-6">
           <DialogTitle className="text-lg">
-            {soloLectura ? "Estado del centro" : "Registrar estado del centro"}
+            {esNuevo
+              ? "Registrar centro nuevo"
+              : soloLectura
+                ? "Estado del centro"
+                : "Registrar estado del centro"}
           </DialogTitle>
           <DialogDescription className="text-sm">
-            N.° {centro.nro} · {centro.nombre}
+            {esNuevo
+              ? `N.° ${centro.nro} · Alta de un nuevo centro en la red`
+              : `N.° ${centro.nro} · ${centro.nombre}`}
           </DialogDescription>
         </DialogHeader>
 
@@ -370,15 +493,150 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
               </div>
             </div>
 
-            <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-              <p className="font-medium text-foreground">{centro.nombre}</p>
-              <p className="mt-0.5">{centro.parroquia}</p>
-              {centro.direccion && <p className="mt-0.5 leading-snug">{centro.direccion}</p>}
-              {centro.geom && (
-                <p className="mt-1 font-mono text-[10px]">
-                  {centro.geom.coordinates[1].toFixed(5)}°N,{" "}
-                  {Math.abs(centro.geom.coordinates[0]).toFixed(5)}°W
-                </p>
+            <div>
+              <Label htmlFor="centro-nombre">Nombre del centro</Label>
+              <Input
+                id="centro-nombre"
+                className="mt-1.5"
+                value={nombre}
+                disabled={soloLectura}
+                onChange={(e) => setNombre(e.target.value)}
+                placeholder="UEN Pedro Emilio Coll"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="centro-grupo">Grupo</Label>
+                <select
+                  id="centro-grupo"
+                  className="mt-1.5 h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30"
+                  value={grupo}
+                  disabled={soloLectura}
+                  onChange={(e) => setGrupo(e.target.value)}
+                >
+                  {GRUPOS_CENTRO.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="centro-cuerpo">Cuerpo asignado</Label>
+                <select
+                  id="centro-cuerpo"
+                  className="mt-1.5 h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30"
+                  value={normalizarCuerpo(cuerpo)}
+                  disabled={soloLectura}
+                  onChange={(e) => {
+                    const clave = e.target.value as ClaveCuerpo;
+                    const meta = CATALOGO_CUERPOS.find((c) => c.clave === clave);
+                    setCuerpo(clave === "sin_asignar" ? "" : meta?.label ?? "");
+                  }}
+                >
+                  {CATALOGO_CUERPOS.map((c) => (
+                    <option key={c.clave} value={c.clave}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="centro-parroquia">Parroquia</Label>
+              <Input
+                id="centro-parroquia"
+                className="mt-1.5"
+                value={parroquia}
+                disabled={soloLectura}
+                onChange={(e) => setParroquia(e.target.value)}
+                placeholder="Parroquia Coche"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="centro-direccion">Dirección</Label>
+              <Textarea
+                id="centro-direccion"
+                className="mt-1.5"
+                rows={2}
+                value={direccion}
+                disabled={soloLectura}
+                onChange={(e) => setDireccion(e.target.value)}
+                placeholder="Av. Intercomunal de El Valle, Caracas…"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="centro-maps">Enlace de Google Maps (opcional)</Label>
+              <Input
+                id="centro-maps"
+                className="mt-1.5"
+                type="url"
+                value={mapsUrl}
+                disabled={soloLectura}
+                onChange={(e) => setMapsUrl(e.target.value)}
+                placeholder="https://maps.app.goo.gl/…"
+              />
+            </div>
+
+            <div>
+              <Label>Ubicación en el mapa (coordenadas)</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Latitud y longitud en grados decimales (ej. 10.48061, -66.90360). Sin
+                coordenadas, el centro no aparece en el mapa.
+              </p>
+              <div className="mt-2 flex items-end gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="centro-lat" className="text-[11px] text-muted-foreground">
+                    Latitud
+                  </Label>
+                  <Input
+                    id="centro-lat"
+                    className="mt-1 font-mono text-xs"
+                    inputMode="decimal"
+                    value={latTexto}
+                    disabled={soloLectura}
+                    onChange={(e) => setLatTexto(e.target.value)}
+                    placeholder="10.48061"
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label htmlFor="centro-lng" className="text-[11px] text-muted-foreground">
+                    Longitud
+                  </Label>
+                  <Input
+                    id="centro-lng"
+                    className="mt-1 font-mono text-xs"
+                    inputMode="decimal"
+                    value={lngTexto}
+                    disabled={soloLectura}
+                    onChange={(e) => setLngTexto(e.target.value)}
+                    placeholder="-66.90360"
+                  />
+                </div>
+                {!soloLectura && (
+                  <Button
+                    type="button"
+                    size="lg"
+                    variant="outline"
+                    disabled={buscandoGps}
+                    onClick={usarGps}
+                    title="Usar mi ubicación actual (GPS)"
+                  >
+                    {buscandoGps ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <LocateFixed className="size-4" />
+                    )}
+                    GPS
+                  </Button>
+                )}
+              </div>
+              {errorCoords && (
+                <p className="mt-1 text-[11px] text-destructive">{errorCoords}</p>
               )}
             </div>
 
@@ -844,13 +1102,50 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
               {errorGuardado}
             </p>
           )}
+          {!soloLectura && !esNuevo && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  className="sm:mr-auto"
+                  disabled={guardando || eliminando}
+                >
+                  {eliminando ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="size-4" />
+                  )}
+                  Eliminar centro
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar este centro de la red?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    N.° {centro.nro} · {centro.nombre}. Desaparecerá del mapa, el tablero y
+                    el dashboard en todos los dispositivos. El histórico queda guardado y un
+                    administrador puede restaurarlo desde la base de datos.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction variant="destructive" onClick={() => void eliminar()}>
+                    Eliminar centro
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           <Button variant="outline" onClick={onCerrar}>
             {soloLectura ? "Cerrar" : "Cancelar"}
           </Button>
           {!soloLectura && (
-            <Button onClick={() => void guardar()} disabled={guardando || subiendoFoto}>
+            <Button
+              onClick={() => void guardar()}
+              disabled={guardando || eliminando || subiendoFoto}
+            >
               {guardando ? <Loader2 className="size-4 animate-spin" /> : null}
-              Guardar
+              {esNuevo ? "Crear centro" : "Guardar"}
             </Button>
           )}
         </DialogFooter>

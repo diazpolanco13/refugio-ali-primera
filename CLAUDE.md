@@ -37,17 +37,29 @@ datos viven en Postgres.
 - ✅ **Esquema Supabase:** 10 tablas (7 sync blob+jsonb + `ocupaciones_centros`
   + `perfiles` + `historial`), RLS por rol, Edge Function `create-user`. Ver
   sección "Supabase — esquema y RLS".
-- ✅ **Datos migrados:** 49 centros del Excel + snapshot inicial 2026-07-03 en
+- ✅ **Datos migrados:** **51 centros** activos en la tabla `centros` (los 49
+  del Excel `DATA CENTRAL 03JUL26.xlsx`; la UEN Gran Colombia se divide en 3
+  edificios → `centro-03/51/52`) + snapshot inicial 2026-07-03 para los 51 en
   `ocupaciones_centros`; usuarios migrados a `auth.users` + `perfiles` (admin +
-  xavier, login verificado).
+  xavier, login verificado). La fuente Excel y el JSON/MD generados viven en
+  `scripts/`.
 - ✅ **Frontend:** nueva capa `src/data/` (supabaseClient, authSupabase,
   useSupabaseQuery, reposSupabase, useOcupacionesCentros, desenvolver). Todos
   los componentes migrados a Supabase (login, centros, dashboard, usuarios).
 - ✅ **Histórico de ocupación:** tabla `ocupaciones_centros`, gráfico individual
   en `DetalleCentro` y agregado de la red en `DashboardView` (Fase 6).
 - ✅ **Cutover de producción (Fase 7):** `server/` eliminado, `docker-compose`/
-  `Dockerfile.web`/`Caddyfile` actualizados, `refugio-backend` detenido en
-  Dokploy, frontend redeployado. (Ver "Producción REAL".)
+ `Dockerfile.web`/`Caddyfile` actualizados, `refugio-backend` detenido en
+ Dokploy, frontend redeployado. (Ver "Producción REAL".)
+- ✅ **CRUD completo de centros:** además de editar, la app permite **crear
+ centros nuevos** (botón en `PanelCentros` → `CentroForm` con `esNuevo`),
+ **eliminarlos** (borrado suave, con confirmación `AlertDialog` en el footer
+ del form) y **editar la identificación y las coordenadas** (lat/lng manual o
+ GPS, pestaña I del form). El guardado usa el RPC **`upsert_centro`**
+ (SECURITY INVOKER, aplicado en Supabase; referencia en
+ `supabase/functions.sql`) que actualiza blob `data` + columna PostGIS `geom`
+ en una sola llamada. Con esto quedó cerrado el GAP de `geom` documentado en
+ la Fase 3.
 
 ### Qué falta / próximos pasos
 
@@ -58,10 +70,13 @@ datos viven en Postgres.
 - 🔁 **Traslados entre centros:** hoy el tablero es comparativo (decides tú).
   Falta (si se pide) registrar/rastrear **movimientos de refugiados entre
   centros** y, opcionalmente, un motor de sugerencias de reubicación.
-- 🗑️ **Limpieza menor:** queda `src/data/centrosTransitorios.ts` (catálogo
-  estático de los 50 centros) como fallback/ referencia; la fuente de verdad
-  ahora es la tabla `centros` en Supabase. Se puede eliminar del bundle más
-  adelante.
+- 🗑️ **Limpieza menor:** restos del módulo del parque que se pueden borrar sin
+  riesgo: `src/data/centrosTransitorios.ts` (catálogo estático de los 51
+  centros, fallback; la fuente de verdad es la tabla `centros`), `src/ui/`
+  (Modal, clases.ts, useEsMovil — sin consumidores), las carpetas vacías
+  `src/features/{distribucion,lineas,puntos,salubridad,sectores}/` y las
+  dependencias `terra-draw`/`terra-draw-maplibre-gl-adapter` de `package.json`
+  (ya no se importan).
 - 📊 **Dashboard de la red:** hoy `/dashboard` agrega la red. Se puede ampliar
   con mapa de calor por parroquia, series por grupo (Área Metropolitana vs Gran
   Caracas), etc.
@@ -92,8 +107,9 @@ desarrollo**; **no** toca producción.
 ## Stack
 
 **Frontend:** React 19 + Vite 7 + TypeScript + Tailwind v4 (plugin
-`@tailwindcss/vite`, sin config) · **MapLibre GL** (mapa) + **Terra Draw**
-(dibujo) · **@supabase/supabase-js** (Postgres, Auth, Realtime, Storage) ·
+`@tailwindcss/vite`, sin config) · **MapLibre GL** (mapa; Terra Draw quedó como
+dependencia en `package.json` pero **ya no se usa** desde que se retiró el
+módulo del parque) · **@supabase/supabase-js** (Postgres, Auth, Realtime, Storage) ·
 **vite-plugin-pwa** (service worker para caché de assets) · **react-router-dom**
 (rutas `/`, `/dashboard`, `/usuarios`) · **recharts** (gráficos, vía componente
 `chart` de shadcn). UI con **shadcn/ui** (Radix + cva + `cn()` en
@@ -123,23 +139,28 @@ src/
 │  useSupabaseQuery.ts (hook select + Realtime, reemplaza a useLiveQuery),
 │  useSupabaseConectado.ts (estado de conexión a Realtime para la UI),
 │  useOcupacionesCentros.ts (snapshots de `ocupaciones_centros` con Realtime),
-│  reposSupabase.ts (upserts/Deletes + snapshot de ocupación al guardar centro),
+│  reposSupabase.ts (upserts/deletes; centros vía RPC `upsert_centro` +
+│    `eliminarCentro` + snapshot de ocupación al guardar centro),
 │  desenvolver.ts (aplana filas blob+jsonb `{id,updated_at,deleted,data}` → T),
+│  normalizarGeom.ts (hex EWKB/WKT/GeoJSON de PostgREST → GeoJSON Point),
 │  supabase.ts (subida de foto de centro al bucket `centros-fotos`),
-│  centrosTransitorios.ts (catálogo estático de los 50 centros, fallback),
+│  centrosTransitorios.ts (catálogo estático de los 51 centros, fallback),
 │  preferenciasMapa.ts (vista guardada en localStorage)
-├─ map/ MapView.tsx (MapLibre + Terra Draw + marcadores HTML), estiloMapa.ts
+├─ map/ estiloMapa.ts (estilos base del mapa; MapView.tsx se retiró con el parque)
 ├─ features/ centros/ (FOCO: CentrosView, CentrosMap, MarcadorCentro, InfoCentro,
 │  DetalleCentro, TableroCentros, CentroForm, LevantamientoCentro,
-│  RequerimientosCentro, PanelCentros, GraficoOcupacionCentro) ·
+│  RequerimientosCentro, PanelCentros, ControlesMapaCentros, IconosAlerta,
+│  GraficoOcupacionCentro) ·
 │  dashboard/ (DashboardView, GraficoOcupacionRed) ·
 │  censo/ (DesgloseDemografico, DesglosePersonal, PersonalResumen) ·
 │  tablero/ (DemografiaResumen) ·
-│  auth/Login · usuarios/GestionUsuarios
+│  auth/Login · usuarios/GestionUsuarios ·
+│  (distribucion/, lineas/, puntos/, salubridad/, sectores/ quedaron VACÍAS
+│   tras retirar el módulo del parque; se pueden borrar)
 ├─ components/ Navbar, PanelFlotante, MarcaAgua, BadgeRol, PantallaCarga,
-│  AccionesContacto · ui/ (componentes shadcn: card, chart, badge…)
+│  AccionesContacto · ui/ (componentes shadcn: card, chart, badge, alert-dialog…)
 ├─ lib/ utils.ts (cn())
-└─ ui/ (legacy) Modal, clases.ts — solo quedan restos en PuntoForm/LineaForm
+└─ ui/ (legacy, SIN consumidores: Modal, clases.ts, useEsMovil — se puede borrar)
 ```
 
 Rutas (react-router en `src/main.tsx` + `src/App.tsx`): `/` = `CentrosView`
@@ -183,7 +204,15 @@ Proyecto `xzwifkckkakldnzkdeby`. 10 tablas en el schema `public`:
 bool, data jsonb`. `centros` además tiene `geom geography(Point, 4326)` (PostGIS)
 aparte del blob. Upsert **last-write-wins** (`updated_at`); borrado **suave**
 (`deleted: true`). El frontend usa `desenvolver()` para aplanar `data` + metadatos
-al tipo de dominio.
+al tipo de dominio (y `normalizarGeom()` para convertir el hex EWKB que
+devuelve PostgREST en GeoJSON Point).
+
+**RPC `upsert_centro(p_id, p_data, p_lng, p_lat)`** (aplicada, migración
+`upsert_centro_rpc`; SQL de referencia en `supabase/functions.sql`): upsert del
+blob `data` + recálculo de `geom` en una sola llamada (supabase-js no puede
+escribir geography directamente). `SECURITY INVOKER` → la RLS de `centros`
+sigue aplicando; `EXECUTE` solo para `authenticated`. Es la vía por la que
+`guardarCentro()` crea/edita centros (incl. coordenadas).
 
 **`ocupaciones_centros`** (tipada, el histórico): `id uuid PK default
 gen_random_uuid()`, `centro_id text not null references centros(id) on delete
@@ -250,8 +279,8 @@ respecto al centro previo (no hay trigger de BD; el frontend sabe si cambió).
   desplegable): serie diaria de un centro. Eje X = fecha, eje Y = total de
   refugiados.
 - **`GraficoOcupacionRed`** (`AreaChart` en `DashboardView`): serie agregada de
-  los 49 centros, con desglose por grupo (Área Metropolitana vs Gran Caracas).
-- **Snapshot inicial 2026-07-03** cargado para los 49 centros en la Fase 2 (el
+  los 51 centros, con desglose por grupo (Área Metropolitana vs Gran Caracas).
+- **Snapshot inicial 2026-07-03** cargado para los 51 centros en la Fase 2 (el
   "día 1" de la red). Los gráficos arrancan desde ahí.
 
 Usa el componente `chart` de shadcn (`ChartContainer`/`ChartTooltip`) con
@@ -285,18 +314,25 @@ de shadcn para cualquier diseño de UI).
 La ruta `/centros` (`src/features/centros/`) permite **registrar el estado de
 cada centro** y decidir a dónde reubicar refugiados con criterio.
 
-**UI:** `CentrosView` (conmutador **Mapa / Tablero / Prioridades**). En el mapa,
-`MarcadorCentro` es una **píldora horizontal**: logo del cuerpo + **`refugiados
-/ funcionarios`** (ej. `200 / 25`) + punto de semáforo. Al seleccionar un
-centro, `DetalleCentro` prioriza lo operativo a simple vista: KPIs grandes de
-**refugiados** y **familias**, **personal total** (mini-totales por categoría),
-tarjeta de **logística** (agua, comida, baños), **gráfico de ocupación**
-(desplegable), los desgloses demográfico y de personal en **secciones
-desplegables**, foto, Maps, coordinación, seguridad, requerimientos, capacidad
-vs ocupación, responsables. `TableroCentros` compara centros por cupo real.
+**UI:** `CentrosView` (conmutador **Mapa / Prioridades** en la Navbar; la vista
+"Prioridades" es el `TableroCentros`, que compara centros por cupo real). En el
+mapa, `MarcadorCentro` es una **píldora horizontal**: logo del cuerpo +
+**`refugiados / funcionarios`** (ej. `200 / 25`) + punto de semáforo. Al
+seleccionar un centro, `DetalleCentro` prioriza lo operativo a simple vista:
+KPIs grandes de **refugiados** y **familias**, **personal total** (mini-totales
+por categoría), tarjeta de **logística** (agua, comida, baños), **gráfico de
+ocupación** (desplegable), los desgloses demográfico y de personal en
+**secciones desplegables**, foto, Maps, coordinación, seguridad,
+requerimientos, capacidad vs ocupación, responsables.
 `CentroForm` por pestañas I–VI + Requerimientos, Capacidad, Contactos; el
 **personal operativo** se edita en **V · Población** (`DesglosePersonal.tsx`).
-Permisos: admin/coordinador/campo editan; **visor solo lectura**.
+La pestaña **I · Identificación** es editable: nombre, grupo, cuerpo asignado,
+parroquia, dirección, enlace de Maps y **coordenadas** (lat/lng decimales o
+botón GPS). **Crear centro:** botón "Registrar centro nuevo" en `PanelCentros`
+(y "+" con el panel plegado) → `CentroForm` en modo `esNuevo` con el siguiente
+N.° libre. **Eliminar centro:** botón en el footer del form con confirmación
+(`AlertDialog`); borrado suave. Permisos: admin/coordinador/campo crean/editan/
+eliminan; **visor solo lectura**.
 
 **Foto vía Supabase Storage:** la foto se sube al bucket público
 `centros-fotos` (`src/data/supabase.ts`: comprime a JPEG ~1280px antes de
@@ -385,11 +421,9 @@ docker compose up -d --build
 - **Secretos:** `.env` (frontend, `VITE_SUPABASE_*` y `VITE_MAPTILER_KEY`) y el
   `.env` de despliegue están en `.gitignore`. `.env.example` va sin claves.
   Repo es público.
-- **Terra Draw:** su modo `select` dispara `finish` al editar vértices; el handler
-  de `finish` en `MapView.tsx` ignora eso cuando `modoEdicion` está activo (los
-  cambios de geometría se guardan por el evento `change`). No romper esa guarda.
-- **Marcadores** de puntos son **HTML markers** (no capa de círculos) para
-  mostrar ícono+número+etiqueta hover sin depender de fuentes del mapa.
+- **Marcadores** de centros son **HTML markers** (no capa de círculos) para
+  mostrar logo+cifras+semáforo sin depender de fuentes del mapa
+  (`CentrosMap.tsx` + `MarcadorCentro.tsx`).
 - **PWA / service worker:** `vite-plugin-pwa` con `autoUpdate`. Ya no hay
   offline-first con cola/outbox; el SW queda para caché de assets estáticos y
   deep-link offline (`navigateFallback: index.html`). `runtimeCaching` cachea
@@ -408,8 +442,9 @@ docker compose up -d --build
 ## Verificación rápida
 
 - Frontend: `npm run typecheck` y `npm run build` (deben pasar limpios). Probar
-  en navegador: login con `admin`, listar los 49 centros, editar ocupación de
+  en navegador: login con `admin`, listar los 51 centros, editar ocupación de
   un centro y ver el snapshot en `ocupaciones_centros` (Supabase Studio),
+  crear un centro de prueba con coordenadas y verlo en el mapa (y eliminarlo),
   abrir el gráfico individual y el de red, editar en un dispositivo y ver
   refresco en otro (Realtime), subir foto.
 - Supabase: `list_tables` (verbose) y `get_advisors` (security) vía MCP para

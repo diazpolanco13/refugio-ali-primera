@@ -83,6 +83,7 @@ export function normalizarCuerpo(raw: string | undefined | null): ClaveCuerpo {
     policaracas: "poli_caracas",
     polichacao: "poli_chacao",
     polihatillo: "poli_hatillo",
+    polielhatillo: "poli_hatillo",
     polisucre: "poli_sucre",
     polimiranda: "poli_miranda",
   };
@@ -393,6 +394,23 @@ export function normalizarCentro(c: CentroTransitorio): CentroNormalizado {
     novedades: c.novedades ?? "",
     requerimientos: normalizarRequerimientos(c.requerimientos),
   };
+}
+
+/**
+ * Ubicación administrativa del centro como cadena compuesta:
+ * `estado_federativo · municipio · parroquia` (sin el prefijo "Parroquia ").
+ * Devuelve "" si ninguno de los tres campos tiene valor. Es la misma cadena
+ * que muestra el panel `DetalleCentro` debajo del logo del cuerpo; se usa
+ * también en el popup `InfoCentro` para que ambas vistas coincidan.
+ */
+export function ubicacionCentro(
+  c: Pick<CentroTransitorio, "estado_federativo" | "municipio" | "parroquia">,
+): string {
+  const parroquia = (c.parroquia ?? "").replace(/^Parroquia\s/i, "").trim();
+  return [c.estado_federativo, c.municipio, parroquia]
+    .map((s) => (s ?? "").trim())
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /**

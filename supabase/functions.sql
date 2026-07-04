@@ -1,30 +1,28 @@
--- Funciones Postgres para la migración a Supabase (Fase 3).
+-- Funciones Postgres del proyecto Supabase (xzwifkckkakldnzkdeby).
 --
--- Estas funciones aún NO están aplicadas en Supabase. Se incluyen aquí como
--- referencia para que se desplieguen vía MCP `apply_migration` (o psql) en una
--- próxima fase. El código del frontend las referenciará con `supabase.rpc(...)`
--- cuando corresponda (ver TODO en `src/data/reposSupabase.ts`).
---
--- Requisitos: PostGIS habilitado en el proyecto Supabase (ya lo está en
--- `xzwifkckkakldnzkdeby`).
+-- ✅ APLICADA (migración `upsert_centro_rpc`, 04-jul-2026, vía MCP
+-- `apply_migration`). Este archivo queda como referencia versionada del SQL
+-- que corre en producción. El frontend la invoca con
+-- `supabase.rpc("upsert_centro", ...)` desde `src/data/reposSupabase.ts`.
 
 -- upsert_centro(p_id, p_data, p_lng, p_lat)
 --
 -- Upsert completo de un centro: actualiza el blob `data` (igual que las demás
 -- tablas blob) y además recalcula la columna `geom` (geography Point 4326) si
 -- llegan coordenadas. Encapsula en una sola llamada RPC lo que supabase-js no
--- puede hacer directamente (PostGIS + upsert blob).
+-- puede hacer directamente (PostGIS + upsert blob). Sirve tanto para editar
+-- centros existentes como para crear centros nuevos.
 --
 -- Parámetros:
---   p_id  text        — id del centro (p. ej. "centro-01")
+--   p_id  text        — id del centro (p. ej. "centro-01" o un uuid nuevo)
 --   p_data jsonb      — blob completo del centro (todo el objeto)
 --   p_lng double precision — longitud [lng, lat] o NULL si no hay coords
 --   p_lat double precision — latitud o NULL
 --
--- Seguridad: ejecutar como `SECURITY DEFINER` con search_path locked, y
--- validar que el llamador esté autenticado y tenga rol campo/coordinador/admin
--- en `perfiles`. (La verificación fina de RLS queda en las policies de la tabla
--- `centros`.)
+-- Seguridad: SECURITY INVOKER → corre con los permisos del usuario autenticado,
+-- así que las políticas RLS de `centros` (solo admin/coordinador/campo
+-- escriben; visor no) siguen aplicando dentro de la función. Solo el rol
+-- `authenticated` puede ejecutarla (revocada para `public`/`anon`).
 create or replace function public.upsert_centro(
   p_id text,
   p_data jsonb,
@@ -32,12 +30,11 @@ create or replace function public.upsert_centro(
   p_lat double precision default null
 ) returns void
 language plpgsql
-security definer
+security invoker
 set search_path = public
 as $$
 declare
-  v_now bigint := extract(epoch from now()) * 1000;
-  v_user text;
+  v_now bigint := coalesce((p_data->>'updated_at')::bigint, (extract(epoch from now()) * 1000)::bigint);
   v_geom geography(Point, 4326) := null;
 begin
   if p_lng is not null and p_lat is not null then
@@ -45,7 +42,7 @@ begin
   end if;
 
   insert into centros (id, updated_at, updated_by, deleted, data, geom)
-  values (p_id, v_now, coalesce((p_data->>'updated_by'), auth.uid()::text), false, p_data, v_geom)
+  values (p_id, v_now, coalesce(p_data->>'updated_by', auth.uid()::text), false, p_data, v_geom)
   on conflict (id) do update
     set
       updated_at = excluded.updated_at,
@@ -56,9 +53,10 @@ begin
 end;
 $$;
 
--- Nota: `updated_by` debería venir del JWT (auth.uid()). Como esta función la
--- invoca el frontend con la anon key, `auth.uid()` devuelve el UUID del usuario
--- autenticado. El frontend pasa el `username` en `p_data->>'updated_by'` por
--- compatibilidad con el resto de la capa (donde `updated_by` es el username,
--- no el UUID). En una futura normalización se puede migrar `updated_by` a
+revoke execute on function public.upsert_centro(text, jsonb, double precision, double precision) from public, anon;
+grant execute on function public.upsert_centro(text, jsonb, double precision, double precision) to authenticated;
+
+-- Nota: `updated_by` lleva el username (no el UUID) por compatibilidad con el
+-- resto de la capa de datos, que usa `updated_by = username` en todas las
+-- tablas blob. En una futura normalización se puede migrar a
 -- `uuid references auth.users`.

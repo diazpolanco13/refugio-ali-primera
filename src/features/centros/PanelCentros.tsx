@@ -5,6 +5,7 @@ import {
   MapPinOff,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
   Search,
   X,
 } from "lucide-react";
@@ -281,6 +282,8 @@ interface Props {
   onSeleccionarCentro: (centro: CentroTransitorio) => void;
   abierto: boolean;
   onCambiarAbierto: (abierto: boolean) => void;
+  /** Abrir el formulario de alta de un centro nuevo (solo roles con edición). */
+  onNuevoCentro?: () => void;
 }
 
 /**
@@ -299,6 +302,7 @@ export function PanelCentros({
   onSeleccionarCentro,
   abierto,
   onCambiarAbierto,
+  onNuevoCentro,
 }: Props) {
   const [busqueda, setBusqueda] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -381,6 +385,25 @@ export function PanelCentros({
                 seleccionado={seleccionado}
                 onSeleccionar={onSeleccionarCentro}
               />
+              {onNuevoCentro && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-10 w-10 min-w-10 shrink-0 border-0 bg-card text-foreground shadow-none hover:bg-muted/80"
+                      onClick={onNuevoCentro}
+                      aria-label="Nuevo centro"
+                    >
+                      <Plus className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={8}>
+                    Registrar centro nuevo
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </ButtonGroup>
           </div>
         </TooltipProvider>
@@ -434,6 +457,19 @@ export function PanelCentros({
               </button>
             )}
           </div>
+
+          {onNuevoCentro && (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="w-full"
+              onClick={onNuevoCentro}
+            >
+              <Plus className="size-3.5" />
+              Registrar centro nuevo
+            </Button>
+          )}
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-2">

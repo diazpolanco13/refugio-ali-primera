@@ -3,6 +3,7 @@ import { PanelFlotante } from "@/components/PanelFlotante";
 import { cargarBaseMapaCentros, guardarBaseMapaCentros } from "@/data/preferenciasMapa";
 import type { BaseMapa } from "@/map/estiloMapa";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
+import { nuevoId } from "@/data/reposSupabase";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import {
   CATALOGO_CUERPOS,
@@ -51,6 +52,7 @@ export function CentrosView({ sesion }: Props) {
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
   const [editando, setEditando] = useState<CentroTransitorio | null>(null);
+  const [creandoNuevo, setCreandoNuevo] = useState(false);
   const [cuerposVisibles, setCuerposVisibles] = useState<Set<ClaveCuerpo>>(
     () => new Set(CATALOGO_CUERPOS.map((c) => c.clave)),
   );
@@ -138,8 +140,10 @@ export function CentrosView({ sesion }: Props) {
   }
 
   /** 
-   * Seleccionar desde el MAPA (clic en el marcador): vuela, abre la nube Y abre el
-   * detalle completo (panel flotante). Es la interacción "quiero ver este centro a fondo".
+   * Seleccionar desde el MAPA (clic en el marcador): vuela y abre SOLO la nube
+   * informativa (popup). El panel DetalleCentro NO se abre aquí — se abre (o
+   * cierra) únicamente con el botón "detalles" de la nube. Si el panel ya estaba
+   * abierto para otro centro, simplemente cambia al nuevo (la nube acompaña).
    */
   function seleccionarDesdeMapa(id: string | null) {
     if (id == null) {
@@ -147,7 +151,6 @@ export function CentrosView({ sesion }: Props) {
       return;
     }
     setSeleccionado(id);
-    setDetalleAbierto(true);
   }
 
   /** Cerrar la selección: limpia la nube y el detalle. */
@@ -156,9 +159,34 @@ export function CentrosView({ sesion }: Props) {
     setDetalleAbierto(false);
   }
 
-  /** Abrir el detalle completo del centro actualmente seleccionado (botón en la nube). */
-  function abrirDetalle() {
-    if (seleccionado) setDetalleAbierto(true);
+  /** Alternar (abrir/cerrar) el detalle completo del centro seleccionado (botón "detalles" de la nube). */
+  function toggleDetalle() {
+    if (!seleccionado) return;
+    setDetalleAbierto((prev) => !prev);
+  }
+
+  /** Abre el formulario de alta con un centro en blanco (siguiente N.° libre). */
+  function abrirNuevoCentro() {
+    const nro = centros.reduce((max, c) => Math.max(max, c.nro ?? 0), 0) + 1;
+    setEditando({
+      id: nuevoId(),
+      nro,
+      nombre: "",
+      grupo: "Área Metropolitana",
+      cuerpo: "",
+      parroquia: "",
+      direccion: "",
+      mapsUrl: "",
+      geom: null,
+      notas: "",
+      estado: "preparacion",
+    });
+    setCreandoNuevo(true);
+  }
+
+  function cerrarFormulario() {
+    setEditando(null);
+    setCreandoNuevo(false);
   }
 
   useEffect(() => {
@@ -190,7 +218,8 @@ export function CentrosView({ sesion }: Props) {
               onCambiarBase={setBaseMapa}
               seleccionado={seleccionado}
               onSeleccionar={seleccionarDesdeMapa}
-              onAbrirDetalle={abrirDetalle}
+              detalleAbierto={detalleAbierto}
+              onToggleDetalle={toggleDetalle}
               onExportar={() => void exportarVista()}
               exportando={exportando}
             />
@@ -205,6 +234,7 @@ export function CentrosView({ sesion }: Props) {
               onSeleccionarCentro={seleccionarDesdeLista}
               abierto={panelAbierto}
               onCambiarAbierto={setPanelAbierto}
+              onNuevoCentro={puedeEditar ? abrirNuevoCentro : undefined}
             />
           </>
         ) : (
@@ -234,12 +264,13 @@ export function CentrosView({ sesion }: Props) {
         )}
       </div>
 
-      {/* Formulario de registro/edición */}
+      {/* Formulario de registro/edición (y alta de centros nuevos) */}
       {editando && (
         <CentroForm
           centro={editando}
           soloLectura={!puedeEditar}
-          onCerrar={() => setEditando(null)}
+          esNuevo={creandoNuevo}
+          onCerrar={cerrarFormulario}
         />
       )}
     </div>

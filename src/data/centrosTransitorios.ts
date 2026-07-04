@@ -1,4 +1,5 @@
-// Datos de referencia de los 50 Centros Transitorios de Caracas (Fase 4).
+// Datos de referencia de los Centros Transitorios de Caracas (Fase 4).
+// 51 centros: la UEN Gran Colombia se divide en 3 edificios (centro-03/51/52).
 // Generado a partir de la planilla proporcionada por el equipo de campo
 // (nombre, cuerpo de seguridad asignado, parroquia y coordenadas).
 // El centro-10 incluye un levantamiento demo precargado (reporte 03/07/2026).
@@ -89,7 +90,7 @@ export const CENTROS_TRANSITORIOS: CentroTransitorio[] = [
   {
     id: "centro-03",
     nro: 3,
-    nombre: "UEN Gran Colombia",
+    nombre: "UEN Gran Colombia — Edif. Colombia",
     grupo: "Área Metropolitana",
     cuerpo: "Guardia Nacional Bolivariana",
     parroquia: "Parroquia Sta Rosalia",
@@ -650,5 +651,29 @@ export const CENTROS_TRANSITORIOS: CentroTransitorio[] = [
     mapsUrl: "",
     geom: { type: "Point", coordinates: [-66.7417778, 10.4464167] },
     notas: "",
+  },
+  {
+    id: "centro-51",
+    nro: 51,
+    nombre: "UEN Gran Colombia — Edif. Perú",
+    grupo: "Área Metropolitana",
+    cuerpo: "Guardia Nacional Bolivariana",
+    parroquia: "Parroquia Sta Rosalia",
+    direccion: "UEN Gran Colombia (Edif. Perú), Santa Rosalia, Caracas",
+    mapsUrl: "https://maps.app.goo.gl/GMUX4cK9qhdUwVaf7",
+    geom: { type: "Point", coordinates: [-66.9092427, 10.4781598] },
+    notas: "Edificio Perú del complejo UEN Gran Colombia (dividido del centro-03 el 04-jul-2026).",
+  },
+  {
+    id: "centro-52",
+    nro: 52,
+    nombre: "UEN Gran Colombia — Edif. Ecuador",
+    grupo: "Área Metropolitana",
+    cuerpo: "Guardia Nacional Bolivariana",
+    parroquia: "Parroquia Sta Rosalia",
+    direccion: "UEN Gran Colombia (Edif. Ecuador), Santa Rosalia, Caracas",
+    mapsUrl: "https://maps.app.goo.gl/GMUX4cK9qhdUwVaf7",
+    geom: { type: "Point", coordinates: [-66.9102427, 10.4775598] },
+    notas: "Edificio Ecuador del complejo UEN Gran Colombia (dividido del centro-03 el 04-jul-2026).",
   },
 ];
