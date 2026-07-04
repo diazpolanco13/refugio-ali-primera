@@ -75,7 +75,7 @@ datos viven en Postgres.
  `supabase/sistema_usuarios.sql`): roles `admin` / `analista_sae` /
  `autoridad` / `supervisor` / `operador`; `perfiles.centros_asignados text[]`
  (reemplaza a `sector_asignado`); RLS por rol **y** centro asignado (helpers
- `mi_rol()`/`mis_centros()`/`mi_username()`); `incidencias_centros.creada_por`
+ `mi_rol()`/`mis_centros()`/`mi_username()`/`mi_hash_id()`); `incidencias_centros.creada_por`
  (el operador solo resuelve las suyas); Edge Functions `create-user` v2
  (genera `hash_id` en el servidor), `delete-user` y `update-user-password`
  (gestión de usuarios COMPLETA desde `/usuarios`); vista `/logs` (bitácora
@@ -193,7 +193,8 @@ src/
 │  (distribucion/, lineas/, puntos/, salubridad/, sectores/ quedaron VACÍAS
 │   tras retirar el módulo del parque; se pueden borrar)
 ├─ components/ Navbar, PanelFlotante, MarcaAgua, BadgeRol, PantallaCarga,
-│  AccionesContacto · ui/ (componentes shadcn: card, chart, badge, alert-dialog…)
+│  AccionesContacto · ui/ (componentes shadcn: card, chart, badge, alert-dialog,
+│  command, select, calendar, tabs…)
 ├─ lib/ utils.ts (cn())
 └─ ui/ (legacy, SIN consumidores: Modal, clases.ts, useEsMovil — se puede borrar)
 ```
@@ -301,8 +302,10 @@ autoridad); en la publicación Realtime. El frontend inserta vía
 
 **RLS por rol + centro** (migración `sistema_usuarios_5_roles`, SQL de
 referencia en `supabase/sistema_usuarios.sql`). Helpers `SECURITY DEFINER`
-estables: `mi_rol()`, `mis_centros()`, `mi_username()` (leen `perfiles` por
-`auth.uid()` sin recursión; se usan como `(select mi_rol())` → initplan).
+estables: `mi_rol()`, `mis_centros()`, `mi_username()`, `mi_hash_id()` (leen
+`perfiles` por `auth.uid()` sin recursión; el último evita un subselect directo
+sobre `perfiles` dentro de `perfiles_update`, que dispara "infinite recursion
+detected in policy"). Se usan como `(select mi_rol())` → initplan.
 Matriz:
 
 - `centros` / `ocupaciones_centros` / `reportes_centros`: **select** —
@@ -338,7 +341,11 @@ true` + check interno de rol admin; referencia versionada en
   registra `cambiar_password` (sin la contraseña).
 
 El frontend las invoca con `invocarEdgeFunction()` (`src/data/edgeFunctions.ts`,
-usa `supabase.functions.invoke` con el token de la sesión).
+usa `supabase.functions.invoke` con el token de la sesión). **CORS:** las tres
+funciones deben permitir en `Access-Control-Allow-Headers` los headers que
+adjunta supabase-js: `authorization`, `x-client-info`, `apikey`, `content-type`
+(sin `x-client-info`/`apikey` el preflight desde el navegador falla aunque
+`curl` funcione).
 
 **Bucket `centros-fotos`** (Storage, público, 5 MB, solo imágenes): las fotos se
 suben con la anon key (RLS `insert`/`update`/`select` para `anon,
@@ -454,10 +461,12 @@ referencia en `supabase/reportes_incidencias.sql`.
 - **Gestión de usuarios** (`/usuarios`, `GestionUsuarios.tsx`, solo admin):
   lista agrupada por rol con filtro y conteos, tarjetas con `BadgeRol`,
   `hash_id` en mono, chips de centros asignados y marca ON/OFF. El formulario
-  tiene **multi-select de centros** (Popover + Command, deshabilitado para
-  roles de alcance total), selector de rol con descripción, **cambio de
-  contraseña funcional** (Edge Function `update-user-password`) y
-  **eliminación completa** (`delete-user`). Ya no quedan gaps de gestión.
+  tiene **multi-select de centros** (Popover + Command, con atajo **"Todos
+  los centros"** que selecciona/deselecciona la red entera y colapsa a un chip
+  "Toda la red"; deshabilitado para roles de alcance total), selector de rol
+  shadcn `Select` con descripción, **cambio de contraseña funcional** (Edge
+  Function `update-user-password`) y **eliminación completa** (`delete-user`).
+  Ya no quedan gaps de gestión.
 - **Roles** (5, ver `docs/sistema-usuarios.md`): `admin` (todo + usuarios +
   logs) · `analista_sae` (opera toda la red, sin usuarios ni logs) ·
   `autoridad` (solo lectura + logs) · `supervisor` (lee/escribe SOLO sus
@@ -614,6 +623,14 @@ docker compose up -d --build
   general): el primero es el helper legacy de subida de fotos (solo Storage);
   el segundo es el cliente supabase-js que usa toda la nueva capa. No
   confundirlos.
+- **Edge Functions desde el navegador:** `invocarEdgeFunction` usa
+  `supabase.functions.invoke`, que envía `x-client-info` y `apikey`. Si al
+  crear/editar/eliminar usuarios ves "Failed to send a request to the Edge
+  Function" con CORS en consola, revisa que la función incluya esos headers en
+  `Access-Control-Allow-Headers` (ver sección Edge Functions).
+- **RLS `perfiles`:** no hagas subselects directos sobre `perfiles` dentro de
+  sus propias policies; usa helpers `SECURITY DEFINER` (`mi_hash_id()` para el
+  chequeo de `hash_id` inmutable en updates).
 - Un warning de React "changed size between renders" que aparece **solo en el
   entorno de preview del asistente** NO proviene de esta app (se comprobó); no
   aparece en un navegador normal.
