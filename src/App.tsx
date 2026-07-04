@@ -6,6 +6,7 @@ import { DashboardView } from "./features/dashboard/DashboardView";
 import { IncidenciasView } from "./features/incidencias/IncidenciasView";
 import { Login } from "./features/auth/Login";
 import { GestionUsuarios } from "./features/usuarios/GestionUsuarios";
+import { LogsView } from "./features/logs/LogsView";
 import { initAuth, useSesion } from "./data/authSupabase";
 import { MarcaAgua } from "./components/MarcaAgua";
 import { PantallaCarga } from "./components/PantallaCarga";
@@ -34,6 +35,7 @@ export function App() {
         <Route path="/dashboard" element={<DashboardView sesion={sesion} />} />
         <Route path="/incidencias" element={<IncidenciasView sesion={sesion} />} />
         <Route path="/usuarios" element={<GestionUsuarios sesion={sesion} />} />
+        <Route path="/logs" element={<LogsView sesion={sesion} />} />
         <Route path="*" element={<CentrosView sesion={sesion} />} />
       </Routes>
       {mostrarMarcaAgua && <MarcaAgua usuario={sesion.user} />}

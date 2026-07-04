@@ -31,6 +31,7 @@ import {
 } from "../domain/centrosTransitorios";
 import { supabase } from "./supabaseClient";
 import { getUsuario } from "./authSupabase";
+import { registrarHistorial } from "./historial";
 
 // ---- Utilidades ----
 
@@ -456,6 +457,11 @@ export async function guardarCentro(
   });
   if (error) throw new Error(`[reposSupabase] upsert_centro: ${error.message}`);
 
+  registrarHistorial(previo ? "editar_centro" : "crear_centro", "centro", centro.id, {
+    nombre: centro.nombre,
+    nro: centro.nro ?? null,
+  });
+
   // Snapshot diario de ocupación (histórico) si la ocupación cambió.
   if (ocupacionCambio(previo, centro)) {
     const ts = centro.updated_at as number;
@@ -491,6 +497,10 @@ export async function guardarCentro(
 export async function eliminarCentro(id: string): Promise<void> {
   const previo = await leerCentro(id);
   await borrarSuave("centros", id, previo ?? { id });
+  registrarHistorial("eliminar_centro", "centro", id, {
+    nombre: previo?.nombre ?? null,
+    nro: previo?.nro ?? null,
+  });
 }
 
 // ---- Utilidades de exportación (compatibilidad con legacy) ----

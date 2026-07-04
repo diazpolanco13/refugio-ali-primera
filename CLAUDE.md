@@ -19,7 +19,7 @@ ocupación** de toda la red.
 > El módulo original del Parque "Alí Primera" (mapa por sectores, puntos de
 > servicio, distribución de comida, salubridad) **fue retirado** del producto
 > (commit `803d499`). El repositorio ya no contiene ese código. La herramienta
-> actual se centra exclusivamente en `/centros` y `/dashboard`.
+> actual se centra en `/centros`, `/dashboard` e `/incidencias`.
 
 **Soberanía de datos:** todo se autoaloja. La capa de datos vive en un
 **Supabase** propio (Postgres + Auth + Realtime + Storage) del proyecto
@@ -34,9 +34,10 @@ datos viven en Postgres.
   propio, el offline-first (Dexie/outbox/sync engine), el JWT propio y PGlite. La
   app ahora habla directo con Supabase vía `@supabase/supabase-js` (Postgres,
   Auth, Realtime, Storage) desde el frontend.
-- ✅ **Esquema Supabase:** 10 tablas (7 sync blob+jsonb + `ocupaciones_centros`
-  + `perfiles` + `historial`), RLS por rol, Edge Function `create-user`. Ver
-  sección "Supabase — esquema y RLS".
+- ✅ **Esquema Supabase:** 12 tablas (7 sync blob+jsonb + `ocupaciones_centros`
+  + `reportes_centros` + `incidencias_centros` + `perfiles` + `historial`),
+  RLS por rol + centros asignados, Edge Functions `create-user`/`delete-user`/
+  `update-user-password`. Ver sección "Supabase — esquema y RLS".
 - ✅ **Datos migrados:** **51 centros** activos en la tabla `centros` (los 49
   del Excel `DATA CENTRAL 03JUL26.xlsx`; la UEN Gran Colombia se divide en 3
   edificios → `centro-03/51/52`) + snapshot inicial 2026-07-03 para los 51 en
@@ -60,13 +61,28 @@ datos viven en Postgres.
  `supabase/functions.sql`) que actualiza blob `data` + columna PostGIS `geom`
  en una sola llamada. Con esto quedó cerrado el GAP de `geom` documentado en
  la Fase 3.
+- ✅ **Reporte diario e incidencias por centro:** tablas `reportes_centros`
+ (comidas por jornada + atenciones médicas, una fila por centro/día) e
+ `incidencias_centros` (novedades con etiqueta/categorías/estado
+ abierta-resuelta), formulario "Reporte del día" en la ficha del centro
+ (reutiliza el parte numérico existente → `ocupaciones_centros` sigue
+ alimentándose), secciones de reporte e incidencias en `DetalleCentro`/
+ `FichaCentroView`, vista global `/incidencias` (filtros + calendario con
+ severidad) y 2 KPIs nuevos en `/dashboard`. Ver sección "Reporte diario e
+ incidencias por centro".
+- ✅ **Sistema de usuarios con 5 roles y permisos por centro** (migración
+ `sistema_usuarios_5_roles`, ver `docs/sistema-usuarios.md` y
+ `supabase/sistema_usuarios.sql`): roles `admin` / `analista_sae` /
+ `autoridad` / `supervisor` / `operador`; `perfiles.centros_asignados text[]`
+ (reemplaza a `sector_asignado`); RLS por rol **y** centro asignado (helpers
+ `mi_rol()`/`mis_centros()`/`mi_username()`); `incidencias_centros.creada_por`
+ (el operador solo resuelve las suyas); Edge Functions `create-user` v2
+ (genera `hash_id` en el servidor), `delete-user` y `update-user-password`
+ (gestión de usuarios COMPLETA desde `/usuarios`); vista `/logs` (bitácora
+ `historial` con Realtime, solo admin y autoridad) y `registrarHistorial()`
+ en los repos. Usuarios actuales: `admin` (admin) y `xavier` (analista_sae).
 
 ### Qué falta / próximos pasos
-
-- 🧩 **Gestión de usuarios (gaps):** la Edge Function `create-user` cubre
-  **crear** usuarios. **Eliminar usuarios** y **cambiar la password de otro
-  usuario** requieren futuras Edge Functions (hoy solo Supabase Studio o el MCP
-  pueden hacerlo con `service_role`).
 - 🔁 **Traslados entre centros:** hoy el tablero es comparativo (decides tú).
   Falta (si se pide) registrar/rastrear **movimientos de refugiados entre
   centros** y, opcionalmente, un motor de sugerencias de reubicación.
@@ -111,10 +127,11 @@ desarrollo**; **no** toca producción.
 dependencia en `package.json` pero **ya no se usa** desde que se retiró el
 módulo del parque) · **@supabase/supabase-js** (Postgres, Auth, Realtime, Storage) ·
 **vite-plugin-pwa** (service worker para caché de assets) · **react-router-dom**
-(rutas `/`, `/dashboard`, `/usuarios`) · **recharts** (gráficos, vía componente
-`chart` de shadcn). UI con **shadcn/ui** (Radix + cva + `cn()` en
-`src/lib/utils.ts`, componentes en `src/components/ui/`, estilo `radix-nova` en
-`components.json`).
+(rutas `/`, `/dashboard`, `/incidencias`, `/usuarios`, `/logs`) · **recharts** (gráficos,
+vía componente `chart` de shadcn) · **react-day-picker** + **date-fns** (los
+requiere el componente `calendar` de shadcn, usado en incidencias). UI con
+**shadcn/ui** (Radix + cva + `cn()` en `src/lib/utils.ts`, componentes en
+`src/components/ui/`, estilo `radix-nova` en `components.json`).
 
 **Capa de datos:** **Supabase** (Postgres + Auth + Realtime + Storage),
 accedida vía `@supabase/supabase-js` desde el frontend. No hay backend propio:
@@ -133,12 +150,25 @@ src/
 │  redCentros.ts (KPIs y agregados de la red),
 │  prioridadCentros.ts (orden de urgencia),
 │  serieOcupacionCentros.ts (series temporales con carry-forward),
-│  permisos.ts (roles y permisos)
+│  reporteDiario.ts (tipos y helpers del reporte diario: comidas por jornada,
+│    atenciones médicas, racionesDelDia, reporteDelDia…),
+│  incidencias.ts (tipo Incidencia + catálogos de etiquetas/categorías +
+│    helpers de severidad y agrupado por día),
+│  permisos.ts (5 roles: INFO_ROLES + helpers puedeEscribir,
+│    puedeGestionarUsuarios, puedeVerLogs, puedeCrearCentros,
+│    puedeEditarCentro, puedeResolverIncidencia)
 ├─ data/ supabaseClient.ts (cliente supabase-js con VITE_SUPABASE_*),
 │  authSupabase.ts (login/signOut/onAuthStateChange + perfil desde `perfiles`),
 │  useSupabaseQuery.ts (hook select + Realtime, reemplaza a useLiveQuery),
 │  useSupabaseConectado.ts (estado de conexión a Realtime para la UI),
 │  useOcupacionesCentros.ts (snapshots de `ocupaciones_centros` con Realtime),
+│  useReportesCentros.ts / useIncidencias.ts (reportes diarios e incidencias
+│    con Realtime, mismo patrón que useOcupacionesCentros),
+│  reposReportes.ts (guardarReporteDiario, crearIncidencia,
+│    actualizarIncidencia, resolverIncidencia),
+│  edgeFunctions.ts (invocarEdgeFunction: helper para llamar Edge Functions),
+│  historial.ts (registrarHistorial fire-and-forget + useHistorial con
+│    Realtime para /logs),
 │  reposSupabase.ts (upserts/deletes; centros vía RPC `upsert_centro` +
 │    `eliminarCentro` + snapshot de ocupación al guardar centro),
 │  desenvolver.ts (aplana filas blob+jsonb `{id,updated_at,deleted,data}` → T),
@@ -152,11 +182,14 @@ src/
 │  DetalleCentro (panel + secciones Seccion*Centro reutilizables),
 │  TableroCentros, CentroForm, LevantamientoCentro,
 │  RequerimientosCentro, PanelCentros, ControlesMapaCentros, IconosAlerta,
-│  GraficoOcupacionCentro) ·
+│  GraficoOcupacionCentro, ReporteDiarioForm, ReporteDiarioCentro,
+│  IncidenciasCentro) ·
+│  incidencias/ (IncidenciasView (/incidencias), CalendarioIncidencias,
+│  ListaIncidencias) ·
 │  dashboard/ (DashboardView, GraficoOcupacionRed) ·
 │  censo/ (DesgloseDemografico, DesglosePersonal, PersonalResumen) ·
 │  tablero/ (DemografiaResumen) ·
-│  auth/Login · usuarios/GestionUsuarios ·
+│  auth/Login · usuarios/GestionUsuarios · logs/ (LogsView (/logs)) ·
 │  (distribucion/, lineas/, puntos/, salubridad/, sectores/ quedaron VACÍAS
 │   tras retirar el módulo del parque; se pueden borrar)
 ├─ components/ Navbar, PanelFlotante, MarcaAgua, BadgeRol, PantallaCarga,
@@ -170,8 +203,11 @@ Rutas (react-router en `src/main.tsx` + `src/App.tsx`): `/` = `CentrosView`
 `FichaCentroView` (ficha completa de un centro a pantalla completa:
 multicolumna en escritorio lg+, una columna en móvil; se abre desde el tablero
 y, en móvil, desde el botón "detalles" del mapa), `/dashboard` = `DashboardView`
-(sala de control a pantalla completa, solo lectura), `/usuarios` =
-`GestionUsuarios` (admin). En prod Traefik (Dokploy) hace fallback SPA a
+(sala de control a pantalla completa, solo lectura), `/incidencias` =
+`IncidenciasView` (tablero global de incidencias de la red, solo lectura/
+análisis, todos los roles; link "Incidencias" con icono Siren en la Navbar),
+`/usuarios` = `GestionUsuarios` (admin), `/logs` = `LogsView` (bitácora,
+admin y autoridad). En prod Traefik (Dokploy) hace fallback SPA a
 `index.html`; en la PWA se añadió `navigateFallback` en `vite.config.ts` para
 deep-link offline a esas rutas.
 
@@ -201,7 +237,7 @@ Conceptos del dominio (ver `src/domain/tipos.ts`):
 
 ## Supabase — esquema y RLS
 
-Proyecto `xzwifkckkakldnzkdeby`. 10 tablas en el schema `public`:
+Proyecto `xzwifkckkakldnzkdeby`. 12 tablas en el schema `public`:
 
 **7 tablas sincronizables (blob + jsonb, idénticas al backend Fastify viejo):**
 `sectores`, `puntos`, `lineas`, `censos`, `distribuciones`, `limpiezas`,
@@ -226,30 +262,83 @@ int`, `personal_total int`, `ocupacion jsonb`, `updated_at bigint`,
 `updated_by text`, **`unique(centro_id, dia)`** (una fila por centro por día; la
 última edición del día gana), índices en `(dia)` y `(centro_id, dia)`.
 
+**`reportes_centros`** (tipada, reporte diario; SQL de referencia en
+`supabase/reportes_incidencias.sql`): `id uuid PK default gen_random_uuid()`,
+`centro_id text not null references centros(id) on delete cascade`, `dia date
+not null`, `comidas jsonb` (`{desayuno, almuerzo, cena}` → `{raciones,
+hora_llegada, proveedor, observacion}`), `atenciones_medicas int`,
+`observaciones text`, `updated_at bigint`, `updated_by text`,
+**`unique(centro_id, dia)`** (una fila por centro por día; la última edición
+gana), índices en `(dia)` y `(centro_id, dia)`.
+
+**`incidencias_centros`** (tipada, novedades con seguimiento; mismo SQL de
+referencia): `id uuid PK`, `centro_id text not null references centros(id) on
+delete cascade`, `dia date not null`, `ts bigint`, `descripcion text`,
+`etiqueta text check in (urgente, importante, cotidiana)`, `categorias text[]`
+(catálogo: seguridad, salud, agua, alimentacion, infraestructura, servicios,
+convivencia, otro), `estado text default 'abierta' check in (abierta,
+resuelta)`, `resuelta_ts bigint`, `resuelta_por text`, **`creada_por text`**
+(quién la abrió; estable, a diferencia de `updated_by` que se pisa al editar),
+`updated_at bigint`, `updated_by text`, índices en `(dia)`, `(centro_id, dia)`
+y `(estado)`. **Append** por incidencia (no una fila por día). Ambas tablas
+están en la publicación Realtime.
+
 **`perfiles`**: `user_id uuid references auth.users`, `username text unique`,
-`nombre`, `rol check in (admin, coordinador, campo, visor)`,
-`sector_asignado`, `jerarquia`, `cedula`, `responsabilidad`, `whatsapp`,
-`telegram`, `brazalete`, `hash_id unique`, `marca_agua bool default true`,
-`created_at timestamptz default now()`. Vinculada a `auth.users` por `user_id`.
-Los usuarios de campo no tienen email real → se usa el sintético
-`<username>@refugio.app` en `auth.users`.
+`nombre`, `rol check in (admin, analista_sae, autoridad, supervisor,
+operador)` (default `operador`), **`centros_asignados text[] not null default
+'{}'`** (reemplaza al viejo `sector_asignado`), `jerarquia`, `cedula`,
+`responsabilidad`, `whatsapp`, `telegram`, `brazalete`, `hash_id unique`,
+`marca_agua bool default true`, `created_at timestamptz default now()`.
+Vinculada a `auth.users` por `user_id`. Los usuarios de campo no tienen email
+real → se usa el sintético `<username>@refugio.app` en `auth.users`.
 
 **`historial`**: `id uuid, ts bigint, usuario text, accion, entidad,
-entidad_id, detalle jsonb`. Bitácora (pendiente de revivir en la UI).
+entidad_id, detalle jsonb`. Bitácora con UI en `/logs` (solo admin y
+autoridad); en la publicación Realtime. El frontend inserta vía
+`registrarHistorial()` (`src/data/historial.ts`, fire-and-forget) desde
+`guardarCentro`/`eliminarCentro`/`crearIncidencia`/`resolverIncidencia`/
+`guardarReporteDiario`; las Edge Functions insertan las acciones de usuarios.
 
-**RLS (patrón común a las tablas de la app):** usuarios autenticados **leen**
-todo; **admin / coordinador / campo** escriben; **visor** solo lee. `perfiles`:
-cada usuario lee su propio perfil; admin CRUD todos; todos pueden leer campos
-básicos (nombre, rol, sector_asignado) para mostrar "quién marcó".
+**RLS por rol + centro** (migración `sistema_usuarios_5_roles`, SQL de
+referencia en `supabase/sistema_usuarios.sql`). Helpers `SECURITY DEFINER`
+estables: `mi_rol()`, `mis_centros()`, `mi_username()` (leen `perfiles` por
+`auth.uid()` sin recursión; se usan como `(select mi_rol())` → initplan).
+Matriz:
 
-**Edge Function `create-user`** (desplegada vía MCP `deploy_edge_function`):
-recibe `{username, password, nombre, rol, sector_asignado, ...}` y usa
-`service_role` para (1) crear el `auth.users` con email `<username>@refugio.app`
-+ password y (2) insertar el `perfiles` con el `user_id` recién creado.
-`verify_jwt: true` + check interno de rol → solo admins autenticados pueden
-invocarla. El frontend la llama con el token del admin logueado. **Gaps:**
-eliminar usuarios y cambiar la password de otros requieren futuras Edge
-Functions (hoy se hace desde Supabase Studio o el MCP con `service_role`).
+- `centros` / `ocupaciones_centros` / `reportes_centros`: **select** —
+  `admin/analista_sae/autoridad` todo; `supervisor/operador` solo
+  `id/centro_id = any(mis_centros())`. **insert/update** — `admin/analista_sae`
+  todo; `supervisor/operador` solo sus centros (insert de `centros` solo
+  admin/analista). **delete** — solo `admin/analista_sae`.
+- `incidencias_centros`: igual, pero el **update** del `operador` exige además
+  `creada_por = mi_username()` (solo resuelve las suyas).
+- `perfiles`: select/insert/update/delete — `admin` todo; cada usuario lee y
+  edita su propia fila **sin poder cambiar** `rol`, `centros_asignados` ni
+  `hash_id`. (El `hash_id` dejó de ser legible por todos; nadie más necesita
+  leer perfiles ajenos porque `updated_by` guarda el username en texto.)
+- `historial`: select — solo `admin` y `autoridad`; insert — los 4 roles que
+  escriben; sin update; delete solo admin.
+- Las 6 tablas blob del módulo retirado del parque (sectores, puntos, lineas,
+  censos, distribuciones, limpiezas) conservan las policies viejas con los
+  roles `coordinador`/`campo` (ya inexistentes) → en la práctica solo admin
+  escribe. No se tocaron (módulo retirado).
+
+**Edge Functions** (desplegadas vía MCP `deploy_edge_function`, `verify_jwt:
+true` + check interno de rol admin; referencia versionada en
+`supabase/functions/<nombre>/index.ts`; entrypoint `Deno.serve(...)` — ojo: con
+`export default` la request se queda colgada hasta el idle timeout):
+
+- **`create-user` v2**: valida los 5 roles y que los `centros_asignados`
+  existan; **genera el `hash_id` en el servidor** (`XXXX-XXXX` hex, único);
+  crea `auth.users` + `perfiles` (con rollback del auth.user si falla el
+  perfil) y registra `crear_usuario` en `historial`.
+- **`delete-user`**: rechaza el auto-borrado; `auth.admin.deleteUser` (el
+  `ON DELETE CASCADE` arrastra el perfil); registra `eliminar_usuario`.
+- **`update-user-password`**: `auth.admin.updateUserById(user_id, {password})`;
+  registra `cambiar_password` (sin la contraseña).
+
+El frontend las invoca con `invocarEdgeFunction()` (`src/data/edgeFunctions.ts`,
+usa `supabase.functions.invoke` con el token de la sesión).
 
 **Bucket `centros-fotos`** (Storage, público, 5 MB, solo imágenes): las fotos se
 suben con la anon key (RLS `insert`/`update`/`select` para `anon,
@@ -292,25 +381,96 @@ Usa el componente `chart` de shadcn (`ChartContainer`/`ChartTooltip`) con
 `var(--chart-N)` como colores (siguiendo la regla del workspace de usar el MCP
 de shadcn para cualquier diseño de UI).
 
+## Reporte diario e incidencias por centro
+
+Flujo: los supervisores de cada centro reportan **cada día** desde la ficha del
+centro. El **parte numérico** (ocupación demográfica + personal) reutiliza el
+flujo existente (`guardarCentro()`), así el snapshot histórico de
+`ocupaciones_centros` sigue funcionando sin cambios; las **comidas** y las
+**atenciones médicas** van a `reportes_centros` (una fila por centro/día); las
+**incidencias** se registran en `incidencias_centros` con etiqueta de severidad
+(**urgente** rojo / **importante** ámbar / **cotidiana** gris), categorías y
+estado abierta/resuelta. Tablas + RLS en "Supabase — esquema y RLS"; SQL de
+referencia en `supabase/reportes_incidencias.sql`.
+
+- **Dominio** (`src/domain/`): `reporteDiario.ts` (tipos `ReporteDiario`,
+  `ComidaJornada`, `ComidasDia`, `JornadaReporte`
+  desayuno|almuerzo|cena; catálogo `CATALOGO_JORNADAS_REPORTE`; helpers
+  `jornadaReportada`, `jornadasReportadas`, `reporteCompleto`,
+  `racionesDelDia`, `reporteDelDia`) e `incidencias.ts` (tipo `Incidencia`;
+  catálogos `ETIQUETAS_INCIDENCIA` con orden de severidad y
+  `CATEGORIAS_INCIDENCIA`; helpers `compararSeveridad`,
+  `agruparIncidenciasPorDia`, `severidadMaxima`, `severidadMaximaPorDia` —para
+  los puntos de color de los calendarios— e `incidenciasAbiertas`).
+- **Capa de datos** (`src/data/`): hooks `useReportesCentros({centroId?, dia?,
+  desde?})` y `useIncidencias({centroId?, desde?, estado?})` (select inicial +
+  Realtime, mismo patrón que `useOcupacionesCentros`) y `reposReportes.ts`
+  (`guardarReporteDiario()` con upsert `onConflict centro_id,dia`,
+  `crearIncidencia()`, `actualizarIncidencia()`, `resolverIncidencia()` que
+  marca resuelta + `resuelta_ts`/`resuelta_por`).
+- **Ficha del centro** (`src/features/centros/`): `ReporteDiarioForm` (dialog
+  con pestañas: **Parte numérico** —reutiliza `DesgloseDemografico`/
+  `DesglosePersonal` y guarda vía `guardarCentro()`—, **Comidas** por jornada
+  con raciones/hora de llegada/proveedor y **Atención médica** con número +
+  observaciones; se abre con el botón "Reporte del día" en la cabecera de
+  `FichaCentroView` y desde la sección en `DetalleCentro`),
+  `ReporteDiarioCentro` (`SeccionReporteDiarioCentro`: estado del reporte de
+  HOY con chips por jornada reportada/pendiente, raciones totales, atenciones,
+  badge "Pendiente") e `IncidenciasCentro` (`SeccionIncidenciasCentro`: alta
+  rápida con descripción + etiqueta + categorías, lista de abiertas con
+  "Resolver" con confirmación, resueltas recientes colapsables y calendario
+  mensual del centro con punto del color de la severidad máxima por día; clic
+  en un día muestra sus incidencias). Ambas secciones integradas en
+  `DetalleCentro` y `FichaCentroView` (columna 2 el reporte, columna 3 las
+  incidencias en escritorio; también en el orden móvil). Permisos:
+  `puedeEditarCentro(usuario, centroId)` (autoridad solo lee; supervisor/
+  operador solo en sus centros) y el botón "Resolver" usa
+  `puedeResolverIncidencia` (el operador solo resuelve las que abrió él;
+  `creada_por`).
+- **Vista global `/incidencias`** (`src/features/incidencias/`, todos los
+  roles, solo lectura/análisis): `IncidenciasView` (filtros por etiqueta/
+  categoría/centro/estado, contadores por categoría clicables, layout
+  responsivo), `CalendarioIncidencias` (calendario shadcn con puntos de
+  severidad y leyenda; clic filtra por día) y `ListaIncidencias` (ordenada por
+  severidad y fecha desc, enlaza a `/centro/:id`).
+- **Dashboard**: 2 KPIs nuevos con Realtime (ver "Sala de control").
+- **shadcn**: componentes nuevos `calendar`, `tabs`, `select` en
+  `src/components/ui/` (`calendar` trajo las dependencias `react-day-picker` y
+  `date-fns`).
+
 ## Auth y usuarios
 
 - **Login** (`src/features/auth/Login.tsx` + `src/data/authSupabase.ts`): el
   usuario escribe su `username` y password; la capa lo mapea a
   `<username>@refugio.app` y llama a `supabase.auth.signInWithPassword`.
   `onAuthStateChange` mantiene la sesión. Tras login se carga el `perfil` desde
-  `perfiles` (donde están `rol`, `sector_asignado`, `hash_id`, `marca_agua`,
-  etc.) y se arma el `Usuario` de la app.
+  `perfiles` (donde están `rol`, `centros_asignados`, `hash_id`, `marca_agua`,
+  etc.) y se arma el `Usuario` de la app. Rol desconocido o perfil ausente →
+  fallback a `autoridad` (solo lectura, seguro).
 - **Sesión** (`useSesion()`): `useSyncExternalStore` sobre el estado interno
   que publica `onAuthStateChange`. Mantiene la misma interfaz pública que la
   capa legacy (`getSesion`, `getToken`, `cerrarSesion`, `setSesion`) para no
   romper consumidores.
-- **Gestión de usuarios** (`/usuarios`, `GestionUsuarios.tsx`): el admin lista
-  `perfiles`, edita rol/sector/etc., y **crea** usuarios invocando la Edge
-  Function `create-user`. **No** puede eliminar usuarios ni cambiar la password
-  de otros (faltan Edge Functions; ver "Gaps").
-- **Roles:** `admin` (todo + gestión de usuarios) · `coordinador`/`campo`
-  (leen + escriben) · `visor` (solo leen). Los chequeos de permiso viven en
-  `src/domain/permisos.ts`.
+- **Gestión de usuarios** (`/usuarios`, `GestionUsuarios.tsx`, solo admin):
+  lista agrupada por rol con filtro y conteos, tarjetas con `BadgeRol`,
+  `hash_id` en mono, chips de centros asignados y marca ON/OFF. El formulario
+  tiene **multi-select de centros** (Popover + Command, deshabilitado para
+  roles de alcance total), selector de rol con descripción, **cambio de
+  contraseña funcional** (Edge Function `update-user-password`) y
+  **eliminación completa** (`delete-user`). Ya no quedan gaps de gestión.
+- **Roles** (5, ver `docs/sistema-usuarios.md`): `admin` (todo + usuarios +
+  logs) · `analista_sae` (opera toda la red, sin usuarios ni logs) ·
+  `autoridad` (solo lectura + logs) · `supervisor` (lee/escribe SOLO sus
+  `centros_asignados`) · `operador` (ídem supervisor, pero solo resuelve las
+  incidencias que él abrió). Los chequeos de UI viven en
+  `src/domain/permisos.ts` (`INFO_ROLES`, `puedeEscribir`,
+  `puedeGestionarUsuarios`, `puedeVerLogs`, `puedeCrearCentros`,
+  `puedeEditarCentro(usuario, centroId)`, `puedeResolverIncidencia(usuario,
+  incidencia)`); la RLS aplica la misma matriz en el servidor.
+- **Bitácora `/logs`** (`src/features/logs/LogsView.tsx`, solo admin y
+  autoridad): lista cronológica de `historial` con Realtime y filtros por
+  rango de fechas, entidad y usuario. Link "Bitácora de acciones" en el menú
+  del avatar de la Navbar.
 - **Marca de agua** anti-foto: `MarcaAgua` muestra la identidad del usuario y
   la fecha si `perfil.marca_agua !== false`.
 
@@ -344,8 +504,10 @@ parroquia, dirección, enlace de Maps y **coordenadas** (lat/lng decimales o
 botón GPS). **Crear centro:** botón "Registrar centro nuevo" en `PanelCentros`
 (y "+" con el panel plegado) → `CentroForm` en modo `esNuevo` con el siguiente
 N.° libre. **Eliminar centro:** botón en el footer del form con confirmación
-(`AlertDialog`); borrado suave. Permisos: admin/coordinador/campo crean/editan/
-eliminan; **visor solo lectura**.
+(`AlertDialog`); borrado suave. Permisos: **crear/eliminar centros** solo
+`admin`/`analista_sae`; editar también `supervisor`/`operador` pero únicamente
+sus centros asignados (la RLS además les oculta el resto de la red);
+**autoridad solo lectura**.
 
 **Foto vía Supabase Storage:** la foto se sube al bucket público
 `centros-fotos` (`src/data/supabase.ts`: comprime a JPEG ~1280px antes de
@@ -360,8 +522,11 @@ situacional. Solo lectura (todos los roles), se actualiza sola vía
 `useSupabaseQuery` + Realtime. Archivo: `src/features/dashboard/DashboardView.tsx`.
 Se abre desde el botón **"Pantalla"** de la `Navbar` (link a `/dashboard`).
 
-Contenido: reloj en vivo, KPIs grandes (refugiados, familias, personal
-operativo, centros con datos, cupo disponible, centros críticos), **gráfico
+Contenido: reloj en vivo, KPIs grandes en rejilla `xl:grid-cols-4` (8
+tarjetas: refugiados, familias, personal operativo, centros con datos, cupo
+disponible, centros críticos, más 2 nuevas con Realtime: **"Incidencias
+abiertas"** con subtexto de urgentes en rojo y **"Raciones hoy"** —suma de
+`racionesDelDia` de los reportes del día vs población total—), **gráfico
 `GraficoOcupacionRed`** (histórico agregado de la red con carry-forward),
 población por parroquia, estado de la red (centros por nivel de urgencia),
 demografía de la red y lista de centros que requieren atención (ordenados por
@@ -441,9 +606,10 @@ docker compose up -d --build
   offline-first con cola/outbox; el SW queda para caché de assets estáticos y
   deep-link offline (`navigateFallback: index.html`). `runtimeCaching` cachea
   tiles de mapa ya visitados.
-- **shadcn CLI:** al añadir componentes (`npx shadcn add …`) revisa que el
-  import de `cn` quede como `@/lib/utils` (a veces el CLI lo escribe
-  `src/lib/utils` y rompe Vite).
+- **shadcn CLI:** al añadir componentes (`npx shadcn add …`) revisa que los
+  imports queden con alias `@/...` (a veces el CLI escribe `src/lib/utils` o
+  `src/components/ui/button` y rompe Vite; pasó con `cn` y con el import de
+  `button` dentro de `calendar.tsx`).
 - **`@/data/supabase.ts`** (Storage) **vs `@/data/supabaseClient.ts`** (cliente
   general): el primero es el helper legacy de subida de fotos (solo Storage);
   el segundo es el cliente supabase-js que usa toda la nueva capa. No
@@ -459,6 +625,13 @@ docker compose up -d --build
   un centro y ver el snapshot en `ocupaciones_centros` (Supabase Studio),
   crear un centro de prueba con coordenadas y verlo en el mapa (y eliminarlo),
   abrir el gráfico individual y el de red, editar en un dispositivo y ver
-  refresco en otro (Realtime), subir foto.
+  refresco en otro (Realtime), subir foto, llenar el "Reporte del día" de un
+  centro (parte numérico + comidas + atención médica), registrar y resolver una
+  incidencia y verla en `/incidencias` y en los KPIs del dashboard.
+- Usuarios y permisos: desde `/usuarios` crear un `operador` con 2 centros
+  asignados, loguearse con él y comprobar que solo ve/edita esos centros, que
+  solo resuelve las incidencias que abrió él, cambiarle la contraseña desde
+  `/usuarios` (relogin) y eliminarlo (desaparece de `auth.users` y
+  `perfiles`); revisar la bitácora en `/logs` con el admin.
 - Supabase: `list_tables` (verbose) y `get_advisors` (security) vía MCP para
   confirmar esquema y RLS.

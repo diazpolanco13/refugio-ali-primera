@@ -4,7 +4,7 @@
 //
 // Modelo: Supabase Auth gestiona el par email/password. Los usuarios de campo
 // no tienen email real → usamos el sintético `<username>@refugio.app`. La
-// metadata ampliada (rol, sector_asignado, hash_id, marca_agua, jerarquia,
+// metadata ampliada (rol, centros_asignados, hash_id, marca_agua, jerarquia,
 // cedula, etc.) vive en la tabla `perfiles`, vinculada a `auth.users` por
 // `user_id`. Tras login exitoso hacemos un select a `perfiles` y lo mergeamos
 // en el `Usuario` expuesto.
@@ -13,7 +13,7 @@ import { useSyncExternalStore } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 
-export type Rol = "admin" | "coordinador" | "campo" | "visor";
+export type Rol = "admin" | "analista_sae" | "autoridad" | "supervisor" | "operador";
 
 export interface Usuario {
   /** Mantiene compatibilidad con la sesión legacy (sub = auth.uid). */
@@ -21,8 +21,9 @@ export interface Usuario {
   username: string;
   nombre: string | null;
   rol: Rol;
-  /** Sector del que es responsable (solo campo). */
-  sector_asignado?: string | null;
+  /** Centros asignados (supervisor/operador operan solo en ellos; para el
+   *  analista SAE son su ámbito de monitoreo). */
+  centros_asignados: string[];
   /** Identificador de sistema para la marca de agua anti-foto. */
   hash_id?: string | null;
   /** Mostrar la marca de agua de seguridad en la pantalla de este usuario. */
@@ -47,7 +48,7 @@ interface Perfil {
   username: string | null;
   nombre: string | null;
   rol: Rol;
-  sector_asignado: string | null;
+  centros_asignados: string[] | null;
   hash_id: string | null;
   marca_agua: boolean;
   jerarquia: string | null;
@@ -57,6 +58,8 @@ interface Perfil {
   telegram: string | null;
   brazalete: string | null;
 }
+
+const ROLES_CONOCIDOS: Rol[] = ["admin", "analista_sae", "autoridad", "supervisor", "operador"];
 
 const listeners = new Set<() => void>();
 let estado: Sesion | null = null;
@@ -73,8 +76,9 @@ function mapearUsuario(session: Session, perfil: Perfil | null): Usuario {
     sub: session.user.id,
     username,
     nombre: perfil?.nombre ?? null,
-    rol: perfil?.rol ?? "visor",
-    sector_asignado: perfil?.sector_asignado ?? null,
+    // Rol desconocido o perfil ausente → autoridad (solo lectura, seguro).
+    rol: perfil?.rol && ROLES_CONOCIDOS.includes(perfil.rol) ? perfil.rol : "autoridad",
+    centros_asignados: perfil?.centros_asignados ?? [],
     hash_id: perfil?.hash_id ?? null,
     marca_agua: perfil?.marca_agua ?? true,
     jerarquia: perfil?.jerarquia ?? null,

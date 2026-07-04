@@ -9,7 +9,7 @@ import { ArrowLeft, ClipboardCheck, Pencil, SearchX } from "lucide-react";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { Sesion } from "@/data/authSupabase";
-import { puedeEditarMapa } from "@/domain/permisos";
+import { puedeCrearCentros, puedeEditarCentro } from "@/domain/permisos";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,7 +54,6 @@ function useEsEscritorio(): boolean {
 export function FichaCentroView({ sesion }: Props) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const puedeEditar = puedeEditarMapa(sesion.user.rol);
   const esEscritorio = useEsEscritorio();
   const [editando, setEditando] = useState(false);
   const [reportando, setReportando] = useState(false);
@@ -77,6 +76,10 @@ export function FichaCentroView({ sesion }: Props) {
     () => centros.find((c) => c.id === id) ?? null,
     [centros, id],
   );
+
+  // Permiso por centro concreto: supervisor/operador solo editan los suyos
+  // (la RLS ya oculta los demás; esto mantiene la UI coherente).
+  const puedeEditar = centro != null && puedeEditarCentro(sesion.user, centro.id);
 
   /** Volver a la vista anterior; si se entró por deep-link, al mapa. */
   function volver() {
@@ -210,6 +213,7 @@ export function FichaCentroView({ sesion }: Props) {
         <CentroForm
           centro={centro}
           soloLectura={!puedeEditar}
+          puedeEliminar={puedeCrearCentros(sesion.user.rol)}
           onCerrar={() => setEditando(false)}
         />
       )}

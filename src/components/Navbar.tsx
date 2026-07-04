@@ -3,15 +3,17 @@ import {
   LogOut,
   MapPinned,
   MonitorPlay,
+  ScrollText,
   Siren,
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { Rol, Sesion } from "@/data/authSupabase";
+import type { Sesion } from "@/data/authSupabase";
 import { cerrarSesion } from "@/data/authSupabase";
-import type { InfoRol } from "@/domain/permisos";
+import { puedeVerLogs } from "@/domain/permisos";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { BadgeRol } from "@/components/BadgeRol";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,7 +28,6 @@ import { cn } from "@/lib/utils";
 
 interface NavbarProps {
   sesion: Sesion;
-  permisos: InfoRol;
   puedeEditar: boolean;
   esAdmin: boolean;
   online: boolean;
@@ -47,19 +48,6 @@ function iniciales(nombre: string | null, username: string): string {
   const partes = base.split(/\s+/);
   if (partes.length >= 2) return (partes[0][0] + partes[1][0]).toUpperCase();
   return base.slice(0, 2).toUpperCase();
-}
-
-function badgeRolVariant(rol: Rol): "default" | "secondary" | "outline" | "ghost" {
-  switch (rol) {
-    case "admin":
-      return "default";
-    case "coordinador":
-      return "secondary";
-    case "campo":
-      return "outline";
-    default:
-      return "ghost";
-  }
 }
 
 /**
@@ -109,7 +97,6 @@ function IconoAppConEstado({
 
 export function Navbar({
   sesion,
-  permisos,
   puedeEditar,
   esAdmin,
   online,
@@ -198,9 +185,7 @@ export function Navbar({
                 <p className="truncate text-sm font-medium text-foreground">{nombre}</p>
                 <p className="truncate text-xs text-muted-foreground">@{sesion.user.username}</p>
                 <div className="flex flex-wrap items-center gap-1">
-                  <Badge variant={badgeRolVariant(sesion.user.rol)}>
-                    {permisos.etiqueta}
-                  </Badge>
+                  <BadgeRol rol={sesion.user.rol} />
                   {!puedeEditar && (
                     <Badge variant="outline" className="text-muted-foreground">
                       Solo lectura
@@ -210,16 +195,26 @@ export function Navbar({
               </div>
             </DropdownMenuLabel>
 
-            {esAdmin && (
+            {(esAdmin || puedeVerLogs(sesion.user.rol)) && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem asChild>
-                    <Link to="/usuarios">
-                      <Users />
-                      Gestionar usuarios
-                    </Link>
-                  </DropdownMenuItem>
+                  {esAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/usuarios">
+                        <Users />
+                        Gestionar usuarios
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {puedeVerLogs(sesion.user.rol) && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/logs">
+                        <ScrollText />
+                        Bitácora de acciones
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuGroup>
               </>
             )}

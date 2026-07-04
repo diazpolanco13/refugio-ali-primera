@@ -13,7 +13,11 @@ import {
   type ClaveCuerpo,
 } from "@/domain/centrosTransitorios";
 import type { Sesion } from "@/data/authSupabase";
-import { puedeEditarMapa, permisosDeRol, puedeGestionarUsuarios } from "@/domain/permisos";
+import {
+  puedeEscribir,
+  puedeGestionarUsuarios,
+  puedeCrearCentros,
+} from "@/domain/permisos";
 import { useSupabaseConectado } from "@/data/useSupabaseConectado";
 import { Navbar } from "@/components/Navbar";
 import { CentrosMap, type CentrosMapHandle } from "./CentrosMap";
@@ -30,8 +34,8 @@ type Vista = "mapa" | "tablero";
 
 /** Vista de conjunto: mapa/tablero de Caracas con los 50 Centros Transitorios. */
 export function CentrosView({ sesion }: Props) {
-  const permisos = permisosDeRol(sesion.user.rol);
-  const puedeEditar = puedeEditarMapa(sesion.user.rol);
+  const puedeEditar = puedeEscribir(sesion.user.rol);
+  const puedeCrear = puedeCrearCentros(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const conectado = useSupabaseConectado();
   const navigate = useNavigate();
@@ -210,7 +214,6 @@ export function CentrosView({ sesion }: Props) {
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
       <Navbar
         sesion={sesion}
-        permisos={permisos}
         puedeEditar={puedeEditar}
         esAdmin={esAdmin}
         online={online}
@@ -245,7 +248,7 @@ export function CentrosView({ sesion }: Props) {
               onSeleccionarCentro={seleccionarDesdeLista}
               abierto={panelAbierto}
               onCambiarAbierto={setPanelAbierto}
-              onNuevoCentro={puedeEditar ? abrirNuevoCentro : undefined}
+              onNuevoCentro={puedeCrear ? abrirNuevoCentro : undefined}
             />
           </>
         ) : (
@@ -278,6 +281,7 @@ export function CentrosView({ sesion }: Props) {
           centro={editando}
           soloLectura={!puedeEditar}
           esNuevo={creandoNuevo}
+          puedeEliminar={puedeCrear}
           onCerrar={cerrarFormulario}
         />
       )}

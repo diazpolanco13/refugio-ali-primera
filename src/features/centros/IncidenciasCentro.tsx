@@ -18,6 +18,8 @@ import {
 import { useIncidencias } from "@/data/useIncidencias";
 import { crearIncidencia, resolverIncidencia } from "@/data/reposReportes";
 import { claveDia } from "@/data/reposSupabase";
+import { useSesion } from "@/data/authSupabase";
+import { puedeResolverIncidencia } from "@/domain/permisos";
 import {
   CATEGORIAS_INCIDENCIA,
   CATEGORIA_LABEL,
@@ -321,12 +323,13 @@ function AltaIncidencia({ centroId }: { centroId: string }) {
 /** Calendario mensual con punto de color por severidad máxima de cada día. */
 function CalendarioIncidencias({
   incidencias,
-  puedeEditar,
+  puedeResolver,
   onResolver,
   resolviendoId,
 }: {
   incidencias: Incidencia[];
-  puedeEditar: boolean;
+  /** Permiso por incidencia: el operador solo resuelve las que él abrió. */
+  puedeResolver: (incidencia: Incidencia) => boolean;
   onResolver: (id: string) => void;
   resolviendoId: string | null;
 }) {
@@ -387,7 +390,7 @@ function CalendarioIncidencias({
               <TarjetaIncidencia
                 key={i.id}
                 incidencia={i}
-                puedeResolver={puedeEditar}
+                puedeResolver={puedeResolver(i)}
                 onResolver={onResolver}
                 resolviendo={resolviendoId === i.id}
               />
@@ -401,8 +404,13 @@ function CalendarioIncidencias({
 
 /** Sección completa de incidencias del centro (alta, abiertas, calendario). */
 export function SeccionIncidenciasCentro({ centro, puedeEditar }: Props) {
+  const sesion = useSesion();
   const incidencias = useIncidencias({ centroId: centro.id });
   const abiertas = useMemo(() => incidenciasAbiertas(incidencias), [incidencias]);
+
+  /** Permiso por incidencia: el operador solo resuelve las que él abrió. */
+  const puedeResolver = (i: Incidencia) =>
+    puedeEditar && sesion != null && puedeResolverIncidencia(sesion.user, i);
   const resueltas = useMemo(
     () =>
       incidencias
@@ -461,7 +469,7 @@ export function SeccionIncidenciasCentro({ centro, puedeEditar }: Props) {
             <TarjetaIncidencia
               key={i.id}
               incidencia={i}
-              puedeResolver={puedeEditar}
+              puedeResolver={puedeResolver(i)}
               onResolver={(id) => void resolver(id)}
               resolviendo={resolviendoId === i.id}
             />
@@ -509,7 +517,7 @@ export function SeccionIncidenciasCentro({ centro, puedeEditar }: Props) {
           <CollapsibleContent className="mt-2">
             <CalendarioIncidencias
               incidencias={incidencias}
-              puedeEditar={puedeEditar}
+              puedeResolver={puedeResolver}
               onResolver={(id) => void resolver(id)}
               resolviendoId={resolviendoId}
             />

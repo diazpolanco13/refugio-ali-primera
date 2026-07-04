@@ -98,6 +98,9 @@ export interface Incidencia {
   resuelta_ts: number | null;
   /** Username de quien la resolvió; null si sigue abierta. */
   resuelta_por: string | null;
+  /** Username de quien la abrió (estable: `updated_by` se pisa al editar).
+   *  El operador solo puede resolver las incidencias que él creó. */
+  creada_por: string | null;
   updated_at: number;
   updated_by: string;
 }
@@ -120,6 +123,7 @@ export function normalizarIncidencia(
     estado: raw.estado === "resuelta" ? "resuelta" : "abierta",
     resuelta_ts: raw.resuelta_ts ?? null,
     resuelta_por: raw.resuelta_por ?? null,
+    creada_por: raw.creada_por ?? null,
     updated_at: raw.updated_at ?? 0,
     updated_by: raw.updated_by ?? "",
   };

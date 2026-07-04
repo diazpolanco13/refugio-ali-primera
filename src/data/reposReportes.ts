@@ -19,6 +19,7 @@ import {
 } from "../domain/incidencias";
 import { supabase } from "./supabaseClient";
 import { claveDia, usuarioActual } from "./reposSupabase";
+import { registrarHistorial } from "./historial";
 
 // ---- Reporte diario ----
 
@@ -49,6 +50,10 @@ export async function guardarReporteDiario(
   if (error) {
     throw new Error(`[reposReportes] upsert reportes_centros: ${error.message}`);
   }
+  registrarHistorial("reporte_diario", "reporte", `${fila.centro_id}/${fila.dia}`, {
+    centro_id: fila.centro_id,
+    dia: fila.dia,
+  });
 }
 
 // ---- Incidencias ----
@@ -77,6 +82,9 @@ export async function crearIncidencia(datos: {
     etiqueta: normalizarEtiqueta(datos.etiqueta),
     categorias: normalizarCategorias(datos.categorias),
     estado: "abierta" as const,
+    // Quién la abrió: estable de por vida (updated_by se pisa en cada edición).
+    // La RLS usa esta columna para que el operador solo resuelva las suyas.
+    creada_por: usuarioActual(),
     updated_at: ts,
     updated_by: usuarioActual(),
   };
@@ -88,7 +96,12 @@ export async function crearIncidencia(datos: {
   if (error) {
     throw new Error(`[reposReportes] insert incidencias_centros: ${error.message}`);
   }
-  return (data as { id: string }).id;
+  const id = (data as { id: string }).id;
+  registrarHistorial("abrir_incidencia", "incidencia", id, {
+    centro_id: fila.centro_id,
+    etiqueta: fila.etiqueta,
+  });
+  return id;
 }
 
 /**
@@ -139,4 +152,5 @@ export async function resolverIncidencia(id: string): Promise<void> {
   if (error) {
     throw new Error(`[reposReportes] resolver incidencias_centros: ${error.message}`);
   }
+  registrarHistorial("resolver_incidencia", "incidencia", id);
 }

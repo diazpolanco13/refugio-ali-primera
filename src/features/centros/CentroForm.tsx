@@ -86,6 +86,8 @@ interface Props {
   soloLectura?: boolean;
   /** true cuando el centro aún no existe en la base (alta de un centro nuevo). */
   esNuevo?: boolean;
+  /** Eliminar centros es solo para roles de alcance total (admin/analista SAE). */
+  puedeEliminar?: boolean;
   onCerrar: () => void;
 }
 
@@ -141,7 +143,13 @@ function asegurarIdsResponsables(lista: Responsable[]): Responsable[] {
 }
 
 /** Formulario de registro/edición del estado de un centro transitorio. */
-export function CentroForm({ centro, soloLectura = false, esNuevo = false, onCerrar }: Props) {
+export function CentroForm({
+  centro,
+  soloLectura = false,
+  esNuevo = false,
+  puedeEliminar = false,
+  onCerrar,
+}: Props) {
   const base = normalizarCentro(centro);
 
   const [pestana, setPestana] = useState<Pestana>("identificacion");
@@ -1102,7 +1110,7 @@ export function CentroForm({ centro, soloLectura = false, esNuevo = false, onCer
               {errorGuardado}
             </p>
           )}
-          {!soloLectura && !esNuevo && (
+          {!soloLectura && !esNuevo && puedeEliminar && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button

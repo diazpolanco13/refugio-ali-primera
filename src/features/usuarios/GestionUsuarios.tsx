@@ -3,6 +3,9 @@ import { Link } from "react-router-dom";
 import {
   ArrowLeft,
   BadgeCheck,
+  Building2,
+  Check,
+  ChevronsUpDown,
   Fingerprint,
   IdCard,
   Loader2,
@@ -14,18 +17,32 @@ import {
   ShieldCheck,
   Trash2,
   Users,
+  X,
 } from "lucide-react";
 import type { Rol, Sesion } from "@/data/authSupabase";
-import { getToken } from "@/data/authSupabase";
 import { supabase } from "@/data/supabaseClient";
+import { invocarEdgeFunction } from "@/data/edgeFunctions";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
-import { INFO_ROLES, puedeGestionarUsuarios, ROLES } from "@/domain/permisos";
+import {
+  INFO_ROLES,
+  puedeGestionarUsuarios,
+  ROLES,
+  rolUsaCentrosAsignados,
+} from "@/domain/permisos";
 import { BadgeRol } from "@/components/BadgeRol";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -36,18 +53,26 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 /**
  * Fila de la tabla `perfiles` en Supabase (vinculada a `auth.users` por
- * `user_id`). Reemplaza al tipo `UsuarioRegistro` de la capa legacy `api.ts`.
+ * `user_id`).
  */
 interface UsuarioPerfil {
   user_id: string;
   username: string | null;
   nombre: string | null;
   rol: Rol;
-  sector_asignado: string | null;
+  centros_asignados: string[] | null;
   jerarquia: string | null;
   cedula: string | null;
   responsabilidad: string | null;
@@ -64,7 +89,7 @@ type Formulario = {
   password: string;
   nombre: string;
   rol: Rol;
-  sector_asignado: string;
+  centros_asignados: string[];
   jerarquia: string;
   cedula: string;
   responsabilidad: string;
@@ -78,8 +103,8 @@ const formVacio = (): Formulario => ({
   username: "",
   password: "",
   nombre: "",
-  rol: "campo",
-  sector_asignado: "",
+  rol: "operador",
+  centros_asignados: [],
   jerarquia: "",
   cedula: "",
   responsabilidad: "",
@@ -89,8 +114,150 @@ const formVacio = (): Formulario => ({
   marca_agua: true,
 });
 
-const inputClase =
-  "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30";
+/** Etiqueta corta de un centro para chips y opciones: "N.° 12 · Nombre". */
+function etiquetaCentro(centro: CentroTransitorio | undefined, id: string): string {
+  if (!centro) return id;
+  return `${centro.nro != null ? `N.° ${centro.nro} · ` : ""}${centro.nombre}`;
+}
+
+/**
+ * Multi-select de centros asignados: popover con buscador (Command) y chips
+ * removibles debajo. Reemplaza al selector único de `sector_asignado`.
+ */
+function SelectorCentros({
+  centros,
+  seleccion,
+  onCambiar,
+  disabled,
+}: {
+  centros: CentroTransitorio[];
+  seleccion: string[];
+  onCambiar: (ids: string[]) => void;
+  disabled?: boolean;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const porId = useMemo(() => new Map(centros.map((c) => [c.id, c])), [centros]);
+  const todosSeleccionados =
+    centros.length > 0 && centros.every((c) => seleccion.includes(c.id));
+
+  function toggle(id: string) {
+    onCambiar(
+      seleccion.includes(id) ? seleccion.filter((s) => s !== id) : [...seleccion, id],
+    );
+  }
+
+  function toggleTodos() {
+    onCambiar(todosSeleccionados ? [] : centros.map((c) => c.id));
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <Popover open={abierto} onOpenChange={setAbierto}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={abierto}
+            disabled={disabled}
+            className="h-8 w-full justify-between px-2.5 text-sm font-normal"
+          >
+            <span className="truncate text-left">
+              {seleccion.length === 0
+                ? "Sin centros asignados"
+                : todosSeleccionados
+                  ? `Todos los centros (${centros.length})`
+                  : `${seleccion.length} centro${seleccion.length === 1 ? "" : "s"} asignado${seleccion.length === 1 ? "" : "s"}`}
+            </span>
+            <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Buscar centro…" />
+            <CommandList>
+              <CommandEmpty>Sin resultados.</CommandEmpty>
+              <CommandGroup>
+                <CommandItem
+                  value="__todos__ todos los centros toda la red"
+                  onSelect={toggleTodos}
+                  className="font-medium"
+                >
+                  <Check
+                    className={cn("size-4", todosSeleccionados ? "opacity-100" : "opacity-0")}
+                  />
+                  <Building2 className="size-3.5 text-muted-foreground" />
+                  <span>Todos los centros ({centros.length})</span>
+                </CommandItem>
+                {centros.map((c) => {
+                  const marcado = seleccion.includes(c.id);
+                  return (
+                    <CommandItem
+                      key={c.id}
+                      value={`${c.nro ?? ""} ${c.nombre} ${c.parroquia ?? ""}`}
+                      onSelect={() => toggle(c.id)}
+                    >
+                      <Check
+                        className={cn("size-4", marcado ? "opacity-100" : "opacity-0")}
+                      />
+                      <span className="truncate">{etiquetaCentro(c, c.id)}</span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {todosSeleccionados ? (
+        <div className="flex flex-wrap gap-1">
+          <Badge
+            variant="outline"
+            className="gap-1 border-primary/40 pr-1 text-[10px] text-primary"
+          >
+            <Building2 className="size-3" />
+            Toda la red ({centros.length} centros)
+            {!disabled && (
+              <button
+                type="button"
+                className="rounded-sm p-0.5 hover:bg-accent hover:text-foreground"
+                onClick={() => onCambiar([])}
+                aria-label="Quitar todos los centros"
+              >
+                <X className="size-3" />
+              </button>
+            )}
+          </Badge>
+        </div>
+      ) : (
+        seleccion.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {seleccion.map((id) => (
+              <Badge
+                key={id}
+                variant="outline"
+                className="gap-1 pr-1 text-[10px] text-muted-foreground"
+              >
+                <Building2 className="size-3" />
+                <span className="max-w-40 truncate">{etiquetaCentro(porId.get(id), id)}</span>
+                {!disabled && (
+                  <button
+                    type="button"
+                    className="rounded-sm p-0.5 hover:bg-accent hover:text-foreground"
+                    onClick={() => toggle(id)}
+                    aria-label="Quitar centro"
+                  >
+                    <X className="size-3" />
+                  </button>
+                )}
+              </Badge>
+            ))}
+          </div>
+        )
+      )}
+    </div>
+  );
+}
 
 function FormUsuario({
   titulo,
@@ -136,6 +303,8 @@ function FormUsuario({
     setForm((f) => ({ ...f, [k]: v }));
   }
 
+  const usaCentros = rolUsaCentrosAsignados(form.rol);
+
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -167,7 +336,7 @@ function FormUsuario({
                 <Fingerprint className="size-4 shrink-0 text-primary" />
                 <div className="min-w-0">
                   <p className="text-[11px] font-medium text-muted-foreground">
-                    Identificador de sistema (marca de agua)
+                    Identificador de sistema (marca de agua) — inmutable
                   </p>
                   <p className="font-mono text-sm font-semibold tracking-wider text-foreground">
                     {hashId}
@@ -189,6 +358,7 @@ function FormUsuario({
                     value={form.nombre}
                     onChange={(e) => set("nombre", e.target.value)}
                     placeholder="Ej. María Pérez"
+                    required
                     disabled={guardando}
                   />
                 </div>
@@ -215,10 +385,10 @@ function FormUsuario({
               </div>
             </section>
 
-            {/* Rol y funciones */}
+            {/* Rol y centros */}
             <section className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Cargo y responsabilidad
+                Cargo, rol y centros
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
@@ -241,43 +411,42 @@ function FormUsuario({
                     disabled={guardando}
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="usuario-rol">Rol / permisos del sistema</Label>
-                  <select
-                    id="usuario-rol"
-                    className={inputClase}
+                  <Select
                     value={form.rol}
                     disabled={guardando}
-                    onChange={(e) => set("rol", e.target.value as Rol)}
+                    onValueChange={(v) => set("rol", v as Rol)}
                   >
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {INFO_ROLES[r].etiqueta}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger id="usuario-rol" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLES.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {INFO_ROLES[r].etiqueta}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <p className="text-xs leading-snug text-muted-foreground">
                     {INFO_ROLES[form.rol].descripcion}
                   </p>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="usuario-sector">Centro asignado (campo)</Label>
-                  <select
-                    id="usuario-sector"
-                    className={inputClase}
-                    value={form.sector_asignado}
-                    disabled={guardando}
-                    onChange={(e) => set("sector_asignado", e.target.value)}
-                  >
-                    <option value="">Sin asignar</option>
-                    {centros.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        N.° {c.nro} — {c.nombre}
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label>Centros asignados</Label>
+                  <SelectorCentros
+                    centros={centros}
+                    seleccion={form.centros_asignados}
+                    onCambiar={(ids) => set("centros_asignados", ids)}
+                    disabled={guardando || !usaCentros}
+                  />
                   <p className="text-xs leading-snug text-muted-foreground">
-                    El responsable de campo solo edita el centro que tenga asignado.
+                    {usaCentros
+                      ? form.rol === "analista_sae"
+                        ? "Ámbito de monitoreo del analista (su acceso operativo sigue siendo toda la red)."
+                        : "El supervisor y el operador solo ven y editan sus centros asignados."
+                      : "Este rol tiene alcance sobre toda la red; no necesita asignación."}
                   </p>
                 </div>
               </div>
@@ -367,7 +536,7 @@ function FormUsuario({
                 )}
                 <div className="space-y-1.5">
                   <Label htmlFor="usuario-password">
-                    {esEdicion ? "Nueva contraseña (pendiente)" : "Contraseña"}
+                    {esEdicion ? "Nueva contraseña (opcional)" : "Contraseña"}
                   </Label>
                   <Input
                     id="usuario-password"
@@ -376,19 +545,13 @@ function FormUsuario({
                     onChange={(e) => set("password", e.target.value)}
                     required={!esEdicion}
                     minLength={6}
-                    placeholder={
-                      esEdicion
-                        ? "Cambio no disponible aún (requiere Edge Function)"
-                        : undefined
-                    }
-                    disabled={guardando || esEdicion}
+                    placeholder={esEdicion ? "Dejar vacío para no cambiarla" : undefined}
+                    disabled={guardando}
                   />
                   {esEdicion && (
-                    <p className="text-[11px] text-amber-400">
-                      El cambio de contraseña de otros usuarios requiere una Edge
-                      Function (<code className="font-mono">update-user-password</code>)
-                      aún no desplegada. Usa el flujo de reset de Supabase Auth
-                      mientras tanto.
+                    <p className="text-[11px] leading-snug text-muted-foreground">
+                      Si escribes una contraseña nueva, se aplica de inmediato y el
+                      usuario deberá usarla en su próximo inicio de sesión.
                     </p>
                   )}
                 </div>
@@ -437,6 +600,149 @@ function DatoFicha({
   );
 }
 
+function TarjetaUsuario({
+  usuario,
+  esYo,
+  centros,
+  onEditar,
+  onEliminar,
+}: {
+  usuario: UsuarioPerfil;
+  esYo: boolean;
+  centros: CentroTransitorio[];
+  onEditar: () => void;
+  onEliminar?: () => void;
+}) {
+  const porId = useMemo(() => new Map(centros.map((c) => [c.id, c])), [centros]);
+  const asignados = usuario.centros_asignados ?? [];
+  const tieneTodaLaRed =
+    centros.length > 0 && centros.every((c) => asignados.includes(c.id));
+
+  return (
+    <Card size="sm" className="py-3">
+      <CardContent className="px-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <span className="truncate">{usuario.nombre || usuario.username}</span>
+              {esYo && (
+                <Badge
+                  variant="outline"
+                  className="border-primary/40 text-[10px] text-primary"
+                >
+                  tú
+                </Badge>
+              )}
+            </div>
+            <div className="truncate text-xs text-muted-foreground">
+              @{usuario.username}
+              {usuario.jerarquia && <> · {usuario.jerarquia}</>}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button size="sm" variant="outline" onClick={onEditar}>
+              <Pencil className="size-3" />
+              Editar
+            </Button>
+            {onEliminar && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                onClick={onEliminar}
+                title="Eliminar usuario"
+              >
+                <Trash2 className="size-3" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <BadgeRol rol={usuario.rol} />
+          {usuario.hash_id && (
+            <Badge
+              variant="outline"
+              className="gap-1 border-primary/30 font-mono text-[10px] tracking-wider text-primary"
+            >
+              <Fingerprint className="size-3" />
+              {usuario.hash_id}
+            </Badge>
+          )}
+          <Badge
+            variant="outline"
+            className={cn(
+              "gap-1 text-[10px]",
+              usuario.marca_agua
+                ? "border-emerald-500/40 text-emerald-400"
+                : "border-amber-500/40 text-amber-400",
+            )}
+            title="Marca de agua de seguridad"
+          >
+            <ShieldAlert className="size-3" />
+            {usuario.marca_agua ? "Marca ON" : "Marca OFF"}
+          </Badge>
+        </div>
+
+        {asignados.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {tieneTodaLaRed ? (
+              <Badge
+                variant="outline"
+                className="gap-1 border-primary/40 text-[10px] text-primary"
+              >
+                <Building2 className="size-3" />
+                Toda la red ({centros.length} centros)
+              </Badge>
+            ) : (
+              asignados.map((id) => (
+                <Badge
+                  key={id}
+                  variant="outline"
+                  className="gap-1 text-[10px] text-muted-foreground"
+                >
+                  <Building2 className="size-3" />
+                  <span className="max-w-44 truncate">
+                    {etiquetaCentro(porId.get(id), id)}
+                  </span>
+                </Badge>
+              ))
+            )}
+          </div>
+        )}
+
+        {(usuario.responsabilidad ||
+          usuario.cedula ||
+          usuario.brazalete ||
+          usuario.whatsapp ||
+          usuario.telegram) && (
+          <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 border-t border-border/60 pt-2.5">
+            {usuario.responsabilidad && (
+              <DatoFicha icono={<BadgeCheck className="size-3" />}>
+                {usuario.responsabilidad}
+              </DatoFicha>
+            )}
+            {usuario.cedula && (
+              <DatoFicha icono={<IdCard className="size-3" />}>{usuario.cedula}</DatoFicha>
+            )}
+            {usuario.brazalete && (
+              <DatoFicha icono={<BadgeCheck className="size-3" />}>
+                Brazalete {usuario.brazalete}
+              </DatoFicha>
+            )}
+            {usuario.whatsapp && (
+              <DatoFicha icono={<Phone className="size-3" />}>{usuario.whatsapp}</DatoFicha>
+            )}
+            {usuario.telegram && (
+              <DatoFicha icono={<Send className="size-3" />}>{usuario.telegram}</DatoFicha>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const usuarioActualId = sesion.user.sub;
@@ -446,9 +752,11 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
   const [creando, setCreando] = useState(false);
   const [editando, setEditando] = useState<UsuarioPerfil | null>(null);
   const [eliminando, setEliminando] = useState<UsuarioPerfil | null>(null);
+  const [eliminandoEnCurso, setEliminandoEnCurso] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState("");
+  const [filtroRol, setFiltroRol] = useState<Rol | "todos">("todos");
 
-  // Los centros se leen de Supabase para el selector de "centro asignado".
+  // Los centros se leen de Supabase para el multi-select de centros asignados.
   // `nro` vive dentro de `data` jsonb (no es columna top-level), así que el
   // orden se aplica en cliente (ver CentrosView.tsx para más detalle).
   type CentroFila = CentroTransitorio & { deleted: boolean };
@@ -497,40 +805,38 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
     };
   }, [esAdmin, recargar]);
 
+  /** Conteo por rol para las píldoras de categoría. */
+  const conteos = useMemo(() => {
+    const c = new Map<Rol, number>();
+    for (const u of usuarios) c.set(u.rol, (c.get(u.rol) ?? 0) + 1);
+    return c;
+  }, [usuarios]);
+
+  /** Usuarios visibles según el filtro, agrupados por rol (en orden del catálogo). */
+  const grupos = useMemo(() => {
+    const visibles =
+      filtroRol === "todos" ? usuarios : usuarios.filter((u) => u.rol === filtroRol);
+    return ROLES.map((rol) => ({
+      rol,
+      usuarios: visibles.filter((u) => u.rol === rol),
+    })).filter((g) => g.usuarios.length > 0);
+  }, [usuarios, filtroRol]);
+
   async function crear(form: Formulario) {
-    const token = getToken();
-    if (!token) throw new Error("Sesión no válida. Vuelve a iniciar sesión.");
-    const res = await fetch(
-      "https://xzwifkckkakldnzkdeby.supabase.co/functions/v1/create-user",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username: form.username.trim(),
-          password: form.password,
-          nombre: form.nombre.trim() || null,
-          rol: form.rol,
-          sector_asignado: form.sector_asignado || null,
-          jerarquia: form.jerarquia.trim() || null,
-          cedula: form.cedula.trim() || null,
-          responsabilidad: form.responsabilidad.trim() || null,
-          whatsapp: form.whatsapp.trim() || null,
-          telegram: form.telegram.trim() || null,
-          brazalete: form.brazalete.trim() || null,
-          marca_agua: form.marca_agua,
-        }),
-      },
-    );
-    const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-    if (!res.ok) {
-      if (res.status === 409) throw new Error("Ya existe un usuario con ese nombre.");
-      if (res.status === 403) throw new Error("No tienes permisos para crear usuarios.");
-      if (res.status === 400) throw new Error(body.error || body.message || "Datos inválidos.");
-      throw new Error(body.error || body.message || `No se pudo crear (HTTP ${res.status}).`);
-    }
+    await invocarEdgeFunction("create-user", {
+      username: form.username.trim(),
+      password: form.password,
+      nombre: form.nombre.trim() || null,
+      rol: form.rol,
+      centros_asignados: rolUsaCentrosAsignados(form.rol) ? form.centros_asignados : [],
+      jerarquia: form.jerarquia.trim() || null,
+      cedula: form.cedula.trim() || null,
+      responsabilidad: form.responsabilidad.trim() || null,
+      whatsapp: form.whatsapp.trim() || null,
+      telegram: form.telegram.trim() || null,
+      brazalete: form.brazalete.trim() || null,
+      marca_agua: form.marca_agua,
+    });
     setCreando(false);
     await recargar();
   }
@@ -540,7 +846,7 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
     const patch: Partial<UsuarioPerfil> = {
       nombre: form.nombre.trim() || null,
       rol: form.rol,
-      sector_asignado: form.sector_asignado || null,
+      centros_asignados: rolUsaCentrosAsignados(form.rol) ? form.centros_asignados : [],
       jerarquia: form.jerarquia.trim() || null,
       cedula: form.cedula.trim() || null,
       responsabilidad: form.responsabilidad.trim() || null,
@@ -555,16 +861,12 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
       .eq("user_id", editando.user_id);
     if (err) throw new Error(err.message);
 
-    // GAP documentado: el cambio de contraseña NO se aplica aquí. Actualizar la
-    // contraseña de OTRO usuario en `auth.users` requiere la service_role (que
-    // el frontend no debe tener). Haría falta otra Edge Function
-    // `update-user-password` análoga a `create-user`. Por ahora, si el admin
-    // llena el campo "nueva contraseña", se ignora con un aviso.
+    // Cambio de contraseña de otro usuario: Edge Function con service_role.
     if (form.password) {
-      // No lanzamos error: el perfil sí se actualizó. Solo informamos.
-      console.warn(
-        "[GestionUsuarios] cambio de contraseña no implementado (requiere Edge Function).",
-      );
+      await invocarEdgeFunction("update-user-password", {
+        user_id: editando.user_id,
+        password: form.password,
+      });
     }
     setEditando(null);
     await recargar();
@@ -573,24 +875,16 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
   async function confirmarEliminar() {
     if (!eliminando) return;
     setErrorEliminar("");
+    setEliminandoEnCurso(true);
     try {
-      const { error: err } = await supabase
-        .from("perfiles")
-        .delete()
-        .eq("user_id", eliminando.user_id);
-      if (err) throw new Error(err.message);
-      // GAP documentado: `auth.users` NO se borra al eliminar el perfil. El
-      // `ON DELETE CASCADE` de `perfiles.user_id → auth.users.id` borra el
-      // perfil cuando se borra el auth.user, pero NO al revés. Hace falta
-      // otra Edge Function `delete-user` (con service_role) para limpiar el
-      // auth.user huérfano. Mientras tanto, el usuario ya no podrá loguearse
-      // porque el perfil (que da rol/permisos) no existe, pero la fila de
-      // auth.users queda y debería purgarse manualmente o con esa futura
-      // Edge Function.
+      // Borra auth.users + perfil (cascade) vía Edge Function con service_role.
+      await invocarEdgeFunction("delete-user", { user_id: eliminando.user_id });
       setEliminando(null);
       await recargar();
     } catch (err) {
       setErrorEliminar(err instanceof Error ? err.message : "No se pudo eliminar");
+    } finally {
+      setEliminandoEnCurso(false);
     }
   }
 
@@ -645,6 +939,37 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
               </div>
             )}
 
+            {/* Filtro por categoría de rol, con conteo */}
+            {!cargando && usuarios.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Button
+                  size="sm"
+                  variant={filtroRol === "todos" ? "secondary" : "outline"}
+                  className="h-7 gap-1.5 px-2.5 text-xs"
+                  onClick={() => setFiltroRol("todos")}
+                >
+                  Todos
+                  <span className="text-muted-foreground">{usuarios.length}</span>
+                </Button>
+                {ROLES.map((rol) => {
+                  const n = conteos.get(rol) ?? 0;
+                  if (n === 0) return null;
+                  return (
+                    <Button
+                      key={rol}
+                      size="sm"
+                      variant={filtroRol === rol ? "secondary" : "outline"}
+                      className="h-7 gap-1.5 px-2.5 text-xs"
+                      onClick={() => setFiltroRol(filtroRol === rol ? "todos" : rol)}
+                    >
+                      {INFO_ROLES[rol].etiqueta}
+                      <span className="text-muted-foreground">{n}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            )}
+
             {cargando ? (
               <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin text-primary" />
@@ -655,123 +980,41 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
                 No hay usuarios registrados
               </p>
             ) : (
-              <ul className="grid gap-3 md:grid-cols-2">
-                {usuarios.map((u) => (
-                  <Card key={u.user_id} size="sm" className="py-3">
-                    <CardContent className="px-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                            <span className="truncate">{u.nombre || u.username}</span>
-                            {u.user_id === usuarioActualId && (
-                              <Badge
-                                variant="outline"
-                                className="border-primary/40 text-[10px] text-primary"
-                              >
-                                tú
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="truncate text-xs text-muted-foreground">
-                            @{u.username}
-                            {u.jerarquia && <> · {u.jerarquia}</>}
-                          </div>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditando(u)}
-                          >
-                            <Pencil className="size-3" />
-                            Editar
-                          </Button>
-                          {u.user_id !== usuarioActualId && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => {
+              grupos.map(({ rol, usuarios: lista }) => (
+                <section key={rol} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <BadgeRol rol={rol} />
+                    <span className="text-xs text-muted-foreground">
+                      {lista.length} usuario{lista.length === 1 ? "" : "s"}
+                    </span>
+                    <span
+                      className="hidden truncate text-[11px] text-muted-foreground/70 sm:inline"
+                      title={INFO_ROLES[rol].descripcion}
+                    >
+                      — {INFO_ROLES[rol].descripcion}
+                    </span>
+                  </div>
+                  <ul className="grid gap-3 md:grid-cols-2">
+                    {lista.map((u) => (
+                      <TarjetaUsuario
+                        key={u.user_id}
+                        usuario={u}
+                        esYo={u.user_id === usuarioActualId}
+                        centros={centros}
+                        onEditar={() => setEditando(u)}
+                        onEliminar={
+                          u.user_id !== usuarioActualId
+                            ? () => {
                                 setErrorEliminar("");
                                 setEliminando(u);
-                              }}
-                              title="Eliminar perfil"
-                            >
-                              <Trash2 className="size-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <BadgeRol rol={u.rol} />
-                        {u.sector_asignado && (
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                            {centros.find((c) => c.id === u.sector_asignado)?.nombre ??
-                              "Sector asignado"}
-                          </Badge>
-                        )}
-                        {u.hash_id && (
-                          <Badge
-                            variant="outline"
-                            className="gap-1 border-primary/30 font-mono text-[10px] tracking-wider text-primary"
-                          >
-                            <Fingerprint className="size-3" />
-                            {u.hash_id}
-                          </Badge>
-                        )}
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "gap-1 text-[10px]",
-                            u.marca_agua
-                              ? "border-emerald-500/40 text-emerald-400"
-                              : "border-amber-500/40 text-amber-400",
-                          )}
-                          title="Marca de agua de seguridad"
-                        >
-                          <ShieldAlert className="size-3" />
-                          {u.marca_agua ? "Marca ON" : "Marca OFF"}
-                        </Badge>
-                      </div>
-
-                      {(u.responsabilidad ||
-                        u.cedula ||
-                        u.brazalete ||
-                        u.whatsapp ||
-                        u.telegram) && (
-                        <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 border-t border-border/60 pt-2.5">
-                          {u.responsabilidad && (
-                            <DatoFicha icono={<BadgeCheck className="size-3" />}>
-                              {u.responsabilidad}
-                            </DatoFicha>
-                          )}
-                          {u.cedula && (
-                            <DatoFicha icono={<IdCard className="size-3" />}>
-                              {u.cedula}
-                            </DatoFicha>
-                          )}
-                          {u.brazalete && (
-                            <DatoFicha icono={<BadgeCheck className="size-3" />}>
-                              Brazalete {u.brazalete}
-                            </DatoFicha>
-                          )}
-                          {u.whatsapp && (
-                            <DatoFicha icono={<Phone className="size-3" />}>
-                              {u.whatsapp}
-                            </DatoFicha>
-                          )}
-                          {u.telegram && (
-                            <DatoFicha icono={<Send className="size-3" />}>
-                              {u.telegram}
-                            </DatoFicha>
-                          )}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </ul>
+                              }
+                            : undefined
+                        }
+                      />
+                    ))}
+                  </ul>
+                </section>
+              ))
             )}
           </div>
         )}
@@ -779,7 +1022,7 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
 
       <FormUsuario
         titulo="Nuevo usuario"
-        descripcion="Crea la ficha completa con rol y permisos definidos."
+        descripcion="Crea la ficha completa con rol, centros asignados y permisos definidos."
         inicial={formVacio()}
         esEdicion={false}
         abierto={creando}
@@ -794,8 +1037,8 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
           username: editando?.username ?? "",
           password: "",
           nombre: editando?.nombre ?? "",
-          rol: editando?.rol ?? "campo",
-          sector_asignado: editando?.sector_asignado ?? "",
+          rol: editando?.rol ?? "operador",
+          centros_asignados: editando?.centros_asignados ?? [],
           jerarquia: editando?.jerarquia ?? "",
           cedula: editando?.cedula ?? "",
           responsabilidad: editando?.responsabilidad ?? "",
@@ -812,12 +1055,8 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
         onCerrar={() => setEditando(null)}
       />
 
-      {/* Confirmación de eliminación.
-          GAP: borrar el perfil NO borra el `auth.users` correspondiente (hace
-          falta otra Edge Function `delete-user` con service_role). El usuario
-          ya no podrá loguearse porque el perfil (que da rol/permisos) no
-          existe, pero la fila de `auth.users` queda huérfana y debe limpiarse
-          manualmente o con esa futura Edge Function. */}
+      {/* Confirmación de eliminación: borra el perfil Y el registro de
+          autenticación (Edge Function `delete-user` con service_role). */}
       <Dialog
         open={eliminando != null}
         onOpenChange={(o) => !o && setEliminando(null)}
@@ -826,33 +1065,38 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
           <DialogHeader>
             <DialogTitle>Eliminar usuario</DialogTitle>
             <DialogDescription>
-              ¿Seguro que quieres eliminar el perfil de{" "}
+              ¿Seguro que quieres eliminar a{" "}
               <span className="font-medium text-foreground">
                 {eliminando?.nombre || eliminando?.username}
               </span>
-              ? Esta acción no se puede deshacer.
+              ? Se borra su cuenta de acceso y su ficha. Esta acción no se puede
+              deshacer.
             </DialogDescription>
           </DialogHeader>
-          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-            Se borra el perfil, pero el registro de autenticación
-            (<code className="font-mono">auth.users</code>) queda huérfano y debe
-            purgarse manualmente o con una futura Edge Function.
-          </div>
           {errorEliminar && (
             <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
               {errorEliminar}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEliminando(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setEliminando(null)}
+              disabled={eliminandoEnCurso}
+            >
               Cancelar
             </Button>
             <Button
               variant="destructive"
               onClick={() => void confirmarEliminar()}
+              disabled={eliminandoEnCurso}
             >
-              <Trash2 className="size-4" />
-              Eliminar perfil
+              {eliminandoEnCurso ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+              Eliminar usuario
             </Button>
           </DialogFooter>
         </DialogContent>
