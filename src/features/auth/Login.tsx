@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { Loader2, Tent } from "lucide-react";
-import { api } from "@/data/api";
-import { setSesion } from "@/data/auth";
-import { reiniciarLastSync } from "@/data/sync";
+import { login } from "@/data/authSupabase";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,9 +24,10 @@ export function Login() {
     setError("");
     setCargando(true);
     try {
-      const s = await api.login(usuario.trim(), password);
-      reiniciarLastSync();
-      setSesion(s);
+      // `login` de `authSupabase` Internamente usa `supabase.auth.signInWithPassword`
+      // con el email sintético `<username>@refugio.app` y publica el cambio de
+      // sesión vía `onAuthStateChange`, así que no hace falta setear nada aquí.
+      await login(usuario.trim(), password);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo iniciar sesión");
     } finally {

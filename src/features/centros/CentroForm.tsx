@@ -17,8 +17,7 @@ import {
   Trash,
   Users,
 } from "lucide-react";
-import { nuevoId } from "@/data/db";
-import { guardarCentro } from "@/data/repos";
+import { nuevoId, guardarCentro } from "@/data/reposSupabase";
 import { subirFotoCentro, supabaseDisponible } from "@/data/supabase";
 import {
   ESTADOS_CENTRO,

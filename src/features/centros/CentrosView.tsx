@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
 import { PanelFlotante } from "@/components/PanelFlotante";
 import { cargarBaseMapaCentros, guardarBaseMapaCentros } from "@/data/preferenciasMapa";
 import type { BaseMapa } from "@/map/estiloMapa";
-import { db, sembrarCentrosSiVacio } from "@/data/db";
+import { useSupabaseQuery } from "@/data/useSupabaseQuery";
+import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import {
   CATALOGO_CUERPOS,
   normalizarCuerpo,
   type CentroTransitorio,
   type ClaveCuerpo,
 } from "@/domain/centrosTransitorios";
-import type { Sesion } from "@/data/auth";
+import type { Sesion } from "@/data/authSupabase";
 import { puedeEditarMapa, permisosDeRol, puedeGestionarUsuarios } from "@/domain/permisos";
-import { useEstadoSync } from "@/data/sync";
+import { useSupabaseConectado } from "@/data/useSupabaseConectado";
 import { Navbar } from "@/components/Navbar";
 import { CentrosMap, type CentrosMapHandle } from "./CentrosMap";
 import { DetalleCentro } from "./DetalleCentro";
@@ -31,7 +31,7 @@ export function CentrosView({ sesion }: Props) {
   const permisos = permisosDeRol(sesion.user.rol);
   const puedeEditar = puedeEditarMapa(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
-  const estadoSync = useEstadoSync();
+  const conectado = useSupabaseConectado();
   const [online, setOnline] = useState(() => navigator.onLine);
   const [vista, setVista] = useState<Vista>("mapa");
 
@@ -65,15 +65,23 @@ export function CentrosView({ sesion }: Props) {
     guardarBaseMapaCentros(baseMapa);
   }, [baseMapa]);
 
-  // Los centros viven en Dexie (entidad sincronizable). Se siembran del catálogo
-  // estático en instalaciones nuevas que no ejecutaron la migración v10.
-  useEffect(() => {
-    void sembrarCentrosSiVacio();
-  }, []);
-  const centros = useLiveQuery(
-    () => db.centros.orderBy("nro").toArray(),
-    [],
-    [] as CentroTransitorio[],
+  // Los centros viven en Supabase (tabla blob+jsonb `centros`). El catálogo
+  // base se carga en la migración de Fase 2; aquí solo leemos.
+  //
+  // Limitación: `nro` no es columna top-level (vive dentro de `data` jsonb),
+  // así que no se puede ordenar server-side con `.order("nro")`. Lo hacemos en
+  // cliente tras el select. Para ~50 filas es trivial.
+  type CentroFila = CentroTransitorio & { deleted: boolean };
+  const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(
+    "centros",
+    {
+      transform: desenvolver as (raw: FilaSync<CentroTransitorio>) => CentroFila,
+      clientFilter: (c) => !c.deleted,
+    },
+  );
+  const centros = useMemo(
+    () => [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
+    [filasCentros],
   );
 
   async function exportarVista() {
@@ -167,7 +175,7 @@ export function CentrosView({ sesion }: Props) {
         puedeEditar={puedeEditar}
         esAdmin={esAdmin}
         online={online}
-        estadoSync={estadoSync}
+        conectado={conectado}
         vista={vista}
         onCambiarVista={setVista}
       />

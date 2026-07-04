@@ -1,5 +1,5 @@
 import { Package, Plus, Trash2 } from "lucide-react";
-import { nuevoId } from "@/data/db";
+import { nuevoId } from "@/data/reposSupabase";
 import {
   CONCEPTOS_REQUERIMIENTO_COMUNES,
   totalesRequerimientos,

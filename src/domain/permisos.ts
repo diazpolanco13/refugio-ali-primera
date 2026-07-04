@@ -1,4 +1,4 @@
-import type { Rol } from "../data/auth";
+import type { Rol } from "../data/authSupabase";
 
 /** Metadatos de cada rol para la UI y chequeos de permiso. */
 export interface InfoRol {

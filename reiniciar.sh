@@ -1,32 +1,31 @@
 #!/usr/bin/env bash
 #
-# Reinicia el entorno de desarrollo completo de la Sala Situacional:
-#   - Backend  (Fastify + PGlite)  → http://localhost:3001
-#   - Frontend (Vite, expuesto)    → http://localhost:5173  (y por IP de red)
+# Reinicia el entorno de desarrollo de la Sala Situacional.
+# TRAS LA MIGRACIÓN A SUPABASE (Fase 7) ya no hay backend propio que levantar:
+# la capa de datos (Postgres, Auth, Realtime, Storage) vive en Supabase y se
+# accede desde el frontend vía supabase-js. Solo queda el servidor de Vite.
 #
 # Uso:
-#   ./reiniciar.sh          Reinicia ambos servidores (los deja en segundo plano)
+#   ./reiniciar.sh          Reinicia el frontend (lo deja en segundo plano)
 #   ./reiniciar.sh update   Trae cambios de git (ff-only) y reinicia
-#   ./reiniciar.sh stop     Solo detiene los servidores
+#   ./reiniciar.sh stop     Solo detiene el frontend
 #   ./reiniciar.sh logs     Muestra los logs en vivo (Ctrl-C para salir)
 #
 # En cada arranque reinstala dependencias automáticamente si cambió
 # package-lock.json (p. ej. tras un git pull) — así "todo se actualiza bien".
-# Los logs se guardan en .dev-logs/{backend,frontend}.log
+# Los logs se guardan en .dev-logs/frontend.log
 #
-# OJO: esto es SOLO el entorno de DESARROLLO (backend PGlite + Vite). NO toca
-# producción. La producción corre en Dokploy y se actualiza aparte (ver
-# CLAUDE.md → "Desplegar / actualizar producción (Dokploy)").
+# OJO: esto es SOLO el entorno de DESARROLLO (Vite). NO toca producción.
+# La producción corre en Dokploy y se actualiza aparte (ver CLAUDE.md).
 set -uo pipefail
 
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOGS="$RAIZ/.dev-logs"
-PUERTO_API=3001
 PUERTO_WEB=5173
 
 detener() {
-  echo "→ Deteniendo procesos en los puertos $PUERTO_API y $PUERTO_WEB…"
-  fuser -k "${PUERTO_API}/tcp" "${PUERTO_WEB}/tcp" 2>/dev/null || true
+  echo "→ Deteniendo procesos en el puerto $PUERTO_WEB…"
+  fuser -k "${PUERTO_WEB}/tcp" 2>/dev/null || true
   sleep 1
 }
 
@@ -57,11 +56,11 @@ instalar_deps() { # $1=dir  $2=nombre
 case "${1:-restart}" in
   stop)
     detener
-    echo "Servidores detenidos."
+    echo "Frontend detenido."
     exit 0
     ;;
   logs)
-    tail -n 50 -f "$LOGS/backend.log" "$LOGS/frontend.log"
+    tail -n 50 -f "$LOGS/frontend.log"
     exit 0
     ;;
   update)
@@ -78,23 +77,17 @@ esac
 mkdir -p "$LOGS"
 detener
 
-# Dependencias del frontend y del backend (se saltan si ya están al día).
-instalar_deps "$RAIZ"        "frontend"
-instalar_deps "$RAIZ/server" "backend"
-
-echo "→ Levantando backend (:$PUERTO_API)…"
-( cd "$RAIZ/server" && setsid nohup npm run dev >"$LOGS/backend.log" 2>&1 & )
+# Dependencias del frontend (se saltan si ya están al día).
+instalar_deps "$RAIZ" "frontend"
 
 echo "→ Levantando frontend (:$PUERTO_WEB)…"
 ( cd "$RAIZ" && setsid nohup npm run dev -- --host 0.0.0.0 >"$LOGS/frontend.log" 2>&1 & )
 
-esperar "http://localhost:$PUERTO_API/api/health" "backend"
 esperar "http://localhost:$PUERTO_WEB/" "frontend"
 
 IP="$(curl -s -4 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')"
 echo
-echo "Listo. Servidores de desarrollo en segundo plano:"
-echo "  • Backend :  http://localhost:$PUERTO_API/api/health"
+echo "Listo. Frontend de desarrollo en segundo plano:"
 echo "  • Frontend:  http://localhost:$PUERTO_WEB/"
 [ -n "$IP" ] && echo "               (desde la red / teléfono: http://$IP:$PUERTO_WEB/)"
 echo "  • Logs    :  ./reiniciar.sh logs   (o mira $LOGS/)"

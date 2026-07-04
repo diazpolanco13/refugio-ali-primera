@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { useLiveQuery } from "dexie-react-hooks";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -9,7 +8,7 @@ import {
   MapPin,
   Users,
 } from "lucide-react";
-import { db } from "@/data/db";
+import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { COLOR_SEMAFORO } from "@/domain/capacidadCentros";
 import {
@@ -22,8 +21,8 @@ import {
   totalVulnerables,
 } from "@/domain/redCentros";
 import { ORDEN_NIVELES, type NivelPrioridad } from "@/domain/prioridadCentros";
-import type { Sesion } from "@/data/auth";
-import { useEstadoSync } from "@/data/sync";
+import type { Sesion } from "@/data/authSupabase";
+import { useSupabaseConectado } from "@/data/useSupabaseConectado";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +34,20 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { DemografiaResumen } from "../tablero/DemografiaResumen";
+import { GraficoOcupacionRed } from "./GraficoOcupacionRed";
+
+interface FilaCentroBlob {
+  id: string;
+  updated_at: number;
+  updated_by: string;
+  deleted: boolean;
+  data: CentroTransitorio;
+}
+
+/** Filtra filas no borradas y aplana `data` al tipo de dominio. */
+function desenredarCentros(filas: FilaCentroBlob[]): CentroTransitorio[] {
+  return filas.filter((f) => !f.deleted).map((f) => f.data);
+}
 
 function Reloj() {
   const [ahora, setAhora] = useState(() => new Date());
@@ -72,12 +85,13 @@ const COLOR_NIVEL: Record<NivelPrioridad, string> = {
 
 /** Sala de control proyectable: red agregada de Centros Transitorios. */
 export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
-  const centros = useLiveQuery(
-    () => db.centros.orderBy("nro").toArray(),
-    [],
-    [] as CentroTransitorio[],
+  const filasCentros = useSupabaseQuery<FilaCentroBlob>("centros");
+  const centros = useMemo(
+    () =>
+      desenredarCentros(filasCentros).sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
+    [filasCentros],
   );
-  const estadoSync = useEstadoSync();
+  const conectado = useSupabaseConectado();
 
   const kpis = useMemo(() => kpisRedCentros(centros), [centros]);
   const demografia = useMemo(() => demografiaRed(centros), [centros]);
@@ -106,7 +120,7 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <IndicadorConexion estado={estadoSync} />
+          <IndicadorConexion conectado={conectado} />
           <Reloj />
         </div>
       </header>
@@ -148,6 +162,21 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
             acento={kpis.centrosCriticos > 0 ? "text-red-300" : "text-emerald-300"}
           />
         </div>
+
+        <Card className="mt-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base lg:text-lg">
+              Histórico de ocupación de la red
+            </CardTitle>
+            <CardDescription>
+              Refugiados alojados por día con carry-forward del último snapshot
+              conocido de cada centro
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GraficoOcupacionRed />
+          </CardContent>
+        </Card>
 
         <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
           <Card className="xl:col-span-2">
@@ -347,7 +376,7 @@ function BarraParroquia({
   );
 }
 
-function IndicadorConexion({ estado }: { estado: string }) {
+function IndicadorConexion({ conectado }: { conectado: boolean }) {
   const online = typeof navigator !== "undefined" ? navigator.onLine : true;
   if (!online) {
     return (
@@ -357,23 +386,18 @@ function IndicadorConexion({ estado }: { estado: string }) {
       </Badge>
     );
   }
-  if (estado === "error") {
+  if (!conectado) {
     return (
       <Badge variant="destructive" className="gap-1">
         <span className="size-1.5 rounded-full bg-red-400" />
-        Sin sync
+        Sin conexión
       </Badge>
     );
   }
   return (
     <Badge variant="outline" className="gap-1 border-emerald-500/30 text-emerald-300">
-      <span
-        className={cn(
-          "size-1.5 rounded-full bg-emerald-400",
-          estado === "sincronizando" && "animate-pulse",
-        )}
-      />
-      {estado === "sincronizando" ? "Actualizando…" : "En vivo"}
+      <span className="size-1.5 rounded-full bg-emerald-400" />
+      En vivo
     </Badge>
   );
 }

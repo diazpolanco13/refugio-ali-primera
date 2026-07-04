@@ -1,4 +1,4 @@
-import type { Rol } from "@/data/auth";
+import type { Rol } from "@/data/authSupabase";
 import { INFO_ROLES } from "@/domain/permisos";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";

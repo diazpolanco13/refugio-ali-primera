@@ -4,8 +4,7 @@ import { CentrosView } from "./features/centros/CentrosView";
 import { DashboardView } from "./features/dashboard/DashboardView";
 import { Login } from "./features/auth/Login";
 import { GestionUsuarios } from "./features/usuarios/GestionUsuarios";
-import { useSesion } from "./data/auth";
-import { detenerSync, iniciarSync } from "./data/sync";
+import { initAuth, useSesion } from "./data/authSupabase";
 import { MarcaAgua } from "./components/MarcaAgua";
 import { PantallaCarga } from "./components/PantallaCarga";
 
@@ -13,14 +12,13 @@ export function App() {
   const sesion = useSesion();
   const [arrancando, setArrancando] = useState(true);
 
+  // Arranque: inicializa la suscripción a `onAuthStateChange` de Supabase Auth
+  // y carga la sesión persistida (si existe). Reemplaza al `iniciarSync` del
+  // motor Dexie↔Fastify (ya no hay sync: cada mutación es directa a Supabase).
   useEffect(() => {
+    void initAuth();
     setArrancando(false);
   }, []);
-
-  useEffect(() => {
-    if (sesion) iniciarSync();
-    else detenerSync();
-  }, [sesion?.token]);
 
   if (arrancando) return <PantallaCarga />;
   if (!sesion) return <Login />;

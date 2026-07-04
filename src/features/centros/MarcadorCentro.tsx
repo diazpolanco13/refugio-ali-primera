@@ -7,8 +7,8 @@ interface Props {
   seleccionado: boolean;
   /** Refugiados alojados. */
   refugiados?: number;
-  /** Funcionarios de apoyo desplegados (campo `personal.funcionarios`). */
-  funcionarios?: number;
+  /** Personal operativo total desplegado en el centro (funcionarios + médicos + psicólogos + justicia). */
+  personalTotal?: number;
   /** Color del semáforo de ocupación (punto de estado). null = no mostrar. */
   semaforoColor?: string | null;
   onClick: () => void;
@@ -21,7 +21,7 @@ function fmtCompacto(n: number): string {
 }
 
 /**
- * Marcador HTML: píldora horizontal con logo del cuerpo + refugiados / funcionarios,
+ * Marcador HTML: píldora horizontal con logo del cuerpo + refugiados / personal_total,
  * o solo el círculo del cuerpo si no hay datos de población ni personal.
  */
 export function MarcadorCentro({
@@ -30,11 +30,11 @@ export function MarcadorCentro({
   color,
   seleccionado,
   refugiados = 0,
-  funcionarios = 0,
+  personalTotal = 0,
   semaforoColor,
   onClick,
 }: Props) {
-  const conContador = refugiados > 0 || funcionarios > 0;
+  const conContador = refugiados > 0 || personalTotal > 0;
 
   const iconoCuerpo = (
     <span
@@ -54,7 +54,7 @@ export function MarcadorCentro({
 
   const titulo =
     conContador &&
-    `${refugiados.toLocaleString("es")} refugiados · ${funcionarios.toLocaleString("es")} funcionarios de apoyo`;
+    `${refugiados.toLocaleString("es")} refugiados · ${personalTotal.toLocaleString("es")} personal operativo`;
 
   return (
     <div
@@ -80,7 +80,7 @@ export function MarcadorCentro({
           <span className="whitespace-nowrap text-[11px] font-bold tabular-nums leading-none text-white">
             {fmtCompacto(refugiados)}
             <span className="mx-0.5 font-normal text-white/55">/</span>
-            {fmtCompacto(funcionarios)}
+            {fmtCompacto(personalTotal)}
           </span>
         </div>
       ) : (

@@ -63,8 +63,14 @@ export const META_CUERPO: Record<ClaveCuerpo, MetaCuerpo> = Object.fromEntries(
   CATALOGO_CUERPOS.map((c) => [c.clave, c]),
 ) as Record<ClaveCuerpo, MetaCuerpo>;
 
-/** Normaliza el texto crudo del CSV (con variantes de espacios/mayúsculas) a una clave canónica. */
-export function normalizarCuerpo(raw: string): ClaveCuerpo {
+/**
+ * Normaliza el texto crudo del cuerpo de seguridad (con variantes de
+ * espacios/mayúsculas) a una clave canónica. Es defensiva: acepta
+ * `undefined`/`null`/`""` (centros cargados sin ese campo, p. ej. desde el
+ * Excel 03JUL26) y devuelve `"sin_asignar"` en esos casos.
+ */
+export function normalizarCuerpo(raw: string | undefined | null): ClaveCuerpo {
+  if (!raw) return "sin_asignar";
   const limpio = raw.trim().toLowerCase().replace(/\s+/g, "");
   const mapa: Record<string, ClaveCuerpo> = {
     guardianacionalbolivariana: "gnb",
@@ -84,7 +90,7 @@ export function normalizarCuerpo(raw: string): ClaveCuerpo {
 }
 
 /** Devuelve la metadata (color/ícono/label) del cuerpo a partir del texto crudo del dato. */
-export function metaCuerpoDe(raw: string): MetaCuerpo {
+export function metaCuerpoDe(raw: string | undefined | null): MetaCuerpo {
   return META_CUERPO[normalizarCuerpo(raw)];
 }
 

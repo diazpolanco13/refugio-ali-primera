@@ -36,6 +36,7 @@ import { DemografiaResumen } from "@/features/tablero/DemografiaResumen";
 import { PersonalResumen } from "@/features/censo/PersonalResumen";
 import { TarjetaContacto, TarjetaSeguridad } from "@/features/centros/LevantamientoCentro";
 import { ListaRequerimientos } from "@/features/centros/RequerimientosCentro";
+import { GraficoOcupacionCentro } from "@/features/centros/GraficoOcupacionCentro";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -306,6 +307,22 @@ export function DetalleCentro({ centro, puedeEditar, onEditar }: Props) {
           </CollapsibleContent>
         </Collapsible>
       </div>
+
+      {/* Histórico de ocupación (serie diaria del centro) */}
+      <Collapsible className="rounded-xl border border-border bg-card/60 p-3">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="group flex w-full items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
+          >
+            Histórico de ocupación
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-3">
+          <GraficoOcupacionCentro centroId={centro.id} />
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Total logístico (agua, comida, baños) */}
       {(analisis.refugiados > 0 || analisis.personal > 0) && (

@@ -9,6 +9,7 @@ import {
   metaCuerpoDe,
   normalizarCentro,
   poblacionCentro,
+  totalPersonalOperativo,
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
 import {
@@ -219,7 +220,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       }
       const analisis = analisisCentro(c);
       const refugiados = poblacionCentro(c);
-      const funcionarios = normalizarCentro(c).personal.funcionarios;
+      const personalTotal = totalPersonalOperativo(normalizarCentro(c).personal);
       roots.current.get(c.id)?.render(
         <MarcadorCentro
           icono={meta.icono}
@@ -227,7 +228,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
           color={meta.color}
           seleccionado={cbRef.current.seleccionado === c.id}
           refugiados={refugiados}
-          funcionarios={funcionarios}
+          personalTotal={personalTotal}
           semaforoColor={
             analisis.semaforo === "sin_datos" ? null : COLOR_SEMAFORO[analisis.semaforo]
           }

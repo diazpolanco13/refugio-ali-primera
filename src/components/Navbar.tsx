@@ -6,11 +6,9 @@ import {
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { Rol } from "@/data/auth";
-import type { Sesion } from "@/data/auth";
-import { cerrarSesion } from "@/data/auth";
+import type { Rol, Sesion } from "@/data/authSupabase";
+import { cerrarSesion } from "@/data/authSupabase";
 import type { InfoRol } from "@/domain/permisos";
-import type { EstadoSync } from "@/data/sync";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +29,13 @@ interface NavbarProps {
   puedeEditar: boolean;
   esAdmin: boolean;
   online: boolean;
-  estadoSync: EstadoSync;
+  /**
+   * ¿Hay conexión a Supabase (canal Realtime activo Y sesión válida)?
+   * Reemplaza al `estadoSync` legacy ("sincronizando"/"error"/"ok"). Con
+   * Supabase cada mutación es directa, así que solo mostramos
+   * "conectado" (verde) o "desconectado" (ámbar).
+   */
+  conectado: boolean;
   /** Vista activa en CentrosView (mapa o tablero de prioridades). */
   vista?: "mapa" | "tablero";
   onCambiarVista?: (vista: "mapa" | "tablero") => void;
@@ -58,49 +62,33 @@ function badgeRolVariant(rol: Rol): "default" | "secondary" | "outline" | "ghost
 }
 
 /**
- * Ícono de la app con un borde que "se enciende" (glow pulsante) según el estado
- * de conexión/sync. Reemplaza al badge "En línea" por una señal visual compacta:
- *   · online + synced → brillo esmeralda (pulsando)
- *   · sincronizando   → brillo celeste (pulsando)
- *   · error de sync   → brillo rojo (pulsando)
- *   · sin conexión    → brillo ámbar tenue (estático)
- * El tooltip expone el texto del estado al pasar el cursor.
+ * Ícono de la app con un borde que "se enciende" (glow pulsante) según el
+ * estado de conexión a Supabase. Reemplaza al badge "En línea" por una señal
+ * visual compacta:
+ *   · conectado + online → brillo esmeralda (pulsando)
+ *   · sin conexión       → brillo ámbar tenue (estático)
+ * El tooltip expone el texto del estado al pasar el cursor. Con Supabase no
+ * hay estados intermedios de "sincronizando" (cada mutación es directa).
  */
 function IconoAppConEstado({
   online,
-  estado,
+  conectado,
 }: {
   online: boolean;
-  estado: EstadoSync;
+  conectado: boolean;
 }) {
-  const { color, etiqueta, pulsar } = (() => {
-    if (!online) {
-      return {
+  const ok = online && conectado;
+  const { color, etiqueta, pulsar } = ok
+    ? {
+        color: "rgba(16, 185, 129, 0.85)",
+        etiqueta: "Conectado a Supabase",
+        pulsar: true,
+      }
+    : {
         color: "rgba(245, 158, 11, 0.55)",
-        etiqueta: "Sin conexión",
+        etiqueta: online ? "Reconectando…" : "Sin conexión",
         pulsar: false,
       };
-    }
-    if (estado === "sincronizando") {
-      return {
-        color: "rgba(56, 189, 248, 0.8)",
-        etiqueta: "Sincronizando…",
-        pulsar: true,
-      };
-    }
-    if (estado === "error") {
-      return {
-        color: "rgba(248, 113, 113, 0.85)",
-        etiqueta: "Error de sincronización",
-        pulsar: true,
-      };
-    }
-    return {
-      color: "rgba(16, 185, 129, 0.85)",
-      etiqueta: "En línea",
-      pulsar: true,
-    };
-  })();
 
   return (
     <div
@@ -124,7 +112,7 @@ export function Navbar({
   puedeEditar,
   esAdmin,
   online,
-  estadoSync,
+  conectado,
   vista,
   onCambiarVista,
 }: NavbarProps) {
@@ -134,7 +122,7 @@ export function Navbar({
   return (
     <header className="z-20 flex h-14 shrink-0 items-center justify-between border-b border-border bg-card/95 px-2 backdrop-blur-sm sm:px-3">
       <div className="flex min-w-0 items-center gap-2.5">
-        <IconoAppConEstado online={online} estado={estadoSync} />
+        <IconoAppConEstado online={online} conectado={conectado} />
         <div className="min-w-0">
           <h1 className="truncate text-sm font-semibold leading-tight text-foreground">
             <span className="sm:hidden">Centros Transitorios</span>

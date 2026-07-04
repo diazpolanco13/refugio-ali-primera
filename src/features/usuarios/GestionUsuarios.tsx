@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useLiveQuery } from "dexie-react-hooks";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -13,11 +12,14 @@ import {
   Send,
   ShieldAlert,
   ShieldCheck,
+  Trash2,
   Users,
 } from "lucide-react";
-import { api, type UsuarioRegistro } from "@/data/api";
-import type { Rol, Sesion } from "@/data/auth";
-import { db } from "@/data/db";
+import type { Rol, Sesion } from "@/data/authSupabase";
+import { getToken } from "@/data/authSupabase";
+import { supabase } from "@/data/supabaseClient";
+import { useSupabaseQuery } from "@/data/useSupabaseQuery";
+import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { INFO_ROLES, puedeGestionarUsuarios, ROLES } from "@/domain/permisos";
 import { BadgeRol } from "@/components/BadgeRol";
@@ -35,6 +37,27 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+
+/**
+ * Fila de la tabla `perfiles` en Supabase (vinculada a `auth.users` por
+ * `user_id`). Reemplaza al tipo `UsuarioRegistro` de la capa legacy `api.ts`.
+ */
+interface UsuarioPerfil {
+  user_id: string;
+  username: string | null;
+  nombre: string | null;
+  rol: Rol;
+  sector_asignado: string | null;
+  jerarquia: string | null;
+  cedula: string | null;
+  responsabilidad: string | null;
+  whatsapp: string | null;
+  telegram: string | null;
+  brazalete: string | null;
+  hash_id: string | null;
+  marca_agua: boolean;
+  created_at?: string;
+}
 
 type Formulario = {
   username: string;
@@ -344,7 +367,7 @@ function FormUsuario({
                 )}
                 <div className="space-y-1.5">
                   <Label htmlFor="usuario-password">
-                    {esEdicion ? "Nueva contraseña (opcional)" : "Contraseña"}
+                    {esEdicion ? "Nueva contraseña (pendiente)" : "Contraseña"}
                   </Label>
                   <Input
                     id="usuario-password"
@@ -353,9 +376,21 @@ function FormUsuario({
                     onChange={(e) => set("password", e.target.value)}
                     required={!esEdicion}
                     minLength={6}
-                    placeholder={esEdicion ? "Dejar vacío para no cambiar" : undefined}
-                    disabled={guardando}
+                    placeholder={
+                      esEdicion
+                        ? "Cambio no disponible aún (requiere Edge Function)"
+                        : undefined
+                    }
+                    disabled={guardando || esEdicion}
                   />
+                  {esEdicion && (
+                    <p className="text-[11px] text-amber-400">
+                      El cambio de contraseña de otros usuarios requiere una Edge
+                      Function (<code className="font-mono">update-user-password</code>)
+                      aún no desplegada. Usa el flujo de reset de Supabase Auth
+                      mientras tanto.
+                    </p>
+                  )}
                 </div>
               </div>
             </section>
@@ -405,22 +440,40 @@ function DatoFicha({
 export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const usuarioActualId = sesion.user.sub;
-  const [usuarios, setUsuarios] = useState<UsuarioRegistro[]>([]);
+  const [usuarios, setUsuarios] = useState<UsuarioPerfil[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [creando, setCreando] = useState(false);
-  const [editando, setEditando] = useState<UsuarioRegistro | null>(null);
-  const centros = useLiveQuery(
-    () => db.centros.orderBy("nro").toArray(),
-    [],
-    [] as CentroTransitorio[],
+  const [editando, setEditando] = useState<UsuarioPerfil | null>(null);
+  const [eliminando, setEliminando] = useState<UsuarioPerfil | null>(null);
+  const [errorEliminar, setErrorEliminar] = useState("");
+
+  // Los centros se leen de Supabase para el selector de "centro asignado".
+  // `nro` vive dentro de `data` jsonb (no es columna top-level), así que el
+  // orden se aplica en cliente (ver CentrosView.tsx para más detalle).
+  type CentroFila = CentroTransitorio & { deleted: boolean };
+  const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(
+    "centros",
+    {
+      transform: desenvolver as (raw: FilaSync<CentroTransitorio>) => CentroFila,
+      clientFilter: (c) => !c.deleted,
+    },
+  );
+  const centros = useMemo(
+    () => [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
+    [filasCentros],
   );
 
   const recargar = useCallback(async () => {
     setError("");
     setCargando(true);
     try {
-      setUsuarios(await api.listarUsuarios());
+      const { data, error: err } = await supabase
+        .from("perfiles")
+        .select("*")
+        .order("username");
+      if (err) throw new Error(err.message);
+      setUsuarios((data ?? []) as UsuarioPerfil[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo cargar usuarios");
     } finally {
@@ -430,30 +483,61 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
 
   useEffect(() => {
     if (esAdmin) void recargar();
+    // Realtime: si otro admin edita un perfil, refrescar la lista.
+    const canal = supabase
+      .channel("perfiles-gestion")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "perfiles" },
+        () => void recargar(),
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(canal);
+    };
   }, [esAdmin, recargar]);
 
   async function crear(form: Formulario) {
-    await api.crearUsuario({
-      username: form.username.trim(),
-      password: form.password,
-      nombre: form.nombre.trim() || undefined,
-      rol: form.rol,
-      sector_asignado: form.sector_asignado || undefined,
-      jerarquia: form.jerarquia.trim() || undefined,
-      cedula: form.cedula.trim() || undefined,
-      responsabilidad: form.responsabilidad.trim() || undefined,
-      whatsapp: form.whatsapp.trim() || undefined,
-      telegram: form.telegram.trim() || undefined,
-      brazalete: form.brazalete.trim() || undefined,
-      marca_agua: form.marca_agua,
-    });
+    const token = getToken();
+    if (!token) throw new Error("Sesión no válida. Vuelve a iniciar sesión.");
+    const res = await fetch(
+      "https://xzwifkckkakldnzkdeby.supabase.co/functions/v1/create-user",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: form.username.trim(),
+          password: form.password,
+          nombre: form.nombre.trim() || null,
+          rol: form.rol,
+          sector_asignado: form.sector_asignado || null,
+          jerarquia: form.jerarquia.trim() || null,
+          cedula: form.cedula.trim() || null,
+          responsabilidad: form.responsabilidad.trim() || null,
+          whatsapp: form.whatsapp.trim() || null,
+          telegram: form.telegram.trim() || null,
+          brazalete: form.brazalete.trim() || null,
+          marca_agua: form.marca_agua,
+        }),
+      },
+    );
+    const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+    if (!res.ok) {
+      if (res.status === 409) throw new Error("Ya existe un usuario con ese nombre.");
+      if (res.status === 403) throw new Error("No tienes permisos para crear usuarios.");
+      if (res.status === 400) throw new Error(body.error || body.message || "Datos inválidos.");
+      throw new Error(body.error || body.message || `No se pudo crear (HTTP ${res.status}).`);
+    }
     setCreando(false);
     await recargar();
   }
 
   async function actualizar(form: Formulario) {
     if (!editando) return;
-    await api.actualizarUsuario(editando.id, {
+    const patch: Partial<UsuarioPerfil> = {
       nombre: form.nombre.trim() || null,
       rol: form.rol,
       sector_asignado: form.sector_asignado || null,
@@ -464,10 +548,50 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
       telegram: form.telegram.trim() || null,
       brazalete: form.brazalete.trim() || null,
       marca_agua: form.marca_agua,
-      ...(form.password ? { password: form.password } : {}),
-    });
+    };
+    const { error: err } = await supabase
+      .from("perfiles")
+      .update(patch)
+      .eq("user_id", editando.user_id);
+    if (err) throw new Error(err.message);
+
+    // GAP documentado: el cambio de contraseña NO se aplica aquí. Actualizar la
+    // contraseña de OTRO usuario en `auth.users` requiere la service_role (que
+    // el frontend no debe tener). Haría falta otra Edge Function
+    // `update-user-password` análoga a `create-user`. Por ahora, si el admin
+    // llena el campo "nueva contraseña", se ignora con un aviso.
+    if (form.password) {
+      // No lanzamos error: el perfil sí se actualizó. Solo informamos.
+      console.warn(
+        "[GestionUsuarios] cambio de contraseña no implementado (requiere Edge Function).",
+      );
+    }
     setEditando(null);
     await recargar();
+  }
+
+  async function confirmarEliminar() {
+    if (!eliminando) return;
+    setErrorEliminar("");
+    try {
+      const { error: err } = await supabase
+        .from("perfiles")
+        .delete()
+        .eq("user_id", eliminando.user_id);
+      if (err) throw new Error(err.message);
+      // GAP documentado: `auth.users` NO se borra al eliminar el perfil. El
+      // `ON DELETE CASCADE` de `perfiles.user_id → auth.users.id` borra el
+      // perfil cuando se borra el auth.user, pero NO al revés. Hace falta
+      // otra Edge Function `delete-user` (con service_role) para limpiar el
+      // auth.user huérfano. Mientras tanto, el usuario ya no podrá loguearse
+      // porque el perfil (que da rol/permisos) no existe, pero la fila de
+      // auth.users queda y debería purgarse manualmente o con esa futura
+      // Edge Function.
+      setEliminando(null);
+      await recargar();
+    } catch (err) {
+      setErrorEliminar(err instanceof Error ? err.message : "No se pudo eliminar");
+    }
   }
 
   return (
@@ -533,13 +657,13 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
             ) : (
               <ul className="grid gap-3 md:grid-cols-2">
                 {usuarios.map((u) => (
-                  <Card key={u.id} size="sm" className="py-3">
+                  <Card key={u.user_id} size="sm" className="py-3">
                     <CardContent className="px-4">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                             <span className="truncate">{u.nombre || u.username}</span>
-                            {u.id === usuarioActualId && (
+                            {u.user_id === usuarioActualId && (
                               <Badge
                                 variant="outline"
                                 className="border-primary/40 text-[10px] text-primary"
@@ -553,15 +677,30 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
                             {u.jerarquia && <> · {u.jerarquia}</>}
                           </div>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="shrink-0"
-                          onClick={() => setEditando(u)}
-                        >
-                          <Pencil className="size-3" />
-                          Editar
-                        </Button>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditando(u)}
+                          >
+                            <Pencil className="size-3" />
+                            Editar
+                          </Button>
+                          {u.user_id !== usuarioActualId && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => {
+                                setErrorEliminar("");
+                                setEliminando(u);
+                              }}
+                              title="Eliminar perfil"
+                            >
+                              <Trash2 className="size-3" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
 
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -672,6 +811,52 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
         onGuardar={actualizar}
         onCerrar={() => setEditando(null)}
       />
+
+      {/* Confirmación de eliminación.
+          GAP: borrar el perfil NO borra el `auth.users` correspondiente (hace
+          falta otra Edge Function `delete-user` con service_role). El usuario
+          ya no podrá loguearse porque el perfil (que da rol/permisos) no
+          existe, pero la fila de `auth.users` queda huérfana y debe limpiarse
+          manualmente o con esa futura Edge Function. */}
+      <Dialog
+        open={eliminando != null}
+        onOpenChange={(o) => !o && setEliminando(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Eliminar usuario</DialogTitle>
+            <DialogDescription>
+              ¿Seguro que quieres eliminar el perfil de{" "}
+              <span className="font-medium text-foreground">
+                {eliminando?.nombre || eliminando?.username}
+              </span>
+              ? Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+            Se borra el perfil, pero el registro de autenticación
+            (<code className="font-mono">auth.users</code>) queda huérfano y debe
+            purgarse manualmente o con una futura Edge Function.
+          </div>
+          {errorEliminar && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {errorEliminar}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEliminando(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void confirmarEliminar()}
+            >
+              <Trash2 className="size-4" />
+              Eliminar perfil
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -10,14 +10,8 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
-  // En desarrollo, el frontend (5173) reenvía /api y /ws al backend (3001).
-  // En producción, Caddy sirve la PWA y proxya /api y /ws en el mismo dominio.
-  server: {
-    proxy: {
-      "/api": "http://localhost:3001",
-      "/ws": { target: "http://localhost:3001", ws: true },
-    },
-  },
+  // Sin proxy: la PWA habla directo con Supabase (Postgres, Auth, Realtime,
+  // Storage) vía supabase-js. Ya no hay backend Fastify propio que proxyar.
   plugins: [
     react(),
     tailwindcss(),
@@ -51,9 +45,8 @@ export default defineConfig({
         // code-splitting con manualChunks para reducir el chunk inicial.)
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         // Rutas del cliente (/, /dashboard, …) se resuelven al index.html cacheado
-        // para que funcionen offline y con deep-link. Excluye la API y el WS.
+        // para que funcionen offline y con deep-link.
         navigateFallback: "index.html",
-        navigateFallbackDenylist: [/^\/api/, /^\/ws/],
         // Cachea los tiles de satélite/calles ya visitados para uso sin señal.
         runtimeCaching: [
           {

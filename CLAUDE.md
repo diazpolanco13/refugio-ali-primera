@@ -9,660 +9,408 @@
 
 Herramienta de **gestión humanitaria (CCCM)** para la emergencia de Caracas/La
 Guaira tras la tragedia del **24-jun-2026**. Nació como **Sala Situacional** de un
-solo refugio, el **Parque del Oeste "Alí Primera"** (mapa georreferenciado por
-sectores, capas de servicios, brechas vs. estándares humanitarios **Esfera**,
-cronómetro de limpieza, distribución de comida y salubridad), y **funciona
-offline-first**.
+solo refugio, el **Parque del Oeste "Alí Primera"**, y tras el desalojo del parque
+migró a gestionar la **red de ~50 Centros Transitorios** repartidos por el Área
+Metropolitana y Gran Caracas. Hoy el producto es **la red de centros**: registrar
+el **estado, capacidad y ocupación** de cada centro, decidir **a dónde reubicar
+gente** (cupo real / cuello de botella) y seguir la **evolución diaria de la
+ocupación** de toda la red.
 
-> 🔀 **DIRECCIÓN ACTUAL DEL PROYECTO (jul-2026) — LÉELO.** El Parque "Alí Primera"
-> se está **desalojando** y su población se redistribuye en una **red de ~50
-> Centros Transitorios** repartidos por el Área Metropolitana y Gran Caracas. Por
-> eso el foco del proyecto **migró de un solo refugio a gestionar toda la red de
-> centros**. El trabajo nuevo se concentra en la vista **`/centros`** (Fase 4):
-> registrar el **estado, capacidad y ocupación** de cada centro y decidir **a dónde
-> reubicar gente** (cupo real / cuello de botella). La herramienta original de Alí
-> Primera (ruta `/`) **se conserva y se reutiliza** (mismo modelo demográfico
-> `Vulnerables`, mismos estándares Esfera, mismo motor de sync), pero **ya no es el
-> centro del producto**: es un refugio más (de hecho, de salida). Si vas a construir
-> algo nuevo, hazlo pensando en **la red de centros**, no en un único parque.
+> El módulo original del Parque "Alí Primera" (mapa por sectores, puntos de
+> servicio, distribución de comida, salubridad) **fue retirado** del producto
+> (commit `803d499`). El repositorio ya no contiene ese código. La herramienta
+> actual se centra exclusivamente en `/centros` y `/dashboard`.
 
-**Dos implementaciones (rutas):**
-- **`/`** — herramienta original del Parque "Alí Primera": mapa por sectores +
-  puntos de servicio + líneas, tablero, distribución de comida, salubridad
-  (`AppInterna` en `src/App.tsx`). Legado activo, en modo mantenimiento.
-- **`/centros`** — **gestión de la red de 50 Centros Transitorios** (el foco de
-  hoy): estado/capacidad/ocupación por centro, detalle con cuello de botella y
-  tablero comparativo para reubicar (`src/features/centros/`).
-- **`/dashboard`** — sala de control proyectable (hoy centrada en el parque; a
-  futuro debería cubrir la red — ver "Qué falta").
-
-Contexto humanitario/estatal en Venezuela → **soberanía de datos**: todo se
-autoaloja en el VPS del usuario, sin nubes de terceros. **Única excepción** (decisión
-explícita del usuario, jul-2026): las **fotos de los centros** se guardan en
-**Supabase Storage** (solo la imagen; los datos siguen en el backend propio).
+**Soberanía de datos:** todo se autoaloja. La capa de datos vive en un
+**Supabase** propio (Postgres + Auth + Realtime + Storage) del proyecto
+`xzwifkckkakldnzkdeby`. La PWA se sirve desde el VPS del usuario vía Dokploy. No
+se usan nubes de terceros más que Supabase. **Único uso de Supabase Storage:**
+las **fotos de los centros** (bucket público `centros-fotos`); el resto de los
+datos viven en Postgres.
 
 ## Estado actual
 
-- ✅ **Fase 1 — PWA offline (frontend):** completa y verificada.
-- ✅ **Fase 2a — Backend de sincronización:** completo y verificado (`server/`).
-- ✅ **Fase 2b — Integrar frontend ↔ backend:** completa y verificada. Login con
-  gate de sesión, motor de sync (Dexie↔`/api/sync` con cola `outbox`), WebSocket
-  en tiempo real, y roles en la UI (visor = solo lectura). Ver `src/data/{auth,api,sync}.ts`.
-- ⏳ **Fase 2c:** bitácora "quién marcó limpio/recogió" (usar `POST /api/historial`
-  al marcar limpio y en ediciones clave; mostrar en el tablero) y desplegar en el
-  VPS. ✅ Gestión de usuarios desde la UI (admin) **ya implementada**
-  (`src/features/usuarios/GestionUsuarios.tsx`), incluyendo asignar `sector_asignado`.
-- 🟡 **Fase 3 (en progreso):** ✅ **vista sala de control** (`/dashboard`, pantalla
-  grande proyectable) con **registro poblacional por fechas** (gráfico de área) y
- ✅ **registro de distribución de comida e hidratación** (panel "Comida" + tarjeta
- "Alimentación de hoy" + **gráfico de líneas "Comidas repartidas por fechas"** en el
- dashboard) y ✅ **team de salubridad y aseo** (panel
- "Aseo": bitácora de limpieza de baños/duchas/basura). Falta: overlay de la ilustración del
-  parque, export PDF de reportes. Se irá ampliando con más métricas. Ver
-  `src/features/dashboard/DashboardView.tsx` y `src/features/distribucion/`.
-- 🟢 **Fase 4 — FOCO ACTUAL: red de 50 Centros Transitorios** (`/centros`): ✅
-  registro de estado por centro (levantamiento de campo secciones I–VI, capacidad,
-  ocupación demográfica, **personal operativo**, requerimientos logísticos,
-  responsables, foto), ✅ marcadores en mapa con **refugiados / funcionarios**,
-  ✅ panel de detalle con KPIs visibles y desgloses desplegables, ✅ **cuello de
-  botella** (cupo real según Esfera, incluyendo personal en la logística de agua/
-  comida/baños), ✅ **tablero comparativo** y ✅ formulario **por pestañas**.
-  Foto vía **Supabase Storage** (también en prod Dokploy). Ver sección "Red de
-  Centros Transitorios" y `src/features/centros/`.
+- ✅ **Migración a Supabase completa (Fases 1–7).** Se eliminó el backend Fastify
+  propio, el offline-first (Dexie/outbox/sync engine), el JWT propio y PGlite. La
+  app ahora habla directo con Supabase vía `@supabase/supabase-js` (Postgres,
+  Auth, Realtime, Storage) desde el frontend.
+- ✅ **Esquema Supabase:** 10 tablas (7 sync blob+jsonb + `ocupaciones_centros`
+  + `perfiles` + `historial`), RLS por rol, Edge Function `create-user`. Ver
+  sección "Supabase — esquema y RLS".
+- ✅ **Datos migrados:** 49 centros del Excel + snapshot inicial 2026-07-03 en
+  `ocupaciones_centros`; usuarios migrados a `auth.users` + `perfiles` (admin +
+  xavier, login verificado).
+- ✅ **Frontend:** nueva capa `src/data/` (supabaseClient, authSupabase,
+  useSupabaseQuery, reposSupabase, useOcupacionesCentros, desenvolver). Todos
+  los componentes migrados a Supabase (login, centros, dashboard, usuarios).
+- ✅ **Histórico de ocupación:** tabla `ocupaciones_centros`, gráfico individual
+  en `DetalleCentro` y agregado de la red en `DashboardView` (Fase 6).
+- ✅ **Cutover de producción (Fase 7):** `server/` eliminado, `docker-compose`/
+  `Dockerfile.web`/`Caddyfile` actualizados, `refugio-backend` detenido en
+  Dokploy, frontend redeployado. (Ver "Producción REAL".)
 
-La app **ya funciona 100% offline** con Dexie/IndexedDB (la foto de centros es la
-única función que requiere conexión). El backend solo añade la capa compartida
-multiusuario; **no** debe romper el modo offline.
+### Qué falta / próximos pasos
 
-### Qué falta / próximos pasos (dirección: la red de centros)
-
-- ✅ **Supabase configurado** (jul-2026): proyecto `xzwifkckkakldnzkdeby`, bucket
-  público `centros-fotos` (5MB, RLS de subida). `VITE_SUPABASE_*` en `.env` local
-  **y** en el build de producción (Dokploy app `refugio-ali-primera`). Ver sección
-  "Foto vía Supabase".
-- ✅ **Backend `centros` en prod** (jul-2026): tabla creada, sync operativo. El
-  compose `refugio-backend` tiene webhook GitHub con `watchPaths: ["server/**"]`.
-- ⚠️ **Dev vs prod — bases distintas:** en desarrollo, Vite proxya `/api` a
-  `localhost:3001` (PGlite). Ediciones en localhost **no** llegan solas a producción;
-  hay que guardar en `https://m0n1t0r-d3-3v3nt0s.net` (o empujar datos manualmente).
-  Las fotos sí van a Supabase compartido; la `foto_url` viaja con el sync del centro.
-- 📊 **Dashboard de la red**: hoy `/dashboard` es del parque; falta una vista de
-  sala de control **agregada de todos los centros** (población total en la red,
-  centros saturados, cupo total disponible, mapa de calor por parroquia).
-- 🔁 **Traslados**: hoy el tablero es comparativo (decides tú). Falta (si se pide)
-  registrar/rastrear **movimientos de refugiados entre centros** y, opcionalmente,
-  un motor de sugerencias de reubicación.
-- 🧩 **Legado del parque** (`/`): pendientes menores heredados — bitácora completa
-  (Fase 2c), overlay de la ilustración del parque y export PDF de reportes.
+- 🧩 **Gestión de usuarios (gaps):** la Edge Function `create-user` cubre
+  **crear** usuarios. **Eliminar usuarios** y **cambiar la password de otro
+  usuario** requieren futuras Edge Functions (hoy solo Supabase Studio o el MCP
+  pueden hacerlo con `service_role`).
+- 🔁 **Traslados entre centros:** hoy el tablero es comparativo (decides tú).
+  Falta (si se pide) registrar/rastrear **movimientos de refugiados entre
+  centros** y, opcionalmente, un motor de sugerencias de reubicación.
+- 🗑️ **Limpieza menor:** queda `src/data/centrosTransitorios.ts` (catálogo
+  estático de los 50 centros) como fallback/ referencia; la fuente de verdad
+  ahora es la tabla `centros` en Supabase. Se puede eliminar del bundle más
+  adelante.
+- 📊 **Dashboard de la red:** hoy `/dashboard` agrega la red. Se puede ampliar
+  con mapa de calor por parroquia, series por grupo (Área Metropolitana vs Gran
+  Caracas), etc.
 
 ## Cómo ejecutar (desarrollo)
 
 ```bash
-# Frontend (raíz)
+# Frontend (raíz). Único proceso: ya no hay backend propio.
 npm install
-npm run dev            # http://localhost:5173
-npm run build          # genera dist/ (PWA)
-
-# Backend (server/) — sin instalar Postgres: usa PGlite en proceso
-cd server
-npm install
-npm run dev            # http://localhost:3001  (admin/admin1234 la 1ª vez)
+npm run dev   # http://localhost:5173
+npm run build # genera dist/ (PWA)
+npm run typecheck
 ```
 
-Para la clave opcional de MapTiler: copia `.env.example` → `.env` y pega tu clave
-en `VITE_MAPTILER_KEY` (NO commitear `.env`).
+Requiere `.env` local (no se commitea) con:
+```
+VITE_SUPABASE_URL=https://xzwifkckkakldnzkdeby.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon public key>
+VITE_MAPTILER_KEY=           # opcional, bases "HD"
+```
+Sin `VITE_SUPABASE_*` la app no puede loguear ni leer datos.
 
-**Atajo (recomendado):** `./reiniciar.sh` levanta backend (:3001) y frontend
-(:5173) en segundo plano de una sola vez. Subcomandos: `update` (git pull ff-only
-+ reinicia), `stop`, `logs`. Reinstala dependencias solo si cambió
-`package-lock.json` (p. ej. tras un `git pull`), así no hay que acordarse de correr
-`npm install`. ⚠️ Es **solo desarrollo** (PGlite + Vite); **no** toca producción.
+**Atajo (recomendado):** `./reiniciar.sh` levanta el frontend (:5173) en
+segundo plano. Subcomandos: `update` (git pull ff-only + reinicia), `stop`,
+`logs`. Reinstala dependencias solo si cambió `package-lock.json`. ⚠️ Es **solo
+desarrollo**; **no** toca producción.
 
 ## Stack
 
-**Frontend:** React 19 + Vite 7 + TypeScript + Tailwind v4 (plugin `@tailwindcss/vite`,
-sin config) · **MapLibre GL** (mapa) + **Terra Draw** (dibujo) · **Dexie**
-(IndexedDB) · **vite-plugin-pwa** · **react-router-dom** (rutas `/`, `/centros` y
-`/dashboard`) · **Supabase JS** (solo para subir fotos de centros).
-UI con **shadcn/ui** (Radix + cva + `cn()` en `src/lib/utils.ts`, componentes en
-`src/components/ui/`, estilo `radix-nova` en `components.json`) + **recharts** (via
-componente `chart` de shadcn) para gráficos. Quedan restos del sistema propio
-legacy (`src/ui/` Modal + `clases.ts`) en `PuntoForm`/`LineaForm`.
+**Frontend:** React 19 + Vite 7 + TypeScript + Tailwind v4 (plugin
+`@tailwindcss/vite`, sin config) · **MapLibre GL** (mapa) + **Terra Draw**
+(dibujo) · **@supabase/supabase-js** (Postgres, Auth, Realtime, Storage) ·
+**vite-plugin-pwa** (service worker para caché de assets) · **react-router-dom**
+(rutas `/`, `/dashboard`, `/usuarios`) · **recharts** (gráficos, vía componente
+`chart` de shadcn). UI con **shadcn/ui** (Radix + cva + `cn()` en
+`src/lib/utils.ts`, componentes en `src/components/ui/`, estilo `radix-nova` en
+`components.json`).
 
-**Backend (`server/`):** **Fastify 5** + **PostgreSQL** (geom como `jsonb`, sin
-PostGIS por ahora) · **@fastify/jwt v10** (JWT) · **@node-rs/argon2** (hash) ·
-**@fastify/websocket** · **zod**. En dev usa **PGlite** (Postgres en proceso, WASM)
-si no hay `DATABASE_URL`; en prod usa Postgres real.
+**Capa de datos:** **Supabase** (Postgres + Auth + Realtime + Storage),
+accedida vía `@supabase/supabase-js` desde el frontend. No hay backend propio:
+cada mutación es un `upsert`/`delete` directo a Postgres; Realtime
+(`postgres_changes`) refresca la UI en todos los dispositivos conectados. La
+creación de usuarios se hace con una **Edge Function** (`create-user`) que usa
+`service_role` (el frontend nunca tiene esa key).
 
 ## Arquitectura del frontend
 
 ```
 src/
-├─ domain/     tipos.ts (modelo + catálogos), estandares.ts (Esfera + ventanas de comida),
-│              brechas.ts (cobertura GLOBAL del parque + alertas), limpieza.ts (cronómetro),
-│              poblacion.ts (serie diaria de población desde snapshots),
-│              distribucion.ts (resumen de comida/hidratación por jornada),
-│              salubridad.ts (resumen de limpieza de baños/duchas/basura por día),
-│              centrosTransitorios.ts (modelo del centro + normalizar),
-│              capacidadCentros.ts (cupo real / cuello de botella según Esfera)
-├─ data/       db.ts (Dexie, versión 10 con migraciones), repos.ts (guardar/eliminar),
-│              centrosTransitorios.ts (catálogo estático de los 50 centros),
-│              supabase.ts (subida de foto de centro), seed.ts (ejemplo),
-│              preferencias.ts (vista guardada en localStorage)
-├─ map/        MapView.tsx (MapLibre + Terra Draw + marcadores HTML), estiloMapa.ts (bases)
-├─ features/   sectores/SectorForm · puntos/PuntoForm · tablero/Tablero ·
-│              distribucion/PanelDistribucion (registro de comida) ·
-│              salubridad/PanelSalubridad (limpieza de baños/duchas/basura) ·
-│              dashboard/DashboardView (sala de control /dashboard) ·
-│              censo/DesgloseDemografico, DesglosePersonal, PersonalResumen ·
-│              centros/ (FOCO: CentrosView, CentrosMap, MarcadorCentro, InfoCentro,
-│                        DetalleCentro, TableroCentros, CentroForm, LevantamientoCentro)
-├─ components/ Navbar, PanelFlotante, … · ui/ (componentes shadcn: card, chart, badge…)
-├─ lib/        utils.ts (cn())
-└─ ui/         (legacy) Modal, clases.ts (clases Tailwind reutilizables)
+├─ domain/ tipos.ts (modelo + catálogos), estandares.ts (Esfera),
+│  centrosTransitorios.ts (modelo del centro + normalizar),
+│  capacidadCentros.ts (cupo real / cuello de botella según Esfera),
+│  redCentros.ts (KPIs y agregados de la red),
+│  prioridadCentros.ts (orden de urgencia),
+│  serieOcupacionCentros.ts (series temporales con carry-forward),
+│  permisos.ts (roles y permisos)
+├─ data/ supabaseClient.ts (cliente supabase-js con VITE_SUPABASE_*),
+│  authSupabase.ts (login/signOut/onAuthStateChange + perfil desde `perfiles`),
+│  useSupabaseQuery.ts (hook select + Realtime, reemplaza a useLiveQuery),
+│  useSupabaseConectado.ts (estado de conexión a Realtime para la UI),
+│  useOcupacionesCentros.ts (snapshots de `ocupaciones_centros` con Realtime),
+│  reposSupabase.ts (upserts/Deletes + snapshot de ocupación al guardar centro),
+│  desenvolver.ts (aplana filas blob+jsonb `{id,updated_at,deleted,data}` → T),
+│  supabase.ts (subida de foto de centro al bucket `centros-fotos`),
+│  centrosTransitorios.ts (catálogo estático de los 50 centros, fallback),
+│  preferenciasMapa.ts (vista guardada en localStorage)
+├─ map/ MapView.tsx (MapLibre + Terra Draw + marcadores HTML), estiloMapa.ts
+├─ features/ centros/ (FOCO: CentrosView, CentrosMap, MarcadorCentro, InfoCentro,
+│  DetalleCentro, TableroCentros, CentroForm, LevantamientoCentro,
+│  RequerimientosCentro, PanelCentros, GraficoOcupacionCentro) ·
+│  dashboard/ (DashboardView, GraficoOcupacionRed) ·
+│  censo/ (DesgloseDemografico, DesglosePersonal, PersonalResumen) ·
+│  tablero/ (DemografiaResumen) ·
+│  auth/Login · usuarios/GestionUsuarios
+├─ components/ Navbar, PanelFlotante, MarcaAgua, BadgeRol, PantallaCarga,
+│  AccionesContacto · ui/ (componentes shadcn: card, chart, badge…)
+├─ lib/ utils.ts (cn())
+└─ ui/ (legacy) Modal, clases.ts — solo quedan restos en PuntoForm/LineaForm
 ```
 
-Rutas (react-router en `src/main.tsx` + `src/App.tsx`): `/` = app del mapa del
-parque (`AppInterna`), **`/centros` = red de Centros Transitorios (`CentrosView`,
-foco actual)**, `/dashboard` = sala de control a pantalla completa (`DashboardView`,
-solo lectura). En prod Caddy hace fallback SPA a `index.html`; en la PWA se añadió
-`navigateFallback` en `vite.config.ts` para deep-link offline a esas rutas.
+Rutas (react-router en `src/main.tsx` + `src/App.tsx`): `/` = `CentrosView`
+(red de Centros Transitorios, **foco actual**), `/dashboard` = `DashboardView`
+(sala de control a pantalla completa, solo lectura), `/usuarios` =
+`GestionUsuarios` (admin). En prod Traefik (Dokploy) hace fallback SPA a
+`index.html`; en la PWA se añadió `navigateFallback` en `vite.config.ts` para
+deep-link offline a esas rutas.
 
 Conceptos del dominio (ver `src/domain/tipos.ts`):
-- **Sector**: polígono con `color`, `responsables[]` (nombre/telefono/categoria/funcion),
-  censo, familias, vulnerables. El **desglose demográfico** (`Vulnerables` en
-  `tipos.ts`) es por edad y sexo con grupos etarios excluyentes que suman la
-  población: recién nacidos (0-2), niñez (3-11), adolescentes (12-17), adultos
-  (18-59), adultos mayores (60+); más grupos transversales `embarazadas` y
-  `discapacidad/patologías` (subconjuntos que pueden solaparse); y `mascotas`
-  (conteo aparte que **no** suma como población). `normalizarVulnerables` tolera
-  filas viejas sin los campos nuevos (default 0), así que añadir grupos no exige
-  migración de Dexie.
-- **PuntoServicio**: 11 tipos (`hidratacion, comida, salud, sanitarios, duchas,
-  residuos, carpa, recreacion, seguridad, energia, acceso`). Campos opcionales por
-  tipo: seguridad → `organismo`+`movilidad`; baños/duchas → `genero`+`condicion`
-  (improvisada no cuenta para el estándar); baños/duchas/basura → cronómetro
-  `frecuenciaLimpiezaHoras`+`ultimaLimpieza`.
-- **CensoSnapshot**: foto histórica del censo de un sector (`sector_id`, `ts`,
-  `poblacion`, `familias`, `carpas`, `vulnerables`). **Append-only**: se genera al
-  guardar un sector si cambian sus datos poblacionales. Id determinista
-  `censo-<sectorId>-<YYYY-MM-DD>` → varias ediciones el mismo día colapsan en un
-  punto (una foto por sector por día). Reconstruye la evolución poblacional.
-- **Distribución de comida/hidratación** (entidad `distribuciones`, 2 "clases" en
-  la misma tabla): **`JornadaComida`** = cabecera logística de una jornada del día
-  (id `jor-<YYYY-MM-DD>-<jornada>`; `hora_llegada`, `raciones`, `proveedor`), y
-  **`EntregaSector`** = marca "ya comió" de un sector en esa jornada (id
-  `ent-<YYYY-MM-DD>-<jornada>-<sectorId>`; `entregado`, `hora_entrega`). Jornadas
-  fijas: desayuno, almuerzo, cena, merienda, hidratación. Ids por día → cada
-  jornada "se reinicia" sola cada día. Ver `src/domain/tipos.ts` y `distribucion.ts`.
+- **`Vulnerables`**: desglose demográfico por edad y sexo con grupos etarios
+  excluyentes que suman la población: recién nacidos (0-2), niñez (3-11),
+  adolescentes (12-17), adultos (18-59), adultos mayores (60+); más grupos
+  transversales `embarazadas` y `discapacidad/patologías` (subconjuntos que
+  pueden solaparse); y `mascotas` (conteo aparte que **no** suma como
+  población). `normalizarVulnerables` tolera filas viejas sin los campos nuevos
+  (default 0).
+- **CentroTransitorio**: levantamiento de campo (secciones I–VI:
+  identificación, coordinación, seguridad, servicios sí/no, población,
+  novedades), `requerimientos[]`, `capacidad` (camas/duchas/pocetas/lavaderos/
+  contenedores **instaladas vs operativas** + agua tanque/operativa/litros),
+  `ocupacion` (`Vulnerables`), **`personal`** (`PersonalCentro`: funcionarios,
+  médicos, psicólogos, justicia TJS/MP/Defensoría), `familias_ocupadas`,
+  `responsables`, `foto_url`, `estado`, `notas`. Helpers: `poblacionCentro()`
+  (refugiados), `totalPersonalOperativo()`, `personasLogistica()` (refugiados +
+  personal → demanda de agua/comida/baños).
+- **Cuello de botella** (`capacidadCentros.ts`, pura): `analisisCentro(centro)`
+  usa **`personasLogistica`** para calcular requerimientos Esfera (pocetas
+  1/20, duchas 1/50, agua 15 l/persona/día; camas 1:1), toma la **capacidad
+  efectiva = mínimo** entre los recursos medidos, y de ahí **`cupoReal`** y
+  **`cuelloDeBotella`**. Semáforo verde/amarillo/rojo por % de ocupación.
 - Todo lleva `id`, `updated_at`, `updated_by` (con sesión = `user.username`).
 
-## Backend — contrato de la API (`server/`)
+## Supabase — esquema y RLS
 
-| Método | Ruta | Rol | Descripción |
-|---|---|---|---|
-| GET | `/api/health` | — | Estado |
-| POST | `/api/auth/login` | — | `{username,password}` → `{token, user}` |
-| GET | `/api/auth/me` | auth | Payload del token |
-| GET | `/api/usuarios` · POST | admin | Listar / crear usuarios (`sector_asignado` opcional) |
-| PATCH | `/api/usuarios/:id` | admin | Editar usuario (nombre, rol, password, `sector_asignado`) |
-| GET | `/api/sync?since=<ts>` | auth | `{sectores, puntos, lineas, censos, distribuciones, serverTime}` con filas cambiadas (incluye `deleted:true`) |
-| POST | `/api/sync` | admin/coordinador/campo | Body `{sectores, puntos, lineas, censos, distribuciones}` (arrays de filas) → upsert **last-write-wins** |
-| POST | `/api/sync/purge` | admin | Vaciar mapa (sectores/puntos/lineas). **NO** borra `censos` ni `distribuciones` (histórico se conserva) |
-| GET/POST | `/api/historial` | auth / (no visor) | Bitácora |
+Proyecto `xzwifkckkakldnzkdeby`. 10 tablas en el schema `public`:
 
-> `GET /api/sync` y `POST /api/sync` incluyen también `limpiezas` (bitácora de
-> salubridad/aseo) y `centros` (red de Centros Transitorios). `/api/sync/purge`
-> **no** borra `censos`, `distribuciones`, `limpiezas` ni `centros` (se conservan).
-| WS | `/ws?token=<jwt>` | auth | Difunde `{type:"cambio", entidad, filas, serverTime}` |
+**7 tablas sincronizables (blob + jsonb, idénticas al backend Fastify viejo):**
+`sectores`, `puntos`, `lineas`, `censos`, `distribuciones`, `limpiezas`,
+`centros`. Esquema: `id text PK, updated_at bigint, updated_by text, deleted
+bool, data jsonb`. `centros` además tiene `geom geography(Point, 4326)` (PostGIS)
+aparte del blob. Upsert **last-write-wins** (`updated_at`); borrado **suave**
+(`deleted: true`). El frontend usa `desenvolver()` para aplanar `data` + metadatos
+al tipo de dominio.
 
-**Entidades sincronizables** (mismo modelo blob+metadatos, last-write-wins):
-`sectores`, `puntos`, `lineas`, `censos`, `distribuciones`, `limpiezas`, `centros`.
-Para añadir una nueva hay que tocar, en cliente: `data/db.ts` (tabla + versión +
-tipo `Entidad`/`OutboxItem`), `data/api.ts` (pull/push), `data/sync.ts`
-(`aplicarLote`/`tablaDe`/pull/push/WS) y en servidor: `db/bootstrap.ts` (tabla),
-`types.ts` (`Entidad`), `routes/sync.ts` (pull/push/difundir). `centros` (red de
-Centros Transitorios) fue el último añadido siguiendo exactamente este patrón —
-úsalo de referencia.
+**`ocupaciones_centros`** (tipada, el histórico): `id uuid PK default
+gen_random_uuid()`, `centro_id text not null references centros(id) on delete
+cascade`, `dia date not null`, `ts bigint`, `total_afectados int`, `familias
+int`, `personal_total int`, `ocupacion jsonb`, `updated_at bigint`,
+`updated_by text`, **`unique(centro_id, dia)`** (una fila por centro por día; la
+última edición del día gana), índices en `(dia)` y `(centro_id, dia)`.
 
-> 🚨 **PASO OBLIGATORIO AL AÑADIR/EDITAR UNA ENTIDAD: redesplegar producción.**
-> Las tablas se crean con `CREATE TABLE IF NOT EXISTS` en `db/bootstrap.ts`, que
-> **solo corre al (re)arrancar el servidor con el código nuevo**. Si tocas
-> `bootstrap.ts` (o cualquier archivo del backend) tienes que: (1) **push a
-> `main` en GitHub** y (2) **redeploy en Dokploy** (ver sección de despliegue).
-> Sin eso, el servidor viejo **acepta el `POST /api/sync` y responde 200 pero
-> descarta en silencio** el campo desconocido (zod ignora claves no declaradas);
-> el cliente cree que se guardó, **vacía su `outbox`** y el dato queda **atrapado
-> solo en ese dispositivo**. Síntoma clásico: los sectores sí se sincronizan pero
-> la entidad nueva "no aparece en otros equipos". Esto fue exactamente el bug de
-> `lineas` (jul-2026): producción llevaba meses en un commit anterior a que
-> `lineas`/`censos`/`distribuciones`/`limpiezas` existieran, así que esas 4
-> tablas ni siquiera existían en la BD de prod. **Verifica siempre tras deploy**
-> que las tablas existan (comando abajo).
+**`perfiles`**: `user_id uuid references auth.users`, `username text unique`,
+`nombre`, `rol check in (admin, coordinador, campo, visor)`,
+`sector_asignado`, `jerarquia`, `cedula`, `responsabilidad`, `whatsapp`,
+`telegram`, `brazalete`, `hash_id unique`, `marca_agua bool default true`,
+`created_at timestamptz default now()`. Vinculada a `auth.users` por `user_id`.
+Los usuarios de campo no tienen email real → se usa el sintético
+`<username>@refugio.app` en `auth.users`.
 
-**Fila de sync** = `{ id, updated_at:number, updated_by, deleted:boolean, data:<objeto completo> }`.
-Cada entidad se guarda como **blob JSON + metadatos** → cambiar campos del cliente
-NO requiere migrar la base. Upsert solo sobrescribe si `EXCLUDED.updated_at >=`
-el existente (last-write-wins). El servidor pone `updated_by` desde el token
-(no confía del cliente). Roles: admin(todo) · coordinador/campo(leer+escribir) ·
-visor(solo leer).
+**`historial`**: `id uuid, ts bigint, usuario text, accion, entidad,
+entidad_id, detalle jsonb`. Bitácora (pendiente de revivir en la UI).
 
-Archivos backend: `src/index.ts` (arranque, plugins, WS), `src/routes/*`,
-`src/auth.ts`, `src/db/client.ts` (adaptador PGlite/postgres), `src/db/bootstrap.ts`
-(crea tablas), `src/ws.ts` (hub), `src/seedAdmin.ts`.
+**RLS (patrón común a las tablas de la app):** usuarios autenticados **leen**
+todo; **admin / coordinador / campo** escriben; **visor** solo lee. `perfiles`:
+cada usuario lee su propio perfil; admin CRUD todos; todos pueden leer campos
+básicos (nombre, rol, sector_asignado) para mostrar "quién marcó".
 
-## ✅ Fase 2b — IMPLEMENTADA (referencia de cómo funciona)
+**Edge Function `create-user`** (desplegada vía MCP `deploy_edge_function`):
+recibe `{username, password, nombre, rol, sector_asignado, ...}` y usa
+`service_role` para (1) crear el `auth.users` con email `<username>@refugio.app`
++ password y (2) insertar el `perfiles` con el `user_id` recién creado.
+`verify_jwt: true` + check interno de rol → solo admins autenticados pueden
+invocarla. El frontend la llama con el token del admin logueado. **Gaps:**
+eliminar usuarios y cambiar la password de otros requieren futuras Edge
+Functions (hoy se hace desde Supabase Studio o el MCP con `service_role`).
 
-> Ya está hecho y verificado. Esta sección documenta el diseño implementado.
-Objetivo: la app comparte datos entre dispositivos en tiempo real, con login y
-roles, **sin perder el offline**. Archivos: `src/data/auth.ts` (sesión),
-`src/data/api.ts` (cliente HTTP), `src/data/sync.ts` (motor + WebSocket),
-`src/features/auth/Login.tsx`, y proxy en `vite.config.ts`.
+**Bucket `centros-fotos`** (Storage, público, 5 MB, solo imágenes): las fotos se
+suben con la anon key (RLS `insert`/`update`/`select` para `anon,
+authenticated` en `storage.objects` con `bucket_id = 'centros-fotos'`). La URL
+pública se guarda dentro de `data` del centro (`foto_url`) y viaja con el sync.
+Sin cambios respecto a la fase pre-migración.
 
-### 1. Config de API (mismo origen en prod)
-- En prod, la PWA y la API comparten dominio: llamar a `/api` y `/ws` **relativos**.
-- En dev, el frontend (5173) y el backend (3001) están separados → añadir **proxy
-  de Vite** en `vite.config.ts`:
-  ```ts
-  server: { proxy: { "/api": "http://localhost:3001", "/ws": { target: "http://localhost:3001", ws: true } } }
-  ```
-  Así el frontend siempre usa rutas relativas.
+**Verificación / auditoría:** `get_advisors` (MCP Supabase) con `type=security`
+reporta advertencias conocidas y no críticas: `spatial_ref_sys` sin RLS (tabla
+de PostGIS, no de la app), `postgis` instalado en `public`, funciones
+`st_estimatedextent`/`rls_auto_enable` `SECURITY DEFINER` ejecutables por
+`anon`/`authenticated` (propias de PostGIS/Supabase), y `centros-fotos` con
+policy broad SELECT (público, permite listar). Ninguna afecta a las tablas de
+la app.
 
-### 2. Auth (login + sesión)
-- Pantalla de **login** (usuario/contraseña) → `POST /api/auth/login`.
-- Guardar `token` + `user` en `localStorage`; adjuntar `Authorization: Bearer` en
-  cada fetch; manejar `401` (cerrar sesión). Crear `src/data/auth.ts` (estado de
-  sesión) y un componente `Login`.
-- Exponer `rol` a la UI.
+## Histórico de ocupación de centros
 
-### 3. Motor de sincronización (Dexie ↔ API)
-- Añadir a Dexie una tabla **`outbox`**: cola de mutaciones pendientes con la
-  **fila de sync completa** `{entidad, id, updated_at, deleted, data}`.
-- En `repos.ts`, cada `guardarSector/guardarPunto` **encola** la fila; cada
-  `eliminar*` encola un **tombstone** `{deleted:true, data:<última conocida>}` (el
-  modelo usa **borrado suave**: hoy `repos.ts` borra en duro — cambiarlo para que
-  además propague la baja).
-- Worker de sync (p. ej. `src/data/sync.ts`): cuando hay conexión + sesión:
-  1. **Push**: `POST /api/sync` con lo de `outbox`; al éxito, vaciar `outbox`.
-  2. **Pull**: `GET /api/sync?since=<lastSync>` → aplicar a Dexie (si `deleted`
-     borra local; si no, `put` respetando `updated_at`). Guardar `serverTime` como
-     `lastSync` en localStorage.
-  - Correr al reconectar (`window 'online'`) y periódicamente.
-- **WebSocket**: conectar a `/ws?token=`; al recibir `{type:"cambio", filas}`
-  aplicar a Dexie igual que el pull (tiempo real).
-- Conflictos: **last-write-wins** por `updated_at` (ya resuelto en el servidor;
-  el cliente aplica lo entrante si `updated_at >=` lo local).
-- Al iniciar sesión, poner `updated_by = user.username` en las mutaciones locales.
-- La UI ya usa `useLiveQuery` sobre Dexie → se re-renderiza sola cuando el sync
-  escribe. Filtrar `deleted` en las queries de lectura.
+Tabla `ocupaciones_centros` (tipada, no blob). **Una fila por centro por día**
+(`unique(centro_id, dia)`): la última edición del día gana. El frontend escribe
+el snapshot desde `reposSupabase.guardarCentro()` cuando la `ocupacion` cambió
+respecto al centro previo (no hay trigger de BD; el frontend sabe si cambió).
 
-### 4. Roles en la UI
-- **visor**: ocultar/inhabilitar herramientas de dibujo, modo edición, formularios
-  de edición y botones "marcar limpio". Solo lectura + tablero.
-- coordinador/campo/admin: edición completa (admin además gestiona usuarios).
+- **Hook `useOcupacionesCentros({ centroId?, desde? })`** (`src/data/`): select
+  inicial + Realtime (`postgres_changes` a `ocupaciones_centros`). Devuelve
+  `SnapshotOcupacion[]`.
+- **Lógica pura `src/domain/serieOcupacionCentros.ts`**:
+  `serieDiariaOcupacionRed(snapshots, centros)` (agregado de Caracas por día con
+  carry-forward del último snapshot conocido de cada centro),
+  `serieDiariaOcupacionCentro(centroId, snapshots)` (serie de un centro),
+  `variacionUltimoDia(snapshots)` (entradas/salidas netas del día).
+- **`GraficoOcupacionCentro`** (`AreaChart` recharts, en `DetalleCentro`, sección
+  desplegable): serie diaria de un centro. Eje X = fecha, eje Y = total de
+  refugiados.
+- **`GraficoOcupacionRed`** (`AreaChart` en `DashboardView`): serie agregada de
+  los 49 centros, con desglose por grupo (Área Metropolitana vs Gran Caracas).
+- **Snapshot inicial 2026-07-03** cargado para los 49 centros en la Fase 2 (el
+  "día 1" de la red). Los gráficos arrancan desde ahí.
 
-### 5. Bitácora (Fase 2c, ligado a esto)
-- Al **marcar limpio/recoger basura** y en ediciones clave, `POST /api/historial`
-  con `{accion, entidad, entidad_id, detalle}` → registra quién y cuándo. Mostrar
-  en el tablero.
+Usa el componente `chart` de shadcn (`ChartContainer`/`ChartTooltip`) con
+`var(--chart-N)` como colores (siguiendo la regla del workspace de usar el MCP
+de shadcn para cualquier diseño de UI).
 
-## ✅ Sala de control `/dashboard` (Fase 3, en progreso)
+## Auth y usuarios
+
+- **Login** (`src/features/auth/Login.tsx` + `src/data/authSupabase.ts`): el
+  usuario escribe su `username` y password; la capa lo mapea a
+  `<username>@refugio.app` y llama a `supabase.auth.signInWithPassword`.
+  `onAuthStateChange` mantiene la sesión. Tras login se carga el `perfil` desde
+  `perfiles` (donde están `rol`, `sector_asignado`, `hash_id`, `marca_agua`,
+  etc.) y se arma el `Usuario` de la app.
+- **Sesión** (`useSesion()`): `useSyncExternalStore` sobre el estado interno
+  que publica `onAuthStateChange`. Mantiene la misma interfaz pública que la
+  capa legacy (`getSesion`, `getToken`, `cerrarSesion`, `setSesion`) para no
+  romper consumidores.
+- **Gestión de usuarios** (`/usuarios`, `GestionUsuarios.tsx`): el admin lista
+  `perfiles`, edita rol/sector/etc., y **crea** usuarios invocando la Edge
+  Function `create-user`. **No** puede eliminar usuarios ni cambiar la password
+  de otros (faltan Edge Functions; ver "Gaps").
+- **Roles:** `admin` (todo + gestión de usuarios) · `coordinador`/`campo`
+  (leen + escriben) · `visor` (solo leen). Los chequeos de permiso viven en
+  `src/domain/permisos.ts`.
+- **Marca de agua** anti-foto: `MarcaAgua` muestra la identidad del usuario y
+  la fecha si `perfil.marca_agua !== false`.
+
+## Red de Centros Transitorios (`/centros`, foco actual)
+
+La ruta `/centros` (`src/features/centros/`) permite **registrar el estado de
+cada centro** y decidir a dónde reubicar refugiados con criterio.
+
+**UI:** `CentrosView` (conmutador **Mapa / Tablero / Prioridades**). En el mapa,
+`MarcadorCentro` es una **píldora horizontal**: logo del cuerpo + **`refugiados
+/ funcionarios`** (ej. `200 / 25`) + punto de semáforo. Al seleccionar un
+centro, `DetalleCentro` prioriza lo operativo a simple vista: KPIs grandes de
+**refugiados** y **familias**, **personal total** (mini-totales por categoría),
+tarjeta de **logística** (agua, comida, baños), **gráfico de ocupación**
+(desplegable), los desgloses demográfico y de personal en **secciones
+desplegables**, foto, Maps, coordinación, seguridad, requerimientos, capacidad
+vs ocupación, responsables. `TableroCentros` compara centros por cupo real.
+`CentroForm` por pestañas I–VI + Requerimientos, Capacidad, Contactos; el
+**personal operativo** se edita en **V · Población** (`DesglosePersonal.tsx`).
+Permisos: admin/coordinador/campo editan; **visor solo lectura**.
+
+**Foto vía Supabase Storage:** la foto se sube al bucket público
+`centros-fotos` (`src/data/supabase.ts`: comprime a JPEG ~1280px antes de
+subir) y se guarda solo la **URL** dentro del dato del centro. Requiere
+`VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`; sin ellas el botón de foto
+queda desactivado.
+
+## Sala de control `/dashboard`
 
 Vista independiente a pantalla completa pensada para **proyectar** en la sala
-situacional. Solo lectura (todos los roles), se actualiza sola vía `useLiveQuery`
-sobre Dexie + sync/WebSocket. Archivo: `src/features/dashboard/DashboardView.tsx`.
+situacional. Solo lectura (todos los roles), se actualiza sola vía
+`useSupabaseQuery` + Realtime. Archivo: `src/features/dashboard/DashboardView.tsx`.
 Se abre desde el botón **"Pantalla"** de la `Navbar` (link a `/dashboard`).
 
-Contenido actual: reloj en vivo, KPIs grandes (población, familias, vulnerables,
-sectores, puntos operativos, alertas), **gráfico de área "Registro poblacional por
-fechas"**, **gráfico de líneas "Comidas repartidas por fechas"** (una línea por
-jornada: desayuno/almuerzo/cena/merienda/hidratación, para comparar si se reparten
-más desayunos que cenas), **tarjeta "Alimentación de hoy"** (una casilla por jornada
-con hora de llegada y barra de sectores servidos), **tarjeta "Cobertura de servicios"**
-(global del parque), demografía por edad/sexo, alertas y limpieza. Reutiliza las
-funciones de dominio existentes (`kpisGlobales`, `coberturaGlobal`, `generarAlertas`,
-`sumarVulnerables`, `infoLimpieza`, `resumenDistribucion`, `serieComidasPorJornada`)
-— no duplica lógica.
+Contenido: reloj en vivo, KPIs grandes (refugiados, familias, personal
+operativo, centros con datos, cupo disponible, centros críticos), **gráfico
+`GraficoOcupacionRed`** (histórico agregado de la red con carry-forward),
+población por parroquia, estado de la red (centros por nivel de urgencia),
+demografía de la red y lista de centros que requieren atención (ordenados por
+`prioridadCentros.ts`). Indicador de conexión a Supabase (`useSupabaseConectado`).
 
-**Cobertura y alertas — GLOBALES del parque (no por sector):** los puntos (agua,
-letrinas, duchas, salud, comida, basura) están en ubicaciones fijas del parque, no
-dentro de los sectores. Por eso `brechas.ts` ya **no** calcula cobertura por sector
-ni pinta semáforo de servicios en el sector; el sector solo lleva censo, demografía
-y responsables. `coberturaGlobal(sectores, puntos)` cruza la población/familias
-total del refugio contra los puntos operativos de cada tipo (estándar Esfera de
-`estandares.ts`). `generarAlertas(sectores, puntos, distribuciones, ahora)` combina:
-(1) cobertura global < 100%, (2) comidas que no llegaron en su ventana horaria
-(`VENTANAS_COMIDA` en `estandares.ts`: desayuno 6-9, almuerzo 11:30-14:30, cena
-17:30-20:30; usa la `hora_llegada` de las jornadas del día), y (3) aseo vencido
-(letrinas/duchas/basura). Ejemplo: 5000 personas y 4 duchas → duchas al ~4% (rojo)
-y alerta crítica.
+## Producción REAL — corre en Dokploy
 
-**Registro poblacional (cómo funciona):**
-- Cada `guardarSector` con cambios de censo llama a `registrarCenso()` (`repos.ts`)
-  → crea/actualiza un `CensoSnapshot` (tabla Dexie `censos`) y lo encola en `outbox`.
-- `src/domain/poblacion.ts` → `serieDiariaPoblacion(snaps)` construye la serie por
-  día haciendo **carry-forward** del último censo conocido de cada sector (así el
-  total refleja todo el refugio, no solo lo recensado ese día). `variacionUltimoDia`
-  deriva las entradas/salidas netas del día.
-- La migración Dexie **v7** crea una foto inicial por cada sector existente para que
-  el gráfico no arranque vacío (id determinista → sin duplicar entre dispositivos).
-- Se sincroniza como 4ª entidad (`censos`). El histórico **no** se purga al vaciar
-  el mapa.
+**Dominio de producción:** `https://m0n1t0r-d3-3v3nt0s.net`.
 
-**Cómo ampliarlo:** el dashboard es iterativo. Para una nueva métrica: añade su
-cálculo en `domain/` (función pura sobre sectores/puntos/censos), y una tarjeta/serie
-nueva en `DashboardView.tsx`. Para gráficos usa el componente `chart` de shadcn
-(recharts) con `ChartContainer`/`ChartTooltip` y `var(--chart-N)` como colores.
-
-## ✅ Distribución de comida e hidratación (Fase 3)
-
-Registro del proceso de alimentación por **jornadas fijas del día** (desayuno,
-almuerzo, cena, merienda + rondas de hidratación). Responde: ¿a qué hora llegó la
-comida?, ¿qué sectores ya comieron y a qué hora?, ¿ya comieron todos?
-
-**Datos:** entidad sincronizable `distribuciones` (5ª entidad), con dos clases de
-fila (ver "Conceptos del dominio"): `JornadaComida` (cabecera logística) y
-`EntregaSector` (marca por sector). Cada marca de sector es su **propia fila** →
-varios responsables marcan a la vez sin pisarse (a diferencia de un único blob por
-jornada). No se purga al vaciar el mapa.
-
-**Funciones (`src/data/repos.ts`):** `guardarJornada(dia, jornada, datos)` (hora de
-llegada / raciones / proveedor, merge parcial), `marcarEntrega(sector, dia, jornada,
-entregado)` (fija `hora_entrega = now` al marcar), `marcarTodos(...)`.
-
-**Lógica pura (`src/domain/distribucion.ts`):** `resumenDistribucion(dia, registros,
-sectores)` agrupa las filas del día por jornada y calcula progreso `servidos/total`;
-`serieComidasPorJornada(registros, sectores, censos)` arma la **serie temporal de
-comidas repartidas por fecha** (suma la población de los sectores servidos en cada
-jornada; toma la población del censo más reciente ≤ ese día con carry-forward, y usa
-la población actual como respaldo si el sector no tiene censos) → alimenta el gráfico
-de líneas del dashboard; helpers `claveDiaLocal`, `formatoHora`, `horaAInput`/
-`horaDesdeInput` (para el `<input type="time">` de ajuste manual de la hora de llegada).
-
-**UI de registro:** `src/features/distribucion/PanelDistribucion.tsx`, abierto desde
-el botón **"Comida"** de la `Navbar` (estado `distribucionAbierto` en `App.tsx`).
-Selector de jornada, cabecera de llegada (hora **editable manualmente** por
-admin/coordinador + botón "Ahora"; raciones/proveedor), y lista de sectores para
-marcar "Ya comió".
-
-**Permisos por rol:** el responsable de **campo** solo puede marcar **su** sector
-(`sector_asignado`); **admin/coordinador** marcan cualquier sector, usan "Marcar
-todos" y editan la logística de la jornada; **visor** solo lectura.
-
-## ✅ Salubridad y aseo (Fase 3)
-
-Team de limpieza del refugio: recolección de basura, limpieza de letrinas
-portátiles y del área de duchas. Como el parque no tiene botes ni baños en todos
-los sectores, la gente acude a **puntos concretos del parque** → el módulo opera
-sobre los **puntos del mapa** de tipo `sanitarios`, `duchas` y `residuos` (no por
-sector, a diferencia de la comida). Las letrinas deben limpiarse **mín. 2 veces/día**.
-
-**Datos:** entidad sincronizable `limpiezas` (6.ª entidad), bitácora **append-only**:
-cada marca "limpio/recogido" es su propia fila `RegistroLimpieza`
-(`{ id:limp-<puntoId>-<ts>, punto_id, punto_tipo, punto_nombre, ts, dia, notas }`),
-así se registra quién y cuándo, y varios responsables marcan sin pisarse. No se
-purga al vaciar el mapa. Ver `src/domain/tipos.ts`.
-
-**Funciones (`src/data/repos.ts`):** `marcarLimpieza(punto, notas?)` crea el evento
-en `limpiezas` **y** actualiza `punto.ultimaLimpieza` (mantiene vivo el cronómetro
-del mapa de `src/domain/limpieza.ts`); `deshacerUltimaLimpieza(punto, dia)`
-(tombstone del último evento del día + recalcula `ultimaLimpieza`).
-
-**Lógica pura (`src/domain/salubridad.ts`):** `metaLimpiezasDia(punto)` (veces/día
-objetivo derivada de `frecuenciaLimpiezaHoras`, mín. 2) y `resumenSalubridad(dia,
-puntos, registros)` → por punto `{ info, vecesHoy, meta, cumpleMeta, ultima,
-ultimaPor }` + totales (`vencidos`, `pendientesMeta`). Reutiliza `esMantenimiento`
-e `infoLimpieza` de `limpieza.ts` (no duplica el cronómetro).
-
-**UI:** `src/features/salubridad/PanelSalubridad.tsx`, abierto desde el botón
-**"Aseo"** de la `Navbar` (estado `salubridadAbierto` en `App.tsx`). Filtro por tipo
-(Todos/Baños/Duchas/Basura), y por punto: anillo de estado, "X/meta hoy", última
-limpieza + `@usuario`, botón "Limpio" (y "Deshacer"). El botón "marcar limpio" del
-mapa (`marcarLimpio` en `App.tsx`) también usa `marcarLimpieza` → deja bitácora. El
-dashboard enriquece la tarjeta "Limpieza y recolección" con "X/meta hoy" y el último
-responsable.
-
-**Permisos:** admin/coordinador/campo marcan cualquier punto; visor solo lectura
-(los baños son ubicaciones compartidas del parque, no atadas a un sector).
-
-**`sector_asignado`:** vincula un usuario de campo con su sector. Se asigna en la UI
-de usuarios (admin) y **viaja en el token JWT** (`TokenPayload` en servidor,
-`Usuario` en `src/data/auth.ts`). ⚠️ Al cambiar el sector de un usuario, debe
-**re-loguearse** para que el token nuevo lo incluya.
-
-## ✅ Red de Centros Transitorios (`/centros`, Fase 4) — FOCO ACTUAL DEL PROYECTO
-
-El Parque "Alí Primera" se está desalojando y su gente se distribuye en una **red
-de ~50 centros transitorios** de Caracas. **Gestionar esta red es la dirección
-actual del producto** (ver "Qué es"). La ruta `/centros` (`src/features/centros/`)
-permite **registrar el estado de cada centro** y decidir a dónde reubicar refugiados
-con criterio. Aquí es donde debería concentrarse el trabajo nuevo.
-
-**Datos:** 7.ª entidad sincronizable `centros`. Los 50 centros vienen de un
-**catálogo estático** (`src/data/centrosTransitorios.ts`: nombre, cuerpo de
-seguridad, parroquia, dirección, coordenadas) que se **siembra** en Dexie en la
-migración v10 (id determinista `centro-01`…`centro-50`, `updated_at` bajo para que
-cualquier edición gane) y también vía `sembrarCentrosSiVacio()` en instalaciones
-nuevas. Solo las **ediciones** se sincronizan; el catálogo base viaja en el bundle.
-El tipo `CentroTransitorio` (en `src/domain/centrosTransitorios.ts`) suma a los
-campos base los mutables (opcionales, con `normalizarCentro()`): levantamiento de
-campo (secciones I–VI: identificación, coordinación, seguridad, servicios sí/no,
-población, novedades), `requerimientos[]`, `capacidad` (`CapacidadCentro`: camas/
-duchas/pocetas/lavaderos/contenedores **instaladas vs operativas** + agua tanque/
-operativa/litros), `ocupacion` (`Vulnerables`, mismo desglose por edad/sexo que
-los sectores), **`personal`** (`PersonalCentro`: funcionarios, médicos, psicólogos,
-justicia TJS/MP/Defensoría), `familias_ocupadas`, `responsables`, `foto_url`,
-`estado` y `notas`. Helpers: `poblacionCentro()` (refugiados), `totalPersonalOperativo()`,
-`personasLogistica()` (refugiados + personal → demanda de agua/comida/baños).
-
-**Lógica de cuello de botella** (`src/domain/capacidadCentros.ts`, pura, análoga a
-`brechas.ts`): `analisisCentro(centro)` usa **`personasLogistica`** (no solo
-refugiados) para calcular requerimientos Esfera (pocetas 1/20, duchas 1/50, agua
-15 l/persona/día; camas 1:1), toma la **capacidad efectiva = mínimo** entre los
-recursos medidos, y de ahí **`cupoReal`** y **`cuelloDeBotella`**. Semáforo
-verde/amarillo/rojo por % de ocupación. El análisis expone `refugiados`, `personal`
-y `personasLogistica` por separado.
-
-**UI:** `CentrosView` (conmutador **Mapa / Tablero**). En el mapa, `MarcadorCentro`
-es una **píldora horizontal**: logo del cuerpo + **`refugiados / funcionarios`**
-(ej. `200 / 25`) + punto de semáforo. Al seleccionar un centro, `DetalleCentro`
-prioriza lo operativo a simple vista: KPIs grandes de **refugiados** y **familias**,
-**personal total** (mini-totales por categoría), tarjeta de **logística** (agua,
-comida, baños); los desgloses demográfico y de personal van en **secciones
-desplegables**. Ya no muestra "Salud y apoyo" (sí/no) en detalle — eso queda en el
-formulario pestaña IV; los conteos numéricos viven en `personal`. También: foto,
-Maps, coordinación, seguridad, requerimientos, capacidad vs ocupación, responsables.
-`TableroCentros` compara centros por cupo real. `CentroForm` por pestañas I–VI +
-Requerimientos, Capacidad, Contactos; **personal operativo** se edita en **V ·
-Población** (`DesglosePersonal.tsx`). Permisos: admin/coordinador/campo editan;
-**visor solo lectura**.
-
-**Foto vía Supabase Storage:** la foto se sube a un bucket **público**
-`centros-fotos` de Supabase (`src/data/supabase.ts`: comprime a JPEG ~1280px antes
-de subir) y se guarda solo la **URL** dentro del dato del centro. Requiere
-`VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (ver `.env.example`); sin ellas la
-app funciona igual pero el botón de foto queda desactivado. Es el **único** dato
-que usa Supabase: todo lo demás vive en el backend/sync propio.
-
-> ⚠️ **Gotcha RLS (si recreas el proyecto Supabase):** un bucket "público" solo
-> hace públicas las **lecturas**; para **subir** con la anon key (la app NO usa
-> Supabase Auth → todo va como rol `anon`) hay que crear políticas en
-> `storage.objects`. Las que ya están puestas: `insert`/`update`/`select` para
-> `anon, authenticated` con `bucket_id = 'centros-fotos'` (sin `delete`). Se
-> aplicaron con el MCP de Supabase (`apply_migration`). El proyecto ya está
-> configurado (bucket público 5MB, solo imágenes) y verificado (subida anon 200,
-> lectura pública 200). El **MCP de Supabase** está en `.cursor/mcp.json`
-> (gitignored) — transporte hosted/OAuth, scopeado a este proyecto.
-
-> 🚨 Al ser entidad nueva: **push a `main` + redeploy en Dokploy** y verificar que
-> la tabla `centros` exista en Postgres (ver checklist de despliegue).
-
-## 🟢 Producción REAL — corre en Dokploy (no con el `docker-compose.yml` a mano)
-
-> ⚠️ **Lee esto antes de tocar producción.** La app ya está **desplegada y viva**
-> en el VPS **vía Dokploy** (un panel que gestiona los contenedores). El
-> `docker-compose.yml`/`Dockerfile.web`/`Caddyfile` de la raíz son la receta
-> genérica/alternativa manual (sección siguiente), **pero NO es lo que corre**.
-
-**Cómo está montado en Dokploy** (proyecto `refugio-ali-primera`):
-- **Dominio de producción:** `https://m0n1t0r-d3-3v3nt0s.net`.
-- **`refugio-backend`** — servicio *Compose* (`composeId: ACKYOsSdQcksY0vu31loO`).
-  Contiene **Postgres** (`db`, volumen `dbdata`) + **API Node** (`server`). El
-  `server` se **construye desde GitHub**: `build.context =
-  https://github.com/diazpolanco13/refugio-ali-primera.git#main:server`. Es decir,
-  hornea la carpeta `server/` de la rama **`main`** con `server/Dockerfile`.
-  `autoDeploy: true`, `triggerType: push`, `githubId` conectado y
-  `watchPaths: ["server/**"]` → un push a `main` que toque `server/` **debería**
-  redesplegarlo solo (verifica siempre en el panel).
-- **`refugio-ali-primera`** — la **PWA/frontend** (aplicación aparte en Dokploy).
-- El **enrutado/HTTPS** lo hace **Traefik** (de Dokploy), no el `Caddyfile` de la
-  raíz. Los dominios `…/api` y `…/ws` apuntan al servicio `server:3001`.
-- Los **secretos** (DB_PASSWORD, JWT_SECRET, ADMIN_USER/PASSWORD, CORS_ORIGIN) se
-  editan en el panel de Dokploy (env del compose), **no** en un `.env` del repo.
+- **`refugio-ali-primera`** — la **PWA/frontend** (aplicación en Dokploy,
+  `applicationId: mzf_H0G_JcYUoTZfbJkQI`). Se construye desde GitHub:
+  `owner=diazpolanco13, repo=refugio-ali-primera, branch=main, buildPath=/`,
+  build type **nixpacks**, `autoDeploy: true`, `triggerType: push`. Un push a
+  `main` **debería** redesplegarla solo (verifica en el panel). Env vars del
+  build: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (horneadas en el bundle),
+  `NIXPACKS_NODE_VERSION=22`.
+- **`refugio-backend`** — **DETENIDO** (Fase 7). Compose
+  `ACKYOsSdQcksY0vu31loO` que antes corría Postgres + API Fastify. Se dejó en
+  **stop** (no destruido) por si hay que rollback. Ya no se usa: Supabase
+  reemplaza auth, Postgres, Realtime y la API.
+- El enrutado/HTTPS lo hace **Traefik** (de Dokploy). Ya no hay `/api` ni `/ws`
+  en el dominio de producción: la PWA habla directo con Supabase.
 
 ### Desplegar / actualizar producción (Dokploy)
-1. **Sube el código a GitHub `main`** (`git push origin main`). ⚠️ Producción se
-   construye desde `main` en GitHub; si tus commits no llegaron al remoto, el
-   redeploy horneará **código viejo** (esto pasó: el server llevaba meses en un
-   commit anterior a `lineas`). Confirma con `git ls-remote origin main`.
-2. **Redespliega** el compose `refugio-backend` (y la app del frontend si tocaste
-   el cliente). Opciones:
-   - Panel de Dokploy → botón **Redeploy/Rebuild**.
-   - Vía **MCP de Dokploy** (herramienta `compose-redeploy` con el `composeId`
-     de arriba). Este proyecto tiene ese MCP disponible.
-3. **Verifica** que el server nuevo arrancó y creó las tablas (⬇️).
+
+1. **Sube el código a GitHub `main`** (`git push origin main`). El frontend se
+   construye desde `main`; sin push, el redeploy horneará código viejo.
+   Confirma con `git ls-remote origin main`.
+2. El `autoDeploy: true` debería disparar el rebuild solo. Si no, **Redeploy**
+   desde el panel de Dokploy (app `refugio-ali-primera`) o vía MCP
+   `application-redeploy` con `applicationId: mzf_H0G_JcYUoTZfbJkQI`.
+3. **Verifica** que la nueva versión está activa (ver abajo).
 
 ### Verificar producción tras un deploy
+
 ```bash
-# Nombre de los contenedores del compose (prefijo autogenerado por Dokploy):
-docker ps --format '{{.Names}}' | grep refugio    # o busca "…-server-1 / …-db-1"
+# La PWA responde (HTML del frontend):
+curl -s -o /dev/null -w "HTTP %{http_code}\n" https://m0n1t0r-d3-3v3nt0s.net/
+# Debe dar 200 y servir el index.html de la PWA.
 
-# 1) Tablas presentes en Postgres (deben estar las 9: sectores, puntos, lineas,
-#    censos, distribuciones, limpiezas, centros, usuarios, historial):
-docker exec <compose>-db-1 psql -U refugio -d refugio -c "\dt"
-
-# 2) La API responde y el pull trae TODAS las entidades:
-curl -s https://m0n1t0r-d3-3v3nt0s.net/api/health         # {"ok":true,"db":"postgres",…}
-TOKEN=$(curl -s https://m0n1t0r-d3-3v3nt0s.net/api/auth/login -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"<ADMIN_PASSWORD>"}' | jq -r .token)
-curl -s "https://m0n1t0r-d3-3v3nt0s.net/api/sync?since=0" -H "Authorization: Bearer $TOKEN" \
-  | jq 'keys'   # debe incluir lineas, censos, distribuciones, limpiezas
+# Ya NO hay /api ni /ws (el backend está detenido). Esto debe fallar (404/502):
+curl -s -o /dev/null -w "HTTP %{http_code}\n" https://m0n1t0r-d3-3v3nt0s.net/api/health
 ```
-Si falta una tabla → el server corre código viejo: revisa que `main` en GitHub la
-tenga (`git ls-remote`), y vuelve a redesplegar.
 
-> **Recuperar datos "atrapados":** si una entidad estuvo rota en prod, los datos
-> que los usuarios creyeron guardar quedaron **solo en su dispositivo** (su
-> `outbox` se vació con el 200 falso). No se recuperan solos: hay que **volver a
-> editarlos/guardarlos** en el equipo donde están para re-encolarlos (p. ej. abrir
-> la línea y moverle un vértice). Los datos nuevos ya sincronizan normal.
+Login de prueba (verificado en la Fase 2): `admin` / `refugio_admin_2026`
+(email `admin@refugio.app`). Otro usuario: `xavier` /
+`refugio_xavier_2026`. **Cambia estas contraseñas cuanto antes.**
 
-## 🚀 Alternativa manual: desplegar en el VPS con Docker Compose
+## Alternativa manual: desplegar en el VPS con Docker Compose
 
-> Referencia por si algún día se despliega sin Dokploy (o para entender la receta).
-> **Lo que corre hoy es Dokploy** (sección anterior).
+> Referencia por si algún día se despliega sin Dokploy. **Lo que corre hoy es
+> Dokploy.** Tras la Fase 7, el `docker-compose.yml` queda solo con el servicio
+> `caddy` (sirve la PWA); ya no hay `db` ni `server`.
 
-Objetivo: dejar la app en `https://TU-DOMINIO` con Postgres + API + Caddy (HTTPS
-automático). VPS del usuario: 6 vCPU / 12 GB / 200 GB, con dominio. Archivos ya
-listos: `docker-compose.yml`, `Caddyfile`, `server/Dockerfile`, `Dockerfile.web`
-(build de la PWA en Docker), `.dockerignore`, `.env.deploy.example`.
-
-**La PWA se construye dentro de Docker** (`Dockerfile.web`: build de Vite + Caddy
-sirviendo el `dist/` horneado en la imagen). NO hace falta Node ni `npm run build`
-en el host: `docker compose up -d --build` reconstruye frontend **y** backend.
-
-**Requisitos en el VPS:**
-- Docker + Docker Compose v2. (No hace falta Node en el host.)
-- Dominio con registro **A** apuntando a la IP del VPS.
-- Puertos **80 y 443** abiertos (Caddy emite el certificado por HTTP-01).
-
-**Pasos:**
 ```bash
 git clone https://github.com/diazpolanco13/refugio-ali-primera.git
 cd refugio-ali-primera
-
-# 1) Secretos de despliegue (NO se commitean; .env está en .gitignore)
 cp .env.deploy.example .env
-#   Editar .env:  DOMAIN=refugio.tudominio.com
-#                 DB_PASSWORD=...           (fuerte)
-#                 JWT_SECRET=$(openssl rand -base64 48)
-#                 ADMIN_USER=admin
-#                 ADMIN_PASSWORD=...         (cambia el admin1234 por defecto)
-#   (Opcional) clave MapTiler para bases HD — Vite la hornea al construir:
-#                 VITE_MAPTILER_KEY=tu-clave   (puede ir en el mismo .env)
-
-# 2) Levantar todo (construye PWA + API dentro de Docker)
+# Editar .env: DOMAIN, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (y opcional
+# VITE_MAPTILER_KEY). Ya NO hay DB_PASSWORD/JWT_SECRET/ADMIN_*.
 docker compose up -d --build
 ```
 
-**Verificar:**
-- `docker compose ps` → db, server, caddy en "up".
-- `docker compose logs -f server` → "Escuchando en :3001 (Postgres)" y (1ª vez) "Usuario admin creado".
-- Abrir `https://TU-DOMINIO` → login. Entrar con ADMIN_USER / ADMIN_PASSWORD.
-- `curl https://TU-DOMINIO/api/health` → `{"ok":true,"db":"postgres",...}`.
-
-**Crear usuarios**: ya hay **UI de gestión** (botón "Usuarios" del admin). Como
-alternativa por API, con el admin:
-```bash
-TOKEN=$(curl -s https://TU-DOMINIO/api/auth/login -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"TU_PASS"}' | jq -r .token)
-curl -s https://TU-DOMINIO/api/usuarios -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"coord1","password":"secreto123","nombre":"Coordinador","rol":"coordinador"}'
-```
-Roles: `admin` · `coordinador` · `campo` · `visor` (solo lectura).
-
-**Actualizar tras nuevos commits:**
-```bash
-git pull
-docker compose up -d --build     # reconstruye PWA y API (lo que haya cambiado)
-```
-> ⚠️ El `--build` es obligatorio: sin él, Caddy sigue sirviendo el `dist/` viejo
-> horneado en la imagen anterior y los cambios de frontend NO aparecen. Si un
-> deploy automático solo hace `git pull` + `docker compose up` (sin `--build`),
-> el frontend no se actualiza. Como el PWA usa `registerType: "autoUpdate"`, tras
-> el rebuild el service worker nuevo se activa en la siguiente carga (puede hacer
-> falta un hard-reload la primera vez).
-
-**Notas de despliegue:**
-- La PWA llama a `/api` y `/ws` **relativos** → Caddy los proxya a `server:3001`
-  en el mismo dominio (WebSocket incluido). No hay que configurar URLs.
-- El `dist/` se construye dentro de Docker (`Dockerfile.web`) y queda horneado en
-  la imagen de Caddy. La clave opcional de MapTiler se pasa como build-arg
-  `VITE_MAPTILER_KEY` (compose la toma del `.env`); si cambias la clave, hay que
-  reconstruir con `--build`.
-- Postgres persiste en el volumen `dbdata`. Backup:
-  `docker compose exec db pg_dump -U refugio refugio > backup.sql`.
-- Cambiar `JWT_SECRET` invalida las sesiones activas (todos deben re-login).
-- Solo los VITE_* entran al bundle; `DB_PASSWORD`/`JWT_SECRET` NO se exponen.
+`Dockerfile.web` hornea la PWA (build de Vite) y la sirve con Caddy. Las
+`VITE_*` se pasan como build-args (compose las toma del `.env`). El
+`Caddyfile` ya no proxya `/api` ni `/ws`: solo sirve `dist/` con fallback SPA.
 
 ## Notas / gotchas
 
-- **Secretos:** `.env` (frontend, clave MapTiler) y el `.env` de despliegue están
-  ignorados. `.env.example` va sin clave. Repo es público.
+- **Secretos:** `.env` (frontend, `VITE_SUPABASE_*` y `VITE_MAPTILER_KEY`) y el
+  `.env` de despliegue están en `.gitignore`. `.env.example` va sin claves.
+  Repo es público.
 - **Terra Draw:** su modo `select` dispara `finish` al editar vértices; el handler
   de `finish` en `MapView.tsx` ignora eso cuando `modoEdicion` está activo (los
   cambios de geometría se guardan por el evento `change`). No romper esa guarda.
-- **Marcadores** de puntos son **HTML markers** (no capa de círculos) para mostrar
-  ícono+número+etiqueta hover sin depender de fuentes del mapa (mejor offline).
-- **Cronómetro de limpieza:** el color del anillo se recalcula con un `ahora`
-  (tick de 30 s en `App.tsx`). El estado depende de `Date.now()`.
-- **Migración Dexie:** `db.ts` está en **versión 10** (v2 `coordinador`→`responsables`,
- v4 desglose por edad/sexo, v5 líneas, v6 carpas, v7 tabla `censos` + foto inicial
- por sector, v8 tabla `distribuciones`, v9 tabla `limpiezas`, v10 tabla `centros` +
- siembra del catálogo estático de los 50 centros). Si cambias el esquema local, sube
- la versión y añade `upgrade`.
-- **shadcn CLI:** al añadir componentes (`npx shadcn add …`) revisa que el import de
-  `cn` quede como `@/lib/utils` (a veces el CLI lo escribe `src/lib/utils` y rompe
-  Vite). Nuevas deps de UI/gráficos: `react-router-dom`, `recharts`.
+- **Marcadores** de puntos son **HTML markers** (no capa de círculos) para
+  mostrar ícono+número+etiqueta hover sin depender de fuentes del mapa.
+- **PWA / service worker:** `vite-plugin-pwa` con `autoUpdate`. Ya no hay
+  offline-first con cola/outbox; el SW queda para caché de assets estáticos y
+  deep-link offline (`navigateFallback: index.html`). `runtimeCaching` cachea
+  tiles de mapa ya visitados.
+- **shadcn CLI:** al añadir componentes (`npx shadcn add …`) revisa que el
+  import de `cn` quede como `@/lib/utils` (a veces el CLI lo escribe
+  `src/lib/utils` y rompe Vite).
+- **`@/data/supabase.ts`** (Storage) **vs `@/data/supabaseClient.ts`** (cliente
+  general): el primero es el helper legacy de subida de fotos (solo Storage);
+  el segundo es el cliente supabase-js que usa toda la nueva capa. No
+  confundirlos.
 - Un warning de React "changed size between renders" que aparece **solo en el
   entorno de preview del asistente** NO proviene de esta app (se comprobó); no
   aparece en un navegador normal.
 
 ## Verificación rápida
 
-- Frontend: `npm run build` (typecheck + build). Probar en navegador: dibujar
-  sector, colocar punto, marcar limpio, recargar offline (DevTools) y ver que
-  persiste.
-- Backend: `npm run typecheck --prefix server`; arrancar y probar
-  `POST /api/auth/login` (admin/admin1234), `POST /api/sync` y `GET /api/sync?since=0`.
+- Frontend: `npm run typecheck` y `npm run build` (deben pasar limpios). Probar
+  en navegador: login con `admin`, listar los 49 centros, editar ocupación de
+  un centro y ver el snapshot en `ocupaciones_centros` (Supabase Studio),
+  abrir el gráfico individual y el de red, editar en un dispositivo y ver
+  refresco en otro (Realtime), subir foto.
+- Supabase: `list_tables` (verbose) y `get_advisors` (security) vía MCP para
+  confirmar esquema y RLS.

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Usuario } from "@/data/auth";
+import type { Usuario } from "@/data/authSupabase";
 
 /** Escapa los caracteres reservados de XML para inyectar texto en el SVG. */
 function escaparXml(s: string): string {
