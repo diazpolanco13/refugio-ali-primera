@@ -44,7 +44,7 @@ export function Login() {
             <Tent className="size-6" />
           </div>
           <CardTitle>Sala Situacional</CardTitle>
-          <CardDescription>Refugio Parque del Oeste</CardDescription>
+          <CardDescription>Red de Centros Transitorios — Caracas</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={entrar} className="space-y-4">

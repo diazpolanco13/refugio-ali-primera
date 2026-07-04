@@ -18,7 +18,7 @@ import {
 import { api, type UsuarioRegistro } from "@/data/api";
 import type { Rol, Sesion } from "@/data/auth";
 import { db } from "@/data/db";
-import type { Sector } from "@/domain/tipos";
+import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { INFO_ROLES, puedeGestionarUsuarios, ROLES } from "@/domain/permisos";
 import { BadgeRol } from "@/components/BadgeRol";
 import { Badge } from "@/components/ui/badge";
@@ -75,7 +75,7 @@ function FormUsuario({
   inicial,
   esEdicion,
   abierto,
-  sectores,
+  centros,
   hashId,
   onGuardar,
   onCerrar,
@@ -85,7 +85,7 @@ function FormUsuario({
   inicial: Formulario;
   esEdicion: boolean;
   abierto: boolean;
-  sectores: Sector[];
+  centros: CentroTransitorio[];
   hashId?: string | null;
   onGuardar: (f: Formulario) => Promise<void>;
   onCerrar: () => void;
@@ -96,7 +96,7 @@ function FormUsuario({
 
   // Guardamos siempre los valores iniciales más recientes sin que su cambio de
   // referencia dispare un reinicio (el padre recrea `inicial` en cada render,
-  // p. ej. al sincronizar sectores). Solo reiniciamos al abrir el diálogo.
+  // p. ej. al sincronizar centros). Solo reiniciamos al abrir el diálogo.
   const inicialRef = useRef(inicial);
   inicialRef.current = inicial;
   const estabaAbierto = useRef(false);
@@ -238,7 +238,7 @@ function FormUsuario({
                   </p>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="usuario-sector">Sector asignado (responsable)</Label>
+                  <Label htmlFor="usuario-sector">Centro asignado (campo)</Label>
                   <select
                     id="usuario-sector"
                     className={inputClase}
@@ -247,14 +247,14 @@ function FormUsuario({
                     onChange={(e) => set("sector_asignado", e.target.value)}
                   >
                     <option value="">Sin asignar</option>
-                    {sectores.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.nombre || s.id}
+                    {centros.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        N.° {c.nro} — {c.nombre}
                       </option>
                     ))}
                   </select>
                   <p className="text-xs leading-snug text-muted-foreground">
-                    El responsable de campo solo marca la comida/aseo de su sector.
+                    El responsable de campo solo edita el centro que tenga asignado.
                   </p>
                 </div>
               </div>
@@ -410,7 +410,11 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
   const [error, setError] = useState("");
   const [creando, setCreando] = useState(false);
   const [editando, setEditando] = useState<UsuarioRegistro | null>(null);
-  const sectores = useLiveQuery(() => db.sectores.toArray(), [], [] as Sector[]);
+  const centros = useLiveQuery(
+    () => db.centros.orderBy("nro").toArray(),
+    [],
+    [] as CentroTransitorio[],
+  );
 
   const recargar = useCallback(async () => {
     setError("");
@@ -474,7 +478,7 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
           <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
             <Link to="/">
               <ArrowLeft className="size-4" />
-              <span className="hidden sm:inline">Mapa</span>
+              <span className="hidden sm:inline">Centros</span>
             </Link>
           </Button>
           <div className="flex min-w-0 items-center gap-2.5">
@@ -564,7 +568,7 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
                         <BadgeRol rol={u.rol} />
                         {u.sector_asignado && (
                           <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                            {sectores.find((s) => s.id === u.sector_asignado)?.nombre ??
+                            {centros.find((c) => c.id === u.sector_asignado)?.nombre ??
                               "Sector asignado"}
                           </Badge>
                         )}
@@ -640,7 +644,7 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
         inicial={formVacio()}
         esEdicion={false}
         abierto={creando}
-        sectores={sectores}
+        centros={centros}
         onGuardar={crear}
         onCerrar={() => setCreando(false)}
       />
@@ -663,7 +667,7 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
         }}
         esEdicion
         abierto={editando != null}
-        sectores={sectores}
+        centros={centros}
         hashId={editando?.hash_id}
         onGuardar={actualizar}
         onCerrar={() => setEditando(null)}

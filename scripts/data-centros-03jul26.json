@@ -1,7 +1,30 @@
 {
-  "fecha_reporte": "2026-07-03",
-  "centros": [
-    {
+  "reporte": {
+    "fuente": "DATA CENTRAL 03JUL26.xlsx",
+    "fecha_reporte": "2026-07-03",
+    "descripcion": "Levantamiento de campo de la red de Centros Transitorios de Caracas tras la tragedia del 24-jun-2026. Una IA puede consumir este JSON para actualizar los campos mutables de cada centro en la app (ver `src/domain/centrosTransitorios.ts` para el modelo completo).",
+    "totales_reporte": {
+      "centros": 49,
+      "personas": 3690,
+      "familias": 1382
+    },
+    "totales_extraidos": {
+      "centros": 49,
+      "personas": 3697,
+      "familias": 1382
+    },
+    "catalogo_ids_faltantes": [],
+    "notas_consolidacion": [
+      "centro-25: 2 apariciones duplicadas en el Excel, se tomó la más completa (CM YOHANA CARDOZO)",
+      "centro-50: 2 apariciones duplicadas en el Excel, se tomó la más completa (CM YOHANA CARDOZO)",
+      "centro-03: consolidados 3 edificios (Colombia/Perú/Ecuador) → total 332, familias 85"
+    ],
+    "mapeo_manual": {
+      "centro-36": "CEN SIMONCITO 'MAMA ROSA' (CEIN Mamá Rosa, Urb La Limonera — fuzzy match falló por el prefijo 'Simoncito')"
+    }
+  },
+  "centros": {
+    "centro-09": {
       "id": "centro-09",
       "nombre": "ETI Leonardo Infante",
       "fecha_levantamiento": "2026-07-03",
@@ -46,8 +69,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -56,10 +77,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "ETI LEONARDO INFANTE",
-      "_match_score": 1.0
+      "estado": "operativo",
+      "novedades": "Analista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
+      "_meta": {
+        "nombre_excel": "ETI LEONARDO INFANTE",
+        "hoja": "CM FEREICO GUZMAN",
+        "coordenadas_excel": ""
+      }
     },
-    {
+    "centro-10": {
       "id": "centro-10",
       "nombre": "U. E. N. Mariano Picón Salas",
       "fecha_levantamiento": "2026-07-03",
@@ -104,8 +130,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -114,10 +138,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "UEN MARIANO PICON SALAS",
-      "_match_score": 0.9
+      "estado": "operativo",
+      "novedades": "Analista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
+      "_meta": {
+        "nombre_excel": "UEN MARIANO PICON SALAS",
+        "hoja": "CM FEREICO GUZMAN",
+        "coordenadas_excel": ""
+      }
     },
-    {
+    "centro-12": {
       "id": "centro-12",
       "nombre": "UE Cesar Rengifo",
       "fecha_levantamiento": "2026-07-03",
@@ -162,8 +191,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: P/I. SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: C/G SAÚL BRISEÑO",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -172,10 +199,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "ESCUELA NACIONAL DE ARTES ESCÉNICAS CESAR RENGIFO",
-      "_match_score": 0.9
+      "estado": "operativo",
+      "novedades": "Analista SAE: P/I. SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: C/G SAÚL BRISEÑO",
+      "_meta": {
+        "nombre_excel": "ESCUELA NACIONAL DE ARTES ESCÉNICAS CESAR RENGIFO",
+        "hoja": "CM CARLOS GAMBOA",
+        "coordenadas_excel": "10°30'43.9\"N\n60°54'54.6W"
+      }
     },
-    {
+    "centro-14": {
       "id": "centro-14",
       "nombre": "CE Miguel Antonio Caro",
       "fecha_levantamiento": "2026-07-03",
@@ -220,8 +252,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: PROF. C. JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JOSÉ AGUANA NÚÑEZ",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -230,6 +260,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "operativo",
+      "novedades": "Analista SAE: PROF. C. JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JOSÉ AGUANA NÚÑEZ",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -237,11 +269,13 @@
           10.5145612
         ]
       },
-      "_coordenadas_excel": "10.5145612, - 66.939777",
-      "_nombre_excel": "LICEO MIGUEL ANTONIO CARO",
-      "_match_score": 0.9
+      "_meta": {
+        "nombre_excel": "LICEO MIGUEL ANTONIO CARO",
+        "hoja": "CM RAFAEL AGUANA",
+        "coordenadas_excel": "10.5145612, - 66.939777"
+      }
     },
-    {
+    "centro-13": {
       "id": "centro-13",
       "nombre": "UEN Armando Zuloaga",
       "fecha_levantamiento": "2026-07-03",
@@ -286,8 +320,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. C. JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JOSÉ AGUANA NÚÑEZ",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -296,6 +328,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: PROF. C. JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JOSÉ AGUANA NÚÑEZ",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -303,11 +337,13 @@
           10.511944444444444
         ]
       },
-      "_coordenadas_excel": "10°30'43.0\" - 66°54'39.5\"",
-      "_nombre_excel": "U.E. Armando Zuloaga Blanco",
-      "_match_score": 0.9
+      "_meta": {
+        "nombre_excel": "U.E. Armando Zuloaga Blanco",
+        "hoja": "CM RAFAEL AGUANA",
+        "coordenadas_excel": "10°30'43.0\" - 66°54'39.5\""
+      }
     },
-    {
+    "centro-15": {
       "id": "centro-15",
       "nombre": "ETI Rafael Vega",
       "fecha_levantamiento": "2026-07-03",
@@ -352,8 +388,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. C. JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JOSÉ AGUANA NÚÑEZ",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -362,6 +396,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: PROF. C. JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JOSÉ AGUANA NÚÑEZ",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -369,11 +405,13 @@
           10.506944444444445
         ]
       },
-      "_coordenadas_excel": "10°30'25.0\" - 66°57'40.8\"",
-      "_nombre_excel": "Complejo Educativo ETI Rafael Vegas",
-      "_match_score": 0.9
+      "_meta": {
+        "nombre_excel": "Complejo Educativo ETI Rafael Vegas",
+        "hoja": "CM RAFAEL AGUANA",
+        "coordenadas_excel": "10°30'25.0\" - 66°57'40.8\""
+      }
     },
-    {
+    "centro-25": {
       "id": "centro-25",
       "nombre": "UEN Pedro Pontes",
       "fecha_levantamiento": "2026-07-03",
@@ -418,8 +456,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G CARDOZZO",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -428,6 +464,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G CARDOZZO",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -435,11 +473,13 @@
           10.472833333333334
         ]
       },
-      "_coordenadas_excel": "10°28'22.2\"N 66°56'58.0\"W",
-      "_nombre_excel": "UEN PEDRO PONTES",
-      "_match_score": 1.0
+      "_meta": {
+        "nombre_excel": "UEN PEDRO PONTES",
+        "hoja": "CM YOHANA CARDOZO",
+        "coordenadas_excel": "10°28'22.2\"N 66°56'58.0\"W"
+      }
     },
-    {
+    "centro-24": {
       "id": "centro-24",
       "nombre": "UE Jose Ignacio Paz Castillo",
       "fecha_levantamiento": "2026-07-03",
@@ -484,8 +524,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G CARDOZZO",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -494,10 +532,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "UE. JOSE IGNACIO PAZ CASTILLO",
-      "_match_score": 1.0
+      "estado": "operativo",
+      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G CARDOZZO",
+      "_meta": {
+        "nombre_excel": "UE. JOSE IGNACIO PAZ CASTILLO",
+        "hoja": "CM YOHANA CARDOZO",
+        "coordenadas_excel": ""
+      }
     },
-    {
+    "centro-23": {
       "id": "centro-23",
       "nombre": "Liceo Agustín Aveledo",
       "fecha_levantamiento": "2026-07-03",
@@ -542,8 +585,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G CARDOZZO",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -552,10 +593,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "LICEO AGUSTIN AVELEDO",
-      "_match_score": 1.0
+      "estado": "preparacion",
+      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G CARDOZZO",
+      "_meta": {
+        "nombre_excel": "LICEO AGUSTIN AVELEDO",
+        "hoja": "CM YOHANA CARDOZO",
+        "coordenadas_excel": "G38H+6H9, Caracas 1010, Distrito Capital"
+      }
     },
-    {
+    "centro-50": {
       "id": "centro-50",
       "nombre": "Escuela Internacional de Liderazgo Antonio José de Sucre",
       "fecha_levantamiento": "2026-07-03",
@@ -600,8 +646,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: PROF. XXXX\nSupervisor SEBIN: C/G XXXXX",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -610,6 +654,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "operativo",
+      "novedades": "Analista SAE: PROF. XXXX\nSupervisor SEBIN: C/G XXXXX",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -617,11 +663,13 @@
           10.4465
         ]
       },
-      "_coordenadas_excel": "10°26'47.4\"N 66°44'31.6\"W",
-      "_nombre_excel": "ESCUELA INTERNACIONAL DE LIDERAZGO ANTONIO JOSE DE SUCRE",
-      "_match_score": 1.0
+      "_meta": {
+        "nombre_excel": "ESCUELA INTERNACIONAL DE LIDERAZGO ANTONIO JOSE DE SUCRE",
+        "hoja": "CM YOHANA CARDOZO",
+        "coordenadas_excel": "10°26'47.4\"N 66°44'31.6\"W"
+      }
     },
-    {
+    "centro-11": {
       "id": "centro-11",
       "nombre": "UE Jesús Enrique Lossada",
       "fecha_levantamiento": "2026-07-03",
@@ -666,8 +714,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G JOSE ROZO",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -676,10 +722,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "UE. JESUS ENRIQUE LOZADA",
-      "_match_score": 0.93
+      "estado": "preparacion",
+      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G JOSE ROZO",
+      "_meta": {
+        "nombre_excel": "UE. JESUS ENRIQUE LOZADA",
+        "hoja": "CG JOSE ROZO",
+        "coordenadas_excel": "10° 30' 13\" LN 66° 52' 10\" LO"
+      }
     },
-    {
+    "centro-02": {
       "id": "centro-02",
       "nombre": "UEN Francisco Pimentel",
       "fecha_levantamiento": "2026-07-03",
@@ -724,8 +775,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G JOSE ROZO",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -734,10 +783,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "UN. FRANCISCO PIMENTEL",
-      "_match_score": 0.9
+      "estado": "operativo",
+      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G JOSE ROZO",
+      "_meta": {
+        "nombre_excel": "UN. FRANCISCO PIMENTEL",
+        "hoja": "CG JOSE ROZO",
+        "coordenadas_excel": "10° 29' 47\" LN. 66° 55' 5\" LO"
+      }
     },
-    {
+    "centro-01": {
       "id": "centro-01",
       "nombre": "UEN Pedro Emilio Coll",
       "fecha_levantamiento": "2026-07-03",
@@ -782,8 +836,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G JOSE ROZO",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -792,10 +844,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "U.E.N. PEDRO EMILIO COLL",
-      "_match_score": 0.9
+      "estado": "preparacion",
+      "novedades": "Analista SAE: P/COM PEREZ JONATHAN\nSupervisor SEBIN: C/G JOSE ROZO",
+      "_meta": {
+        "nombre_excel": "U.E.N. PEDRO EMILIO COLL",
+        "hoja": "CG JOSE ROZO",
+        "coordenadas_excel": "10.4508° N, 66.9227° O"
+      }
     },
-    {
+    "centro-41": {
       "id": "centro-41",
       "nombre": "EU Conopoima",
       "fecha_levantamiento": "2026-07-03",
@@ -840,8 +897,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: C/J LEIDY BRISEÑO",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -850,6 +905,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: C/J LEIDY BRISEÑO",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -857,11 +914,13 @@
           10.423575
         ]
       },
-      "_coordenadas_excel": "10.423575,-66.821548",
-      "_nombre_excel": "UNIDAD EDUCATIVA NACIONAL CONOPOIMA",
-      "_match_score": 1.0
+      "_meta": {
+        "nombre_excel": "UNIDAD EDUCATIVA NACIONAL CONOPOIMA",
+        "hoja": "CG CARLOS CONTRERAS",
+        "coordenadas_excel": "10.423575,-66.821548"
+      }
     },
-    {
+    "centro-38": {
       "id": "centro-38",
       "nombre": "CEIN Lino Clemente, Baruta",
       "fecha_levantamiento": "2026-07-03",
@@ -906,8 +965,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: COM. WIZULEIDYS MÚJICA",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -916,10 +973,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "UNIDAD  EDUCATIVA NACIONAL LINO DE CLEMENTE",
-      "_match_score": 0.72
+      "estado": "preparacion",
+      "novedades": "Analista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: COM. WIZULEIDYS MÚJICA",
+      "_meta": {
+        "nombre_excel": "UNIDAD  EDUCATIVA NACIONAL LINO DE CLEMENTE",
+        "hoja": "CG CARLOS CONTRERAS",
+        "coordenadas_excel": "10°27'31.1N y 66°51'56.3W"
+      }
     },
-    {
+    "centro-40": {
       "id": "centro-40",
       "nombre": "UEN EI Libertador",
       "fecha_levantamiento": "2026-07-03",
@@ -964,8 +1026,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: COM. WENDY SANTAELLA",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -974,10 +1034,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "UEN EL LIBERTADOR",
-      "_match_score": 0.92
+      "estado": "preparacion",
+      "novedades": "Analista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: COM. WENDY SANTAELLA",
+      "_meta": {
+        "nombre_excel": "UEN EL LIBERTADOR",
+        "hoja": "CG CARLOS CONTRERAS",
+        "coordenadas_excel": "10°30,29''N,66°06''O"
+      }
     },
-    {
+    "centro-39": {
       "id": "centro-39",
       "nombre": "UEN Jesús Maria Alfaro, Cafetal",
       "fecha_levantamiento": "2026-07-03",
@@ -1022,8 +1087,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: COM. KELY SANTIAGO",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -1032,6 +1095,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: P/I SAMANTHA HERNÁNDEZ\nSupervisor SEBIN: COM. KELY SANTIAGO",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -1039,11 +1104,13 @@
           10.464064
         ]
       },
-      "_coordenadas_excel": "10.464064,-66.832184",
-      "_nombre_excel": "UNIDAD EDUCATIVA NACIONAL  JESÚS MARIA ALFARO ZAMORA",
-      "_match_score": 0.82
+      "_meta": {
+        "nombre_excel": "UNIDAD EDUCATIVA NACIONAL  JESÚS MARIA ALFARO ZAMORA",
+        "hoja": "CG CARLOS CONTRERAS",
+        "coordenadas_excel": "10.464064,-66.832184"
+      }
     },
-    {
+    "centro-46": {
       "id": "centro-46",
       "nombre": "CEN Ana Maria Campos, Filas de Mariche",
       "fecha_levantamiento": "2026-07-03",
@@ -1088,8 +1155,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -1098,6 +1163,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -1105,11 +1172,13 @@
           10.4484739
         ]
       },
-      "_coordenadas_excel": "10.4484739,-66.7445583,16",
-      "_nombre_excel": "CEN ANA MARÍA CAMPOS",
-      "_match_score": 0.9
+      "_meta": {
+        "nombre_excel": "CEN ANA MARÍA CAMPOS",
+        "hoja": "CG JOSE MARTINEZ",
+        "coordenadas_excel": "10.4484739,-66.7445583,16"
+      }
     },
-    {
+    "centro-47": {
       "id": "centro-47",
       "nombre": "CEN Mariscal Sucre, La Dolorita",
       "fecha_levantamiento": "2026-07-03",
@@ -1154,8 +1223,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -1164,6 +1231,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -1171,11 +1240,13 @@
           10.4620216
         ]
       },
-      "_coordenadas_excel": "10.4620216-66.7630672",
-      "_nombre_excel": "CEN MARISCAL SUCRE",
-      "_match_score": 0.9
+      "_meta": {
+        "nombre_excel": "CEN MARISCAL SUCRE",
+        "hoja": "CG JOSE MARTINEZ",
+        "coordenadas_excel": "10.4620216-66.7630672"
+      }
     },
-    {
+    "centro-48": {
       "id": "centro-48",
       "nombre": "CEN Francisco Iznardi",
       "fecha_levantamiento": "2026-07-03",
@@ -1220,8 +1291,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -1230,6 +1299,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -1237,11 +1308,13 @@
           10.4589414
         ]
       },
-      "_coordenadas_excel": "10.4589414-66.7575537",
-      "_nombre_excel": "UNIDAD EDUC. ESTADAL FRANCISCO IZNARDI",
-      "_match_score": 0.9
+      "_meta": {
+        "nombre_excel": "UNIDAD EDUC. ESTADAL FRANCISCO IZNARDI",
+        "hoja": "CG JOSE MARTINEZ",
+        "coordenadas_excel": "10.4589414-66.7575537"
+      }
     },
-    {
+    "centro-49": {
       "id": "centro-49",
       "nombre": "UEN Jose de Jesús Arocha, Petare",
       "fecha_levantamiento": "2026-07-03",
@@ -1286,8 +1359,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -1296,6 +1367,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: P/C ROYLAD BELISARIO",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -1303,11 +1376,13 @@
           10.4767121
         ]
       },
-      "_coordenadas_excel": "10.4767121,-66.8064085",
-      "_nombre_excel": "UEN DR. JOSÉ DE JESÚS AROCHA",
-      "_match_score": 0.8
+      "_meta": {
+        "nombre_excel": "UEN DR. JOSÉ DE JESÚS AROCHA",
+        "hoja": "CG JOSE MARTINEZ",
+        "coordenadas_excel": "10.4767121,-66.8064085"
+      }
     },
-    {
+    "centro-05": {
       "id": "centro-05",
       "nombre": "EBN Dr. Guillermo Delgado Palacios",
       "fecha_levantamiento": "2026-07-03",
@@ -1352,8 +1427,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G RONNY GALDONAS",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -1362,6 +1435,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G RONNY GALDONAS",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -1369,11 +1444,13 @@
           10.459301
         ]
       },
-      "_coordenadas_excel": "10.459301, - 66.919522",
-      "_nombre_excel": "UNIDAD EDUCATIVA NACIONAL DOCTOR GUILLERMO DELGADO PALACIOS",
-      "_match_score": 0.94
+      "_meta": {
+        "nombre_excel": "UNIDAD EDUCATIVA NACIONAL DOCTOR GUILLERMO DELGADO PALACIOS",
+        "hoja": "CG RONNY GALDONAS",
+        "coordenadas_excel": "10.459301, - 66.919522"
+      }
     },
-    {
+    "centro-04": {
       "id": "centro-04",
       "nombre": "Liceo Jose Avalos",
       "fecha_levantamiento": "2026-07-03",
@@ -1418,8 +1495,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G RONNY GALDONAS",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -1428,6 +1503,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G RONNY GALDONAS",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -1435,11 +1512,13 @@
           10.463444
         ]
       },
-      "_coordenadas_excel": "10.463444 - 66.911130",
-      "_nombre_excel": "LICEO  JOSE AVALO",
-      "_match_score": 0.9
+      "_meta": {
+        "nombre_excel": "LICEO  JOSE AVALO",
+        "hoja": "CG RONNY GALDONAS",
+        "coordenadas_excel": "10.463444 - 66.911130"
+      }
     },
-    {
+    "centro-03": {
       "id": "centro-03",
       "nombre": "UEN Gran Colombia",
       "fecha_levantamiento": "2026-07-03",
@@ -1466,26 +1545,24 @@
         "psicologo": true,
         "contacto_juez_paz": false
       },
-      "total_afectados": 180,
-      "familias_ocupadas": 62,
+      "total_afectados": 332,
+      "familias_ocupadas": 85,
       "ocupacion": {
         "recien_nacidos_h": 0,
         "recien_nacidos_m": 0,
-        "ninos": 27,
-        "ninas": 40,
+        "ninos": 43,
+        "ninas": 55,
         "adolescentes_h": 0,
         "adolescentes_m": 0,
-        "adultos_h": 24,
-        "adultos_m": 0,
-        "adultos_mayores_h": 6,
+        "adultos_h": 35,
+        "adultos_m": 8,
+        "adultos_mayores_h": 7,
         "adultos_mayores_m": 10,
         "embarazadas": 0,
         "discapacidad_h": 0,
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G RONNY GALDONAS",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -1494,6 +1571,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "operativo",
+      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G RONNY GALDONAS",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -1501,11 +1580,18 @@
           10.4795
         ]
       },
-      "_coordenadas_excel": "10°28'46.2\"N 66°54'29.1\"W",
-      "_nombre_excel": "U.E.N Gran Colombia 1 -EDIF. Colombia Edif.Colombia",
-      "_match_score": 0.9
+      "_meta": {
+        "nombre_excel": "U.E.N Gran Colombia 1 -EDIF. Colombia Edif.Colombia + U.E.N. Gran Colombia 2-  Edif. Perú + U.E.N Gran Colombia 3- Edif. Ecuador",
+        "hoja": "CG RONNY GALDONAS",
+        "coordenadas_excel": "10°28'46.2\"N 66°54'29.1\"W",
+        "edificios_consolidados": [
+          "U.E.N Gran Colombia 1 -EDIF. Colombia Edif.Colombia",
+          "U.E.N. Gran Colombia 2-  Edif. Perú",
+          "U.E.N Gran Colombia 3- Edif. Ecuador"
+        ]
+      }
     },
-    {
+    "centro-16": {
       "id": "centro-16",
       "nombre": "Liceo Juan Landaeta",
       "fecha_levantamiento": "2026-07-03",
@@ -1550,8 +1636,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -1560,10 +1644,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "Unidad Educativa Nacional Juan Landaeta",
-      "_match_score": 1.0
+      "estado": "preparacion",
+      "novedades": "Analista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
+      "_meta": {
+        "nombre_excel": "Unidad Educativa Nacional Juan Landaeta",
+        "hoja": "CG RAMON YEPEZ",
+        "coordenadas_excel": "https://maps.app.goo.gl/zwtLS1DzLN5N3M5M7?g_st=ac"
+      }
     },
-    {
+    "centro-17": {
       "id": "centro-17",
       "nombre": "UE Gervacio Artigas",
       "fecha_levantamiento": "2026-07-03",
@@ -1608,8 +1697,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -1618,10 +1705,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "Complejo Educativo José Gervasio Artigas",
-      "_match_score": 0.81
+      "estado": "operativo",
+      "novedades": "Analista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
+      "_meta": {
+        "nombre_excel": "Complejo Educativo José Gervasio Artigas",
+        "hoja": "CG RAMON YEPEZ",
+        "coordenadas_excel": ""
+      }
     },
-    {
+    "centro-18": {
       "id": "centro-18",
       "nombre": "Liceo Juan Lovera",
       "fecha_levantamiento": "2026-07-03",
@@ -1666,8 +1758,6 @@
         "discapacidad_m": 2,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -1676,10 +1766,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "Liceo Bolivariano Juan Lovera",
-      "_match_score": 1.0
+      "estado": "operativo",
+      "novedades": "Analista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
+      "_meta": {
+        "nombre_excel": "Liceo Bolivariano Juan Lovera",
+        "hoja": "CG RAMON YEPEZ",
+        "coordenadas_excel": ""
+      }
     },
-    {
+    "centro-19": {
       "id": "centro-19",
       "nombre": "CE Claudio Feliciano",
       "fecha_levantamiento": "2026-07-03",
@@ -1724,8 +1819,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -1734,10 +1827,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "Unidad Educativa Nacional Claudio Feliciano",
-      "_match_score": 0.9
+      "estado": "preparacion",
+      "novedades": "Analista SAE: DTTV RONALDY MARTÌNEZ\nSupervisor SEBIN: C/G RAMÒN YEPEZ",
+      "_meta": {
+        "nombre_excel": "Unidad Educativa Nacional Claudio Feliciano",
+        "hoja": "CG RAMON YEPEZ",
+        "coordenadas_excel": ""
+      }
     },
-    {
+    "centro-06": {
       "id": "centro-06",
       "nombre": "Liceo Judith Liendo",
       "fecha_levantamiento": "2026-07-03",
@@ -1782,8 +1880,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G GONLALEZ MARRON",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -1792,6 +1888,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G GONLALEZ MARRON",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -1799,11 +1897,13 @@
           10.458042889648349
         ]
       },
-      "_coordenadas_excel": "10.458042889648349, -66.91609766425218",
-      "_nombre_excel": "UNIDAD EDUCATIVA NACIONAL MAESTRA JUDITH LIENDO",
-      "_match_score": 0.9
+      "_meta": {
+        "nombre_excel": "UNIDAD EDUCATIVA NACIONAL MAESTRA JUDITH LIENDO",
+        "hoja": "CG LUIS GONZALEZ",
+        "coordenadas_excel": "10.458042889648349, -66.91609766425218"
+      }
     },
-    {
+    "centro-07": {
       "id": "centro-07",
       "nombre": "UEN Generala Manuela Sáenz, Fuerte Tiuna",
       "fecha_levantamiento": "2026-07-03",
@@ -1848,8 +1948,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G GONLALEZ MARRON",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -1858,10 +1956,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "Unidad Educativa Generala Manuela Sáenz",
-      "_match_score": 0.9
+      "estado": "preparacion",
+      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G GONLALEZ MARRON",
+      "_meta": {
+        "nombre_excel": "Unidad Educativa Generala Manuela Sáenz",
+        "hoja": "CG LUIS GONZALEZ",
+        "coordenadas_excel": ""
+      }
     },
-    {
+    "centro-08": {
       "id": "centro-08",
       "nombre": "Liceo Leopoldo Aguerevere",
       "fecha_levantamiento": "2026-07-03",
@@ -1906,8 +2009,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G GONLALEZ MARRON",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -1916,6 +2017,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "operativo",
+      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G GONLALEZ MARRON",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -1923,11 +2026,13 @@
           10.486147663059322
         ]
       },
-      "_coordenadas_excel": "10.486147663059322, -66.88907597868587",
-      "_nombre_excel": "Liceo Leopoldo Aguerrevere",
-      "_match_score": 0.97
+      "_meta": {
+        "nombre_excel": "Liceo Leopoldo Aguerrevere",
+        "hoja": "CG LUIS GONZALEZ",
+        "coordenadas_excel": "10.486147663059322, -66.88907597868587"
+      }
     },
-    {
+    "centro-45": {
       "id": "centro-45",
       "nombre": "UEN Generalisimo Francisco de Miranda, Filas de Mariche",
       "fecha_levantamiento": "2026-07-03",
@@ -1972,8 +2077,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -1982,6 +2085,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -1989,11 +2094,13 @@
           10.487837315324562
         ]
       },
-      "_coordenadas_excel": "10.487837315324562, -66.84784642940987",
-      "_nombre_excel": "UEN GENERALISIMO FRANCISCO DE MIRANDA",
-      "_match_score": 0.9
+      "_meta": {
+        "nombre_excel": "UEN GENERALISIMO FRANCISCO DE MIRANDA",
+        "hoja": "CG JUMMY BETANCOURT",
+        "coordenadas_excel": "10.487837315324562, -66.84784642940987"
+      }
     },
-    {
+    "centro-43": {
       "id": "centro-43",
       "nombre": "UEN Rafael Napoleón Baite",
       "fecha_levantamiento": "2026-07-03",
@@ -2038,8 +2145,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -2048,6 +2153,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -2055,11 +2162,13 @@
           10.48179059571
         ]
       },
-      "_coordenadas_excel": "10.48179059571, -66.7977097",
-      "_nombre_excel": "UEN Rafael Napoleón Baute",
-      "_match_score": 0.95
+      "_meta": {
+        "nombre_excel": "UEN Rafael Napoleón Baute",
+        "hoja": "CG JUMMY BETANCOURT",
+        "coordenadas_excel": "10.48179059571, -66.7977097"
+      }
     },
-    {
+    "centro-44": {
       "id": "centro-44",
       "nombre": "CEN Negro Primero Caucaguita",
       "fecha_levantamiento": "2026-07-03",
@@ -2104,8 +2213,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -2114,6 +2221,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -2121,11 +2230,13 @@
           10.484968722090283
         ]
       },
-      "_coordenadas_excel": "10.484968722090283, -66.74088119994545",
-      "_nombre_excel": "CEN NEGRO PRIMERO CAUCAGUITA",
-      "_match_score": 1.0
+      "_meta": {
+        "nombre_excel": "CEN NEGRO PRIMERO CAUCAGUITA",
+        "hoja": "CG JUMMY BETANCOURT",
+        "coordenadas_excel": "10.484968722090283, -66.74088119994545"
+      }
     },
-    {
+    "centro-42": {
       "id": "centro-42",
       "nombre": "CEN Luis Beltran Prieto Figueroa",
       "fecha_levantamiento": "2026-07-03",
@@ -2170,8 +2281,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -2180,6 +2289,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: PROF. C JOSÉ HERNÁNDEZ\nSupervisor SEBIN: C/G JIMMY BETANCOURT",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -2187,11 +2298,13 @@
           10.493542878911027
         ]
       },
-      "_coordenadas_excel": "10.493542878911027, -66.82645090433157",
-      "_nombre_excel": "CEN LUIS BELTRÁN PRIETO FIGUEROA",
-      "_match_score": 1.0
+      "_meta": {
+        "nombre_excel": "CEN LUIS BELTRÁN PRIETO FIGUEROA",
+        "hoja": "CG JUMMY BETANCOURT",
+        "coordenadas_excel": "10.493542878911027, -66.82645090433157"
+      }
     },
-    {
+    "centro-30": {
       "id": "centro-30",
       "nombre": "UEE Adolfo Nava Coronado",
       "fecha_levantamiento": "2026-07-03",
@@ -2236,8 +2349,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -2246,6 +2357,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -2253,11 +2366,13 @@
           10.449083333333334
         ]
       },
-      "_coordenadas_excel": "10°26'56.7\"N 66°51'34.3\" W",
-      "_nombre_excel": "UEE Adolfo Navas Coronado",
-      "_match_score": 0.98
+      "_meta": {
+        "nombre_excel": "UEE Adolfo Navas Coronado",
+        "hoja": "CG PEREZ LOPEZ",
+        "coordenadas_excel": "10°26'56.7\"N 66°51'34.3\" W"
+      }
     },
-    {
+    "centro-28": {
       "id": "centro-28",
       "nombre": "UEN Tito Salas",
       "fecha_levantamiento": "2026-07-03",
@@ -2302,8 +2417,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -2312,10 +2425,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "unidad educativa tito salas",
-      "_match_score": 1.0
+      "estado": "preparacion",
+      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
+      "_meta": {
+        "nombre_excel": "unidad educativa tito salas",
+        "hoja": "CG PEREZ LOPEZ",
+        "coordenadas_excel": ""
+      }
     },
-    {
+    "centro-26": {
       "id": "centro-26",
       "nombre": "UE Luis Hurtado",
       "fecha_levantamiento": "2026-07-03",
@@ -2360,8 +2478,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -2370,6 +2486,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "operativo",
+      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -2377,11 +2495,13 @@
           10.485555555555555
         ]
       },
-      "_coordenadas_excel": "10°29'08.0\"N 67°00'11.2\"W",
-      "_nombre_excel": "U.E.N. Luis Hurtado Higuera",
-      "_match_score": 0.9
+      "_meta": {
+        "nombre_excel": "U.E.N. Luis Hurtado Higuera",
+        "hoja": "CG PEREZ LOPEZ",
+        "coordenadas_excel": "10°29'08.0\"N 67°00'11.2\"W"
+      }
     },
-    {
+    "centro-29": {
       "id": "centro-29",
       "nombre": "UEN Sorocaima",
       "fecha_levantamiento": "2026-07-03",
@@ -2426,8 +2546,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -2436,10 +2554,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "U.E.N SOROCAIMA",
-      "_match_score": 0.9
+      "estado": "preparacion",
+      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
+      "_meta": {
+        "nombre_excel": "U.E.N SOROCAIMA",
+        "hoja": "CG PEREZ LOPEZ",
+        "coordenadas_excel": ""
+      }
     },
-    {
+    "centro-27": {
       "id": "centro-27",
       "nombre": "UEN Eduardo Crema",
       "fecha_levantamiento": "2026-07-03",
@@ -2484,8 +2607,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -2494,6 +2615,8 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
+      "estado": "preparacion",
+      "novedades": "Analista SAE: P/C JEAN SOLER\nSupervisor SEBIN: C/G MIGUEL PÉREZ LÓPEZ",
       "geom": {
         "type": "Point",
         "coordinates": [
@@ -2501,11 +2624,13 @@
           10.489793
         ]
       },
-      "_coordenadas_excel": "10.489793,-66.930506",
-      "_nombre_excel": "U.E.N. Eduardo Crema",
-      "_match_score": 0.9
+      "_meta": {
+        "nombre_excel": "U.E.N. Eduardo Crema",
+        "hoja": "CG PEREZ LOPEZ",
+        "coordenadas_excel": "10.489793,-66.930506"
+      }
     },
-    {
+    "centro-31": {
       "id": "centro-31",
       "nombre": "UEN Alejo Fortique",
       "fecha_levantamiento": "2026-07-03",
@@ -2550,8 +2675,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G CARLOS ORTEGA",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -2560,10 +2683,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "UE. ALEJO FORTIQUE",
-      "_match_score": 1.0
+      "estado": "preparacion",
+      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G CARLOS ORTEGA",
+      "_meta": {
+        "nombre_excel": "UE. ALEJO FORTIQUE",
+        "hoja": "CG CARLOS ORTEGA",
+        "coordenadas_excel": "10° 43' 07\" LN 66° 87' 57\" LO"
+      }
     },
-    {
+    "centro-32": {
       "id": "centro-32",
       "nombre": "CE Andres Bello",
       "fecha_levantamiento": "2026-07-03",
@@ -2608,8 +2736,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G CARLOS ORTEGA",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -2618,10 +2744,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "Andrés Bello",
-      "_match_score": 0.9
+      "estado": "operativo",
+      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G CARLOS ORTEGA",
+      "_meta": {
+        "nombre_excel": "Andrés Bello",
+        "hoja": "CG CARLOS ORTEGA",
+        "coordenadas_excel": "10° 50' 18\" LN 66° 90' 37\" LO"
+      }
     },
-    {
+    "centro-33": {
       "id": "centro-33",
       "nombre": "UENB coronel Carlos Delgado Chalboud",
       "fecha_levantamiento": "2026-07-03",
@@ -2666,8 +2797,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G CARLOS ORTEGA",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -2676,10 +2805,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "UENB Carlos Deelgado Charlboud",
-      "_match_score": 0.82
+      "estado": "operativo",
+      "novedades": "Analista SAE: COM. DEIVI FERNANDEZ\nSupervisor SEBIN: C/G CARLOS ORTEGA",
+      "_meta": {
+        "nombre_excel": "UENB Carlos Deelgado Charlboud",
+        "hoja": "CG CARLOS ORTEGA",
+        "coordenadas_excel": "10° 30' 13\" LN 66° 52' 10\" LO"
+      }
     },
-    {
+    "centro-37": {
       "id": "centro-37",
       "nombre": "UEN Josefa Irausquin Lopez, El Cafetal",
       "fecha_levantamiento": "2026-07-03",
@@ -2724,8 +2858,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -2734,10 +2866,76 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "U.E.N JOSEFA IRASQUIN LOPEZ",
-      "_match_score": 0.7
+      "estado": "operativo",
+      "novedades": "Analista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
+      "_meta": {
+        "nombre_excel": "U.E.N JOSEFA IRASQUIN LOPEZ",
+        "hoja": "CJ GODOY",
+        "coordenadas_excel": ""
+      }
     },
-    {
+    "centro-36": {
+      "id": "centro-36",
+      "nombre": "CEIN Mamá Rosa, Urb La Limonera",
+      "fecha_levantamiento": "2026-07-03",
+      "estado_federativo": "MIRANDA",
+      "municipio": "BARUTA",
+      "parroquia": "NUESTRA SEÑORA DER ROSARIO",
+      "coord_politico": {
+        "nombre": "TRIDIS CONTRERAS",
+        "cedula": "23685256",
+        "telefono": "0412-8798199",
+        "ente": "CANCILLERIA"
+      },
+      "seguridad": {
+        "nombre": "T/C GNB EDWIN CARABALO",
+        "cedula": "14841540",
+        "telefono": "0414-7935343",
+        "organismo": "GNB",
+        "personal_mando": 10,
+        "vehiculos": 1
+      },
+      "servicios": {
+        "medicos": false,
+        "ambulancias": false,
+        "psicologo": false,
+        "contacto_juez_paz": false
+      },
+      "total_afectados": 67,
+      "familias_ocupadas": 17,
+      "ocupacion": {
+        "recien_nacidos_h": 0,
+        "recien_nacidos_m": 0,
+        "ninos": 16,
+        "ninas": 11,
+        "adolescentes_h": 0,
+        "adolescentes_m": 0,
+        "adultos_h": 0,
+        "adultos_m": 8,
+        "adultos_mayores_h": 3,
+        "adultos_mayores_m": 2,
+        "embarazadas": 0,
+        "discapacidad_h": 0,
+        "discapacidad_m": 0,
+        "mascotas": 0
+      },
+      "personal": {
+        "funcionarios": 0,
+        "medicos": 0,
+        "psicologos": 0,
+        "justicia_tjs": 0,
+        "justicia_mp": 0,
+        "justicia_defensoria": 0
+      },
+      "estado": "operativo",
+      "novedades": "Analista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
+      "_meta": {
+        "nombre_excel": "CEN SIMONCITO \"MAMA ROSA\"",
+        "hoja": "CJ GODOY",
+        "coordenadas_excel": ""
+      }
+    },
+    "centro-34": {
       "id": "centro-34",
       "nombre": "UED Juan Antonio Perez Bonal",
       "fecha_levantamiento": "2026-07-03",
@@ -2782,8 +2980,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "operativo",
-      "novedades": "Analista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
       "personal": {
         "funcionarios": 0,
         "medicos": 1,
@@ -2792,10 +2988,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "UE JUAN ANTONIO PEREZ BONALDE",
-      "_match_score": 0.9
+      "estado": "operativo",
+      "novedades": "Analista SAE: COMISARIO MARIANA LANDAETA\nSupervisor SEBIN: C/G GUZMAN",
+      "_meta": {
+        "nombre_excel": "UE JUAN ANTONIO PEREZ BONALDE",
+        "hoja": "CJ GODOY",
+        "coordenadas_excel": ""
+      }
     },
-    {
+    "centro-22": {
       "id": "centro-22",
       "nombre": "UEN Pablo Vila",
       "fecha_levantamiento": "2026-07-03",
@@ -2840,8 +3041,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: C/G JORGE MEDINA",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -2850,10 +3049,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "UEN PABLO VILA",
-      "_match_score": 1.0
+      "estado": "preparacion",
+      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: C/G JORGE MEDINA",
+      "_meta": {
+        "nombre_excel": "UEN PABLO VILA",
+        "hoja": "CG NOVO ",
+        "coordenadas_excel": "10.489243/66.919248"
+      }
     },
-    {
+    "centro-21": {
       "id": "centro-21",
       "nombre": "UEN Vicente Gil",
       "fecha_levantamiento": "2026-07-03",
@@ -2898,8 +3102,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: C/G JORGE MEDINA",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -2908,10 +3110,15 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "UEN VICENTE GIL",
-      "_match_score": 1.0
+      "estado": "preparacion",
+      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: C/G JORGE MEDINA",
+      "_meta": {
+        "nombre_excel": "UEN VICENTE GIL",
+        "hoja": "CG NOVO ",
+        "coordenadas_excel": "10.517917/66.900161"
+      }
     },
-    {
+    "centro-20": {
       "id": "centro-20",
       "nombre": "UE Luis Padrino",
       "fecha_levantamiento": "2026-07-03",
@@ -2956,8 +3163,6 @@
         "discapacidad_m": 0,
         "mascotas": 0
       },
-      "estado": "preparacion",
-      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: C/G JORGE MEDINA",
       "personal": {
         "funcionarios": 0,
         "medicos": 0,
@@ -2966,8 +3171,20 @@
         "justicia_mp": 0,
         "justicia_defensoria": 0
       },
-      "_nombre_excel": "UE LUIS PADRINO",
-      "_match_score": 1.0
+      "estado": "preparacion",
+      "novedades": "Analista SAE: PROF. MARVIN OSIO\nSupervisor SEBIN: C/G JORGE MEDINA",
+      "_meta": {
+        "nombre_excel": "UE LUIS PADRINO",
+        "hoja": "CG NOVO ",
+        "coordenadas_excel": "10.491/66.931"
+      }
     }
-  ]
+  },
+  "descartados": [],
+  "schema": {
+    "descripcion": "Cada centro es un Partial<CentroTransitorio>. Los campos mutables a actualizar son: total_afectados, familias_ocupadas, ocupacion, coord_politico, seguridad, servicios, personal, novedades, parroquia, municipio, estado_federativo, fecha_levantamiento, estado, geom (si hay coordenadas). El campo `_meta` es informativo (no pertenece al modelo) — contiene el nombre tal como aparecía en el Excel, la hoja y las coordenadas en crudo.",
+    "ocupacion": "Mapeo demográfico: ninos=NIÑOS, ninas=NIÑAS, adultos_mayores_h=ADULTOS MAYORES, adultos_mayores_m=ADULTAS MAYORES, adultos_h=HOMBRES-NIÑOS-ADULTOS_MAYORES_H, adultos_m=MUJERES-NIÑAS-ADULTAS_MAYORES_M. Totaliza HOMBRES+MUJERES. discapacidad_m=PER. CON DISCAPACIDAD (no separado por sexo en el Excel).",
+    "personal": "funcionarios=0 (no viene en el Excel); medicos/psicologos/justicia_tjs=1 cuando el SÍ/NO correspondiente es true.",
+    "estado": "operativo si total_afectados>0, sino preparacion."
+  }
 }

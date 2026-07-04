@@ -25,10 +25,10 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg"],
       manifest: {
-        name: "Sala Situacional - Refugio Parque del Oeste",
-        short_name: "Refugio PdO",
+        name: "Sala Situacional - Centros Transitorios",
+        short_name: "Centros CT",
         description:
-          "Sala situacional de monitoreo del refugio transitorio en el Parque del Oeste",
+          "Gestión de la red de Centros Transitorios del Área Metropolitana de Caracas",
         theme_color: "#0f766e",
         background_color: "#0b1120",
         display: "standalone",

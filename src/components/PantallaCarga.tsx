@@ -20,7 +20,7 @@ export function PantallaCarga({ mensaje = "Cargando…", className }: Props) {
       </div>
       <div className="text-center">
         <h1 className="text-lg font-semibold">Sala Situacional</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Refugio Parque del Oeste</p>
+        <p className="mt-1 text-sm text-muted-foreground">Centros Transitorios — Caracas</p>
       </div>
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin text-primary" />

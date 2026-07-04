@@ -478,9 +478,9 @@ export const CENTROS_TRANSITORIOS: CentroTransitorio[] = [
     grupo: "Gran Caracas",
     cuerpo: "GNB",
     parroquia: "Parroquia Baruta",
-    direccion: "CEIN Mama Rosa, La Limonera, Baruta, Miranda",
-    mapsUrl: "https://maps.app.goo.gl/YHPkZRSpRXTHUTcU8",
-    geom: { type: "Point", coordinates: [-66.8807963, 10.4274099] },
+    direccion: "CEIN Mamá Rosa, Urb La Limonera, La Limonera, Baruta, Miranda",
+    mapsUrl: "https://maps.app.goo.gl/38Cpys4yJP1u7NCG7",
+    geom: { type: "Point", coordinates: [-66.886633, 10.423672] },
     notas: "",
   },
   {
