@@ -82,7 +82,7 @@ export function DemografiaResumen({
     <div
       className={cn(
         "space-y-1.5",
-        compacto && "rounded-lg border border-border/60 bg-muted/20 p-2",
+        compacto && "rounded-lg border border-border bg-muted/20 p-2",
         className,
       )}
     >

@@ -438,7 +438,7 @@ export function CentroForm({
                   "flex min-h-12 items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors",
                   activa
                     ? "border-primary/40 bg-primary/10 text-primary shadow-sm"
-                    : "border-border bg-card/40 text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground",
+                    : "border-border bg-card text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground",
                 )}
               >
                 <Icono className="size-5 shrink-0" />

@@ -85,12 +85,12 @@ export function FichaCentroView({ sesion }: Props) {
   function volver() {
     const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
     if (idx > 0) navigate(-1);
-    else navigate("/");
+    else navigate("/centros/mapa");
   }
 
   if (!centro) {
     return (
-      <div className="flex h-[100dvh] flex-col items-center justify-center gap-3 bg-background px-6 text-center text-foreground">
+      <div className="flex h-full flex-col items-center justify-center gap-3 bg-background px-6 text-center text-foreground">
         {filasCentros.length === 0 ? (
           <p className="text-sm text-muted-foreground">Cargando centro…</p>
         ) : (
@@ -113,9 +113,9 @@ export function FichaCentroView({ sesion }: Props) {
   const titulo = `${centro.nro != null ? `N.° ${centro.nro} · ` : ""}${centro.nombre}`;
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
+    <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
       {/* Cabecera propia de la ficha */}
-      <header className="z-10 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card/95 px-2 backdrop-blur-sm sm:px-3">
+      <header className="z-10 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/95 px-2 backdrop-blur-sm sm:px-3">
         <Button variant="ghost" size="sm" className="h-9 shrink-0 gap-1.5" onClick={volver}>
           <ArrowLeft className="size-4" />
           <span className="hidden sm:inline">Volver</span>

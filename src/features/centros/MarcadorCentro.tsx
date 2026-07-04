@@ -71,7 +71,7 @@ export function MarcadorCentro({
       {conContador ? (
         <div
           className={cn(
-            "flex items-center gap-1 rounded-full border-2 bg-slate-950/95 py-0.5 pl-0.5 pr-2 shadow-lg",
+            "flex items-center gap-1 rounded-full border-2 bg-background/95 py-0.5 pl-0.5 pr-2 shadow-lg",
             seleccionado && "ring-2 ring-white/90",
           )}
           style={{ borderColor: color }}

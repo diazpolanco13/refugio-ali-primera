@@ -19,10 +19,10 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg"],
       manifest: {
-        name: "Sala Situacional - Centros Transitorios",
-        short_name: "Centros CT",
+        name: "Campamentos Transitorios",
+        short_name: "Campamentos",
         description:
-          "Gestión de la red de Centros Transitorios del Área Metropolitana de Caracas",
+          "Gestión de campamentos transitorios del Área Metropolitana de Caracas",
         theme_color: "#0f766e",
         background_color: "#0b1120",
         display: "standalone",

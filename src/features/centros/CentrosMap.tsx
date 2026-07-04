@@ -2,10 +2,12 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import { createRoot, type Root } from "react-dom/client";
 import maplibregl from "maplibre-gl";
 import { toPng } from "html-to-image";
+import { escalaVistaDelMapa } from "@/map/escalaVista";
 import { CAPAS_BASE, VISIBILIDAD_BASE, construirEstilo, type BaseMapa } from "@/map/estiloMapa";
 import {
   CARACAS_CENTRO,
   CARACAS_ZOOM,
+  CARACAS_ZOOM_MAX_ENCUDRE,
   metaCuerpoDe,
   normalizarCentro,
   poblacionCentro,
@@ -18,6 +20,7 @@ import {
   VISTA_DEFECTO_CENTROS,
 } from "@/data/preferenciasMapa";
 import { analisisCentro, COLOR_SEMAFORO } from "@/domain/capacidadCentros";
+import { boundsRedCentros } from "@/domain/redCentros";
 import { MarcadorCentro } from "./MarcadorCentro";
 import { InfoCentro } from "./InfoCentro";
 import { ControlesMapaCentros } from "./ControlesMapaCentros";
@@ -56,7 +59,16 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   const marcadorUsuarioRef = useRef<maplibregl.Marker | null>(null);
   const watchGpsRef = useRef<number | null>(null);
   const guardarVistaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const vistaDefectoAplicadaRef = useRef(false);
+  const usaVistaGuardadaRef = useRef(cargarVistaCentros() != null);
   const [gpsActivo, setGpsActivo] = useState(false);
+  const [escalaVista, setEscalaVista] = useState<string | undefined>();
+
+  function actualizarEscalaVista() {
+    const map = mapRef.current;
+    if (!map || !listoRef.current) return;
+    setEscalaVista(escalaVistaDelMapa(map));
+  }
 
   const cbRef = useRef({ centros, seleccionado, detalleAbierto, onSeleccionar, onToggleDetalle });
   cbRef.current = { centros, seleccionado, detalleAbierto, onSeleccionar, onToggleDetalle };
@@ -129,12 +141,36 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     );
   }
 
-  function centrarCaracas() {
-    mapRef.current?.flyTo({
-      center: CARACAS_CENTRO,
-      zoom: CARACAS_ZOOM,
-      duration: 800,
+  function encuadrarRed(opciones: { animar?: boolean } = {}) {
+    const map = mapRef.current;
+    if (!map || !listoRef.current) return;
+
+    const bounds = boundsRedCentros(cbRef.current.centros);
+    if (!bounds) {
+      map.flyTo({
+        center: CARACAS_CENTRO,
+        zoom: CARACAS_ZOOM,
+        duration: opciones.animar ? 800 : 0,
+      });
+      return;
+    }
+
+    map.fitBounds(bounds, {
+      padding: { top: 56, bottom: 56, left: 56, right: 56 },
+      maxZoom: CARACAS_ZOOM_MAX_ENCUDRE,
+      duration: opciones.animar ? 800 : 0,
     });
+  }
+
+  function aplicarVistaDefectoSiCorresponde() {
+    if (usaVistaGuardadaRef.current || vistaDefectoAplicadaRef.current) return;
+    if (!boundsRedCentros(cbRef.current.centros)) return;
+    encuadrarRed({ animar: false });
+    vistaDefectoAplicadaRef.current = true;
+  }
+
+  function centrarCaracas() {
+    encuadrarRed({ animar: true });
   }
 
   function ocultarPopup() {
@@ -190,11 +226,16 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     mapRef.current = map;
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
     map.on("moveend", programarPersistirVista);
+    map.on("move", actualizarEscalaVista);
+    map.on("zoom", actualizarEscalaVista);
+    map.on("resize", actualizarEscalaVista);
 
     map.on("load", () => {
       listoRef.current = true;
       sincronizarMarcadores();
       aplicarBase();
+      aplicarVistaDefectoSiCorresponde();
+      actualizarEscalaVista();
     });
 
     return () => {
@@ -261,6 +302,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
 
   useEffect(() => {
     sincronizarMarcadores();
+    aplicarVistaDefectoSiCorresponde();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [centros, seleccionado]);
 
@@ -347,6 +389,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       <div ref={contenedorRef} className="h-full w-full" />
       <ControlesMapaCentros
         gpsActivo={gpsActivo}
+        escalaVista={escalaVista}
         exportando={exportando}
         baseMapa={baseMapa}
         onCambiarBase={onCambiarBase}

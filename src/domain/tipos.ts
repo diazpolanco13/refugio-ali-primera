@@ -1,4 +1,4 @@
-// Tipos de dominio de la Sala Situacional.
+// Tipos de dominio de Campamentos Transitorios.
 
 /** Tipos de punto de servicio = capas conmutables del mapa. */
 export type TipoPunto =

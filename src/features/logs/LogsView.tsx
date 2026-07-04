@@ -6,7 +6,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  ArrowLeft,
   Building2,
   ClipboardCheck,
   FilterX,
@@ -128,7 +127,7 @@ function FilaLog({ entrada }: { entrada: EntradaHistorial }) {
   const esCentro = entrada.entidad === "centro" && entrada.entidad_id;
 
   return (
-    <li className="flex items-start gap-3 rounded-lg border border-border bg-card/60 px-3 py-2">
+    <li className="flex items-start gap-3 rounded-lg border border-border bg-card px-3 py-2">
       <div
         className={cn(
           "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted/40",
@@ -206,34 +205,9 @@ export function LogsView({ sesion }: { sesion: Sesion }) {
   const hayFiltros = entidad !== "todas" || usuario !== "todos" || rango !== "7d";
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card/60 px-4 py-3 backdrop-blur lg:px-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
-            <Link to="/">
-              <ArrowLeft className="size-4" />
-              <span className="hidden sm:inline">Centros</span>
-            </Link>
-          </Button>
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-              <ScrollText className="size-4" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-lg font-bold leading-tight text-foreground lg:text-xl">
-                Bitácora de acciones
-              </h1>
-              <p className="truncate text-xs text-muted-foreground">
-                Registro cronológico de las acciones críticas en la plataforma
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
+    <div className="h-full min-h-0 overflow-y-auto p-4 lg:p-6">
         {!tieneAcceso ? (
-          <div className="mx-auto mt-16 max-w-md rounded-xl border border-border bg-card/60 p-6 text-center">
+          <div className="mx-auto mt-16 max-w-md rounded-xl border border-border bg-card p-6 text-center">
             <ShieldCheck className="mx-auto mb-3 size-8 text-muted-foreground" />
             <p className="text-sm font-medium text-foreground">Acceso restringido</p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -313,7 +287,7 @@ export function LogsView({ sesion }: { sesion: Sesion }) {
                 Cargando bitácora…
               </div>
             ) : visibles.length === 0 ? (
-              <div className="rounded-xl border border-border bg-card/60 p-8 text-center">
+              <div className="rounded-xl border border-border bg-card p-8 text-center">
                 <Building2 className="mx-auto mb-2 size-6 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
                   Sin registros en el rango seleccionado.
@@ -328,7 +302,6 @@ export function LogsView({ sesion }: { sesion: Sesion }) {
             )}
           </div>
         )}
-      </div>
     </div>
   );
 }

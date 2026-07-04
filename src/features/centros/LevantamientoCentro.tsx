@@ -313,7 +313,7 @@ export function TarjetaContacto({
   if (vacio) return null;
 
   return (
-    <div className="rounded-lg border border-border bg-card/60 px-3 py-2.5">
+    <div className="rounded-lg border border-border bg-card px-3 py-2.5">
       <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
         {icono}
         {titulo}
@@ -357,7 +357,7 @@ export function TarjetaSeguridad({
   const organismo = seguridad.organismo.trim() || organismoCatalogo || "";
 
   return (
-    <div className="rounded-lg border border-border bg-card/60 px-3 py-2.5">
+    <div className="rounded-lg border border-border bg-card px-3 py-2.5">
       <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
         <Shield className="size-3" />
         Jefe de seguridad
@@ -396,7 +396,7 @@ export function GridServicios({ servicios }: { servicios: ServiciosCentro }) {
       {SERVICIOS_SALUD.map(({ clave, label, icono }) => (
         <div
           key={clave}
-          className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card/40 px-2.5 py-2"
+          className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-2.5 py-2"
         >
           <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-foreground">
             {icono}

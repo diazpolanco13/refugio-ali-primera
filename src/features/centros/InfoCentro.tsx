@@ -103,7 +103,7 @@ export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle 
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 border-t border-border/50 pt-2">
+      <div className="grid grid-cols-2 gap-2 border-t border-border pt-2">
         <div className="flex items-center gap-1.5">
           <Users className="size-4 shrink-0 text-primary" />
           <div className="leading-tight">

@@ -68,7 +68,7 @@ export function PersonalResumen({
     <div
       className={cn(
         "space-y-1.5",
-        compacto && "rounded-lg border border-border/60 bg-muted/20 p-2",
+        compacto && "rounded-lg border border-border bg-muted/20 p-2",
         className,
       )}
     >
@@ -103,7 +103,7 @@ export function PersonalResumen({
         </>
       )}
       {total > 0 && (
-        <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-1.5 text-xs">
+        <div className="flex items-center justify-between gap-2 border-t border-border pt-1.5 text-xs">
           <span className="font-medium text-muted-foreground">Total personal</span>
           <Badge variant="outline" className="px-1.5 font-semibold">
             {total.toLocaleString("es")}

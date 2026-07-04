@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Camera, Check, Crosshair, Layers, Loader2, MapPin, Minus, Plus } from "lucide-react";
+import { Camera, Check, Home, Layers, Loader2, Locate, LocateFixed, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 interface ControlesProps {
   className?: string;
   gpsActivo: boolean;
+  /** Ancho visible aproximado del mapa, p. ej. "3k" o "500m". */
+  escalaVista?: string;
   exportando?: boolean;
   baseMapa: BaseMapa;
   onCambiarBase: (base: BaseMapa) => void;
@@ -136,6 +138,7 @@ function MenuCapas({ baseMapa, onCambiarBase }: CapasProps) {
 export function ControlesMapaCentros({
   className,
   gpsActivo,
+  escalaVista,
   exportando = false,
   baseMapa,
   onCambiarBase,
@@ -160,6 +163,17 @@ export function ControlesMapaCentros({
           <BotonMapa etiqueta="Acercar" onClick={onZoomIn}>
             <Plus className="size-4" />
           </BotonMapa>
+          {escalaVista && (
+            <div
+              className="flex h-8 shrink-0 items-center justify-center border-y border-border/60 bg-muted/40 px-0.5"
+              aria-hidden="true"
+              title={`Vista ~${escalaVista} de ancho`}
+            >
+              <span className="text-[10px] font-semibold tabular-nums leading-none text-muted-foreground">
+                {escalaVista}
+              </span>
+            </div>
+          )}
           <BotonMapa etiqueta="Alejar" onClick={onZoomOut}>
             <Minus className="size-4" />
           </BotonMapa>
@@ -174,10 +188,14 @@ export function ControlesMapaCentros({
             onClick={onGps}
             activo={gpsActivo}
           >
-            <Crosshair className={cn("size-4", gpsActivo && "text-primary")} />
+            {gpsActivo ? (
+              <LocateFixed className="size-4 text-primary" />
+            ) : (
+              <Locate className="size-4" />
+            )}
           </BotonMapa>
           <BotonMapa etiqueta="Centrar en Caracas" onClick={onCentrarCaracas}>
-            <MapPin className="size-4" />
+            <Home className="size-4" />
           </BotonMapa>
         </ButtonGroup>
 

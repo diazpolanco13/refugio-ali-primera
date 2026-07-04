@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import {
-  ArrowLeft,
   BadgeCheck,
   Building2,
   Check,
@@ -16,7 +14,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   Trash2,
-  Users,
   X,
 } from "lucide-react";
 import type { Rol, Sesion } from "@/data/authSupabase";
@@ -716,7 +713,7 @@ function TarjetaUsuario({
           usuario.brazalete ||
           usuario.whatsapp ||
           usuario.telegram) && (
-          <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 border-t border-border/60 pt-2.5">
+          <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 border-t border-border pt-2.5">
             {usuario.responsabilidad && (
               <DatoFicha icono={<BadgeCheck className="size-3" />}>
                 {usuario.responsabilidad}
@@ -889,42 +886,10 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
   }
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
-      {/* Cabecera */}
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card/60 px-4 py-3 backdrop-blur lg:px-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
-            <Link to="/">
-              <ArrowLeft className="size-4" />
-              <span className="hidden sm:inline">Centros</span>
-            </Link>
-          </Button>
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-              <Users className="size-4" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-lg font-bold leading-tight text-foreground lg:text-xl">
-                Gestión de usuarios
-              </h1>
-              <p className="truncate text-xs text-muted-foreground">
-                Fichas, roles y permisos de acceso a la plataforma
-              </p>
-            </div>
-          </div>
-        </div>
-        {esAdmin && (
-          <Button onClick={() => setCreando(true)} className="gap-1.5">
-            <Plus className="size-4" />
-            <span className="hidden sm:inline">Nuevo usuario</span>
-          </Button>
-        )}
-      </header>
-
-      {/* Contenido */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
-        {!esAdmin ? (
-          <div className="mx-auto mt-16 max-w-md rounded-xl border border-border bg-card/60 p-6 text-center">
+    <>
+    <div className="h-full min-h-0 overflow-y-auto p-4 lg:p-6">
+      {!esAdmin ? (
+          <div className="mx-auto mt-16 max-w-md rounded-xl border border-border bg-card p-6 text-center">
             <ShieldCheck className="mx-auto mb-3 size-8 text-muted-foreground" />
             <p className="text-sm font-medium text-foreground">Acceso restringido</p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -933,6 +898,15 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
           </div>
         ) : (
           <div className="mx-auto max-w-5xl space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-muted-foreground">
+                Fichas, roles y permisos de acceso a la plataforma
+              </p>
+              <Button onClick={() => setCreando(true)} className="gap-1.5">
+                <Plus className="size-4" />
+                <span className="hidden sm:inline">Nuevo usuario</span>
+              </Button>
+            </div>
             {error && (
               <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                 {error}
@@ -1018,7 +992,7 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
             )}
           </div>
         )}
-      </div>
+    </div>
 
       <FormUsuario
         titulo="Nuevo usuario"
@@ -1101,6 +1075,6 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

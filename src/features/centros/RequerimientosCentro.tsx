@@ -209,7 +209,7 @@ export function ListaRequerimientos({ items }: { items: ItemRequerimiento[] }) {
   return (
     <div className="space-y-2">
       <ResumenRequerimientos items={items} />
-      <div className="divide-y divide-border rounded-xl border border-border bg-card/40">
+      <div className="divide-y divide-border rounded-xl border border-border bg-card">
         {validos.map((item) => (
           <div
             key={item.id}

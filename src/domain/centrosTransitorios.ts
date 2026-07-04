@@ -494,4 +494,7 @@ export function personasLogistica(c: CentroTransitorio): number {
 
 /** Centro de Caracas usado para centrar el mapa general (aprox. Plaza Venezuela). */
 export const CARACAS_CENTRO: [number, number] = [-66.9036, 10.4806];
-export const CARACAS_ZOOM = 11;
+/** Vista general de la red (~35k de ancho en pantallas típicas con sidebar). */
+export const CARACAS_ZOOM = 12;
+/** Tope al encuadrar la red: evita acercar más de lo necesario para ver todos los centros. */
+export const CARACAS_ZOOM_MAX_ENCUDRE = 12;

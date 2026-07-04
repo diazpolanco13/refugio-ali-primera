@@ -66,7 +66,7 @@ export function SeccionReporteDiarioCentro({ centro, puedeEditar }: Props) {
   const nadaReportado = !parteHoy && jornadas.length === 0 && !reporte;
 
   return (
-    <div className="rounded-xl border border-border bg-card/60 p-3">
+    <div className="rounded-xl border border-border bg-card p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
           <ClipboardCheck className="size-3.5" />
@@ -102,7 +102,7 @@ export function SeccionReporteDiarioCentro({ centro, puedeEditar }: Props) {
         </p>
       ) : (
         <div className="mt-2 grid grid-cols-2 gap-2">
-          <div className="rounded-lg border border-border/60 bg-muted/15 px-2 py-1.5 text-center">
+          <div className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
             <div className="flex items-center justify-center gap-1 text-lg font-bold tabular-nums leading-none text-foreground">
               <UtensilsCrossed className="size-3.5 text-teal-400" />
               {raciones.toLocaleString("es")}
@@ -111,7 +111,7 @@ export function SeccionReporteDiarioCentro({ centro, puedeEditar }: Props) {
               Raciones del día
             </div>
           </div>
-          <div className="rounded-lg border border-border/60 bg-muted/15 px-2 py-1.5 text-center">
+          <div className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
             <div className="flex items-center justify-center gap-1 text-lg font-bold tabular-nums leading-none text-foreground">
               <Stethoscope className="size-3.5 text-rose-400" />
               {atenciones.toLocaleString("es")}

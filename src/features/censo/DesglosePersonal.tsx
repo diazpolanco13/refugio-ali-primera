@@ -37,7 +37,7 @@ export function DesglosePersonal({
         <FilaPersonal
           titulo="Funcionarios"
           descripcion="Apoyo administrativo y logístico del centro"
-          icono={<UserCog className="size-3.5 text-slate-400" />}
+          icono={<UserCog className="size-3.5 text-muted-foreground" />}
           valor={p.funcionarios}
           onChange={(n) => onCampo("funcionarios", n)}
           deshabilitado={deshabilitado}

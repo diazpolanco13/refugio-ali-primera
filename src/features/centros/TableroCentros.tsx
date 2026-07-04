@@ -213,7 +213,7 @@ export function TableroCentros({ centros, onSeleccionar }: Props) {
   return (
     <div className="flex h-full flex-col">
       {/* Fila de totales de la red */}
-      <div className="shrink-0 border-b border-border bg-card/40 px-3 py-2.5 sm:px-4">
+      <div className="shrink-0 border-b border-border bg-background/95 px-3 py-2.5 sm:px-4">
         <div className="flex items-stretch gap-3 overflow-x-auto pb-0.5">
           <GrupoTotales titulo="Población">
             <Tot etiqueta="Refugiados" valor={totales.refugiados} clase="text-sky-300" />
@@ -412,7 +412,7 @@ function TarjetaCentro({
           onSeleccionar();
         }
       }}
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-card/50 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:flex-row"
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-card text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:flex-row"
       style={{ borderTopColor: colorNivel, borderTopWidth: 3 }}
     >
       {/* Foto / color del cuerpo. Arriba en móvil, izquierda en PC. */}
@@ -558,7 +558,7 @@ function TarjetaCentro({
 
         {/* Responsables con contacto (Telegram/WhatsApp/llamar) */}
         {responsables.length > 0 && (
-          <div className="mt-auto space-y-1 border-t border-border/60 pt-2">
+          <div className="mt-auto space-y-1 border-t border-border pt-2">
             {responsables.slice(0, 2).map((r) => (
               <div key={r.id} className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
@@ -767,7 +767,7 @@ function Barra({
 /** Grupo de la fila de totales de red (título + métricas). */
 function GrupoTotales({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <div className="flex shrink-0 flex-col gap-1 rounded-lg border border-border/60 bg-muted/10 px-2.5 py-1.5">
+    <div className="flex shrink-0 flex-col gap-1 rounded-lg border border-border bg-muted/30 px-2.5 py-1.5">
       <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
         {titulo}
       </span>

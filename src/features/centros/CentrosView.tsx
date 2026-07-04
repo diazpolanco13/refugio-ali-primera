@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { PanelFlotante } from "@/components/PanelFlotante";
 import { cargarBaseMapaCentros, guardarBaseMapaCentros } from "@/data/preferenciasMapa";
 import type { BaseMapa } from "@/map/estiloMapa";
@@ -13,45 +13,33 @@ import {
   type ClaveCuerpo,
 } from "@/domain/centrosTransitorios";
 import type { Sesion } from "@/data/authSupabase";
-import {
-  puedeEscribir,
-  puedeGestionarUsuarios,
-  puedeCrearCentros,
-} from "@/domain/permisos";
-import { useSupabaseConectado } from "@/data/useSupabaseConectado";
-import { Navbar } from "@/components/Navbar";
+import { puedeEscribir, puedeCrearCentros } from "@/domain/permisos";
+import { useMapaCentros } from "@/contexts/MapaCentrosContext";
 import { CentrosMap, type CentrosMapHandle } from "./CentrosMap";
 import { DetalleCentro } from "./DetalleCentro";
 import { CentroForm } from "./CentroForm";
 import { TableroCentros } from "./TableroCentros";
-import { PanelCentros } from "./PanelCentros";
+import { PanelCentros, calcularEstadosFilas } from "./PanelCentros";
+import { ControlesMapaFlotantes } from "./ControlesMapaFlotantes";
 
-interface Props {
+interface OutletContext {
   sesion: Sesion;
 }
 
-type Vista = "mapa" | "tablero";
-
-/** Vista de conjunto: mapa/tablero de Caracas con los 50 Centros Transitorios. */
-export function CentrosView({ sesion }: Props) {
+/** Vista de conjunto: mapa o tablero de la red de Centros Transitorios. */
+export function CentrosView() {
+  const { sesion } = useOutletContext<OutletContext>();
+  const location = useLocation();
+  const vista = location.pathname.includes("/tablero") ? "tablero" : "mapa";
   const puedeEditar = puedeEscribir(sesion.user.rol);
   const puedeCrear = puedeCrearCentros(sesion.user.rol);
-  const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
-  const conectado = useSupabaseConectado();
   const navigate = useNavigate();
-  const [online, setOnline] = useState(() => navigator.onLine);
-  const [vista, setVista] = useState<Vista>("mapa");
+  const {
+    panelCentrosAbierto,
+    setPanelCentrosAbierto,
+    registrarAbrirNuevoCentro,
+  } = useMapaCentros();
 
-  useEffect(() => {
-    const up = () => setOnline(true);
-    const down = () => setOnline(false);
-    window.addEventListener("online", up);
-    window.addEventListener("offline", down);
-    return () => {
-      window.removeEventListener("online", up);
-      window.removeEventListener("offline", down);
-    };
-  }, []);
   const [baseMapa, setBaseMapa] = useState<BaseMapa>(
     () => cargarBaseMapaCentros() ?? "calles",
   );
@@ -63,9 +51,6 @@ export function CentrosView({ sesion }: Props) {
     () => new Set(CATALOGO_CUERPOS.map((c) => c.clave)),
   );
   const [expandidos, setExpandidos] = useState<Set<ClaveCuerpo>>(() => new Set());
-  const [panelAbierto, setPanelAbierto] = useState(
-    () => typeof window === "undefined" || window.innerWidth >= 640,
-  );
   const [exportando, setExportando] = useState(false);
   const mapaRef = useRef<CentrosMapHandle>(null);
 
@@ -73,12 +58,6 @@ export function CentrosView({ sesion }: Props) {
     guardarBaseMapaCentros(baseMapa);
   }, [baseMapa]);
 
-  // Los centros viven en Supabase (tabla blob+jsonb `centros`). El catálogo
-  // base se carga en la migración de Fase 2; aquí solo leemos.
-  //
-  // Limitación: `nro` no es columna top-level (vive dentro de `data` jsonb),
-  // así que no se puede ordenar server-side con `.order("nro")`. Lo hacemos en
-  // cliente tras el select. Para ~50 filas es trivial.
   type CentroFila = CentroTransitorio & { deleted: boolean };
   const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(
     "centros",
@@ -91,6 +70,45 @@ export function CentrosView({ sesion }: Props) {
     () => [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
     [filasCentros],
   );
+
+  const estadosFilas = useMemo(() => calcularEstadosFilas(centros), [centros]);
+
+  function abrirNuevoCentro() {
+    const nro = centros.reduce((max, c) => Math.max(max, c.nro ?? 0), 0) + 1;
+    setEditando({
+      id: nuevoId(),
+      nro,
+      nombre: "",
+      grupo: "Área Metropolitana",
+      cuerpo: "",
+      parroquia: "",
+      direccion: "",
+      mapsUrl: "",
+      geom: null,
+      notas: "",
+      estado: "preparacion",
+    });
+    setCreandoNuevo(true);
+  }
+
+  useEffect(() => {
+    registrarAbrirNuevoCentro(puedeCrear ? abrirNuevoCentro : null);
+    return () => registrarAbrirNuevoCentro(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puedeCrear, centros, registrarAbrirNuevoCentro]);
+
+  useEffect(() => {
+    if (vista !== "mapa") return;
+    if (sessionStorage.getItem("abrirListaCentros") === "1") {
+      sessionStorage.removeItem("abrirListaCentros");
+      setPanelCentrosAbierto(true);
+    }
+    if (sessionStorage.getItem("abrirNuevoCentro") === "1") {
+      sessionStorage.removeItem("abrirNuevoCentro");
+      if (puedeCrear) abrirNuevoCentro();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vista, setPanelCentrosAbierto, puedeCrear]);
 
   async function exportarVista() {
     setExportando(true);
@@ -132,11 +150,6 @@ export function CentrosView({ sesion }: Props) {
     });
   }
 
-  /** 
-   * Seleccionar desde la LISTA (panel lateral o buscador): vuela al centro y abre
-   * solo la nube informativa (popup) — sin abrir el detalle completo. Pensado para
-   * navegar rápido entre centros sin perder el panel de browse.
-   */
   function seleccionarDesdeLista(centro: CentroTransitorio) {
     if (!centro.geom) return;
     const clave = normalizarCuerpo(centro.cuerpo);
@@ -145,12 +158,6 @@ export function CentrosView({ sesion }: Props) {
     setDetalleAbierto(false);
   }
 
-  /** 
-   * Seleccionar desde el MAPA (clic en el marcador): vuela y abre SOLO la nube
-   * informativa (popup). El panel DetalleCentro NO se abre aquí — se abre (o
-   * cierra) únicamente con el botón "detalles" de la nube. Si el panel ya estaba
-   * abierto para otro centro, simplemente cambia al nuevo (la nube acompaña).
-   */
   function seleccionarDesdeMapa(id: string | null) {
     if (id == null) {
       cerrarSeleccion();
@@ -159,18 +166,11 @@ export function CentrosView({ sesion }: Props) {
     setSeleccionado(id);
   }
 
-  /** Cerrar la selección: limpia la nube y el detalle. */
   function cerrarSeleccion() {
     setSeleccionado(null);
     setDetalleAbierto(false);
   }
 
-  /**
-   * Alternar el detalle completo del centro seleccionado (botón "detalles" de
-   * la nube). En móvil (<768px) el panel angosto desaprovecha la pantalla, así
-   * que se navega a la ficha completa `/centro/:id`; en escritorio se mantiene
-   * el panel lateral flotante.
-   */
   function toggleDetalle() {
     if (!seleccionado) return;
     if (window.matchMedia("(max-width: 767px)").matches) {
@@ -178,25 +178,6 @@ export function CentrosView({ sesion }: Props) {
       return;
     }
     setDetalleAbierto((prev) => !prev);
-  }
-
-  /** Abre el formulario de alta con un centro en blanco (siguiente N.° libre). */
-  function abrirNuevoCentro() {
-    const nro = centros.reduce((max, c) => Math.max(max, c.nro ?? 0), 0) + 1;
-    setEditando({
-      id: nuevoId(),
-      nro,
-      nombre: "",
-      grupo: "Área Metropolitana",
-      cuerpo: "",
-      parroquia: "",
-      direccion: "",
-      mapsUrl: "",
-      geom: null,
-      notas: "",
-      estado: "preparacion",
-    });
-    setCreandoNuevo(true);
   }
 
   function cerrarFormulario() {
@@ -211,18 +192,8 @@ export function CentrosView({ sesion }: Props) {
   }, [seleccionado, centros]);
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
-      <Navbar
-        sesion={sesion}
-        puedeEditar={puedeEditar}
-        esAdmin={esAdmin}
-        online={online}
-        conectado={conectado}
-        vista={vista}
-        onCambiarVista={setVista}
-      />
-
-      <div className="relative min-h-0 flex-1">
+    <>
+      <div className="relative h-full min-h-0">
         {vista === "mapa" ? (
           <>
             <CentrosMap
@@ -238,6 +209,15 @@ export function CentrosView({ sesion }: Props) {
               exportando={exportando}
             />
 
+            <ControlesMapaFlotantes
+              centros={centros}
+              estados={estadosFilas}
+              seleccionado={seleccionado}
+              onSeleccionarCentro={seleccionarDesdeLista}
+              panelAbierto={panelCentrosAbierto}
+              onAbrirPanel={() => setPanelCentrosAbierto(true)}
+            />
+
             <PanelCentros
               centros={centros}
               cuerposVisibles={cuerposVisibles}
@@ -246,20 +226,19 @@ export function CentrosView({ sesion }: Props) {
               onSetExpandido={setExpandido}
               seleccionado={seleccionado}
               onSeleccionarCentro={seleccionarDesdeLista}
-              abierto={panelAbierto}
-              onCambiarAbierto={setPanelAbierto}
-              onNuevoCentro={puedeCrear ? abrirNuevoCentro : undefined}
+              abierto={panelCentrosAbierto}
+              onCambiarAbierto={setPanelCentrosAbierto}
             />
           </>
         ) : (
-          /* Tablero: el clic en una tarjeta abre la ficha completa del centro. */
-          <TableroCentros
-            centros={centros}
-            onSeleccionar={(id) => navigate(`/centro/${id}`)}
-          />
+          <div className="h-full overflow-y-auto">
+            <TableroCentros
+              centros={centros}
+              onSeleccionar={(id) => navigate(`/centro/${id}`)}
+            />
+          </div>
         )}
 
-        {/* Panel de detalle del centro seleccionado (mapa en escritorio) */}
         {vista === "mapa" && centroSel && detalleAbierto && (
           <PanelFlotante
             titulo={`${centroSel.nro != null ? `N.° ${centroSel.nro} · ` : ""}${centroSel.nombre}`}
@@ -275,7 +254,6 @@ export function CentrosView({ sesion }: Props) {
         )}
       </div>
 
-      {/* Formulario de registro/edición (y alta de centros nuevos) */}
       {editando && (
         <CentroForm
           centro={editando}
@@ -285,6 +263,6 @@ export function CentrosView({ sesion }: Props) {
           onCerrar={cerrarFormulario}
         />
       )}
-    </div>
+    </>
   );
 }

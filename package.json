@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Sala Situacional - Refugio Transitorio Parque del Oeste",
+  "description": "Campamentos Transitorios — gestión humanitaria CCCM, Caracas",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

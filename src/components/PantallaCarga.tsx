@@ -19,8 +19,8 @@ export function PantallaCarga({ mensaje = "Cargando…", className }: Props) {
         <Tent className="size-7" />
       </div>
       <div className="text-center">
-        <h1 className="text-lg font-semibold">Sala Situacional</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Centros Transitorios — Caracas</p>
+        <h1 className="text-lg font-semibold">Campamentos Transitorios</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Área Metropolitana de Caracas</p>
       </div>
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin text-primary" />

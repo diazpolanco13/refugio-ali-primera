@@ -5,7 +5,7 @@ import {
 import type { BaseMapa } from "@/map/estiloMapa";
 import { CLAVES_BASE_MAPA } from "@/map/estiloMapa";
 
-const CLAVE_VISTA = "refugio-vista-centros";
+const CLAVE_VISTA = "refugio-vista-centros-v2";
 const CLAVE_BASE = "refugio-base-centros";
 
 export interface VistaMapaCentros {

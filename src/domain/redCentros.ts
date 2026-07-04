@@ -131,3 +131,30 @@ export function conteoPorNivel(
 }
 
 export { ETIQUETA_NIVEL, totalVulnerables };
+
+export type BoundsRedCentros = [[number, number], [number, number]];
+
+/** Extensión geográfica de los centros con coordenadas (lng/lat). */
+export function boundsRedCentros(centros: CentroTransitorio[]): BoundsRedCentros | null {
+  let minLng = Infinity;
+  let minLat = Infinity;
+  let maxLng = -Infinity;
+  let maxLat = -Infinity;
+  let n = 0;
+
+  for (const centro of centros) {
+    if (!centro.geom) continue;
+    const [lng, lat] = centro.geom.coordinates;
+    minLng = Math.min(minLng, lng);
+    minLat = Math.min(minLat, lat);
+    maxLng = Math.max(maxLng, lng);
+    maxLat = Math.max(maxLat, lat);
+    n += 1;
+  }
+
+  if (n === 0) return null;
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ];
+}

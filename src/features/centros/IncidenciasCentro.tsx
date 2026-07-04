@@ -105,7 +105,7 @@ function TarjetaIncidencia({
   return (
     <div
       className={cn(
-        "rounded-lg border border-border bg-card/60 px-3 py-2",
+        "rounded-lg border border-border bg-card px-3 py-2",
         resuelta && "opacity-70",
       )}
     >
@@ -224,7 +224,7 @@ function AltaIncidencia({ centroId }: { centroId: string }) {
       <CollapsibleTrigger asChild>
         <button
           type="button"
-          className="group flex w-full items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
+          className="group flex w-full items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
         >
           <span className="flex items-center gap-1.5">
             <Plus className="size-3.5" />
@@ -233,7 +233,7 @@ function AltaIncidencia({ centroId }: { centroId: string }) {
           <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
         </button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="mt-2 space-y-3 rounded-lg border border-border/60 bg-muted/10 p-3">
+      <CollapsibleContent className="mt-2 space-y-3 rounded-lg border border-border bg-muted/30 p-3">
         <div>
           <Label htmlFor={`incidencia-desc-${centroId}`} className="text-[11px] text-muted-foreground">
             ¿Qué pasó?
@@ -342,7 +342,7 @@ function CalendarioIncidencias({
 
   return (
     <div className="space-y-2">
-      <div className="flex justify-center rounded-lg border border-border/60 bg-muted/10">
+      <div className="flex justify-center rounded-lg border border-border bg-muted/30">
         <Calendar
           mode="single"
           selected={diaSel}
@@ -434,7 +434,7 @@ export function SeccionIncidenciasCentro({ centro, puedeEditar }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card/60 p-3">
+    <div className="rounded-xl border border-border bg-card p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
           <TriangleAlert
@@ -481,7 +481,7 @@ export function SeccionIncidenciasCentro({ centro, puedeEditar }: Props) {
             <CollapsibleTrigger asChild>
               <button
                 type="button"
-                className="group flex w-full items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                className="group flex w-full items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
               >
                 Resueltas recientes ({resueltas.length})
                 <ChevronDown className="size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
@@ -505,7 +505,7 @@ export function SeccionIncidenciasCentro({ centro, puedeEditar }: Props) {
           <CollapsibleTrigger asChild>
             <button
               type="button"
-              className="group flex w-full items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
+              className="group flex w-full items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
             >
               <span className="flex items-center gap-1.5">
                 <CalendarDays className="size-3.5" />

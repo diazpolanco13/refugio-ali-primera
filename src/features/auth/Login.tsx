@@ -37,13 +37,13 @@ export function Login() {
 
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm border-border/80 shadow-2xl">
+      <Card className="w-full max-w-sm shadow-2xl">
         <CardHeader className="pb-4 text-center">
           <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-primary/15 text-primary">
             <Tent className="size-6" />
           </div>
-          <CardTitle>Sala Situacional</CardTitle>
-          <CardDescription>Red de Centros Transitorios — Caracas</CardDescription>
+          <CardTitle>Campamentos Transitorios</CardTitle>
+          <CardDescription>Área Metropolitana de Caracas</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={entrar} className="space-y-4">

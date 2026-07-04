@@ -108,7 +108,7 @@ function KpiGrande({
   return (
     <div
       className={cn(
-        "rounded-lg border border-border/80 bg-muted/25 px-3 py-2.5 text-center",
+        "rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-center",
         anchoCompleto && "col-span-full",
       )}
     >
@@ -123,7 +123,7 @@ function KpiGrande({
 /** Subtotal compacto (p. ej. médicos, justicia). */
 function MiniKpi({ etiqueta, valor }: { etiqueta: string; valor: number }) {
   return (
-    <div className="rounded-lg border border-border/60 bg-muted/15 px-2 py-1.5 text-center">
+    <div className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
       <div className="text-lg font-bold tabular-nums leading-none text-foreground">
         {valor.toLocaleString("es")}
       </div>
@@ -268,7 +268,7 @@ export function SeccionPoblacionCentro({ centro }: SeccionProps) {
   const analisis = analisisCentro(centro);
   const poblacion = poblacionCentro(centro);
   return (
-    <div className="rounded-xl border border-border bg-card/60 p-3">
+    <div className="rounded-xl border border-border bg-card p-3">
       <p className="text-xs font-semibold text-foreground">Población afectada</p>
       <div className="mt-2 grid grid-cols-2 gap-2">
         <KpiGrande etiqueta="Refugiados" valor={poblacion} clase="text-sky-300" />
@@ -286,7 +286,7 @@ export function SeccionPoblacionCentro({ centro }: SeccionProps) {
         <CollapsibleTrigger asChild>
           <button
             type="button"
-            className="group flex w-full items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
+            className="group flex w-full items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
           >
             Ver desglose demográfico
             <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
@@ -313,7 +313,7 @@ export function SeccionPersonalCentro({ centro }: SeccionProps) {
   const personal = normalizarPersonal(c.personal);
   const justicia = totalJusticia(personal);
   return (
-    <div className="rounded-xl border border-border bg-card/60 p-3">
+    <div className="rounded-xl border border-border bg-card p-3">
       <p className="text-xs font-semibold text-foreground">Personal operativo</p>
       <div className="mt-2">
         <KpiGrande etiqueta="Total desplegado" valor={analisis.personal} anchoCompleto />
@@ -328,7 +328,7 @@ export function SeccionPersonalCentro({ centro }: SeccionProps) {
         <CollapsibleTrigger asChild>
           <button
             type="button"
-            className="group flex w-full items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
+            className="group flex w-full items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
           >
             Ver detalle por categoría
             <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
@@ -353,18 +353,18 @@ export function SeccionHistoricoCentro({
 }: SeccionProps & { colapsable?: boolean }) {
   if (!colapsable) {
     return (
-      <div className="rounded-xl border border-border bg-card/60 p-3">
+      <div className="rounded-xl border border-border bg-card p-3">
         <p className="mb-3 text-xs font-semibold text-foreground">Histórico de ocupación</p>
         <GraficoOcupacionCentro centroId={centro.id} />
       </div>
     );
   }
   return (
-    <Collapsible className="rounded-xl border border-border bg-card/60 p-3">
+    <Collapsible className="rounded-xl border border-border bg-card p-3">
       <CollapsibleTrigger asChild>
         <button
           type="button"
-          className="group flex w-full items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
+          className="group flex w-full items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
         >
           Histórico de ocupación
           <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
@@ -419,7 +419,7 @@ export function SeccionCapacidadCentro({ centro }: SeccionProps) {
   const analisis = analisisCentro(centro);
   const colorSemaforo = COLOR_SEMAFORO[analisis.semaforo];
   return (
-    <div className="rounded-xl border border-border bg-card/60 p-3">
+    <div className="rounded-xl border border-border bg-card p-3">
       <div className="mb-2 flex items-center justify-between">
         <p className="text-xs font-semibold text-foreground">Capacidad vs. ocupación</p>
         <span className="text-[11px] text-muted-foreground">
@@ -495,7 +495,7 @@ export function SeccionResponsablesCentro({ centro }: SeccionProps) {
             return (
               <div
                 key={r.id}
-                className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card/60 px-3 py-2"
+                className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">

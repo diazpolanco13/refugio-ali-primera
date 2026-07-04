@@ -4,8 +4,20 @@
 // estado (abierta/resuelta) y quién/cuándo la registró o resolvió.
 
 import { Link } from "react-router-dom";
-import { CircleCheck, ExternalLink } from "lucide-react";
+import { CircleCheck, ExternalLink, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   CATEGORIAS_INCIDENCIA,
   META_ETIQUETA,
@@ -17,6 +29,11 @@ interface Props {
   incidencias: Incidencia[];
   /** Índice id → centro para resolver el nombre de cada fila. */
   centrosPorId: Map<string, CentroTransitorio>;
+  /** Muestra botón Resolver en incidencias abiertas. */
+  mostrarResolver?: boolean;
+  puedeResolver?: (incidencia: Incidencia) => boolean;
+  onResolver?: (id: string) => void;
+  resolviendoId?: string | null;
 }
 
 const ICONO_CATEGORIA: Record<string, string> = Object.fromEntries(
@@ -48,7 +65,14 @@ function formatearDia(dia: string): string {
   });
 }
 
-export function ListaIncidencias({ incidencias, centrosPorId }: Props) {
+export function ListaIncidencias({
+  incidencias,
+  centrosPorId,
+  mostrarResolver = false,
+  puedeResolver,
+  onResolver,
+  resolviendoId = null,
+}: Props) {
   if (incidencias.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
@@ -64,6 +88,10 @@ export function ListaIncidencias({ incidencias, centrosPorId }: Props) {
           key={inc.id}
           incidencia={inc}
           centro={centrosPorId.get(inc.centro_id)}
+          mostrarResolver={mostrarResolver}
+          puedeResolver={puedeResolver?.(inc) ?? false}
+          onResolver={onResolver}
+          resolviendo={resolviendoId === inc.id}
         />
       ))}
     </div>
@@ -73,22 +101,30 @@ export function ListaIncidencias({ incidencias, centrosPorId }: Props) {
 function FilaIncidencia({
   incidencia,
   centro,
+  mostrarResolver,
+  puedeResolver,
+  onResolver,
+  resolviendo,
 }: {
   incidencia: Incidencia;
   centro: CentroTransitorio | undefined;
+  mostrarResolver: boolean;
+  puedeResolver: boolean;
+  onResolver?: (id: string) => void;
+  resolviendo: boolean;
 }) {
   const meta = META_ETIQUETA[incidencia.etiqueta];
   const resuelta = incidencia.estado === "resuelta";
   const nombreCentro = centro
     ? `${centro.nro != null ? `N.° ${centro.nro} · ` : ""}${centro.nombre}`
     : incidencia.centro_id;
+  const autor = incidencia.creada_por || incidencia.updated_by || "—";
 
   return (
     <div
-      className="rounded-lg border border-border bg-card/50 px-3 py-2.5"
+      className="rounded-lg border border-border bg-card px-3 py-2.5"
       style={{ borderLeftWidth: 3, borderLeftColor: meta.color }}
     >
-      {/* Cabecera: centro + etiqueta + estado */}
       <div className="flex items-start justify-between gap-2">
         <Link
           to={`/centro/${incidencia.centro_id}`}
@@ -126,12 +162,10 @@ function FilaIncidencia({
         </div>
       </div>
 
-      {/* Descripción */}
       <p className="mt-1.5 whitespace-pre-wrap text-sm text-foreground/90">
         {incidencia.descripcion || "(sin descripción)"}
       </p>
 
-      {/* Categorías */}
       {incidencia.categorias.length > 0 && (
         <div className="mt-1.5 flex flex-wrap gap-1">
           {incidencia.categorias.map((cat) => (
@@ -145,24 +179,58 @@ function FilaIncidencia({
         </div>
       )}
 
-      {/* Quién / cuándo */}
-      <p className="mt-1.5 text-[11px] text-muted-foreground">
-        {formatearDia(incidencia.dia)} · registrada por{" "}
-        <span className="font-medium text-foreground/80">
-          {incidencia.updated_by || "—"}
-        </span>{" "}
-        ({formatearTs(incidencia.ts)})
-        {resuelta && (
-          <>
-            {" "}
-            · resuelta por{" "}
-            <span className="font-medium text-emerald-400/90">
-              {incidencia.resuelta_por || "—"}
-            </span>{" "}
-            ({formatearTs(incidencia.resuelta_ts ?? 0)})
-          </>
+      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] text-muted-foreground">
+          {formatearDia(incidencia.dia)} · registrada por{" "}
+          <span className="font-medium text-foreground/80">{autor}</span> (
+          {formatearTs(incidencia.ts)})
+          {resuelta && (
+            <>
+              {" "}
+              · resuelta por{" "}
+              <span className="font-medium text-emerald-400/90">
+                {incidencia.resuelta_por || "—"}
+              </span>{" "}
+              ({formatearTs(incidencia.resuelta_ts ?? 0)})
+            </>
+          )}
+        </p>
+
+        {mostrarResolver && !resuelta && puedeResolver && onResolver && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1 text-xs"
+                disabled={resolviendo}
+              >
+                {resolviendo ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <CircleCheck className="size-3" />
+                )}
+                Resolver
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Marcar como resuelta?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  La incidencia quedará archivada y dejará de aparecer en la bandeja
+                  de abiertas.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => onResolver(incidencia.id)}>
+                  Resolver
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
-      </p>
+      </div>
     </div>
   );
 }
