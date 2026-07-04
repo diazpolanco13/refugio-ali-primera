@@ -1,17 +1,21 @@
 import { ExternalLink } from "lucide-react";
 import { metaCuerpoDe, poblacionCentro, type CentroTransitorio } from "@/domain/centrosTransitorios";
-import { analisisCentro, COLOR_SEMAFORO } from "@/domain/capacidadCentros";
+import { alertasCentro, analisisCentro, COLOR_SEMAFORO } from "@/domain/capacidadCentros";
+import { IconosAlerta } from "./IconosAlerta";
 import { cn } from "@/lib/utils";
 
 interface Props {
   centro: CentroTransitorio;
   className?: string;
+  /** Abrir el panel de detalle completo del centro. */
+  onAbrirDetalle?: () => void;
 }
 
 /** Ficha básica de un centro transitorio: cuerpo asignado, ubicación y estado. */
-export function InfoCentro({ centro, className }: Props) {
+export function InfoCentro({ centro, className, onAbrirDetalle }: Props) {
   const meta = metaCuerpoDe(centro.cuerpo);
   const analisis = analisisCentro(centro);
+  const alertas = alertasCentro(centro);
   const refugiados = poblacionCentro(centro);
   const colorSemaforo = COLOR_SEMAFORO[analisis.semaforo];
 
@@ -72,7 +76,21 @@ export function InfoCentro({ centro, className }: Props) {
           {analisis.cupoReal != null ? `Cupo: +${analisis.cupoReal.toLocaleString("es")}` : "Sin datos"}
         </span>
       </div>
-      <p className="text-[10px] text-muted-foreground/70">Toca el marcador para ver el detalle.</p>
+      {alertas.length > 0 && (
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <span>En déficit:</span>
+          <IconosAlerta alertas={alertas} />
+        </div>
+      )}
+      {onAbrirDetalle && (
+        <button
+          type="button"
+          onClick={onAbrirDetalle}
+          className="w-full rounded-md bg-primary py-1.5 text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Ver detalle completo
+        </button>
+      )}
     </div>
   );
 }

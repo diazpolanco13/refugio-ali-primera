@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import maplibregl from "maplibre-gl";
 import { toPng } from "html-to-image";
@@ -11,24 +11,36 @@ import {
   poblacionCentro,
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
+import {
+  cargarVistaCentros,
+  guardarVistaCentros,
+  VISTA_DEFECTO_CENTROS,
+} from "@/data/preferenciasMapa";
 import { analisisCentro, COLOR_SEMAFORO } from "@/domain/capacidadCentros";
 import { MarcadorCentro } from "./MarcadorCentro";
 import { InfoCentro } from "./InfoCentro";
+import { ControlesMapaCentros } from "./ControlesMapaCentros";
 
 interface Props {
   centros: CentroTransitorio[];
   baseMapa: BaseMapa;
+  onCambiarBase: (base: BaseMapa) => void;
   seleccionado: string | null;
   onSeleccionar: (id: string | null) => void;
+  /** Abrir el detalle completo del centro seleccionado (botón "Ver detalle" de la nube). */
+  onAbrirDetalle?: () => void;
+  onExportar?: () => void;
+  exportando?: boolean;
 }
 
 export interface CentrosMapHandle {
-  /** Exporta la vista actual del mapa (con todos los íconos) como PNG y la descarga. */
   exportarImagen: (nombreArchivo: string) => Promise<void>;
+  centrarCaracas: () => void;
+  activarGps: () => void;
 }
 
 export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMap(
-  { centros, baseMapa, seleccionado, onSeleccionar },
+  { centros, baseMapa, onCambiarBase, seleccionado, onSeleccionar, onAbrirDetalle, onExportar, exportando },
   ref,
 ) {
   const contenedorRef = useRef<HTMLDivElement>(null);
@@ -38,9 +50,89 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   const roots = useRef<Map<string, Root>>(new Map());
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const popupRootRef = useRef<Root | null>(null);
+  const marcadorUsuarioRef = useRef<maplibregl.Marker | null>(null);
+  const watchGpsRef = useRef<number | null>(null);
+  const guardarVistaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [gpsActivo, setGpsActivo] = useState(false);
 
-  const cbRef = useRef({ centros, seleccionado, onSeleccionar });
-  cbRef.current = { centros, seleccionado, onSeleccionar };
+  const cbRef = useRef({ centros, seleccionado, onSeleccionar, onAbrirDetalle });
+  cbRef.current = { centros, seleccionado, onSeleccionar, onAbrirDetalle };
+
+  function persistirVista() {
+    const map = mapRef.current;
+    if (!map || !listoRef.current) return;
+    const c = map.getCenter();
+    guardarVistaCentros({
+      center: [c.lng, c.lat],
+      zoom: map.getZoom(),
+    });
+  }
+
+  function programarPersistirVista() {
+    if (guardarVistaTimer.current) clearTimeout(guardarVistaTimer.current);
+    guardarVistaTimer.current = setTimeout(persistirVista, 400);
+  }
+
+  function detenerGps() {
+    if (watchGpsRef.current != null) {
+      navigator.geolocation.clearWatch(watchGpsRef.current);
+      watchGpsRef.current = null;
+    }
+    marcadorUsuarioRef.current?.remove();
+    marcadorUsuarioRef.current = null;
+    setGpsActivo(false);
+  }
+
+  function crearMarcadorUsuario(map: maplibregl.Map, lngLat: [number, number]) {
+    const el = document.createElement("div");
+    el.className =
+      "size-4 rounded-full border-2 border-white bg-sky-500 shadow-[0_0_0_4px_rgba(14,165,233,0.35)]";
+    el.setAttribute("aria-hidden", "true");
+    const marcador = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(map);
+    marcadorUsuarioRef.current = marcador;
+  }
+
+  function alternarGps() {
+    if (watchGpsRef.current != null) {
+      detenerGps();
+      return;
+    }
+    if (!navigator.geolocation) {
+      alert("Tu navegador no soporta geolocalización (GPS).");
+      return;
+    }
+    watchGpsRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const map = mapRef.current;
+        if (!map) return;
+        const lngLat: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+        if (!marcadorUsuarioRef.current) {
+          crearMarcadorUsuario(map, lngLat);
+          map.flyTo({
+            center: lngLat,
+            zoom: Math.max(map.getZoom(), 14),
+            duration: 600,
+          });
+        } else {
+          marcadorUsuarioRef.current.setLngLat(lngLat);
+        }
+        setGpsActivo(true);
+      },
+      () => {
+        detenerGps();
+        alert("No se pudo obtener tu ubicación. Revisa los permisos del navegador.");
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
+    );
+  }
+
+  function centrarCaracas() {
+    mapRef.current?.flyTo({
+      center: CARACAS_CENTRO,
+      zoom: CARACAS_ZOOM,
+      duration: 800,
+    });
+  }
 
   function ocultarPopup() {
     popupRef.current?.remove();
@@ -54,7 +146,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     const mount = document.createElement("div");
     const root = createRoot(mount);
     popupRootRef.current = root;
-    root.render(<InfoCentro centro={centro} />);
+    root.render(<InfoCentro centro={centro} onAbrirDetalle={cbRef.current.onAbrirDetalle} />);
 
     popupRef.current = new maplibregl.Popup({
       closeButton: true,
@@ -70,19 +162,20 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
 
   useEffect(() => {
     if (!contenedorRef.current || mapRef.current) return;
+    const vistaInicial = cargarVistaCentros() ?? VISTA_DEFECTO_CENTROS;
     const map = new maplibregl.Map({
       container: contenedorRef.current,
       style: construirEstilo(),
-      center: CARACAS_CENTRO,
-      zoom: CARACAS_ZOOM,
+      center: vistaInicial.center,
+      zoom: vistaInicial.zoom,
       maxZoom: 19,
+      minZoom: 3,
       attributionControl: { compact: true },
-      // Necesario para poder leer el canvas WebGL al exportar la vista como imagen.
       canvasContextAttributes: { preserveDrawingBuffer: true },
     });
     mapRef.current = map;
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
+    map.on("moveend", programarPersistirVista);
 
     map.on("load", () => {
       listoRef.current = true;
@@ -91,6 +184,8 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     });
 
     return () => {
+      if (guardarVistaTimer.current) clearTimeout(guardarVistaTimer.current);
+      detenerGps();
       ocultarPopup();
       for (const [, root] of roots.current) root.unmount();
       roots.current.clear();
@@ -162,7 +257,11 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       const centro = cbRef.current.centros.find((c) => c.id === seleccionado);
       if (centro?.geom) {
         mostrarPopup(map, centro);
-        map.flyTo({ center: centro.geom.coordinates as [number, number], zoom: Math.max(map.getZoom(), 13), duration: 500 });
+        map.flyTo({
+          center: centro.geom.coordinates as [number, number],
+          zoom: Math.max(map.getZoom(), 13),
+          duration: 500,
+        });
       }
     } else {
       ocultarPopup();
@@ -185,19 +284,16 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseMapa]);
 
-  /** Exporta la vista actual (canvas del mapa + marcadores HTML) como PNG descargable. */
   async function exportarImagen(nombreArchivo: string) {
-    const contenedor = contenedorRef.current;
+    const contenedor = contenedorRef.current?.parentElement;
     const map = mapRef.current;
     if (!contenedor || !map) throw new Error("El mapa no está listo.");
 
     map.triggerRepaint();
     await new Promise<void>((resolve) => map.once("idle", () => resolve()));
 
-    // Oculta controles propios de MapLibre (zoom, escala, atribución) y
-    // cualquier popup abierto: no aportan al plano impreso.
     const chrome = contenedor.querySelectorAll<HTMLElement>(
-      ".maplibregl-control-container, .maplibregl-popup",
+      ".maplibregl-control-container, .maplibregl-popup, .map-controls-overlay",
     );
     const previos = Array.from(chrome).map((el) => el.style.display);
     chrome.forEach((el) => (el.style.display = "none"));
@@ -217,7 +313,26 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     }
   }
 
-  useImperativeHandle(ref, () => ({ exportarImagen }));
+  useImperativeHandle(ref, () => ({
+    exportarImagen,
+    centrarCaracas,
+    activarGps: alternarGps,
+  }));
 
-  return <div ref={contenedorRef} className="h-full w-full" />;
+  return (
+    <div className="relative h-full w-full">
+      <div ref={contenedorRef} className="h-full w-full" />
+      <ControlesMapaCentros
+        gpsActivo={gpsActivo}
+        exportando={exportando}
+        baseMapa={baseMapa}
+        onCambiarBase={onCambiarBase}
+        onZoomIn={() => mapRef.current?.zoomIn({ duration: 250 })}
+        onZoomOut={() => mapRef.current?.zoomOut({ duration: 250 })}
+        onGps={alternarGps}
+        onCentrarCaracas={centrarCaracas}
+        onExportar={onExportar}
+      />
+    </div>
+  );
 });

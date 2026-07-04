@@ -371,6 +371,49 @@ export function analisisCentro(centro: CentroTransitorio): AnalisisCentro {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Alertas por recurso: qué servicios del centro están en déficit. Alimenta los
+// íconos de alerta (cama, poceta, ducha…) del panel lateral y otras listas.
+// ---------------------------------------------------------------------------
+
+export type ClaveAlerta = ClaveRecurso | "agua";
+
+export interface AlertaCentro {
+  clave: ClaveAlerta;
+  label: string;
+  severidad: "rojo" | "amarillo";
+  /** Explicación corta para el tooltip (qué falta y cuánto). */
+  detalle: string;
+}
+
+/**
+ * Recursos del centro en déficit según el estándar Esfera. Solo considera
+ * recursos medidos y con necesidad real (población > 0). Rojo = cobertura
+ * < 60% (o agua crítica); amarillo = cobertura parcial / agua por agotarse.
+ */
+export function alertasCentro(centro: CentroTransitorio): AlertaCentro[] {
+  const a = analisisCentro(centro);
+  const alertas: AlertaCentro[] = [];
+  for (const r of a.recursos) {
+    if (!r.medido || r.sinNecesidad || r.cobertura >= 100) continue;
+    alertas.push({
+      clave: r.clave,
+      label: r.label,
+      severidad: r.cobertura < 60 ? "rojo" : "amarillo",
+      detalle: `${r.label}: ${r.operativas} de ${r.requeridas} ${r.unidad} requeridas (${r.cobertura}% de cobertura).`,
+    });
+  }
+  if (a.agua.estado === "critico" || a.agua.estado === "atencion") {
+    alertas.push({
+      clave: "agua",
+      label: "Agua potable",
+      severidad: a.agua.estado === "critico" ? "rojo" : "amarillo",
+      detalle: a.agua.recomendacion,
+    });
+  }
+  return alertas;
+}
+
 /** Color del semáforo para pintar marcadores/tarjetas. */
 export const COLOR_SEMAFORO: Record<SemaforoCentro, string> = {
   verde: "#22c55e",

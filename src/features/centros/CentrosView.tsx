@@ -1,24 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import {
-  ArrowLeft,
-  ChevronDown,
-  Download,
-  LayoutGrid,
-  List,
-  Loader2,
-  Map as MapIcon,
-  MapPin,
-  MapPinOff,
-  X,
-} from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PanelFlotante } from "@/components/PanelFlotante";
-import { cn } from "@/lib/utils";
-import { BASES_DISPONIBLES, type BaseMapa } from "@/map/estiloMapa";
+import { cargarBaseMapaCentros, guardarBaseMapaCentros } from "@/data/preferenciasMapa";
+import type { BaseMapa } from "@/map/estiloMapa";
 import { db, sembrarCentrosSiVacio } from "@/data/db";
 import {
   CATALOGO_CUERPOS,
@@ -27,11 +11,14 @@ import {
   type ClaveCuerpo,
 } from "@/domain/centrosTransitorios";
 import type { Sesion } from "@/data/auth";
-import { puedeEditarMapa } from "@/domain/permisos";
+import { puedeEditarMapa, permisosDeRol, puedeGestionarUsuarios } from "@/domain/permisos";
+import { useEstadoSync } from "@/data/sync";
+import { Navbar } from "@/components/Navbar";
 import { CentrosMap, type CentrosMapHandle } from "./CentrosMap";
 import { DetalleCentro } from "./DetalleCentro";
 import { CentroForm } from "./CentroForm";
 import { TableroCentros } from "./TableroCentros";
+import { PanelCentros } from "./PanelCentros";
 
 interface Props {
   sesion: Sesion;
@@ -41,10 +28,28 @@ type Vista = "mapa" | "tablero";
 
 /** Vista de conjunto: mapa/tablero de Caracas con los 50 Centros Transitorios. */
 export function CentrosView({ sesion }: Props) {
+  const permisos = permisosDeRol(sesion.user.rol);
   const puedeEditar = puedeEditarMapa(sesion.user.rol);
+  const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
+  const estadoSync = useEstadoSync();
+  const [online, setOnline] = useState(() => navigator.onLine);
   const [vista, setVista] = useState<Vista>("mapa");
-  const [baseMapa, setBaseMapa] = useState<BaseMapa>("calles");
+
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => {
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", down);
+    };
+  }, []);
+  const [baseMapa, setBaseMapa] = useState<BaseMapa>(
+    () => cargarBaseMapaCentros() ?? "calles",
+  );
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
+  const [detalleAbierto, setDetalleAbierto] = useState(false);
   const [editando, setEditando] = useState<CentroTransitorio | null>(null);
   const [cuerposVisibles, setCuerposVisibles] = useState<Set<ClaveCuerpo>>(
     () => new Set(CATALOGO_CUERPOS.map((c) => c.clave)),
@@ -55,6 +60,10 @@ export function CentrosView({ sesion }: Props) {
   );
   const [exportando, setExportando] = useState(false);
   const mapaRef = useRef<CentrosMapHandle>(null);
+
+  useEffect(() => {
+    guardarBaseMapaCentros(baseMapa);
+  }, [baseMapa]);
 
   // Los centros viven en Dexie (entidad sincronizable). Se siembran del catálogo
   // estático en instalaciones nuevas que no ejecutaron la migración v10.
@@ -78,19 +87,6 @@ export function CentrosView({ sesion }: Props) {
       setExportando(false);
     }
   }
-
-  const centrosPorCuerpo = useMemo(() => {
-    const m = new Map<ClaveCuerpo, CentroTransitorio[]>();
-    for (const c of centros) {
-      const clave = normalizarCuerpo(c.cuerpo);
-      const lista = m.get(clave) ?? [];
-      lista.push(c);
-      m.set(clave, lista);
-    }
-    return m;
-  }, [centros]);
-
-  const sinUbicar = useMemo(() => centros.filter((c) => !c.geom), [centros]);
 
   const centrosVisibles = useMemo(
     () => centros.filter((c) => cuerposVisibles.has(normalizarCuerpo(c.cuerpo))),
@@ -120,11 +116,41 @@ export function CentrosView({ sesion }: Props) {
     });
   }
 
-  function seleccionarCentro(centro: CentroTransitorio) {
+  /** 
+   * Seleccionar desde la LISTA (panel lateral o buscador): vuela al centro y abre
+   * solo la nube informativa (popup) — sin abrir el detalle completo. Pensado para
+   * navegar rápido entre centros sin perder el panel de browse.
+   */
+  function seleccionarDesdeLista(centro: CentroTransitorio) {
     if (!centro.geom) return;
     const clave = normalizarCuerpo(centro.cuerpo);
     setCuerposVisibles((prev) => (prev.has(clave) ? prev : new Set(prev).add(clave)));
     setSeleccionado(centro.id);
+    setDetalleAbierto(false);
+  }
+
+  /** 
+   * Seleccionar desde el MAPA (clic en el marcador): vuela, abre la nube Y abre el
+   * detalle completo (panel flotante). Es la interacción "quiero ver este centro a fondo".
+   */
+  function seleccionarDesdeMapa(id: string | null) {
+    if (id == null) {
+      cerrarSeleccion();
+      return;
+    }
+    setSeleccionado(id);
+    setDetalleAbierto(true);
+  }
+
+  /** Cerrar la selección: limpia la nube y el detalle. */
+  function cerrarSeleccion() {
+    setSeleccionado(null);
+    setDetalleAbierto(false);
+  }
+
+  /** Abrir el detalle completo del centro actualmente seleccionado (botón en la nube). */
+  function abrirDetalle() {
+    if (seleccionado) setDetalleAbierto(true);
   }
 
   useEffect(() => {
@@ -135,82 +161,16 @@ export function CentrosView({ sesion }: Props) {
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card/60 px-4 py-3 backdrop-blur lg:px-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
-            <Link to="/">
-              <ArrowLeft className="size-4" />
-              <span className="hidden sm:inline">Mapa</span>
-            </Link>
-          </Button>
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold leading-tight text-foreground lg:text-2xl">
-              Centros Transitorios — Caracas
-            </h1>
-            <p className="truncate text-xs text-muted-foreground lg:text-sm">
-              {centros.length} centros · red distribuida por el área metropolitana
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Conmutador Mapa / Tablero */}
-          <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
-            <Button
-              size="sm"
-              variant={vista === "mapa" ? "secondary" : "ghost"}
-              className="h-7 gap-1.5 px-2 text-xs"
-              onClick={() => setVista("mapa")}
-            >
-              <MapIcon className="size-3.5" />
-              <span className="hidden sm:inline">Mapa</span>
-            </Button>
-            <Button
-              size="sm"
-              variant={vista === "tablero" ? "secondary" : "ghost"}
-              className="h-7 gap-1.5 px-2 text-xs"
-              onClick={() => setVista("tablero")}
-            >
-              <LayoutGrid className="size-3.5" />
-              <span className="hidden sm:inline">Prioridades</span>
-            </Button>
-          </div>
-
-          {vista === "mapa" && (
-            <>
-              <div className="hidden items-center gap-1 sm:flex">
-                {BASES_DISPONIBLES.map((b) => (
-                  <Button
-                    key={b.valor}
-                    size="sm"
-                    variant={baseMapa === b.valor ? "secondary" : "outline"}
-                    className="h-8 px-2 text-xs"
-                    onClick={() => setBaseMapa(b.valor)}
-                  >
-                    {b.label}
-                  </Button>
-                ))}
-              </div>
-
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 gap-1.5 px-2.5 text-xs"
-                disabled={exportando}
-                onClick={exportarVista}
-                title="Exportar la vista actual del mapa como imagen (para imprimir)"
-              >
-                {exportando ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Download className="size-3.5" />
-                )}
-                <span className="hidden sm:inline">Exportar</span>
-              </Button>
-            </>
-          )}
-        </div>
-      </header>
+      <Navbar
+        sesion={sesion}
+        permisos={permisos}
+        puedeEditar={puedeEditar}
+        esAdmin={esAdmin}
+        online={online}
+        estadoSync={estadoSync}
+        vista={vista}
+        onCambiarVista={setVista}
+      />
 
       <div className="relative min-h-0 flex-1">
         {vista === "mapa" ? (
@@ -219,152 +179,43 @@ export function CentrosView({ sesion }: Props) {
               ref={mapaRef}
               centros={centrosVisibles}
               baseMapa={baseMapa}
+              onCambiarBase={setBaseMapa}
               seleccionado={seleccionado}
-              onSeleccionar={setSeleccionado}
+              onSeleccionar={seleccionarDesdeMapa}
+              onAbrirDetalle={abrirDetalle}
+              onExportar={() => void exportarVista()}
+              exportando={exportando}
             />
 
-            {panelAbierto ? (
-              <div className="absolute left-3 top-3 z-10 flex max-h-[min(34rem,75dvh)] w-[min(22rem,88vw)] flex-col overflow-hidden rounded-xl border border-border bg-card/95 shadow-lg backdrop-blur-sm">
-                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-2.5 py-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Cuerpo asignado
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setPanelAbierto(false)}
-                    title="Ocultar panel"
-                    className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </div>
-
-                <div className="min-h-0 flex-1 overflow-y-auto p-2.5">
-                  <div className="space-y-0.5">
-                    {CATALOGO_CUERPOS.map((c) => {
-                      const activo = cuerposVisibles.has(c.clave);
-                      const centrosCuerpo = centrosPorCuerpo.get(c.clave) ?? [];
-                      if (centrosCuerpo.length === 0) return null;
-                      const abierto = expandidos.has(c.clave);
-                      return (
-                        <Collapsible
-                          key={c.clave}
-                          open={abierto}
-                          onOpenChange={(o) => setExpandido(c.clave, o)}
-                        >
-                          <div className="flex items-center gap-0.5">
-                            <button
-                              onClick={() => toggleCuerpo(c.clave)}
-                              title="Mostrar/ocultar en el mapa"
-                              className={cn(
-                                "flex flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs transition-colors hover:bg-muted/60",
-                                !activo && "opacity-40",
-                              )}
-                            >
-                              <span
-                                className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white text-[11px]"
-                                style={{ borderColor: c.color }}
-                                aria-hidden
-                              >
-                                {c.logo ? (
-                                  <img src={c.logo} alt="" className="size-full object-cover" />
-                                ) : (
-                                  c.icono
-                                )}
-                              </span>
-                              <span className="flex-1 truncate text-foreground">{c.label}</span>
-                              <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
-                                {centrosCuerpo.length}
-                              </Badge>
-                            </button>
-                            <CollapsibleTrigger asChild>
-                              <button
-                                type="button"
-                                title="Ver centros asignados"
-                                className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                              >
-                                <ChevronDown
-                                  className={cn(
-                                    "size-3.5 transition-transform",
-                                    abierto && "rotate-180",
-                                  )}
-                                />
-                              </button>
-                            </CollapsibleTrigger>
-                          </div>
-
-                          <CollapsibleContent>
-                            <div className="ml-3 mt-0.5 mb-1 space-y-0.5 border-l border-border/60 pl-2">
-                              {centrosCuerpo.map((centro) => {
-                                const sinGeom = !centro.geom;
-                                return (
-                                  <button
-                                    key={centro.id}
-                                    disabled={sinGeom}
-                                    onClick={() => seleccionarCentro(centro)}
-                                    title={
-                                      sinGeom
-                                        ? "Sin coordenadas aún"
-                                        : `Centro N.° ${centro.nro} — ${centro.nombre}`
-                                    }
-                                    className={cn(
-                                      "flex w-full items-start gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] leading-snug transition-colors",
-                                      sinGeom
-                                        ? "cursor-not-allowed text-muted-foreground/60"
-                                        : "text-foreground hover:bg-muted/60",
-                                      seleccionado === centro.id && "bg-primary/10 text-primary",
-                                    )}
-                                  >
-                                    {sinGeom ? (
-                                      <MapPinOff className="mt-0.5 size-3 shrink-0" />
-                                    ) : (
-                                      <MapPin className="mt-0.5 size-3 shrink-0" />
-                                    )}
-                                    <span className="min-w-0">{centro.nombre}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      );
-                    })}
-                  </div>
-
-                  {sinUbicar.length > 0 && (
-                    <div className="mt-2 flex items-start gap-1.5 border-t border-border/60 pt-2 text-[10px] text-muted-foreground">
-                      <MapPinOff className="mt-0.5 size-3 shrink-0" />
-                      <span>{sinUbicar.length} centro(s) sin coordenadas aún.</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setPanelAbierto(true)}
-                title="Mostrar cuerpos asignados"
-                className="absolute left-3 top-3 z-10 flex items-center gap-1.5 rounded-xl border border-border bg-card/95 px-3 py-2 text-xs font-semibold text-foreground shadow-lg backdrop-blur-sm transition-colors hover:bg-muted/60"
-              >
-                <List className="size-3.5" />
-                Cuerpos
-              </button>
-            )}
+            <PanelCentros
+              centros={centros}
+              cuerposVisibles={cuerposVisibles}
+              onToggleCuerpo={toggleCuerpo}
+              expandidos={expandidos}
+              onSetExpandido={setExpandido}
+              seleccionado={seleccionado}
+              onSeleccionarCentro={seleccionarDesdeLista}
+              abierto={panelAbierto}
+              onCambiarAbierto={setPanelAbierto}
+            />
           </>
         ) : (
           <TableroCentros
             centros={centros}
             seleccionado={seleccionado}
-            onSeleccionar={setSeleccionado}
+            onSeleccionar={(id) => {
+              setSeleccionado(id);
+              setDetalleAbierto(true);
+            }}
           />
         )}
 
-        {/* Panel de detalle del centro seleccionado */}
-        {centroSel && (
+        {/* Panel de detalle del centro seleccionado (solo cuando se abre a fondo) */}
+        {centroSel && detalleAbierto && (
           <PanelFlotante
             titulo={`N.° ${centroSel.nro} · ${centroSel.nombre}`}
             descripcion={centroSel.parroquia}
-            onCerrar={() => setSeleccionado(null)}
+            onCerrar={() => setDetalleAbierto(false)}
           >
             <DetalleCentro
               centro={centroSel}

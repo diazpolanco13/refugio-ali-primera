@@ -1,13 +1,9 @@
 import {
-  BarChart3,
+  LayoutGrid,
   LogOut,
   MapPinned,
   MonitorPlay,
-  SprayCan,
-  Tent,
-  Trash2,
   Users,
-  UtensilsCrossed,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Rol } from "@/data/auth";
@@ -27,7 +23,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 interface NavbarProps {
@@ -37,11 +32,9 @@ interface NavbarProps {
   esAdmin: boolean;
   online: boolean;
   estadoSync: EstadoSync;
-  tableroAbierto: boolean;
-  onToggleTablero: () => void;
-  onAbrirDistribucion: () => void;
-  onAbrirSalubridad: () => void;
-  onLimpiarDatos: () => void;
+  /** Vista activa en CentrosView (mapa o tablero de prioridades). */
+  vista?: "mapa" | "tablero";
+  onCambiarVista?: (vista: "mapa" | "tablero") => void;
 }
 
 function iniciales(nombre: string | null, username: string): string {
@@ -64,36 +57,64 @@ function badgeRolVariant(rol: Rol): "default" | "secondary" | "outline" | "ghost
   }
 }
 
-function IndicadorSync({ online, estado }: { online: boolean; estado: EstadoSync }) {
-  if (!online) {
-    return (
-      <Badge variant="outline" className="gap-1 border-amber-500/40 text-amber-300">
-        <span className="size-1.5 rounded-full bg-amber-400" />
-        Sin conexión
-      </Badge>
-    );
-  }
-  if (estado === "sincronizando") {
-    return (
-      <Badge variant="outline" className="gap-1 border-sky-500/40 text-sky-300">
-        <span className="size-1.5 animate-pulse rounded-full bg-sky-400" />
-        Sincronizando…
-      </Badge>
-    );
-  }
-  if (estado === "error") {
-    return (
-      <Badge variant="destructive" className="gap-1">
-        <span className="size-1.5 rounded-full bg-red-400" />
-        Sin sync
-      </Badge>
-    );
-  }
+/**
+ * Ícono de la app con un borde que "se enciende" (glow pulsante) según el estado
+ * de conexión/sync. Reemplaza al badge "En línea" por una señal visual compacta:
+ *   · online + synced → brillo esmeralda (pulsando)
+ *   · sincronizando   → brillo celeste (pulsando)
+ *   · error de sync   → brillo rojo (pulsando)
+ *   · sin conexión    → brillo ámbar tenue (estático)
+ * El tooltip expone el texto del estado al pasar el cursor.
+ */
+function IconoAppConEstado({
+  online,
+  estado,
+}: {
+  online: boolean;
+  estado: EstadoSync;
+}) {
+  const { color, etiqueta, pulsar } = (() => {
+    if (!online) {
+      return {
+        color: "rgba(245, 158, 11, 0.55)",
+        etiqueta: "Sin conexión",
+        pulsar: false,
+      };
+    }
+    if (estado === "sincronizando") {
+      return {
+        color: "rgba(56, 189, 248, 0.8)",
+        etiqueta: "Sincronizando…",
+        pulsar: true,
+      };
+    }
+    if (estado === "error") {
+      return {
+        color: "rgba(248, 113, 113, 0.85)",
+        etiqueta: "Error de sincronización",
+        pulsar: true,
+      };
+    }
+    return {
+      color: "rgba(16, 185, 129, 0.85)",
+      etiqueta: "En línea",
+      pulsar: true,
+    };
+  })();
+
   return (
-    <Badge variant="outline" className="gap-1 border-emerald-500/30 text-emerald-300">
-      <span className="size-1.5 rounded-full bg-emerald-400" />
-      En línea
-    </Badge>
+    <div
+      title={etiqueta}
+      aria-label={etiqueta}
+      role="img"
+      style={{ "--glow-color": color } as React.CSSProperties}
+      className={cn(
+        "flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-inset ring-primary/30",
+        pulsar && "app-icon-glow",
+      )}
+    >
+      <MapPinned className="size-4" />
+    </div>
   );
 }
 
@@ -104,11 +125,8 @@ export function Navbar({
   esAdmin,
   online,
   estadoSync,
-  tableroAbierto,
-  onToggleTablero,
-  onAbrirDistribucion,
-  onAbrirSalubridad,
-  onLimpiarDatos,
+  vista,
+  onCambiarVista,
 }: NavbarProps) {
   const nombre = sesion.user.nombre || sesion.user.username;
   const inicialesUsuario = iniciales(sesion.user.nombre, sesion.user.username);
@@ -116,54 +134,40 @@ export function Navbar({
   return (
     <header className="z-20 flex h-14 shrink-0 items-center justify-between border-b border-border bg-card/95 px-2 backdrop-blur-sm sm:px-3">
       <div className="flex min-w-0 items-center gap-2.5">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-          <Tent className="size-4" />
-        </div>
+        <IconoAppConEstado online={online} estado={estadoSync} />
         <div className="min-w-0">
           <h1 className="truncate text-sm font-semibold leading-tight text-foreground">
-            <span className="sm:hidden">Sala Situacional</span>
+            <span className="sm:hidden">Centros Transitorios</span>
             <span className="hidden sm:inline">
-              Sala Situacional — Refugio Parque del Oeste
+              Sala Situacional — Centros Transitorios Caracas
             </span>
           </h1>
-          <div className="mt-0.5">
-            <IndicadorSync online={online} estado={estadoSync} />
-          </div>
         </div>
       </div>
 
       <div className="flex items-center gap-1.5">
-        <Button
-          variant={tableroAbierto ? "secondary" : "outline"}
-          size="sm"
-          className="h-9 gap-1.5"
-          onClick={onToggleTablero}
-        >
-          <BarChart3 className="size-4" />
-          <span className="hidden sm:inline">Tablero</span>
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 gap-1.5"
-          onClick={onAbrirDistribucion}
-          title="Registro de distribución de comida e hidratación"
-        >
-          <UtensilsCrossed className="size-4" />
-          <span className="hidden sm:inline">Comida</span>
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 gap-1.5"
-          onClick={onAbrirSalubridad}
-          title="Salubridad y aseo: limpieza de baños, duchas y basura"
-        >
-          <SprayCan className="size-4" />
-          <span className="hidden sm:inline">Aseo</span>
-        </Button>
+        {onCambiarVista && vista && (
+          <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
+            <Button
+              size="sm"
+              variant={vista === "mapa" ? "secondary" : "ghost"}
+              className="h-8 gap-1.5 px-2 text-xs"
+              onClick={() => onCambiarVista("mapa")}
+            >
+              <MapPinned className="size-3.5" />
+              <span className="hidden sm:inline">Mapa</span>
+            </Button>
+            <Button
+              size="sm"
+              variant={vista === "tablero" ? "secondary" : "ghost"}
+              className="h-8 gap-1.5 px-2 text-xs"
+              onClick={() => onCambiarVista("tablero")}
+            >
+              <LayoutGrid className="size-3.5" />
+              <span className="hidden sm:inline">Prioridades</span>
+            </Button>
+          </div>
+        )}
 
         <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
           <Link to="/dashboard" title="Abrir sala situacional en pantalla completa">
@@ -171,15 +175,6 @@ export function Navbar({
             <span className="hidden sm:inline">Pantalla</span>
           </Link>
         </Button>
-
-        <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
-          <Link to="/centros" title="Mapa general de los Centros Transitorios de Caracas">
-            <MapPinned className="size-4" />
-            <span className="hidden sm:inline">Centros</span>
-          </Link>
-        </Button>
-
-        <Separator orientation="vertical" className="mx-0.5 hidden h-6 sm:block" />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -238,29 +233,6 @@ export function Navbar({
               <LogOut />
               Cerrar sesión
             </DropdownMenuItem>
-
-            {esAdmin && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onSelect={() => {
-                      if (
-                        confirm(
-                          "¿Vaciar todo el mapa? Se borra en este dispositivo y en el servidor (sectores, puntos y líneas).",
-                        )
-                      ) {
-                        onLimpiarDatos();
-                      }
-                    }}
-                  >
-                    <Trash2 />
-                    Vaciar mapa
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </>
-            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

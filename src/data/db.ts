@@ -311,6 +311,59 @@ db.version(12)
     }
   });
 
+// v13: corrige ubicación del CEIN Mamá Rosa (centro-36) según enlace actualizado.
+const ID_CENTRO_MAMA_ROSA = "centro-36";
+const COORDS_MAMA_ROSA_ANTIGUAS: [number, number] = [-66.8807963, 10.4274099];
+
+db.version(13)
+  .stores({
+    sectores: "id, nombre, updated_at",
+    puntos: "id, tipo, estado, updated_at",
+    lineas: "id, tipo, updated_at",
+    censos: "id, sector_id, ts, updated_at",
+    distribuciones: "id, clase, dia, jornada, sector_id, updated_at",
+    limpiezas: "id, punto_id, dia, ts, updated_at",
+    centros: "id, nro, cuerpo, grupo, updated_at",
+    outbox: "clave, entidad, updated_at",
+  })
+  .upgrade(async (tx) => {
+    const catalogo = CENTROS_TRANSITORIOS.find((c) => c.id === ID_CENTRO_MAMA_ROSA);
+    if (!catalogo?.geom) return;
+
+    const existente = await tx.table("centros").get(ID_CENTRO_MAMA_ROSA);
+    if (!existente) return;
+
+    const ts = typeof existente.updated_at === "number" ? existente.updated_at : SEMILLA_CENTROS_TS;
+    const coords = existente.geom?.coordinates;
+    const sinEdicionReal = ts <= DEMO_CENTRO_10_TS;
+    const coordsAntiguas =
+      Array.isArray(coords) &&
+      coords.length === 2 &&
+      Math.abs(coords[0] - COORDS_MAMA_ROSA_ANTIGUAS[0]) < 1e-6 &&
+      Math.abs(coords[1] - COORDS_MAMA_ROSA_ANTIGUAS[1]) < 1e-6;
+
+    if (sinEdicionReal || coordsAntiguas) {
+      const ahora = Date.now();
+      const actualizado = {
+        ...existente,
+        direccion: catalogo.direccion,
+        mapsUrl: catalogo.mapsUrl,
+        geom: catalogo.geom,
+        updated_at: ahora,
+        updated_by: "catalogo",
+      };
+      await tx.table("centros").put(actualizado);
+      await tx.table("outbox").put({
+        clave: `centros:${ID_CENTRO_MAMA_ROSA}`,
+        entidad: "centros",
+        id: ID_CENTRO_MAMA_ROSA,
+        updated_at: ahora,
+        deleted: false,
+        data: actualizado,
+      });
+    }
+  });
+
 export { db };
 
 /**
