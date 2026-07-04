@@ -3,6 +3,7 @@ import {
   LogOut,
   MapPinned,
   MonitorPlay,
+  Siren,
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -156,6 +157,13 @@ export function Navbar({
             </Button>
           </div>
         )}
+
+        <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
+          <Link to="/incidencias" title="Ver incidencias de toda la red">
+            <Siren className="size-4" />
+            <span className="hidden sm:inline">Incidencias</span>
+          </Link>
+        </Button>
 
         <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
           <Link to="/dashboard" title="Abrir sala situacional en pantalla completa">

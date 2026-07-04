@@ -38,6 +38,8 @@ import { PersonalResumen } from "@/features/censo/PersonalResumen";
 import { TarjetaContacto, TarjetaSeguridad } from "@/features/centros/LevantamientoCentro";
 import { ListaRequerimientos } from "@/features/centros/RequerimientosCentro";
 import { GraficoOcupacionCentro } from "@/features/centros/GraficoOcupacionCentro";
+import { SeccionReporteDiarioCentro } from "@/features/centros/ReporteDiarioCentro";
+import { SeccionIncidenciasCentro } from "@/features/centros/IncidenciasCentro";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -559,6 +561,8 @@ export function DetalleCentro({ centro, puedeEditar, onEditar }: Props) {
       <SeccionSeguridadCentro centro={centro} />
       <SeccionPoblacionCentro centro={centro} />
       <SeccionPersonalCentro centro={centro} />
+      <SeccionReporteDiarioCentro centro={centro} puedeEditar={puedeEditar} />
+      <SeccionIncidenciasCentro centro={centro} puedeEditar={puedeEditar} />
       <SeccionHistoricoCentro centro={centro} />
       <SeccionLogisticaCentro centro={centro} />
       <SeccionRequerimientosCentro centro={centro} />

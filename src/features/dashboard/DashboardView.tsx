@@ -6,9 +6,15 @@ import {
   Building2,
   Home,
   MapPin,
+  Siren,
   Users,
+  Utensils,
 } from "lucide-react";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
+import { useIncidencias } from "@/data/useIncidencias";
+import { useReportesCentros } from "@/data/useReportesCentros";
+import { claveDia } from "@/data/reposSupabase";
+import { racionesDelDia } from "@/domain/reporteDiario";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { COLOR_SEMAFORO } from "@/domain/capacidadCentros";
 import {
@@ -100,6 +106,22 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
   const conteoNivel = useMemo(() => conteoPorNivel(centros), [centros]);
   const maxParroquia = parroquias[0]?.refugiados ?? 1;
 
+  // Incidencias abiertas de toda la red (Realtime); las urgentes se destacan.
+  const abiertas = useIncidencias({ estado: "abierta" });
+  const urgentes = useMemo(
+    () => abiertas.filter((i) => i.etiqueta === "urgente").length,
+    [abiertas],
+  );
+
+  // Raciones reportadas hoy (suma de las tres jornadas de todos los centros)
+  // frente a la población alojada. "Hoy" en fecha local, como `claveDia`.
+  const hoy = claveDia(Date.now());
+  const reportesHoy = useReportesCentros({ dia: hoy });
+  const racionesHoy = useMemo(
+    () => reportesHoy.reduce((acc, r) => acc + racionesDelDia(r), 0),
+    [reportesHoy],
+  );
+
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card/60 px-4 py-3 backdrop-blur lg:px-6">
@@ -126,7 +148,7 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
           <KpiGrande
             label="Refugiados"
             valor={kpis.refugiadosTotal}
@@ -160,6 +182,27 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
             valor={kpis.centrosCriticos}
             icono={<AlertTriangle className="size-5" />}
             acento={kpis.centrosCriticos > 0 ? "text-red-300" : "text-emerald-300"}
+          />
+          <KpiGrande
+            label="Incidencias abiertas"
+            valor={abiertas.length}
+            sub={urgentes > 0 ? `${urgentes} urgente(s)` : "sin urgentes"}
+            subClassName={urgentes > 0 ? "font-semibold text-red-400" : undefined}
+            icono={<Siren className="size-5" />}
+            acento={
+              urgentes > 0
+                ? "text-red-300"
+                : abiertas.length > 0
+                  ? "text-amber-300"
+                  : "text-emerald-300"
+            }
+          />
+          <KpiGrande
+            label="Raciones hoy"
+            valor={racionesHoy}
+            sub={`de ${kpis.refugiadosTotal.toLocaleString("es")} refugiados`}
+            icono={<Utensils className="size-5" />}
+            acento="text-orange-300"
           />
         </div>
 
@@ -406,12 +449,15 @@ function KpiGrande({
   label,
   valor,
   sub,
+  subClassName,
   icono,
   acento = "text-foreground",
 }: {
   label: string;
   valor: number;
   sub?: string;
+  /** Clases extra para el subtexto (p. ej. destacar urgentes en rojo). */
+  subClassName?: string;
   icono?: ReactNode;
   acento?: string;
 }) {
@@ -428,7 +474,11 @@ function KpiGrande({
           <span className={cn("text-3xl font-bold tabular-nums lg:text-4xl", acento)}>
             {valor.toLocaleString("es")}
           </span>
-          {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
+          {sub && (
+            <span className={cn("text-xs text-muted-foreground", subClassName)}>
+              {sub}
+            </span>
+          )}
         </div>
       </CardContent>
     </Card>

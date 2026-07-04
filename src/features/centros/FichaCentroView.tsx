@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Pencil, SearchX } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Pencil, SearchX } from "lucide-react";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { Sesion } from "@/data/authSupabase";
@@ -27,7 +27,10 @@ import {
   SeccionResponsablesCentro,
   SeccionSeguridadCentro,
 } from "./DetalleCentro";
+import { SeccionReporteDiarioCentro } from "./ReporteDiarioCentro";
+import { SeccionIncidenciasCentro } from "./IncidenciasCentro";
 import { CentroForm } from "./CentroForm";
+import { ReporteDiarioForm } from "./ReporteDiarioForm";
 
 interface Props {
   sesion: Sesion;
@@ -54,6 +57,7 @@ export function FichaCentroView({ sesion }: Props) {
   const puedeEditar = puedeEditarMapa(sesion.user.rol);
   const esEscritorio = useEsEscritorio();
   const [editando, setEditando] = useState(false);
+  const [reportando, setReportando] = useState(false);
 
   // Misma carga que CentrosView: tabla blob+jsonb `centros` con Realtime.
   type CentroFila = CentroTransitorio & { deleted: boolean };
@@ -127,6 +131,17 @@ export function FichaCentroView({ sesion }: Props) {
           <BadgesEstadoCentro centro={centro} />
         </div>
         {puedeEditar && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0 gap-1.5"
+            onClick={() => setReportando(true)}
+          >
+            <ClipboardCheck className="size-4" />
+            <span className="hidden sm:inline">Reporte del día</span>
+          </Button>
+        )}
+        {puedeEditar && (
           <Button size="sm" className="h-9 shrink-0 gap-1.5" onClick={() => setEditando(true)}>
             <Pencil className="size-4" />
             <span className="hidden sm:inline">Registrar / editar estado</span>
@@ -154,14 +169,16 @@ export function FichaCentroView({ sesion }: Props) {
               </div>
               {/* Columna 2 · personas y necesidades */}
               <div className="space-y-4">
+                <SeccionReporteDiarioCentro centro={centro} puedeEditar={puedeEditar} />
                 <SeccionPoblacionCentro centro={centro} />
                 <SeccionPersonalCentro centro={centro} />
                 <SeccionLogisticaCentro centro={centro} />
                 <SeccionRequerimientosCentro centro={centro} />
                 <SeccionNotasCentro centro={centro} />
               </div>
-              {/* Columna 3 · capacidad e histórico (gráfico abierto) */}
+              {/* Columna 3 · incidencias, capacidad e histórico (gráfico abierto) */}
               <div className="space-y-4">
+                <SeccionIncidenciasCentro centro={centro} puedeEditar={puedeEditar} />
                 <SeccionCapacidadCentro centro={centro} />
                 <SeccionHistoricoCentro centro={centro} colapsable={false} />
               </div>
@@ -175,6 +192,8 @@ export function FichaCentroView({ sesion }: Props) {
               <SeccionSeguridadCentro centro={centro} />
               <SeccionPoblacionCentro centro={centro} />
               <SeccionPersonalCentro centro={centro} />
+              <SeccionReporteDiarioCentro centro={centro} puedeEditar={puedeEditar} />
+              <SeccionIncidenciasCentro centro={centro} puedeEditar={puedeEditar} />
               <SeccionHistoricoCentro centro={centro} colapsable={false} />
               <SeccionLogisticaCentro centro={centro} />
               <SeccionRequerimientosCentro centro={centro} />
@@ -193,6 +212,11 @@ export function FichaCentroView({ sesion }: Props) {
           soloLectura={!puedeEditar}
           onCerrar={() => setEditando(false)}
         />
+      )}
+
+      {/* Reporte del día (parte numérico + comidas + atención médica) */}
+      {reportando && (
+        <ReporteDiarioForm centro={centro} onCerrar={() => setReportando(false)} />
       )}
     </div>
   );
