@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import { CentrosView } from "./features/centros/CentrosView";
+import { FichaCentroView } from "./features/centros/FichaCentroView";
 import { DashboardView } from "./features/dashboard/DashboardView";
 import { Login } from "./features/auth/Login";
 import { GestionUsuarios } from "./features/usuarios/GestionUsuarios";
@@ -28,6 +29,7 @@ export function App() {
     <>
       <Routes>
         <Route path="/" element={<CentrosView sesion={sesion} />} />
+        <Route path="/centro/:id" element={<FichaCentroView sesion={sesion} />} />
         <Route path="/dashboard" element={<DashboardView sesion={sesion} />} />
         <Route path="/usuarios" element={<GestionUsuarios sesion={sesion} />} />
         <Route path="*" element={<CentrosView sesion={sesion} />} />

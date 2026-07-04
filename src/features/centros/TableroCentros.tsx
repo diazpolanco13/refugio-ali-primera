@@ -48,7 +48,6 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   centros: CentroTransitorio[];
-  seleccionado: string | null;
   onSeleccionar: (id: string) => void;
 }
 
@@ -97,9 +96,9 @@ const n = (x: number) => x.toLocaleString("es");
  * Sala situacional de la red de Centros Transitorios: cuadrícula de tarjetas
  * densas ordenadas por PRIORIDAD ("¿quién requiere más atención?"). Cada
  * capacidad logística se evalúa con una barra "tienes / deberías / faltan"
- * coloreada por gravedad. El clic abre el detalle del centro.
+ * coloreada por gravedad. El clic abre la ficha completa del centro.
  */
-export function TableroCentros({ centros, seleccionado, onSeleccionar }: Props) {
+export function TableroCentros({ centros, onSeleccionar }: Props) {
   const [orden, setOrden] = useState<Orden>("prioridad");
   const [filtroNivel, setFiltroNivel] = useState<NivelPrioridad | null>(null);
   const [filtroCuerpo, setFiltroCuerpo] = useState<ClaveCuerpo | null>(null);
@@ -361,7 +360,6 @@ export function TableroCentros({ centros, seleccionado, onSeleccionar }: Props) 
               <TarjetaCentro
                 key={fila.centro.id}
                 fila={fila}
-                seleccionado={seleccionado === fila.centro.id}
                 onSeleccionar={() => onSeleccionar(fila.centro.id)}
               />
             ))}
@@ -379,11 +377,9 @@ export function TableroCentros({ centros, seleccionado, onSeleccionar }: Props) 
  */
 function TarjetaCentro({
   fila,
-  seleccionado,
   onSeleccionar,
 }: {
   fila: Fila;
-  seleccionado: boolean;
   onSeleccionar: () => void;
 }) {
   const { centro, prioridad } = fila;
@@ -416,12 +412,7 @@ function TarjetaCentro({
           onSeleccionar();
         }
       }}
-      className={cn(
-        "group flex cursor-pointer flex-col overflow-hidden rounded-2xl border text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:flex-row",
-        seleccionado
-          ? "border-primary/60 ring-2 ring-primary/30"
-          : "border-border bg-card/50 hover:border-border",
-      )}
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-card/50 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:flex-row"
       style={{ borderTopColor: colorNivel, borderTopWidth: 3 }}
     >
       {/* Foto / color del cuerpo. Arriba en móvil, izquierda en PC. */}
@@ -504,7 +495,8 @@ function TarjetaCentro({
           </div>
           <p className="truncate text-[11px] text-muted-foreground">
             {!c.foto_url && <span className="font-medium">{meta.label} · </span>}
-            N.° {centro.nro} · {centro.parroquia.replace(/^Parroquia\s/i, "")}
+            {centro.nro != null && <>N.° {centro.nro} · </>}
+            {centro.parroquia.replace(/^Parroquia\s/i, "")}
             {analisis.cuelloBotella && (
               <> · límite: {analisis.cuelloBotella.label.toLowerCase()}</>
             )}

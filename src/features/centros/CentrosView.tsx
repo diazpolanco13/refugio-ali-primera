@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { PanelFlotante } from "@/components/PanelFlotante";
 import { cargarBaseMapaCentros, guardarBaseMapaCentros } from "@/data/preferenciasMapa";
 import type { BaseMapa } from "@/map/estiloMapa";
@@ -33,6 +34,7 @@ export function CentrosView({ sesion }: Props) {
   const puedeEditar = puedeEditarMapa(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const conectado = useSupabaseConectado();
+  const navigate = useNavigate();
   const [online, setOnline] = useState(() => navigator.onLine);
   const [vista, setVista] = useState<Vista>("mapa");
 
@@ -159,9 +161,18 @@ export function CentrosView({ sesion }: Props) {
     setDetalleAbierto(false);
   }
 
-  /** Alternar (abrir/cerrar) el detalle completo del centro seleccionado (botón "detalles" de la nube). */
+  /**
+   * Alternar el detalle completo del centro seleccionado (botón "detalles" de
+   * la nube). En móvil (<768px) el panel angosto desaprovecha la pantalla, así
+   * que se navega a la ficha completa `/centro/:id`; en escritorio se mantiene
+   * el panel lateral flotante.
+   */
   function toggleDetalle() {
     if (!seleccionado) return;
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      navigate(`/centro/${seleccionado}`);
+      return;
+    }
     setDetalleAbierto((prev) => !prev);
   }
 
@@ -238,20 +249,17 @@ export function CentrosView({ sesion }: Props) {
             />
           </>
         ) : (
+          /* Tablero: el clic en una tarjeta abre la ficha completa del centro. */
           <TableroCentros
             centros={centros}
-            seleccionado={seleccionado}
-            onSeleccionar={(id) => {
-              setSeleccionado(id);
-              setDetalleAbierto(true);
-            }}
+            onSeleccionar={(id) => navigate(`/centro/${id}`)}
           />
         )}
 
-        {/* Panel de detalle del centro seleccionado (solo cuando se abre a fondo) */}
-        {centroSel && detalleAbierto && (
+        {/* Panel de detalle del centro seleccionado (mapa en escritorio) */}
+        {vista === "mapa" && centroSel && detalleAbierto && (
           <PanelFlotante
-            titulo={`N.° ${centroSel.nro} · ${centroSel.nombre}`}
+            titulo={`${centroSel.nro != null ? `N.° ${centroSel.nro} · ` : ""}${centroSel.nombre}`}
             descripcion={centroSel.parroquia}
             onCerrar={() => setDetalleAbierto(false)}
           >

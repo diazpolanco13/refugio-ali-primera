@@ -147,8 +147,10 @@ src/
 │  centrosTransitorios.ts (catálogo estático de los 51 centros, fallback),
 │  preferenciasMapa.ts (vista guardada en localStorage)
 ├─ map/ estiloMapa.ts (estilos base del mapa; MapView.tsx se retiró con el parque)
-├─ features/ centros/ (FOCO: CentrosView, CentrosMap, MarcadorCentro, InfoCentro,
-│  DetalleCentro, TableroCentros, CentroForm, LevantamientoCentro,
+├─ features/ centros/ (FOCO: CentrosView, FichaCentroView (/centro/:id),
+│  CentrosMap, MarcadorCentro, InfoCentro,
+│  DetalleCentro (panel + secciones Seccion*Centro reutilizables),
+│  TableroCentros, CentroForm, LevantamientoCentro,
 │  RequerimientosCentro, PanelCentros, ControlesMapaCentros, IconosAlerta,
 │  GraficoOcupacionCentro) ·
 │  dashboard/ (DashboardView, GraficoOcupacionRed) ·
@@ -164,7 +166,10 @@ src/
 ```
 
 Rutas (react-router en `src/main.tsx` + `src/App.tsx`): `/` = `CentrosView`
-(red de Centros Transitorios, **foco actual**), `/dashboard` = `DashboardView`
+(red de Centros Transitorios, **foco actual**), `/centro/:id` =
+`FichaCentroView` (ficha completa de un centro a pantalla completa:
+multicolumna en escritorio lg+, una columna en móvil; se abre desde el tablero
+y, en móvil, desde el botón "detalles" del mapa), `/dashboard` = `DashboardView`
 (sala de control a pantalla completa, solo lectura), `/usuarios` =
 `GestionUsuarios` (admin). En prod Traefik (Dokploy) hace fallback SPA a
 `index.html`; en la PWA se añadió `navigateFallback` en `vite.config.ts` para
@@ -314,16 +319,24 @@ de shadcn para cualquier diseño de UI).
 La ruta `/centros` (`src/features/centros/`) permite **registrar el estado de
 cada centro** y decidir a dónde reubicar refugiados con criterio.
 
-**UI:** `CentrosView` (conmutador **Mapa / Prioridades** en la Navbar; la vista
-"Prioridades" es el `TableroCentros`, que compara centros por cupo real). En el
+**UI:** `CentrosView` (conmutador **Mapa / Centros** en la Navbar; la vista
+"Centros" es el `TableroCentros`, que compara centros por cupo real y cuyo
+clic en una tarjeta navega a la ficha completa `/centro/:id`). En el
 mapa, `MarcadorCentro` es una **píldora horizontal**: logo del cuerpo +
 **`refugiados / funcionarios`** (ej. `200 / 25`) + punto de semáforo. Al
-seleccionar un centro, `DetalleCentro` prioriza lo operativo a simple vista:
+seleccionar un centro, el botón "detalles" de la nube abre el `PanelFlotante`
+con `DetalleCentro` en escritorio y navega a `/centro/:id` en móvil (<768px,
+`window.matchMedia`). `DetalleCentro` prioriza lo operativo a simple vista:
 KPIs grandes de **refugiados** y **familias**, **personal total** (mini-totales
 por categoría), tarjeta de **logística** (agua, comida, baños), **gráfico de
 ocupación** (desplegable), los desgloses demográfico y de personal en
 **secciones desplegables**, foto, Maps, coordinación, seguridad,
-requerimientos, capacidad vs ocupación, responsables.
+requerimientos, capacidad vs ocupación, responsables. Está descompuesto en
+**secciones exportables** (`Seccion*Centro` + `BadgesEstadoCentro`) que
+reutiliza `FichaCentroView` (`/centro/:id`): cabecera propia con "Volver",
+3 columnas en escritorio (identidad/contactos · personas/necesidades ·
+capacidad e histórico con el gráfico abierto por defecto) y una columna en
+móvil, con el mismo `CentroForm` para editar.
 `CentroForm` por pestañas I–VI + Requerimientos, Capacidad, Contactos; el
 **personal operativo** se edita en **V · Población** (`DesglosePersonal.tsx`).
 La pestaña **I · Identificación** es editable: nombre, grupo, cuerpo asignado,

@@ -152,7 +152,7 @@ export function Navbar({
               onClick={() => onCambiarVista("tablero")}
             >
               <LayoutGrid className="size-3.5" />
-              <span className="hidden sm:inline">Prioridades</span>
+              <span className="hidden sm:inline">Centros</span>
             </Button>
           </div>
         )}
