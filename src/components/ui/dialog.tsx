@@ -56,6 +56,12 @@ function DialogContent({
           "sm:data-[state=closed]:slide-out-to-bottom-0 sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=open]:zoom-in-95",
           className,
         )}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          if (document.body.style.pointerEvents === "none") {
+            document.body.style.pointerEvents = "";
+          }
+        }}
         {...props}
       >
         {children}

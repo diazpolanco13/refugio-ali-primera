@@ -100,6 +100,26 @@ const PESTANAS: {
   { valor: "contactos", titulo: "Otros contactos", icono: Phone },
 ];
 
+/**
+ * Garantiza que cada responsable tenga un `id` único y no vacío. La migración
+ * SAE/SEBIN (y cualquier fuente externa) puede dejar `responsables` sin `id` o
+ * con `id` duplicados; sin esto, `actualizarResponsable(id, patch)` no encuentra
+ * la fila correcta y el cambio del usuario se pierde silenciosamente.
+ */
+function asegurarIdsResponsables(lista: Responsable[]): Responsable[] {
+  const vistos = new Set<string>();
+  return lista.map((r) => {
+    const idRaw = (r && r.id) || "";
+    if (idRaw && !vistos.has(idRaw)) {
+      vistos.add(idRaw);
+      return r;
+    }
+    const nuevo = nuevoId();
+    vistos.add(nuevo);
+    return { ...r, id: nuevo };
+  });
+}
+
 /** Formulario de registro/edición del estado de un centro transitorio. */
 export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
   const base = normalizarCentro(centro);
@@ -121,13 +141,16 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
   const [ocupacion, setOcupacion] = useState<Vulnerables>(base.ocupacion);
   const [personal, setPersonal] = useState<PersonalCentro>(base.personal);
   const [familias, setFamilias] = useState(base.familias_ocupadas);
-  const [responsables, setResponsables] = useState<Responsable[]>(base.responsables);
+  const [responsables, setResponsables] = useState<Responsable[]>(
+    asegurarIdsResponsables(base.responsables),
+  );
   const [fotoUrl, setFotoUrl] = useState(base.foto_url);
   const [notas, setNotas] = useState(base.notas);
 
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const [errorFoto, setErrorFoto] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
   const inputFotoRef = useRef<HTMLInputElement>(null);
 
   const ocupados = poblacionCentro({
@@ -169,6 +192,7 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
 
   async function guardar() {
     if (soloLectura) return;
+    setErrorGuardado(null);
     setGuardando(true);
     try {
       await guardarCentro({
@@ -225,6 +249,15 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
         notas: notas.trim(),
       });
       onCerrar();
+    } catch (err) {
+      console.error("[CentroForm] error guardando centro:", err);
+      const mensaje =
+        err instanceof Error
+          ? err.message
+          : typeof err === "string"
+            ? err
+            : "No se pudo guardar el centro. Revisa la consola para más detalle.";
+      setErrorGuardado(mensaje);
     } finally {
       setGuardando(false);
     }
@@ -248,6 +281,7 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
       <DialogContent
         className="flex max-h-[96dvh] flex-col gap-0 p-0 sm:max-w-3xl"
         showCloseButton={false}
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader className="px-5 py-4 sm:px-6">
           <DialogTitle className="text-lg">
@@ -805,6 +839,11 @@ export function CentroForm({ centro, soloLectura = false, onCerrar }: Props) {
         </div>
 
         <DialogFooter className="pb-[max(1rem,env(safe-area-inset-bottom))]">
+          {errorGuardado && (
+            <p className="mr-auto max-w-[60%] text-xs leading-snug text-destructive">
+              {errorGuardado}
+            </p>
+          )}
           <Button variant="outline" onClick={onCerrar}>
             {soloLectura ? "Cerrar" : "Cancelar"}
           </Button>
