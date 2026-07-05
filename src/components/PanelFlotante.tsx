@@ -25,7 +25,7 @@ export function PanelFlotante({
     <div
       className={cn(
         "absolute inset-0 z-20 flex min-h-0 flex-col overflow-hidden border-border bg-card shadow-xl",
-        "md:inset-y-auto md:left-auto md:right-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-[min(100%,24rem)] md:rounded-xl md:border md:bg-background/95 md:backdrop-blur",
+        "md:inset-y-auto md:left-auto md:right-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-[min(100%,450px)] md:rounded-xl md:border md:bg-background/95 md:backdrop-blur",
         className,
       )}
     >

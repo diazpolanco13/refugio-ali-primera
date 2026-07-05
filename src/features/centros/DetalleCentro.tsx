@@ -35,7 +35,12 @@ import { CATEGORIAS_RESPONSABLE } from "@/domain/tipos";
 import { AccionesContacto } from "@/components/AccionesContacto";
 import { DemografiaResumen } from "@/features/tablero/DemografiaResumen";
 import { PersonalResumen } from "@/features/censo/PersonalResumen";
-import { TarjetaContacto, TarjetaSeguridad } from "@/features/centros/LevantamientoCentro";
+import {
+  GridServicios,
+  TarjetaContacto,
+  TarjetaSeguridad,
+} from "@/features/centros/LevantamientoCentro";
+import { AlertasDelDiaCentro } from "@/features/centros/AlertasDelDiaCentro";
 import { ListaRequerimientos } from "@/features/centros/RequerimientosCentro";
 import { GraficoOcupacionCentro } from "@/features/centros/GraficoOcupacionCentro";
 import { SeccionReporteDiarioCentro } from "@/features/centros/ReporteDiarioCentro";
@@ -516,26 +521,59 @@ export function SeccionResponsablesCentro({ centro }: SeccionProps) {
   );
 }
 
-/** Novedades relevantes y notas del centro. Nada si ambas están vacías. */
-export function SeccionNotasCentro({ centro }: SeccionProps) {
+/** IV · Servicios de salud y apoyo jurídico. */
+export function SeccionServiciosCentro({ centro }: SeccionProps) {
   const c = normalizarCentro(centro);
-  if (!c.novedades && !c.notas) return null;
   return (
-    <div className="space-y-4">
-      {c.novedades && (
-        <div>
+    <div className="rounded-xl border border-border bg-card p-3">
+      <p className="text-xs font-semibold text-foreground">Servicios de salud</p>
+      <div className="mt-2">
+        <GridServicios servicios={c.servicios} />
+      </div>
+    </div>
+  );
+}
+
+/** Novedades relevantes (prominentes) y notas administrativas (colapsables). */
+export function SeccionNovedadesNotasCentro({ centro }: SeccionProps) {
+  const c = normalizarCentro(centro);
+  const novedades = c.novedades?.trim();
+  const notas = c.notas?.trim();
+  if (!novedades && !notas) return null;
+
+  return (
+    <div className="space-y-3">
+      {novedades && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2.5">
           <p className="text-xs font-semibold text-foreground">Novedades relevantes</p>
-          <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{c.novedades}</p>
+          <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{novedades}</p>
         </div>
       )}
-      {c.notas && (
-        <div>
-          <p className="text-xs font-semibold text-foreground">Notas</p>
-          <p className="mt-1 text-xs text-muted-foreground">{c.notas}</p>
-        </div>
+      {notas && (
+        <Collapsible>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="group flex w-full items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
+            >
+              Notas internas
+              <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <p className="whitespace-pre-wrap rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+              {notas}
+            </p>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </div>
   );
+}
+
+/** @deprecated Usar `SeccionNovedadesNotasCentro`. */
+export function SeccionNotasCentro({ centro }: SeccionProps) {
+  return <SeccionNovedadesNotasCentro centro={centro} />;
 }
 
 /**
@@ -557,19 +595,21 @@ export function DetalleCentro({ centro, puedeEditar, onEditar }: Props) {
         <BadgesEstadoCentro centro={centro} />
       </div>
 
+      <AlertasDelDiaCentro centro={centro} />
+
       <SeccionIdentificacionCentro centro={centro} />
       <SeccionCoordinacionCentro centro={centro} />
       <SeccionSeguridadCentro centro={centro} />
       <SeccionPoblacionCentro centro={centro} />
       <SeccionPersonalCentro centro={centro} />
+      <SeccionServiciosCentro centro={centro} />
       <SeccionReporteDiarioCentro centro={centro} puedeEditar={puedeEditar} />
       <SeccionIncidenciasCentro centro={centro} puedeEditar={puedeEditar} />
       <SeccionHistoricoCentro centro={centro} />
-      <SeccionLogisticaCentro centro={centro} />
       <SeccionRequerimientosCentro centro={centro} />
       <SeccionCapacidadCentro centro={centro} />
       <SeccionResponsablesCentro centro={centro} />
-      <SeccionNotasCentro centro={centro} />
+      <SeccionNovedadesNotasCentro centro={centro} />
 
       {puedeEditar && (
         <Button className="w-full" onClick={onEditar}>

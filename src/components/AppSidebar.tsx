@@ -90,6 +90,7 @@ function NavContenido({ sesion }: Omit<Props, "modoDrawer">) {
   const enIncFunc = location.pathname === "/incidencias/funcionarios";
   const enIncArch = location.pathname === "/incidencias/archivadas";
   const enIncAnal = location.pathname === "/incidencias/analitica";
+  const enReportes = location.pathname === "/centros/reportes";
   const enUsuarios = location.pathname === "/usuarios";
   const enLogs = location.pathname === "/logs";
 
@@ -154,8 +155,15 @@ function NavContenido({ sesion }: Omit<Props, "modoDrawer">) {
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                     )}
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton asChild isActive={enReportes}>
+                        <Link to="/centros/reportes">
+                          <ClipboardList />
+                          <span>Reportes diarios (red)</span>
+                        </Link>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
                     <ItemEnDesarrollo icono={Truck} label="Traslados entre campamentos" />
-                    <ItemEnDesarrollo icono={ClipboardList} label="Reportes diarios (red)" />
                   </SidebarMenuSub>
                 </CollapsibleContent>
               </SidebarMenuItem>

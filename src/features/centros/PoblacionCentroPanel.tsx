@@ -12,6 +12,7 @@ import { CalendarDays, PanelLeftClose, PanelLeftOpen, Users } from "lucide-react
 import {
   SeccionPersonalCentro,
   SeccionPoblacionCentro,
+  SeccionServiciosCentro,
 } from "./DetalleCentro";
 import {
   CalendarioSelectorDia,
@@ -90,6 +91,7 @@ export function PoblacionCentroPanel({ centro }: Props) {
 
       <SeccionPoblacionCentro centro={centro} />
       <SeccionPersonalCentro centro={centro} />
+      <SeccionServiciosCentro centro={centro} />
 
       <Card className="border-dashed border-border/80 bg-muted/10">
         <CardHeader className="pb-2">

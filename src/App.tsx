@@ -17,6 +17,7 @@ import { initAuth, useSesion } from "./data/authSupabase";
 import { MarcaAgua } from "./components/MarcaAgua";
 import { PantallaCarga } from "./components/PantallaCarga";
 import { EnDesarrollo } from "./components/EnDesarrollo";
+import { ReportesDiariosRedView } from "./features/centros/ReportesDiariosRedView";
 import { AppShell } from "./layouts/AppShell";
 
 export function App() {
@@ -50,15 +51,7 @@ export function App() {
               />
             }
           />
-          <Route
-            path="/centros/reportes"
-            element={
-              <EnDesarrollo
-                titulo="Reportes diarios (red)"
-                descripcion="Vista agregada de reportes diarios de todos los campamentos."
-              />
-            }
-          />
+          <Route path="/centros/reportes" element={<ReportesDiariosRedView />} />
           <Route path="/centro/nuevo" element={<NuevoCentroView sesion={sesion} />} />
           <Route path="/centro/:id" element={<FichaCentroView sesion={sesion} />} />
           <Route path="/incidencias" element={<IncidenciasLayout sesion={sesion} />}>

@@ -22,6 +22,8 @@ interface Props {
   leyenda: LeyendaCalendario[];
   onCerrar?: () => void;
   titulo?: string;
+  /** Sin Card propio: pensado para incrustar dentro de otro contenedor. */
+  embebido?: boolean;
 }
 
 function parsearDiaLocal(dia: string): Date {
@@ -36,14 +38,15 @@ export function CalendarioSelectorDia({
   leyenda,
   onCerrar,
   titulo = "Calendario",
+  embebido = false,
 }: Props) {
   const hoyClave = claveDia(Date.now());
   const selected = diaSeleccionado ? parsearDiaLocal(diaSeleccionado) : undefined;
 
-  return (
-    <Card className="flex h-full flex-col gap-0 py-0">
-      <CardHeader className="flex flex-row items-center gap-1 space-y-0 px-2 py-1.5">
-        <CardTitle className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] font-semibold">
+  const contenido = (
+    <>
+      <CardHeader className="flex flex-row items-center gap-1 space-y-0 px-3 py-2">
+        <CardTitle className="flex min-w-0 flex-1 items-center gap-1.5 text-xs font-semibold">
           <CalendarDays className="size-3 shrink-0 text-muted-foreground" />
           <span className="truncate">{titulo}</span>
         </CardTitle>
@@ -60,7 +63,7 @@ export function CalendarioSelectorDia({
           </Button>
         )}
       </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col space-y-1.5 px-2 pb-2 pt-0">
+      <CardContent className="flex min-h-0 flex-1 flex-col space-y-1.5 px-3 pb-2 pt-0">
         <div className="flex justify-center rounded-md border border-border/60 bg-muted/15 p-0.5">
           <Calendar
             mode="single"
@@ -107,6 +110,16 @@ export function CalendarioSelectorDia({
           </div>
         )}
       </CardContent>
+    </>
+  );
+
+  if (embebido) {
+    return <div className="flex flex-col">{contenido}</div>;
+  }
+
+  return (
+    <Card className="flex h-full flex-col gap-0 py-0">
+      {contenido}
     </Card>
   );
 }
