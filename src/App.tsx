@@ -1,92 +1,192 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { CentrosView } from "./features/centros/CentrosView";
-import { FichaCentroView } from "./features/centros/FichaCentroView";
-import { NuevoCentroView } from "./features/centros/NuevoCentroView";
-import { DashboardView } from "./features/dashboard/DashboardView";
-import { IncidenciasRedirect } from "./features/incidencias/IncidenciasRedirect";
-import { IncidenciasLayout } from "./features/incidencias/IncidenciasLayout";
-import { IncidenciasFuncionariosView } from "./features/incidencias/IncidenciasFuncionariosView";
-import { IncidenciasArchivadasView } from "./features/incidencias/IncidenciasArchivadasView";
-import { IncidenciasAnaliticaView } from "./features/incidencias/IncidenciasAnaliticaView";
-import { IncidenciasRefugiadosView } from "./features/incidencias/IncidenciasRefugiadosView";
 import { Login } from "./features/auth/Login";
-import { GestionUsuarios } from "./features/usuarios/GestionUsuarios";
-import { LogsView } from "./features/logs/LogsView";
 import { initAuth, useSesion } from "./data/authSupabase";
 import { MarcaAgua } from "./components/MarcaAgua";
 import { PantallaCarga } from "./components/PantallaCarga";
 import { EnDesarrollo } from "./components/EnDesarrollo";
-import { ReportesDiariosRedView } from "./features/centros/ReportesDiariosRedView";
 import { AppShell } from "./layouts/AppShell";
+import { ocultarSplash } from "./lib/splash";
+
+// Rutas con carga perezosa: cada vista pesada (MapLibre, recharts, ficha
+// humanitaria…) viaja en su propio chunk. El bundle inicial queda en el núcleo
+// (React + Supabase + login) y el resto se descarga al navegar — clave para
+// conexiones lentas. Los factories de import van aparte para poder PRECARGAR
+// el chunk de la ruta inicial durante el arranque (mientras se restaura la
+// sesión) y que el fallback de Suspense no destelle al soltar el splash.
+const importCentrosView = () => import("./features/centros/CentrosView");
+const importFichaCentroView = () => import("./features/centros/FichaCentroView");
+const importNuevoCentroView = () => import("./features/centros/NuevoCentroView");
+const importDashboardView = () => import("./features/dashboard/DashboardView");
+const importIncidenciasRedirect = () => import("./features/incidencias/IncidenciasRedirect");
+const importIncidenciasLayout = () => import("./features/incidencias/IncidenciasLayout");
+const importIncidenciasFuncionariosView = () =>
+  import("./features/incidencias/IncidenciasFuncionariosView");
+const importIncidenciasArchivadasView = () =>
+  import("./features/incidencias/IncidenciasArchivadasView");
+const importIncidenciasAnaliticaView = () =>
+  import("./features/incidencias/IncidenciasAnaliticaView");
+const importIncidenciasRefugiadosView = () =>
+  import("./features/incidencias/IncidenciasRefugiadosView");
+const importGestionUsuarios = () => import("./features/usuarios/GestionUsuarios");
+const importLogsView = () => import("./features/logs/LogsView");
+const importReportesDiariosRedView = () => import("./features/centros/ReportesDiariosRedView");
+const importRefugiadosRedView = () => import("./features/refugiados/RefugiadosRedView");
+const importRefugiadoDetalleRedView = () =>
+  import("./features/refugiados/RefugiadoDetalleRedView");
+const importDotacionesPendientesView = () =>
+  import("./features/refugiados/DotacionesPendientesView");
+
+const CentrosView = lazy(() => importCentrosView().then((m) => ({ default: m.CentrosView })));
+const FichaCentroView = lazy(() =>
+  importFichaCentroView().then((m) => ({ default: m.FichaCentroView })),
+);
+const NuevoCentroView = lazy(() =>
+  importNuevoCentroView().then((m) => ({ default: m.NuevoCentroView })),
+);
+const DashboardView = lazy(() =>
+  importDashboardView().then((m) => ({ default: m.DashboardView })),
+);
+const IncidenciasRedirect = lazy(() =>
+  importIncidenciasRedirect().then((m) => ({ default: m.IncidenciasRedirect })),
+);
+const IncidenciasLayout = lazy(() =>
+  importIncidenciasLayout().then((m) => ({ default: m.IncidenciasLayout })),
+);
+const IncidenciasFuncionariosView = lazy(() =>
+  importIncidenciasFuncionariosView().then((m) => ({ default: m.IncidenciasFuncionariosView })),
+);
+const IncidenciasArchivadasView = lazy(() =>
+  importIncidenciasArchivadasView().then((m) => ({ default: m.IncidenciasArchivadasView })),
+);
+const IncidenciasAnaliticaView = lazy(() =>
+  importIncidenciasAnaliticaView().then((m) => ({ default: m.IncidenciasAnaliticaView })),
+);
+const IncidenciasRefugiadosView = lazy(() =>
+  importIncidenciasRefugiadosView().then((m) => ({ default: m.IncidenciasRefugiadosView })),
+);
+const GestionUsuarios = lazy(() =>
+  importGestionUsuarios().then((m) => ({ default: m.GestionUsuarios })),
+);
+const LogsView = lazy(() => importLogsView().then((m) => ({ default: m.LogsView })));
+const ReportesDiariosRedView = lazy(() =>
+  importReportesDiariosRedView().then((m) => ({ default: m.ReportesDiariosRedView })),
+);
+const RefugiadosRedView = lazy(() =>
+  importRefugiadosRedView().then((m) => ({ default: m.RefugiadosRedView })),
+);
+const RefugiadoDetalleRedView = lazy(() =>
+  importRefugiadoDetalleRedView().then((m) => ({ default: m.RefugiadoDetalleRedView })),
+);
+const DotacionesPendientesView = lazy(() =>
+  importDotacionesPendientesView().then((m) => ({ default: m.DotacionesPendientesView })),
+);
+
+/**
+ * Devuelve el import del chunk que renderizará la ruta actual, para
+ * precargarlo en paralelo con la restauración de la sesión. Las rutas no
+ * listadas caen al chunk del mapa (destino del fallback `*`).
+ */
+function precargarRutaInicial(pathname: string): Promise<unknown> {
+  if (pathname.startsWith("/dashboard")) return importDashboardView();
+  if (pathname.startsWith("/centros/tablero")) return importCentrosView();
+  if (pathname.startsWith("/centros/reportes")) return importReportesDiariosRedView();
+  if (pathname.startsWith("/centros/refugiados/")) return importRefugiadoDetalleRedView();
+  if (pathname.startsWith("/centros/refugiados")) return importRefugiadosRedView();
+  if (pathname.startsWith("/centros/dotaciones-pendientes"))
+    return importDotacionesPendientesView();
+  if (pathname.startsWith("/centro/nuevo")) return importNuevoCentroView();
+  if (pathname.startsWith("/centro/")) return importFichaCentroView();
+  if (pathname.startsWith("/incidencias"))
+    return Promise.all([importIncidenciasLayout(), importIncidenciasRedirect()]);
+  if (pathname.startsWith("/usuarios")) return importGestionUsuarios();
+  if (pathname.startsWith("/logs")) return importLogsView();
+  return importCentrosView();
+}
 
 export function App() {
   const sesion = useSesion();
   const [arrancando, setArrancando] = useState(true);
 
   useEffect(() => {
-    void initAuth();
-    setArrancando(false);
+    // No soltar el splash hasta que la sesión esté restaurada Y el chunk de la
+    // ruta inicial esté descargado: así ni el login ni el fallback de Suspense
+    // destellan al arrancar. La precarga nunca bloquea el arranque si falla
+    // (p. ej. red intermitente): Suspense la reintenta al renderizar.
+    const sesionLista = initAuth();
+    const chunkListo = precargarRutaInicial(window.location.pathname).catch(() => undefined);
+    void Promise.allSettled([sesionLista, chunkListo]).then(() => setArrancando(false));
   }, []);
 
-  if (arrancando) return <PantallaCarga />;
+  useEffect(() => {
+    // El splash vive en index.html (fuera de React) para pintarse al instante;
+    // se desvanece cuando la app ya decidió qué mostrar (home o login).
+    if (!arrancando) ocultarSplash();
+  }, [arrancando]);
+
+  if (arrancando) return null;
   if (!sesion) return <Login />;
   const mostrarMarcaAgua = sesion.user.marca_agua !== false;
 
   return (
     <>
-      <Routes>
-        <Route path="/dashboard" element={<DashboardView sesion={sesion} />} />
+      <Suspense fallback={<PantallaCarga />}>
+        <Routes>
+          <Route path="/dashboard" element={<DashboardView sesion={sesion} />} />
 
-        <Route element={<AppShell sesion={sesion} />}>
-          <Route path="/" element={<Navigate to="/centros/mapa" replace />} />
-          <Route path="/centros/mapa" element={<CentrosView />} />
-          <Route path="/centros/tablero" element={<CentrosView />} />
-          <Route
-            path="/centros/traslados"
-            element={
-              <EnDesarrollo
-                titulo="Traslados entre campamentos"
-                descripcion="Registro y seguimiento de movimientos de refugiados entre campamentos de la red."
-              />
-            }
-          />
-          <Route path="/centros/reportes" element={<ReportesDiariosRedView />} />
-          <Route path="/centro/nuevo" element={<NuevoCentroView sesion={sesion} />} />
-          <Route path="/centro/:id" element={<FichaCentroView sesion={sesion} />} />
-          <Route path="/incidencias" element={<IncidenciasLayout sesion={sesion} />}>
-            <Route index element={<IncidenciasRedirect sesion={sesion} />} />
+          <Route element={<AppShell sesion={sesion} />}>
+            <Route path="/" element={<Navigate to="/centros/mapa" replace />} />
+            <Route path="/centros/mapa" element={<CentrosView />} />
+            <Route path="/centros/tablero" element={<CentrosView />} />
             <Route
-              path="funcionarios"
-              element={<IncidenciasFuncionariosView sesion={sesion} />}
+              path="/centros/traslados"
+              element={
+                <EnDesarrollo
+                  titulo="Traslados entre campamentos"
+                  descripcion="Registro y seguimiento de movimientos de refugiados entre campamentos de la red."
+                />
+              }
             />
-            <Route path="archivadas" element={<IncidenciasArchivadasView />} />
-            <Route path="analitica" element={<IncidenciasAnaliticaView />} />
-            <Route path="refugiados" element={<IncidenciasRefugiadosView />} />
+            <Route path="/centros/reportes" element={<ReportesDiariosRedView />} />
+            <Route path="/centros/refugiados" element={<RefugiadosRedView />} />
+            <Route path="/centros/refugiados/:alojamientoId" element={<RefugiadoDetalleRedView />} />
+            <Route path="/centros/dotaciones-pendientes" element={<DotacionesPendientesView />} />
+            <Route path="/centro/nuevo" element={<NuevoCentroView sesion={sesion} />} />
+            <Route path="/centro/:id" element={<FichaCentroView sesion={sesion} />} />
+            <Route path="/incidencias" element={<IncidenciasLayout sesion={sesion} />}>
+              <Route index element={<IncidenciasRedirect sesion={sesion} />} />
+              <Route
+                path="funcionarios"
+                element={<IncidenciasFuncionariosView sesion={sesion} />}
+              />
+              <Route path="archivadas" element={<IncidenciasArchivadasView />} />
+              <Route path="analitica" element={<IncidenciasAnaliticaView />} />
+              <Route path="refugiados" element={<IncidenciasRefugiadosView />} />
+            </Route>
+            <Route path="/usuarios" element={<GestionUsuarios sesion={sesion} />} />
+            <Route path="/logs" element={<LogsView sesion={sesion} />} />
+            <Route
+              path="/config/perfil"
+              element={
+                <EnDesarrollo
+                  titulo="Preferencias de cuenta"
+                  descripcion="Configuración personal como marca de agua y notificaciones."
+                />
+              }
+            />
+            <Route
+              path="/config/sistema"
+              element={
+                <EnDesarrollo
+                  titulo="Catálogos y parámetros"
+                  descripcion="Administración de cuerpos, categorías de incidencias y umbrales Esfera."
+                />
+              }
+            />
+            <Route path="*" element={<Navigate to="/centros/mapa" replace />} />
           </Route>
-          <Route path="/usuarios" element={<GestionUsuarios sesion={sesion} />} />
-          <Route path="/logs" element={<LogsView sesion={sesion} />} />
-          <Route
-            path="/config/perfil"
-            element={
-              <EnDesarrollo
-                titulo="Preferencias de cuenta"
-                descripcion="Configuración personal como marca de agua y notificaciones."
-              />
-            }
-          />
-          <Route
-            path="/config/sistema"
-            element={
-              <EnDesarrollo
-                titulo="Catálogos y parámetros"
-                descripcion="Administración de cuerpos, categorías de incidencias y umbrales Esfera."
-              />
-            }
-          />
-          <Route path="*" element={<Navigate to="/centros/mapa" replace />} />
-        </Route>
-      </Routes>
+        </Routes>
+      </Suspense>
       {mostrarMarcaAgua && <MarcaAgua usuario={sesion.user} />}
     </>
   );

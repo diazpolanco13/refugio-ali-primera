@@ -11,10 +11,16 @@
     <title>Campamentos Transitorios — Caracas</title>
     <style>
       html, body { height: 100%; margin: 0; background: #0a0a0a; color: #fafafa; }
+      /* Splash de arranque: overlay fijo FUERA de #root para que React pueda
+         montar debajo sin destruirlo; se desvanece cuando la app está lista
+         (sesión restaurada + chunk de la ruta precargado). */
       #app-splash {
+        position: fixed; inset: 0; z-index: 9999; background: #0a0a0a;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        min-height: 100dvh; gap: 1rem; font-family: system-ui, sans-serif;
+        gap: 1.25rem; font-family: system-ui, sans-serif;
+        transition: opacity 0.4s ease;
       }
+      #app-splash.oculto { opacity: 0; pointer-events: none; }
       #app-splash .logo {
         width: 3.5rem; height: 3.5rem; border-radius: 1rem;
         background: rgba(15, 118, 110, 0.2); display: flex; align-items: center; justify-content: center;
@@ -22,25 +28,51 @@
       }
       #app-splash h1 { margin: 0; font-size: 1.125rem; font-weight: 600; }
       #app-splash p { margin: 0.25rem 0 0; font-size: 0.875rem; color: #a3a3a3; }
-      #app-splash .spin {
-        width: 1.25rem; height: 1.25rem; border: 2px solid #262626;
-        border-top-color: #14b8a6; border-radius: 50%;
-        animation: app-spin 0.8s linear infinite;
+      #app-splash .barra {
+        width: min(14rem, 60vw); height: 0.3rem; border-radius: 999px;
+        background: #262626; overflow: hidden;
       }
-      @keyframes app-spin { to { transform: rotate(360deg); } }
+      #app-splash .barra > div {
+        width: 0; height: 100%; border-radius: 999px; background: #14b8a6;
+        transition: width 0.35s ease;
+      }
+      #app-splash .msg { font-size: 0.8125rem; color: #a3a3a3; }
+      @media (prefers-reduced-motion: reduce) {
+        #app-splash, #app-splash .barra > div { transition: none; }
+      }
     </style>
   </head>
   <body>
-    <div id="root">
-      <div id="app-splash" role="status" aria-live="polite" aria-label="Cargando aplicación">
-        <div class="logo" aria-hidden="true">⛺</div>
-        <div style="text-align:center">
-          <h1>Campamentos Transitorios</h1>
-          <p>Área Metropolitana de Caracas</p>
-        </div>
-        <div class="spin" aria-hidden="true"></div>
+    <div id="app-splash" role="status" aria-live="polite" aria-label="Cargando aplicación">
+      <div class="logo" aria-hidden="true">⛺</div>
+      <div style="text-align:center">
+        <h1>Campamentos Transitorios</h1>
+        <p>Área Metropolitana de Caracas</p>
       </div>
+      <div class="barra" aria-hidden="true"><div id="app-splash-barra"></div></div>
+      <div class="msg" id="app-splash-msg">Iniciando…</div>
     </div>
+    <div id="root"></div>
+    <script>
+      // Progreso pseudo-real: no se puede medir la descarga de módulos ES, así
+      // que la barra avanza asintóticamente hacia el 90% y React la completa
+      // al 100% cuando la app está lista (ocultarSplash en src/lib/splash.ts).
+      (function () {
+        var barra = document.getElementById("app-splash-barra");
+        var msg = document.getElementById("app-splash-msg");
+        var primeraVez = false;
+        try { primeraVez = !localStorage.getItem("app-instalada"); } catch (e) {}
+        if (primeraVez && msg) {
+          msg.textContent = "Descargando la aplicación… solo tarda la primera vez";
+        }
+        var progreso = 0;
+        var timer = setInterval(function () {
+          progreso += (90 - progreso) * 0.08;
+          if (barra) barra.style.width = progreso.toFixed(1) + "%";
+        }, 200);
+        window.__appSplash = { detener: function () { clearInterval(timer); } };
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

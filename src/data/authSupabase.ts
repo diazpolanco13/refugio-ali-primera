@@ -63,7 +63,10 @@ const ROLES_CONOCIDOS: Rol[] = ["admin", "analista_sae", "autoridad", "superviso
 
 const listeners = new Set<() => void>();
 let estado: Sesion | null = null;
-let initialized = false;
+// Promesa memoizada de la inicialización: TODOS los llamadores de initAuth()
+// esperan a la MISMA carga real de la sesión. Con un booleano, el segundo
+// llamador retornaba al instante sin esperar y el login destellaba al recargar.
+let initPromise: Promise<void> | null = null;
 
 function emitir(): void {
   for (const l of listeners) l();
@@ -132,14 +135,16 @@ async function aplicarSesion(session: Session | null): Promise<void> {
  * que los consumidores no tengan que acordarse, pero también se puede invocar
  * al arrancar la app.
  */
-export async function initAuth(): Promise<void> {
-  if (initialized) return;
-  initialized = true;
-  const { data } = await supabase.auth.getSession();
-  await aplicarSesion(data.session);
-  supabase.auth.onAuthStateChange((_event, session) => {
-    void aplicarSesion(session);
-  });
+export function initAuth(): Promise<void> {
+  if (initPromise) return initPromise;
+  initPromise = (async () => {
+    const { data } = await supabase.auth.getSession();
+    await aplicarSesion(data.session);
+    supabase.auth.onAuthStateChange((_event, session) => {
+      void aplicarSesion(session);
+    });
+  })();
+  return initPromise;
 }
 
 export function getSesion(): Sesion | null {
