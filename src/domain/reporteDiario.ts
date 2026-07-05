@@ -42,6 +42,149 @@ export interface ComidaJornada {
 /** Comidas del día indexadas por jornada. */
 export type ComidasDia = Record<JornadaReporte, ComidaJornada>;
 
+/** Tipo de atención médica registrada en el reporte del día. */
+export type TipoAtencionMedica =
+  | "ambulatoria"
+  | "traslado_asistencial"
+  | "psicologica";
+
+export const CATALOGO_TIPOS_ATENCION: {
+  valor: TipoAtencionMedica;
+  label: string;
+}[] = [
+  { valor: "ambulatoria", label: "Ambulatoria" },
+  { valor: "traslado_asistencial", label: "Traslado asistencial" },
+  { valor: "psicologica", label: "Psicológica" },
+];
+
+/** Caso individual de atención médica (array en `atenciones_medicas_detalle`). */
+export interface AtencionMedicaCaso {
+  id: string;
+  nombre: string;
+  cedula: string;
+  edad: number;
+  tipo_atencion: TipoAtencionMedica;
+  sintomas: string;
+  diagnostico: string;
+}
+
+/** Grupos etarios para estadísticas de atenciones (mismos rangos que población). */
+export type GrupoEdadAtencion =
+  | "0-2"
+  | "3-11"
+  | "12-17"
+  | "18-59"
+  | "60+";
+
+export const CATALOGO_GRUPOS_EDAD_ATENCION: {
+  valor: GrupoEdadAtencion;
+  label: string;
+}[] = [
+  { valor: "0-2", label: "0–2 años" },
+  { valor: "3-11", label: "3–11 años" },
+  { valor: "12-17", label: "12–17 años" },
+  { valor: "18-59", label: "18–59 años" },
+  { valor: "60+", label: "60+ años" },
+];
+
+/** Clasifica la edad en un grupo etario exclusivo. */
+export function grupoEdadAtencion(edad: number): GrupoEdadAtencion {
+  if (edad <= 2) return "0-2";
+  if (edad <= 11) return "3-11";
+  if (edad <= 17) return "12-17";
+  if (edad <= 59) return "18-59";
+  return "60+";
+}
+
+function normalizarTipoAtencion(
+  raw: string | undefined | null,
+): TipoAtencionMedica {
+  if (
+    raw === "ambulatoria" ||
+    raw === "traslado_asistencial" ||
+    raw === "psicologica"
+  ) {
+    return raw;
+  }
+  return "ambulatoria";
+}
+
+/** Normaliza el array jsonb de casos de atención médica. */
+export function normalizarAtencionesMedicas(
+  raw: unknown,
+): AtencionMedicaCaso[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item, i) => {
+    const o = item as Partial<AtencionMedicaCaso>;
+    return {
+      id: typeof o.id === "string" && o.id ? o.id : `legacy-${i}`,
+      nombre: o.nombre ?? "",
+      cedula: o.cedula ?? "",
+      edad: Number.isFinite(o.edad) ? Math.max(0, Math.floor(o.edad!)) : 0,
+      tipo_atencion: normalizarTipoAtencion(o.tipo_atencion),
+      sintomas: o.sintomas ?? "",
+      diagnostico: o.diagnostico ?? "",
+    };
+  });
+}
+
+/** Total de atenciones: casos registrados o contador legacy si no hay detalle. */
+export function contarAtenciones(
+  casos: AtencionMedicaCaso[],
+  almacenado?: number,
+): number {
+  if (casos.length > 0) return casos.length;
+  return almacenado ?? 0;
+}
+
+/** Conteo por tipo de atención (solo tipos con al menos 1 caso). */
+export function resumenTiposAtencion(
+  casos: AtencionMedicaCaso[],
+): Partial<Record<TipoAtencionMedica, number>> {
+  const out: Partial<Record<TipoAtencionMedica, number>> = {};
+  for (const c of casos) {
+    out[c.tipo_atencion] = (out[c.tipo_atencion] ?? 0) + 1;
+  }
+  return out;
+}
+
+/** Texto breve para la vista resumen: "2 ambulatorias, 1 psicológica". */
+export function textoResumenTiposAtencion(casos: AtencionMedicaCaso[]): string {
+  const resumen = resumenTiposAtencion(casos);
+  const partes = CATALOGO_TIPOS_ATENCION.filter((t) => (resumen[t.valor] ?? 0) > 0).map(
+    (t) => {
+      const n = resumen[t.valor] ?? 0;
+      const label = t.label.toLowerCase();
+      if (n === 1) {
+        if (t.valor === "psicologica") return "1 psicológica";
+        if (t.valor === "traslado_asistencial") return "1 traslado asistencial";
+        return `1 ${label}`;
+      }
+      if (t.valor === "psicologica") return `${n} psicológicas`;
+      if (t.valor === "traslado_asistencial") return `${n} traslados asistenciales`;
+      return `${n} ${label}s`;
+    },
+  );
+  return partes.join(", ");
+}
+
+/** Conteo de atenciones por grupo etario (para panel de estadísticas). */
+export function estadisticasEdadAtenciones(
+  casos: AtencionMedicaCaso[],
+): Record<GrupoEdadAtencion, number> {
+  const out: Record<GrupoEdadAtencion, number> = {
+    "0-2": 0,
+    "3-11": 0,
+    "12-17": 0,
+    "18-59": 0,
+    "60+": 0,
+  };
+  for (const c of casos) {
+    out[grupoEdadAtencion(c.edad)]++;
+  }
+  return out;
+}
+
 /**
  * Reporte diario de un centro (fila de `reportes_centros`). El `id` lo genera
  * Postgres (uuid); la clave lógica es `(centro_id, dia)`.
@@ -52,8 +195,11 @@ export interface ReporteDiario {
   /** YYYY-MM-DD */
   dia: string;
   comidas: ComidasDia;
-  /** Número de atenciones médicas del día. */
+  /** Número de atenciones médicas del día (sincronizado con `atenciones_medicas_detalle`). */
   atenciones_medicas: number;
+  /** Casos individuales de atención médica (jsonb en BD). */
+  atenciones_medicas_detalle: AtencionMedicaCaso[];
+  /** Notas generales del día (legacy; distinto de los casos individuales). */
   observaciones: string;
   updated_at: number;
   updated_by: string;
@@ -100,12 +246,17 @@ export function normalizarComidas(
 export function normalizarReporte(
   raw: (Partial<ReporteDiario> & { centro_id: string; dia: string }) | ReporteDiario,
 ): ReporteDiario {
+  const detalle = normalizarAtencionesMedicas(
+    (raw as { atenciones_medicas_detalle?: unknown }).atenciones_medicas_detalle,
+  );
+  const almacenado = raw.atenciones_medicas ?? 0;
   return {
     id: raw.id,
     centro_id: raw.centro_id,
     dia: raw.dia,
     comidas: normalizarComidas(raw.comidas),
-    atenciones_medicas: raw.atenciones_medicas ?? 0,
+    atenciones_medicas_detalle: detalle,
+    atenciones_medicas: Math.max(almacenado, detalle.length),
     observaciones: raw.observaciones ?? "",
     updated_at: raw.updated_at ?? 0,
     updated_by: raw.updated_by ?? "",

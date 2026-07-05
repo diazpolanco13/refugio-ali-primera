@@ -22,7 +22,10 @@ import {
   ClipboardCheck,
   Clock,
   Loader2,
+  Pencil,
+  Plus,
   Stethoscope,
+  Trash2,
   Users,
   UtensilsCrossed,
   Wrench,
@@ -31,6 +34,7 @@ import {
   confirmarParteNumericoDia,
   guardarCentro,
   claveDia,
+  nuevoId,
 } from "@/data/reposSupabase";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { guardarReporteDiario } from "@/data/reposReportes";
@@ -39,11 +43,18 @@ import { useReportesCentros } from "@/data/useReportesCentros";
 import { useReportesReparacionesDia } from "@/data/useReportesReparacionesDia";
 import { reporteReparacionesDelDia } from "@/domain/reparaciones";
 import {
+  CATALOGO_GRUPOS_EDAD_ATENCION,
   CATALOGO_JORNADAS_REPORTE,
+  CATALOGO_TIPOS_ATENCION,
+  contarAtenciones,
+  estadisticasEdadAtenciones,
+  normalizarAtencionesMedicas,
   normalizarComidas,
   reporteDelDia,
+  type AtencionMedicaCaso,
   type ComidasDia,
   type JornadaReporte,
+  type TipoAtencionMedica,
 } from "@/domain/reporteDiario";
 import {
   normalizarCentro,
@@ -55,6 +66,7 @@ import {
 import type { Vulnerables } from "@/domain/tipos";
 import { DesgloseDemografico } from "@/features/censo/DesgloseDemografico";
 import { DesglosePersonal } from "@/features/censo/DesglosePersonal";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -68,6 +80,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumInput } from "@/components/ui/num-input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -111,18 +130,298 @@ function tsDesdeHora(hora: string, dia: string): number | null {
   return d.getTime();
 }
 
-/** Estilo de pestañas del reporte: una fila (icono + texto), sin desbordar la franja. */
+const CASO_VACIO: Omit<AtencionMedicaCaso, "id"> = {
+  nombre: "",
+  cedula: "",
+  edad: 0,
+  tipo_atencion: "ambulatoria",
+  sintomas: "",
+  diagnostico: "",
+};
+
+function labelTipoAtencion(tipo: TipoAtencionMedica): string {
+  return CATALOGO_TIPOS_ATENCION.find((t) => t.valor === tipo)?.label ?? tipo;
+}
+
+/** Pestaña Salud: casos individuales + notas generales opcionales. */
+function AtencionesMedicasSalud({
+  casos,
+  onCasosChange,
+  observaciones,
+  onObservaciones,
+}: {
+  casos: AtencionMedicaCaso[];
+  onCasosChange: (casos: AtencionMedicaCaso[]) => void;
+  observaciones: string;
+  onObservaciones: (v: string) => void;
+}) {
+  const [borrador, setBorrador] = useState<Omit<AtencionMedicaCaso, "id">>(CASO_VACIO);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const total = casos.length;
+  const statsEdad = useMemo(() => estadisticasEdadAtenciones(casos), [casos]);
+
+  function resetBorrador() {
+    setBorrador(CASO_VACIO);
+    setEditandoId(null);
+  }
+
+  function guardarCaso() {
+    if (!borrador.nombre.trim()) return;
+    const caso: AtencionMedicaCaso = {
+      id: editandoId ?? nuevoId(),
+      ...borrador,
+      nombre: borrador.nombre.trim(),
+      cedula: borrador.cedula.trim(),
+      sintomas: borrador.sintomas.trim(),
+      diagnostico: borrador.diagnostico.trim(),
+    };
+    if (editandoId) {
+      onCasosChange(casos.map((c) => (c.id === editandoId ? caso : c)));
+    } else {
+      onCasosChange([...casos, caso]);
+    }
+    resetBorrador();
+  }
+
+  function editarCaso(caso: AtencionMedicaCaso) {
+    setEditandoId(caso.id);
+    setBorrador({
+      nombre: caso.nombre,
+      cedula: caso.cedula,
+      edad: caso.edad,
+      tipo_atencion: caso.tipo_atencion,
+      sintomas: caso.sintomas,
+      diagnostico: caso.diagnostico,
+    });
+  }
+
+  function eliminarCaso(id: string) {
+    onCasosChange(casos.filter((c) => c.id !== id));
+    if (editandoId === id) resetBorrador();
+  }
+
+  return (
+    <div className="min-w-0 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">Atenciones médicas</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Registra cada caso atendido hoy. El total se calcula automáticamente.
+          </p>
+        </div>
+        <Badge variant="secondary" className="shrink-0 tabular-nums">
+          {total} {total === 1 ? "atención" : "atenciones"}
+        </Badge>
+      </div>
+
+      {casos.length > 0 && (
+        <ul className="space-y-2">
+          {casos.map((c) => (
+            <li key={c.id}>
+              <Card size="sm" className="border-border/80 py-0">
+                <CardContent className="flex min-w-0 items-start gap-2 px-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium text-foreground">
+                      {c.nombre}
+                      {c.cedula ? (
+                        <span className="ml-1.5 font-normal text-muted-foreground">
+                          · {c.cedula}
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {c.edad} años · {labelTipoAtencion(c.tipo_atencion)}
+                    </p>
+                    {(c.sintomas || c.diagnostico) && (
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+                        {[c.sintomas, c.diagnostico].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 gap-0.5">
+                    <Button
+                      type="button"
+                      size="icon-xs"
+                      variant="ghost"
+                      aria-label="Editar caso"
+                      onClick={() => editarCaso(c)}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon-xs"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      aria-label="Eliminar caso"
+                      onClick={() => eliminarCaso(c.id)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Card size="sm" className="border-border/80">
+        <CardContent className="min-w-0 space-y-3 px-3 py-3">
+          <p className="text-xs font-medium text-foreground">
+            {editandoId ? "Editar caso" : "Nuevo caso"}
+          </p>
+          <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="min-w-0 sm:col-span-2">
+              <Label htmlFor="caso-nombre" className="text-[11px] text-muted-foreground">
+                Nombre
+              </Label>
+              <Input
+                id="caso-nombre"
+                className="mt-1"
+                value={borrador.nombre}
+                onChange={(e) => setBorrador((p) => ({ ...p, nombre: e.target.value }))}
+                placeholder="Nombre completo"
+              />
+            </div>
+            <div className="min-w-0">
+              <Label htmlFor="caso-cedula" className="text-[11px] text-muted-foreground">
+                Cédula
+              </Label>
+              <Input
+                id="caso-cedula"
+                className="mt-1"
+                value={borrador.cedula}
+                onChange={(e) => setBorrador((p) => ({ ...p, cedula: e.target.value }))}
+                placeholder="V-…"
+              />
+            </div>
+            <div className="min-w-0">
+              <Label htmlFor="caso-edad" className="text-[11px] text-muted-foreground">
+                Edad
+              </Label>
+              <NumInput
+                id="caso-edad"
+                className="mt-1"
+                value={borrador.edad}
+                onChange={(n) => setBorrador((p) => ({ ...p, edad: n }))}
+              />
+            </div>
+            <div className="min-w-0 sm:col-span-2">
+              <Label className="text-[11px] text-muted-foreground">Tipo de atención</Label>
+              <Select
+                value={borrador.tipo_atencion}
+                onValueChange={(v) =>
+                  setBorrador((p) => ({ ...p, tipo_atencion: v as TipoAtencionMedica }))
+                }
+              >
+                <SelectTrigger className="mt-1 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATALOGO_TIPOS_ATENCION.map((t) => (
+                    <SelectItem key={t.valor} value={t.valor}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-0 sm:col-span-2">
+              <Label htmlFor="caso-sintomas" className="text-[11px] text-muted-foreground">
+                Síntomas
+              </Label>
+              <Textarea
+                id="caso-sintomas"
+                className="mt-1 min-h-[4rem]"
+                rows={2}
+                value={borrador.sintomas}
+                onChange={(e) => setBorrador((p) => ({ ...p, sintomas: e.target.value }))}
+                placeholder="Motivo de consulta, signos…"
+              />
+            </div>
+            <div className="min-w-0 sm:col-span-2">
+              <Label htmlFor="caso-diagnostico" className="text-[11px] text-muted-foreground">
+                Diagnóstico
+              </Label>
+              <Textarea
+                id="caso-diagnostico"
+                className="mt-1 min-h-[4rem]"
+                rows={2}
+                value={borrador.diagnostico}
+                onChange={(e) => setBorrador((p) => ({ ...p, diagnostico: e.target.value }))}
+                placeholder="Impresión diagnóstica o conducta…"
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              disabled={!borrador.nombre.trim()}
+              onClick={guardarCaso}
+            >
+              {editandoId ? (
+                <>
+                  <Check className="size-4" />
+                  Actualizar caso
+                </>
+              ) : (
+                <>
+                  <Plus className="size-4" />
+                  Agregar caso
+                </>
+              )}
+            </Button>
+            {editandoId && (
+              <Button type="button" size="sm" variant="outline" onClick={resetBorrador}>
+                Cancelar edición
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {total > 0 && (
+        <div className="rounded-lg border border-border/70 bg-muted/15 px-3 py-2.5">
+          <p className="text-[11px] font-semibold text-foreground">Por grupo de edad</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {CATALOGO_GRUPOS_EDAD_ATENCION.filter((g) => statsEdad[g.valor] > 0).map((g) => (
+              <Badge key={g.valor} variant="outline" className="text-[10px] tabular-nums">
+                {g.label}: {statsEdad[g.valor]}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="min-w-0">
+        <Label htmlFor="reporte-observaciones">Notas generales (opcional)</Label>
+        <Textarea
+          id="reporte-observaciones"
+          className="mt-1.5 w-full min-w-0"
+          rows={3}
+          value={observaciones}
+          onChange={(e) => onObservaciones(e.target.value)}
+          placeholder="Observaciones del día que no correspondan a un caso concreto…"
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Estilo de pestañas del reporte: grid 4 cols; icono solo en móvil, texto truncado en sm+. */
 const clasePestanaReporte = cn(
-  "relative flex h-full min-h-0 flex-row items-center justify-center gap-1 rounded-none px-0.5 py-0",
+  "relative flex h-full min-h-0 min-w-0 w-full flex-row items-center justify-center gap-0.5 overflow-hidden rounded-none px-0 py-0",
   "!border-x-transparent !border-t-transparent !border-b-2 !border-b-transparent !bg-transparent !shadow-none",
-  "text-[10px] font-medium leading-none text-muted-foreground",
+  "!whitespace-normal text-[10px] font-medium leading-none text-muted-foreground",
   "transition-colors hover:text-foreground",
   "after:!hidden after:!content-none",
   "data-active:!border-x-transparent data-active:!border-t-transparent data-active:!border-b-primary",
   "data-active:!bg-transparent data-active:!text-foreground data-active:!shadow-none",
   "dark:data-active:!border-x-transparent dark:data-active:!border-t-transparent dark:data-active:!border-b-primary dark:data-active:!bg-transparent",
   "sm:gap-1.5 sm:px-1 sm:text-sm",
-  "[&_svg]:size-3.5 shrink-0 sm:[&_svg]:size-4",
+  "[&_svg]:size-4 shrink-0",
 );
 
 /** Formulario del reporte del día (parte numérico + comidas + atención médica). */
@@ -144,7 +443,7 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
     almuerzo: "",
     cena: "",
   });
-  const [atenciones, setAtenciones] = useState(0);
+  const [atencionesCasos, setAtencionesCasos] = useState<AtencionMedicaCaso[]>([]);
   const [observaciones, setObservaciones] = useState("");
 
   // Reparaciones (flags diarios en `reportes_reparaciones_dia`).
@@ -190,7 +489,7 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
       almuerzo: horaDesdeTs(c.almuerzo.hora_llegada),
       cena: horaDesdeTs(c.cena.hora_llegada),
     });
-    setAtenciones(reporteExistente.atenciones_medicas);
+    setAtencionesCasos(normalizarAtencionesMedicas(reporteExistente.atenciones_medicas_detalle));
     setObservaciones(reporteExistente.observaciones);
     setPrecargado(true);
   }, [precargado, reporteExistente]);
@@ -286,7 +585,8 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
             observacion: comidas.cena.observacion.trim(),
           },
         },
-        atenciones_medicas: atenciones,
+        atenciones_medicas_detalle: atencionesCasos,
+        atenciones_medicas: contarAtenciones(atencionesCasos),
         observaciones: observaciones.trim(),
       });
       // 3) Flags diarios de reparaciones.
@@ -328,31 +628,31 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
         </DialogHeader>
 
         <Tabs defaultValue="parte" className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden">
-          <div className="relative z-30 shrink-0 border-b border-border/80 bg-background">
+          <div className="relative z-30 shrink-0 overflow-hidden border-b border-border/80 bg-background">
             <TabsList
               variant="line"
-              className="grid !h-[50px] w-full grid-cols-4 gap-0 rounded-none bg-background p-0"
+              className="grid !h-11 w-full min-w-0 grid-cols-4 gap-0 overflow-hidden rounded-none bg-background p-0 sm:!h-[50px]"
             >
-              <TabsTrigger value="parte" className={clasePestanaReporte}>
+              <TabsTrigger value="parte" title="Parte numérico" className={clasePestanaReporte}>
                 <Users />
-                <span className="truncate">Parte</span>
+                <span className="hidden min-w-0 truncate sm:inline">Parte</span>
               </TabsTrigger>
-              <TabsTrigger value="comidas" className={clasePestanaReporte}>
+              <TabsTrigger value="comidas" title="Comidas" className={clasePestanaReporte}>
                 <UtensilsCrossed />
-                <span className="truncate">Comidas</span>
+                <span className="hidden min-w-0 truncate sm:inline">Comidas</span>
               </TabsTrigger>
-              <TabsTrigger value="salud" className={clasePestanaReporte}>
+              <TabsTrigger value="salud" title="Salud" className={clasePestanaReporte}>
                 <Stethoscope />
-                <span className="truncate">Salud</span>
+                <span className="hidden min-w-0 truncate sm:inline">Salud</span>
               </TabsTrigger>
-              <TabsTrigger value="reparaciones" className={clasePestanaReporte}>
+              <TabsTrigger value="reparaciones" title="Reparaciones" className={clasePestanaReporte}>
                 <Wrench />
-                <span className="truncate">Rep.</span>
+                <span className="hidden min-w-0 truncate sm:inline">Rep.</span>
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <div className="relative z-0 min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background px-5 py-4 sm:px-6 sm:py-5">
+          <div className="relative z-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-background px-5 py-4 sm:px-6 sm:py-5">
             {/* Parte numérico: población, familias, desglose y personal */}
             <TabsContent value="parte" className="mt-0 block flex-none space-y-5 outline-none">
               <div
@@ -580,33 +880,17 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
               ))}
             </TabsContent>
 
-            {/* Atención médica del día */}
-            <TabsContent value="salud" className="mt-0 block flex-none space-y-4 outline-none">
-              <div>
-                <Label htmlFor="reporte-atenciones" className="text-sm font-semibold">
-                  Atenciones médicas del día
-                </Label>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Número de personas atendidas por el personal de salud hoy.
-                </p>
-                <NumInput
-                  id="reporte-atenciones"
-                  className="mt-2 w-40"
-                  value={atenciones}
-                  onChange={setAtenciones}
-                />
-              </div>
-              <div>
-                <Label htmlFor="reporte-observaciones">Observaciones del día</Label>
-                <Textarea
-                  id="reporte-observaciones"
-                  className="mt-1.5"
-                  rows={4}
-                  value={observaciones}
-                  onChange={(e) => setObservaciones(e.target.value)}
-                  placeholder="Ej. dos casos de fiebre en niños, se refirió un paciente al hospital…"
-                />
-              </div>
+            {/* Atención médica del día: casos individuales */}
+            <TabsContent
+              value="salud"
+              className="mt-0 block min-w-0 flex-none outline-none"
+            >
+              <AtencionesMedicasSalud
+                casos={atencionesCasos}
+                onCasosChange={setAtencionesCasos}
+                observaciones={observaciones}
+                onObservaciones={setObservaciones}
+              />
             </TabsContent>
 
             {/* Reparaciones: flags diarios + lista histórica */}

@@ -33,6 +33,7 @@ import {
   CATALOGO_JORNADAS_REPORTE,
   META_ESTADO_REPORTE,
   contadoresReportesPorPeriodo,
+  contarAtenciones,
   estadosReportePorDia,
   jornadasReportadas,
   normalizarComidas,
@@ -40,6 +41,7 @@ import {
   racionesDelDia,
   reporteCompleto,
   reporteDelDia,
+  textoResumenTiposAtencion,
   ultimosDiasReporte,
   type EstadoReporteDia,
   type JornadaReporte,
@@ -110,6 +112,43 @@ function horaCorta(ts: number | null): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+/** Resumen breve de atenciones médicas (conteo + desglose por tipo). */
+function ResumenAtencionesMedicas({ reporte }: { reporte: ReporteDiario | undefined }) {
+  const casos = reporte?.atenciones_medicas_detalle ?? [];
+  const total = contarAtenciones(casos, reporte?.atenciones_medicas);
+  const resumenTipos = textoResumenTiposAtencion(casos);
+  const obs = reporte?.observaciones?.trim();
+  const legacySinDetalle = casos.length === 0 && total > 0;
+
+  if (total === 0 && !obs) {
+    return <p className="text-[11px] text-muted-foreground">Sin atenciones ni notas.</p>;
+  }
+
+  return (
+    <div className="space-y-1">
+      {total > 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          <span className="font-bold tabular-nums text-foreground">{total}</span>{" "}
+          {total === 1 ? "atención" : "atenciones"}
+          {resumenTipos ? (
+            <span className="text-muted-foreground"> · {resumenTipos}</span>
+          ) : null}
+        </p>
+      )}
+      {legacySinDetalle && obs && (
+        <p className="whitespace-pre-wrap text-[11px] leading-snug text-muted-foreground">
+          {obs}
+        </p>
+      )}
+      {casos.length > 0 && obs && (
+        <p className="whitespace-pre-wrap text-[11px] leading-snug text-muted-foreground/80">
+          Notas: {obs}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** Bloque temático de la tarjeta de reporte (una pestaña del formulario). */
 function BloqueReporte({
   icono,
@@ -170,14 +209,16 @@ function TarjetaReporteDia({
   const jornadas = jornadasReportadas(reporte);
   const comidas = normalizarComidas(reporte?.comidas);
   const raciones = racionesDelDia(reporte);
-  const atenciones = reporte?.atenciones_medicas ?? 0;
+  const casosAtencion = reporte?.atenciones_medicas_detalle ?? [];
+  const atenciones = contarAtenciones(casosAtencion, reporte?.atenciones_medicas);
+  const obsSalud = reporte?.observaciones?.trim();
   const pendientesRep = reparaciones ? reparacionesPendientes(reparaciones) : [];
   const snapshotAnterior = snapshots ? ultimoSnapshotAntes(snapshots, dia) : undefined;
   const hayAlgo =
     parteNumerico ||
     jornadas.length > 0 ||
     atenciones > 0 ||
-    Boolean(reporte?.observaciones) ||
+    Boolean(obsSalud) ||
     Boolean(reporteRep) ||
     (esHoy && pendientesRep.length > 0);
 
@@ -290,23 +331,9 @@ function TarjetaReporteDia({
               <BloqueReporte
                 icono={<Stethoscope className="size-3.5 text-rose-400" />}
                 titulo="Atención médica"
-                listo={atenciones > 0 || Boolean(reporte?.observaciones?.trim())}
+                listo={atenciones > 0 || Boolean(obsSalud)}
               >
-                {atenciones > 0 || reporte?.observaciones ? (
-                  <div className="space-y-1">
-                    <p className="text-[11px] text-muted-foreground">
-                      <span className="font-bold tabular-nums text-foreground">{atenciones}</span>{" "}
-                      {atenciones === 1 ? "atención" : "atenciones"}
-                    </p>
-                    {reporte?.observaciones && (
-                      <p className="whitespace-pre-wrap text-[11px] leading-snug text-muted-foreground">
-                        {reporte.observaciones}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground">Sin atenciones ni notas.</p>
-                )}
+                <ResumenAtencionesMedicas reporte={reporte} />
               </BloqueReporte>
 
               {/* Reparaciones */}
@@ -399,18 +426,25 @@ function TarjetaReporteDia({
               </div>
               {(raciones > 0 || atenciones > 0) && (
                 <div className="flex flex-wrap gap-4 text-xs">
-                  <span className="inline-flex items-center gap-1 text-muted-foreground">
-                    <UtensilsCrossed className="size-3.5 text-teal-400" />
-                    <span className="font-bold tabular-nums text-foreground">
-                      {raciones.toLocaleString("es")}
-                    </span>{" "}
-                    raciones
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-muted-foreground">
-                    <Stethoscope className="size-3.5 text-rose-400" />
-                    <span className="font-bold tabular-nums text-foreground">{atenciones}</span>{" "}
-                    atenciones
-                  </span>
+                  {raciones > 0 && (
+                    <span className="inline-flex items-center gap-1 text-muted-foreground">
+                      <UtensilsCrossed className="size-3.5 text-teal-400" />
+                      <span className="font-bold tabular-nums text-foreground">
+                        {raciones.toLocaleString("es")}
+                      </span>{" "}
+                      raciones
+                    </span>
+                  )}
+                  {atenciones > 0 && (
+                    <span className="inline-flex min-w-0 items-center gap-1 text-muted-foreground">
+                      <Stethoscope className="size-3.5 shrink-0 text-rose-400" />
+                      <span className="font-bold tabular-nums text-foreground">{atenciones}</span>{" "}
+                      atenciones
+                      {casosAtencion.length > 0 && textoResumenTiposAtencion(casosAtencion) ? (
+                        <span className="truncate"> · {textoResumenTiposAtencion(casosAtencion)}</span>
+                      ) : null}
+                    </span>
+                  )}
                 </div>
               )}
               {parteNumerico && snapshot && (
@@ -420,9 +454,9 @@ function TarjetaReporteDia({
                   {snapshot.personal_total.toLocaleString("es")} personal
                 </p>
               )}
-              {reporte?.observaciones && (
+              {casosAtencion.length === 0 && obsSalud && (
                 <p className="whitespace-pre-wrap text-[11px] text-muted-foreground">
-                  {reporte.observaciones}
+                  {obsSalud}
                 </p>
               )}
               {reporteRep && (
@@ -743,7 +777,9 @@ function ReporteCompacto({ centro, puedeEditar }: Props) {
   const reporte = reporteDelDia(reportes, centro.id, hoy);
   const jornadas = jornadasReportadas(reporte);
   const raciones = racionesDelDia(reporte);
-  const atenciones = reporte?.atenciones_medicas ?? 0;
+  const casosAtencion = reporte?.atenciones_medicas_detalle ?? [];
+  const atenciones = contarAtenciones(casosAtencion, reporte?.atenciones_medicas);
+  const obsSalud = reporte?.observaciones?.trim();
 
   const snapshotsHoy = useOcupacionesCentros({ centroId: centro.id, desde: hoy });
   const parteHoy = snapshotsHoy.some((s) => s.dia === hoy);
@@ -815,9 +851,14 @@ function ReporteCompacto({ centro, puedeEditar }: Props) {
         </div>
       )}
 
-      {reporte?.observaciones && (
+      {casosAtencion.length === 0 && obsSalud && (
         <p className="mt-2 whitespace-pre-wrap text-[11px] text-muted-foreground">
-          {reporte.observaciones}
+          {obsSalud}
+        </p>
+      )}
+      {casosAtencion.length > 0 && obsSalud && (
+        <p className="mt-2 whitespace-pre-wrap text-[11px] text-muted-foreground/80">
+          Notas: {obsSalud}
         </p>
       )}
 

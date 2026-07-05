@@ -7,6 +7,7 @@
 // los dispositivos tras cada mutación; aquí no hay estado local.
 
 import {
+  normalizarAtencionesMedicas,
   normalizarComidas,
   type ReporteDiario,
 } from "../domain/reporteDiario";
@@ -35,11 +36,13 @@ export async function guardarReporteDiario(
   },
 ): Promise<void> {
   const now = Date.now();
+  const detalle = normalizarAtencionesMedicas(datos.atenciones_medicas_detalle);
   const fila = {
     centro_id: datos.centro_id,
     dia: datos.dia ?? claveDia(now),
     comidas: normalizarComidas(datos.comidas),
-    atenciones_medicas: datos.atenciones_medicas ?? 0,
+    atenciones_medicas_detalle: detalle,
+    atenciones_medicas: Math.max(datos.atenciones_medicas ?? 0, detalle.length),
     observaciones: datos.observaciones ?? "",
     updated_at: now,
     updated_by: usuarioActual(),

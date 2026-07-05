@@ -22,6 +22,8 @@ create table public.reportes_centros (
   -- { desayuno: {raciones, hora_llegada, proveedor, observacion}, almuerzo: {...}, cena: {...} }
   comidas jsonb,
   atenciones_medicas int,
+  -- Array de casos: [{ id, nombre, cedula, edad, tipo_atencion, sintomas, diagnostico }]
+  atenciones_medicas_detalle jsonb not null default '[]'::jsonb,
   observaciones text,
   updated_at bigint,
   updated_by text,
