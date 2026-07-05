@@ -19,6 +19,7 @@ import type { BeneficioOtorgado } from "../domain/beneficios";
 
 export interface DetalleAlojamiento extends AlojamientoEnriquecido {
   miembrosFamilia: AlojamientoEnriquecido[];
+  miembrosFamiliaEgresados: AlojamientoEnriquecido[];
   residencia: ResidenciaAfectada | null;
   beneficios: BeneficioOtorgado[];
 }
@@ -98,6 +99,7 @@ export function useAlojamientoDetalle(alojamientoId: string | undefined): {
         }
 
         let miembrosFamilia: AlojamientoEnriquecido[] = [];
+        let miembrosFamiliaEgresados: AlojamientoEnriquecido[] = [];
         if (aloj.familia_id) {
           const { data: miembrosRaw } = await supabase
             .from("alojamientos_refugiados")
@@ -115,7 +117,8 @@ export function useAlojamientoDetalle(alojamientoId: string | undefined): {
             if (!ref) continue;
             enriquecidos.push({ ...m, refugiado: ref, familia: familia ?? null });
           }
-          miembrosFamilia = enriquecidos;
+          miembrosFamilia = enriquecidos.filter((m) => m.estado !== "egresado");
+          miembrosFamiliaEgresados = enriquecidos.filter((m) => m.estado === "egresado");
         }
 
         setAlojamiento((prev) => ({
@@ -123,6 +126,7 @@ export function useAlojamientoDetalle(alojamientoId: string | undefined): {
           refugiado,
           familia,
           miembrosFamilia,
+          miembrosFamiliaEgresados,
           residencia,
           beneficios: prev?.beneficios ?? [],
         }));
@@ -142,7 +146,7 @@ export function useAlojamientoDetalle(alojamientoId: string | undefined): {
       .channel(channelName)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "alojamientos_refugiados", filter: `id=eq.${alojamientoId}` },
+        { event: "*", schema: "public", table: "alojamientos_refugiados" },
         recargar,
       )
       .on(

@@ -3,13 +3,13 @@
 
 import { normalizarNacionalidad as normalizarNacionalidadCatalogo } from "./catalogosHumanitarios";
 
-/** Tipo de documento de identidad (adultos). */
-export type TipoDoc = "V" | "E";
+/** Tipo de documento de identidad (adultos): venezolano, extranjero o pasaporte. */
+export type TipoDoc = "V" | "E" | "P";
 
 /** Sexo registrado en la ficha nominal. */
 export type SexoRefugiado = "M" | "F" | "O";
 
-/** Estado de una plaza en un campamento. */
+/** Estado del alojamiento de una persona en un campamento. */
 export type EstadoAlojamiento = "activo" | "observacion" | "transito" | "egresado";
 
 /** Estado del documento de identidad. */
@@ -55,7 +55,7 @@ export interface OtroDocumento {
   notas?: string;
 }
 
-/** Familiar de referencia (no en plaza activa). */
+/** Familiar de referencia (no alojado actualmente en el refugio). */
 export interface FamiliarReferencia {
   id: string;
   nombres: string;
@@ -256,7 +256,7 @@ export interface FamiliaCentro {
   updated_by: string;
 }
 
-/** Registro de plaza de una persona en un campamento. */
+/** Registro de alojamiento de una persona en un campamento. */
 export interface AlojamientoRefugiado {
   id: string;
   refugiado_id: string;
@@ -395,8 +395,34 @@ export const META_ESTADO_ALOJAMIENTO: Record<EstadoAlojamiento, MetaEstadoAlojam
     MetaEstadoAlojamiento
   >;
 
+export type GrupoEtarioRefugiado =
+  | "sin_fecha"
+  | "menor5"
+  | "ninez"
+  | "adolescente"
+  | "adulto"
+  | "adulto_mayor";
+
+export const GRUPOS_ETARIOS_REFUGIADO: {
+  valor: GrupoEtarioRefugiado;
+  label: string;
+  descripcion: string;
+}[] = [
+  { valor: "menor5", label: "Menor <5", descripcion: "0 a 4 años" },
+  { valor: "ninez", label: "Niñez", descripcion: "5 a 11 años" },
+  { valor: "adolescente", label: "Adolescente", descripcion: "12 a 17 años" },
+  { valor: "adulto", label: "Adulto", descripcion: "18 a 59 años" },
+  { valor: "adulto_mayor", label: "Adulto mayor", descripcion: "60 años o más" },
+  { valor: "sin_fecha", label: "Sin edad", descripcion: "Sin fecha de nacimiento" },
+];
+
+export const META_GRUPO_ETARIO_REFUGIADO = Object.fromEntries(
+  GRUPOS_ETARIOS_REFUGIADO.map((g) => [g.valor, g]),
+) as Record<GrupoEtarioRefugiado, (typeof GRUPOS_ETARIOS_REFUGIADO)[number]>;
+
 const EDAD_MENOR = 18;
 const EDAD_MENOR_5 = 5;
+const EDAD_NINEZ = 12;
 const EDAD_ADULTO_MAYOR = 60;
 
 /** Calcula edad en años a partir de fecha de nacimiento. */
@@ -423,6 +449,19 @@ export function esAdultoMayor(fechaNacimiento: string | null | undefined): boole
   return edad != null && edad >= EDAD_ADULTO_MAYOR;
 }
 
+/** Clasifica la persona en grupos útiles para filtros operativos. */
+export function grupoEtarioRefugiado(
+  fechaNacimiento: string | null | undefined,
+): GrupoEtarioRefugiado {
+  const edad = calcularEdad(fechaNacimiento);
+  if (edad == null) return "sin_fecha";
+  if (edad < EDAD_MENOR_5) return "menor5";
+  if (edad < EDAD_NINEZ) return "ninez";
+  if (edad < EDAD_MENOR) return "adolescente";
+  if (edad < EDAD_ADULTO_MAYOR) return "adulto";
+  return "adulto_mayor";
+}
+
 /** ¿Es menor de edad según fecha de nacimiento? (sin cédula obligatoria). */
 export function esMenor(fechaNacimiento: string | null | undefined): boolean {
   if (!fechaNacimiento) return false;
@@ -435,11 +474,19 @@ export function esMenor(fechaNacimiento: string | null | undefined): boolean {
   return edad < EDAD_MENOR;
 }
 
-/** Normaliza cédula a dígitos y formato display. */
+/** Normaliza documento: cédula a dígitos, pasaporte a clave alfanumérica. */
 export function normalizarCedula(
   cedula: string,
   tipoDoc: TipoDoc = "V",
 ): { cedula: string; cedula_norm: string | null; tipo_doc: TipoDoc } {
+  if (tipoDoc === "P") {
+    const pasaporte = cedula.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    return {
+      cedula: pasaporte,
+      cedula_norm: pasaporte || null,
+      tipo_doc: tipoDoc,
+    };
+  }
   const digits = cedula.replace(/\D/g, "");
   return {
     cedula: digits,
@@ -454,6 +501,7 @@ export function formatearCedula(
   tipoDoc: TipoDoc | null | undefined,
 ): string {
   if (!cedula) return "—";
+  if (tipoDoc === "P") return `P-${cedula.toUpperCase()}`;
   const d = cedula.replace(/\D/g, "");
   if (d.length <= 8) {
     const fmt = d.replace(/\B(?=(\d{3})+(?!\d))/g, ".");

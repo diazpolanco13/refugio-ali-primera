@@ -206,7 +206,7 @@ export function FichaRefugiadoView({
               <AlertTriangle className="size-4" />
               <AlertTitle className="text-sm">Activo en varios campamentos</AlertTitle>
               <AlertDescription className="text-xs">
-                Esta cédula tiene plaza activa en:{" "}
+                Este documento tiene alojamiento activo en:{" "}
                 {centrosDup.map((id) => nombresCentros.get(id) ?? id).join(", ")}
               </AlertDescription>
             </Alert>
@@ -247,9 +247,13 @@ export function FichaRefugiadoView({
             <TabsContent value="familiares" className="space-y-4">
               <FamiliaresSection
                 miembros={alojamiento.miembrosFamilia}
+                miembrosEgresados={alojamiento.miembrosFamiliaEgresados}
                 familiaNombre={alojamiento.familia?.nombre}
+                familiaId={alojamiento.familia_id}
+                centroId={alojamiento.centro_id}
                 refugiadoActualId={refugiado.id}
                 alojamientoActualId={alojamiento.id}
+                puedeEditar={puedeEditar}
                 onAbrirMiembro={onAbrirMiembro}
               />
               <FamiliaresReferenciaSection detalle={alojamiento} puedeEditar={puedeEditar} />

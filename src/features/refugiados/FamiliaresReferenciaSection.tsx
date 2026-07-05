@@ -1,6 +1,6 @@
 // Familiares de referencia y separados (jsonb en familias_centro).
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Trash2, Users } from "lucide-react";
 import {
   resumenFamiliaVulnerable,
@@ -38,10 +38,15 @@ export function FamiliaresReferenciaSection({ detalle, puedeEditar }: Props) {
   );
   const [guardando, setGuardando] = useState(false);
 
+  useEffect(() => {
+    setReferencia(familia?.familiares_referencia ?? []);
+    setSeparados(familia?.familiares_separados ?? []);
+  }, [familia?.id, familia?.familiares_referencia, familia?.familiares_separados]);
+
   if (!familia) {
     return (
       <p className="text-sm text-muted-foreground">
-        Asigna un grupo familiar para registrar familiares de referencia.
+        Asigna un hogar para registrar contactos familiares de referencia.
       </p>
     );
   }
@@ -69,10 +74,10 @@ export function FamiliaresReferenciaSection({ detalle, puedeEditar }: Props) {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Users className="size-4" />
-            Familiares de referencia
+            Familiares fuera del refugio / contactos de referencia
           </CardTitle>
           <CardDescription className="text-xs">
-            Personas del grupo no registradas en plaza activa
+            Personas relacionadas que no están alojadas en este centro. Úsalo solo para contacto o trazabilidad, no como miembros del hogar.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -108,7 +113,9 @@ export function FamiliaresReferenciaSection({ detalle, puedeEditar }: Props) {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Separados / desaparecidos</CardTitle>
-          <CardDescription className="text-xs">Trazabilidad para reunificación familiar</CardDescription>
+          <CardDescription className="text-xs">
+            Casos de reunificación familiar o contacto perdido fuera del hogar actual.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {separados.map((f, i) => (

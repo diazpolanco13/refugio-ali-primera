@@ -161,7 +161,7 @@ export function ListaRefugiadosCentro({
             <Input
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar por nombre o cédula…"
+              placeholder="Buscar por nombre o documento…"
               className="h-9 pl-9"
             />
           </div>
@@ -221,7 +221,7 @@ export function ListaRefugiadosCentro({
                     <TableHeader>
                       <TableRow>
                         <TableHead>Persona</TableHead>
-                        <TableHead>Cédula</TableHead>
+                        <TableHead>Documento</TableHead>
                         <TableHead>Ingreso</TableHead>
                         <TableHead>Estado</TableHead>
                       </TableRow>

@@ -255,11 +255,12 @@ function CabeceraRefugiado({ detalle, nombreCampamento, puedeEditar }: Props) {
                       <SelectContent>
                         <SelectItem value="V">V</SelectItem>
                         <SelectItem value="E">E</SelectItem>
+                        <SelectItem value="P">Pasaporte</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <Label className="text-[10px] text-muted-foreground">Cédula</Label>
+                    <Label className="text-[10px] text-muted-foreground">Documento</Label>
                     <Input
                       value={cedula}
                       onChange={(e) => setCedula(e.target.value)}
@@ -372,7 +373,7 @@ function CabeceraRefugiado({ detalle, nombreCampamento, puedeEditar }: Props) {
                     <span className="font-medium">Itinerante</span>
                     <span className="text-muted-foreground">
                       {" "}
-                      — duerme o trabaja fuera del campamento pero mantiene plaza
+                      — duerme o trabaja fuera del campamento pero mantiene alojamiento activo
                     </span>
                   </span>
                   <Switch id="itinerante-cab" checked={itinerante} onCheckedChange={setItinerante} />

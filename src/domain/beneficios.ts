@@ -161,3 +161,89 @@ export function yaRecibioBeneficio(
   if (delTipo.length === 0) return null;
   return [...delTipo].sort((a, b) => b.fecha.localeCompare(a.fecha))[0] ?? null;
 }
+
+/** Apoyos que pertenecen al hogar completo, no a una persona individual. */
+export type TipoBeneficioFamiliar =
+  | "cocina"
+  | "nevera"
+  | "televisor"
+  | "colchon_familiar"
+  | "articulos_vivienda"
+  | "compensacion"
+  | "otro";
+
+export interface MetaBeneficioFamiliar {
+  valor: TipoBeneficioFamiliar;
+  label: string;
+  unico: boolean;
+}
+
+export const CATALOGO_BENEFICIOS_FAMILIARES: MetaBeneficioFamiliar[] = [
+  { valor: "cocina", label: "Cocina", unico: true },
+  { valor: "nevera", label: "Nevera", unico: true },
+  { valor: "televisor", label: "Televisor", unico: true },
+  { valor: "colchon_familiar", label: "Colchón familiar", unico: true },
+  { valor: "articulos_vivienda", label: "Artículos de vivienda", unico: false },
+  { valor: "compensacion", label: "Compensación / apoyo económico", unico: false },
+  { valor: "otro", label: "Otro apoyo del hogar", unico: false },
+];
+
+export const META_BENEFICIO_FAMILIAR: Record<TipoBeneficioFamiliar, MetaBeneficioFamiliar> =
+  Object.fromEntries(CATALOGO_BENEFICIOS_FAMILIARES.map((b) => [b.valor, b])) as Record<
+    TipoBeneficioFamiliar,
+    MetaBeneficioFamiliar
+  >;
+
+export interface BeneficioFamiliar {
+  id: string;
+  familia_id: string;
+  centro_id: string;
+  tipo: TipoBeneficioFamiliar;
+  cantidad: number;
+  fecha: string;
+  observacion: string;
+  otorgado_por: string;
+  updated_at: number;
+  updated_by: string;
+}
+
+export function normalizarTipoBeneficioFamiliar(
+  raw: string | null | undefined,
+): TipoBeneficioFamiliar {
+  const claves = CATALOGO_BENEFICIOS_FAMILIARES.map((b) => b.valor);
+  if (raw && claves.includes(raw as TipoBeneficioFamiliar)) return raw as TipoBeneficioFamiliar;
+  return "otro";
+}
+
+export function normalizarBeneficioFamiliar(
+  raw: Partial<BeneficioFamiliar> & { id: string; familia_id: string; centro_id: string },
+): BeneficioFamiliar {
+  return {
+    id: raw.id,
+    familia_id: raw.familia_id,
+    centro_id: raw.centro_id,
+    tipo: normalizarTipoBeneficioFamiliar(raw.tipo),
+    cantidad: Math.max(1, raw.cantidad ?? 1),
+    fecha: raw.fecha ?? "",
+    observacion: (raw.observacion ?? "").trim(),
+    otorgado_por: raw.otorgado_por ?? "",
+    updated_at: raw.updated_at ?? 0,
+    updated_by: raw.updated_by ?? "",
+  };
+}
+
+export function etiquetaBeneficioFamiliar(b: BeneficioFamiliar): string {
+  return META_BENEFICIO_FAMILIAR[b.tipo]?.label ?? b.tipo;
+}
+
+/** ¿El hogar ya recibió este apoyo único? */
+export function yaRecibioBeneficioFamiliar(
+  beneficios: BeneficioFamiliar[],
+  tipo: TipoBeneficioFamiliar,
+): BeneficioFamiliar | null {
+  const meta = META_BENEFICIO_FAMILIAR[tipo];
+  if (!meta?.unico) return null;
+  const delTipo = beneficios.filter((b) => b.tipo === tipo);
+  if (delTipo.length === 0) return null;
+  return [...delTipo].sort((a, b) => b.fecha.localeCompare(a.fecha))[0] ?? null;
+}

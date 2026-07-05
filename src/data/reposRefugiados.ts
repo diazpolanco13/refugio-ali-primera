@@ -37,10 +37,14 @@ import {
 } from "../domain/refugiados";
 import {
   normalizarBeneficio,
+  normalizarBeneficioFamiliar,
   normalizarItemKit,
+  normalizarTipoBeneficioFamiliar,
   normalizarTipoBeneficio,
   type BeneficioOtorgado,
+  type BeneficioFamiliar,
   type ItemKit,
+  type TipoBeneficioFamiliar,
   type TipoBeneficio,
 } from "../domain/beneficios";
 import { normalizarGeom } from "./normalizarGeom";
@@ -136,7 +140,7 @@ export async function asignarCodigoFicha(refugiadoId: string, centroId: string):
 
 /** Busca una persona por cédula normalizada en toda la red. */
 export async function buscarRefugiadoPorCedula(cedulaNorm: string): Promise<Refugiado | null> {
-  const norm = cedulaNorm.replace(/\D/g, "");
+  const norm = cedulaNorm.toUpperCase().replace(/[^A-Z0-9]/g, "");
   if (!norm) return null;
   const { data, error } = await supabase
     .from("refugiados")
@@ -148,6 +152,41 @@ export async function buscarRefugiadoPorCedula(cedulaNorm: string): Promise<Refu
   }
   if (!data) return null;
   return normalizarRefugiado(data as Refugiado);
+}
+
+function terminoBusquedaPostgrest(raw: string): string {
+  return raw.trim().replace(/[%(),]/g, " ").replace(/\s+/g, " ");
+}
+
+/** Busca personas por cédula, código de ficha, nombres o apellidos. */
+export async function buscarRefugiados(texto: string, limite = 12): Promise<Refugiado[]> {
+  const termino = terminoBusquedaPostgrest(texto);
+  const digitos = texto.replace(/\D/g, "");
+  const documento = texto.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (termino.length < 2 && digitos.length < 3 && documento.length < 3) return [];
+
+  const filtros = [
+    termino.length >= 2 ? `codigo_ficha.ilike.%${termino}%` : null,
+    termino.length >= 2 ? `nombres.ilike.%${termino}%` : null,
+    termino.length >= 2 ? `apellidos.ilike.%${termino}%` : null,
+    termino.length >= 2 ? `primer_nombre.ilike.%${termino}%` : null,
+    termino.length >= 2 ? `segundo_nombre.ilike.%${termino}%` : null,
+    termino.length >= 2 ? `primer_apellido.ilike.%${termino}%` : null,
+    termino.length >= 2 ? `segundo_apellido.ilike.%${termino}%` : null,
+    digitos.length >= 3 ? `cedula_norm.ilike.%${digitos}%` : null,
+    digitos.length >= 3 ? `cedula.ilike.%${digitos}%` : null,
+    documento.length >= 3 && documento !== digitos ? `cedula_norm.ilike.%${documento}%` : null,
+    documento.length >= 3 && documento !== digitos ? `cedula.ilike.%${documento}%` : null,
+  ].filter((f): f is string => Boolean(f));
+
+  const { data, error } = await supabase
+    .from("refugiados")
+    .select("*")
+    .or(filtros.join(","))
+    .order("updated_at", { ascending: false })
+    .limit(limite);
+  if (error) throw new Error(`[reposRefugiados] buscar refugiados: ${error.message}`);
+  return ((data ?? []) as Refugiado[]).map(normalizarRefugiado);
 }
 
 /** Crea identidad de persona nueva. Devuelve el id generado. */
@@ -407,7 +446,44 @@ export async function crearFamilia(datos: {
   return (data as { id: string }).id;
 }
 
-/** Registra plaza de una persona en un campamento. */
+async function buscarJefeActivoFamilia(
+  familiaId: string,
+  excluirAlojamientoId?: string,
+): Promise<AlojamientoRefugiado | null> {
+  const { data, error } = await supabase
+    .from("alojamientos_refugiados")
+    .select("*")
+    .eq("familia_id", familiaId)
+    .neq("estado", "egresado")
+    .eq("es_jefe_familia", true)
+    .limit(2);
+  if (error) throw new Error(`[reposRefugiados] validar jefe familia: ${error.message}`);
+  const jefe = ((data ?? []) as AlojamientoRefugiado[])
+    .map(normalizarAlojamiento)
+    .find((a) => a.id !== excluirAlojamientoId);
+  return jefe ?? null;
+}
+
+async function validarReglasFamilia(datos: {
+  familia_id?: string | null;
+  es_jefe_familia?: boolean;
+  parentesco_jefe?: string;
+  alojamiento_id?: string;
+}): Promise<void> {
+  if (!datos.familia_id) return;
+  if (datos.es_jefe_familia) {
+    const jefe = await buscarJefeActivoFamilia(datos.familia_id, datos.alojamiento_id);
+    if (jefe) {
+      throw new Error("Este hogar ya tiene un jefe activo. Ajusta el jefe existente antes de asignar otro.");
+    }
+    return;
+  }
+  if (!(datos.parentesco_jefe ?? "").trim()) {
+    throw new Error("El parentesco con el jefe de familia es obligatorio para miembros no jefes.");
+  }
+}
+
+/** Registra la presencia de una persona en un refugio. */
 export async function registrarAlojamiento(datos: {
   refugiado_id: string;
   centro_id: string;
@@ -417,6 +493,12 @@ export async function registrarAlojamiento(datos: {
   es_jefe_familia?: boolean;
   parentesco_jefe?: string;
 }): Promise<string> {
+  await validarReglasFamilia({
+    familia_id: datos.familia_id,
+    es_jefe_familia: Boolean(datos.es_jefe_familia),
+    parentesco_jefe: datos.parentesco_jefe,
+  });
+
   const ts = Date.now();
   const fila = {
     refugiado_id: datos.refugiado_id,
@@ -449,6 +531,45 @@ export async function registrarAlojamiento(datos: {
   return id;
 }
 
+/** Asocia una persona existente al hogar del refugio, reutilizando alojamiento activo si ya existe. */
+export async function asociarRefugiadoAFamilia(datos: {
+  refugiado_id: string;
+  centro_id: string;
+  familia_id: string;
+  fecha_ingreso?: string;
+  es_jefe_familia?: boolean;
+  parentesco_jefe?: string;
+}): Promise<string> {
+  const activos = await listarAlojamientosActivosRefugiado(datos.refugiado_id);
+  const activoEnCentro = activos.find((a) => a.centro_id === datos.centro_id);
+
+  await validarReglasFamilia({
+    familia_id: datos.familia_id,
+    es_jefe_familia: Boolean(datos.es_jefe_familia),
+    parentesco_jefe: datos.parentesco_jefe,
+    alojamiento_id: activoEnCentro?.id,
+  });
+
+  if (activoEnCentro) {
+    await actualizarAlojamiento(activoEnCentro.id, {
+      familia_id: datos.familia_id,
+      es_jefe_familia: Boolean(datos.es_jefe_familia),
+      parentesco_jefe: datos.es_jefe_familia ? "" : datos.parentesco_jefe,
+      fecha_ingreso: datos.fecha_ingreso ?? activoEnCentro.fecha_ingreso,
+    });
+    return activoEnCentro.id;
+  }
+
+  return registrarAlojamiento({
+    refugiado_id: datos.refugiado_id,
+    centro_id: datos.centro_id,
+    familia_id: datos.familia_id,
+    fecha_ingreso: datos.fecha_ingreso,
+    es_jefe_familia: Boolean(datos.es_jefe_familia),
+    parentesco_jefe: datos.es_jefe_familia ? "" : datos.parentesco_jefe,
+  });
+}
+
 /** Actualiza campos de un alojamiento (itinerante, familia, jefe). */
 export async function actualizarAlojamiento(
   id: string,
@@ -462,6 +583,32 @@ export async function actualizarAlojamiento(
     plaza_modulo: string;
   }>,
 ): Promise<void> {
+  if (
+    cambios.familia_id !== undefined ||
+    cambios.es_jefe_familia !== undefined ||
+    cambios.parentesco_jefe !== undefined
+  ) {
+    const { data: actual, error: actualErr } = await supabase
+      .from("alojamientos_refugiados")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (actualErr) {
+      throw new Error(`[reposRefugiados] leer alojamiento: ${actualErr.message}`);
+    }
+    if (actual) {
+      const aloj = normalizarAlojamiento(actual as AlojamientoRefugiado);
+      await validarReglasFamilia({
+        familia_id: cambios.familia_id !== undefined ? cambios.familia_id : aloj.familia_id,
+        es_jefe_familia:
+          cambios.es_jefe_familia !== undefined ? cambios.es_jefe_familia : aloj.es_jefe_familia,
+        parentesco_jefe:
+          cambios.parentesco_jefe !== undefined ? cambios.parentesco_jefe : aloj.parentesco_jefe,
+        alojamiento_id: id,
+      });
+    }
+  }
+
   const now = Date.now();
   const fila: Record<string, unknown> = {
     updated_at: now,
@@ -718,7 +865,82 @@ export async function listarBeneficiosRefugiado(
   return ((data ?? []) as BeneficioOtorgado[]).map(normalizarBeneficio);
 }
 
-/** Alojamientos activos de una persona (todos los centros visibles por RLS). */
+/** Lista apoyos entregados a un hogar. */
+export async function listarBeneficiosFamiliares(familiaId: string): Promise<BeneficioFamiliar[]> {
+  const { data, error } = await supabase
+    .from("beneficios_familiares")
+    .select("*")
+    .eq("familia_id", familiaId)
+    .order("fecha", { ascending: false });
+  if (error) {
+    throw new Error(`[reposRefugiados] list beneficios familiares: ${error.message}`);
+  }
+  return ((data ?? []) as BeneficioFamiliar[]).map(normalizarBeneficioFamiliar);
+}
+
+/** Registra un apoyo del hogar sin mezclarlo con dotaciones personales. */
+export async function otorgarBeneficioFamiliar(datos: {
+  familia_id: string;
+  centro_id: string;
+  tipo: TipoBeneficioFamiliar;
+  cantidad?: number;
+  fecha?: string;
+  observacion?: string;
+}): Promise<string> {
+  const now = Date.now();
+  const fila = {
+    familia_id: datos.familia_id,
+    centro_id: datos.centro_id,
+    tipo: normalizarTipoBeneficioFamiliar(datos.tipo),
+    cantidad: Math.max(1, datos.cantidad ?? 1),
+    fecha: datos.fecha ?? claveDia(now),
+    observacion: (datos.observacion ?? "").trim(),
+    otorgado_por: usuarioActual(),
+    updated_at: now,
+    updated_by: usuarioActual(),
+  };
+  const { data, error } = await supabase
+    .from("beneficios_familiares")
+    .insert(fila)
+    .select("id")
+    .single();
+  if (error) throw new Error(`[reposRefugiados] insert beneficio familiar: ${error.message}`);
+  const id = (data as { id: string }).id;
+  registrarHistorial("otorgar_beneficio_hogar", "familia", datos.familia_id, {
+    beneficio_id: id,
+    centro_id: datos.centro_id,
+    tipo: fila.tipo,
+    cantidad: fila.cantidad,
+  });
+  return id;
+}
+
+/** Anula un apoyo del hogar registrado por error. */
+export async function eliminarBeneficioFamiliar(beneficioId: string): Promise<void> {
+  const { data: prev, error: errPrev } = await supabase
+    .from("beneficios_familiares")
+    .select("*")
+    .eq("id", beneficioId)
+    .maybeSingle();
+  if (errPrev) {
+    throw new Error(`[reposRefugiados] leer beneficio familiar: ${errPrev.message}`);
+  }
+  if (!prev) throw new Error("Apoyo del hogar no encontrado");
+
+  const { error } = await supabase.from("beneficios_familiares").delete().eq("id", beneficioId);
+  if (error) throw new Error(`[reposRefugiados] eliminar beneficio familiar: ${error.message}`);
+
+  const fila = normalizarBeneficioFamiliar(prev as BeneficioFamiliar);
+  registrarHistorial("eliminar_beneficio_hogar", "familia", fila.familia_id, {
+    beneficio_id: beneficioId,
+    centro_id: fila.centro_id,
+    tipo: fila.tipo,
+    cantidad: fila.cantidad,
+    fecha: fila.fecha,
+  });
+}
+
+/** Alojamientos vigentes de una persona (todos los centros visibles por RLS). */
 export async function listarAlojamientosActivosRefugiado(
   refugiadoId: string,
 ): Promise<AlojamientoRefugiado[]> {
@@ -726,7 +948,7 @@ export async function listarAlojamientosActivosRefugiado(
     .from("alojamientos_refugiados")
     .select("*")
     .eq("refugiado_id", refugiadoId)
-    .eq("estado", "activo");
+    .neq("estado", "egresado");
   if (error) {
     throw new Error(`[reposRefugiados] list alojamientos activos: ${error.message}`);
   }

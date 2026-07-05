@@ -30,7 +30,7 @@ export async function exportarFichaPdf(
     `Nombre: ${nombreCompleto(refugiado)}`,
     `Documento: ${formatearCedula(refugiado.cedula, refugiado.tipo_doc)}`,
     `Campamento: ${nombreCampamento}`,
-    `Estado plaza: ${detalle.estado}`,
+    `Estado alojamiento: ${detalle.estado}`,
     `Ingreso: ${detalle.fecha_ingreso}`,
     `Teléfono: ${refugiado.contacto.telefono_principal ?? "—"}`,
     `Familia: ${detalle.familia?.nombre ?? "—"}`,

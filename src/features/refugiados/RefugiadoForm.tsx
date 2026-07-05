@@ -108,7 +108,7 @@ export function RefugiadoForm({
     try {
       const norm = normalizarCedula(cedulaInput, tipoDoc);
       if (!norm.cedula_norm) {
-        setError("Ingrese una cédula válida");
+        setError("Ingrese un documento válido");
         return;
       }
       const existente = await buscarRefugiadoPorCedula(norm.cedula_norm);
@@ -147,8 +147,17 @@ export function RefugiadoForm({
       return false;
     }
     if (!esMenorActual && !refugiadoExistenteId && !cedulaInput.trim()) {
-      setError("La cédula es obligatoria para adultos");
+      setError("El documento es obligatorio para adultos");
       setPestana("identidad");
+      return false;
+    }
+    return true;
+  }
+
+  function validarHogar(): boolean {
+    if (tieneFamilia && !esJefe && !parentesco.trim()) {
+      setError("El parentesco con el jefe de familia es obligatorio para miembros no jefes.");
+      setPestana("familia");
       return false;
     }
     return true;
@@ -156,6 +165,7 @@ export function RefugiadoForm({
 
   async function guardar() {
     if (!validarPersonal()) return;
+    if (!validarHogar()) return;
     setError(null);
     setGuardando(true);
     try {
@@ -242,7 +252,7 @@ export function RefugiadoForm({
             </TabsTrigger>
             <TabsTrigger value="familia" className="gap-1.5">
               <Users className="size-3.5" />
-              Familia / plaza
+              Hogar
             </TabsTrigger>
             <TabsTrigger value="residencia" className="gap-1.5" disabled={!tieneFamilia}>
               <Home className="size-3.5" />
@@ -258,7 +268,7 @@ export function RefugiadoForm({
                   Identidad
                 </CardTitle>
                 <CardDescription>
-                  Busque la cédula en toda la red antes de crear un registro nuevo.
+                  Busque el documento en toda la red antes de crear un registro nuevo.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -283,11 +293,12 @@ export function RefugiadoForm({
                           <SelectContent>
                             <SelectItem value="V">V</SelectItem>
                             <SelectItem value="E">E</SelectItem>
+                            <SelectItem value="P">Pasaporte</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="col-span-3">
-                        <Label className="text-xs">Cédula</Label>
+                        <Label className="text-xs">Documento</Label>
                         <Input
                           value={cedulaInput}
                           onChange={(e) => setCedulaInput(e.target.value)}
@@ -417,7 +428,7 @@ export function RefugiadoForm({
                   <Label htmlFor="cons-alta">Consentimiento para foto de identificación</Label>
                 </div>
                 <Button type="button" className="w-full" onClick={() => { if (validarPersonal()) setPestana("familia"); }}>
-                  Siguiente: Familia / plaza
+                  Siguiente: Hogar
                 </Button>
               </CardContent>
             </Card>
@@ -426,7 +437,10 @@ export function RefugiadoForm({
           <TabsContent value="familia">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Familia y plaza en campamento</CardTitle>
+                <CardTitle className="text-base">Hogar y alojamiento en el refugio</CardTitle>
+                <CardDescription>
+                  Define si la persona pertenece a un hogar del centro y su parentesco con el jefe.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -497,7 +511,7 @@ export function RefugiadoForm({
                     </Button>
                   ) : (
                     <Button type="button" className="flex-1" disabled={guardando} onClick={() => void guardar()}>
-                      {guardando ? "Guardando…" : "Registrar en campamento"}
+                      {guardando ? "Guardando…" : "Registrar en el refugio"}
                     </Button>
                   )}
                 </div>
@@ -557,7 +571,7 @@ export function RefugiadoForm({
                     Atrás
                   </Button>
                   <Button type="button" className="flex-1" disabled={guardando} onClick={() => void guardar()}>
-                    {guardando ? "Guardando…" : "Registrar en campamento"}
+                    {guardando ? "Guardando…" : "Registrar en el refugio"}
                   </Button>
                 </div>
               </CardContent>
