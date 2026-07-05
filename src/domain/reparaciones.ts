@@ -50,6 +50,8 @@ export interface Reparacion {
   updated_at: number;
   updated_by: string;
   resuelta_ts: number | null;
+  /** Área de infraestructura vinculada (opcional). */
+  area_infraestructura_id: string | null;
 }
 
 /** Flags diarios del reporte de reparaciones (una fila por centro/día). */
@@ -97,6 +99,7 @@ export function normalizarReparacion(raw: Partial<Reparacion> & { id: string }):
     updated_at: Number(raw.updated_at) || 0,
     updated_by: raw.updated_by ?? "",
     resuelta_ts: raw.resuelta_ts != null ? Number(raw.resuelta_ts) : null,
+    area_infraestructura_id: raw.area_infraestructura_id ?? null,
   };
 }
 

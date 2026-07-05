@@ -16,6 +16,9 @@ export const BUCKET_CENTROS = "centros-fotos";
 /** Bucket público para fotos de reparaciones (antes/después). */
 export const BUCKET_REPARACIONES = "reparaciones-fotos";
 
+/** Bucket público para fotos iniciales de áreas de infraestructura. */
+export const BUCKET_INFRAESTRUCTURA = "infraestructura-fotos";
+
 let cliente: SupabaseClient | null = null;
 
 /** ¿Está configurado Supabase (hay URL + anon key)? */
@@ -102,5 +105,29 @@ export async function subirFotoReparacion(
   if (error) throw new Error(error.message);
 
   const { data } = supabase.storage.from(BUCKET_REPARACIONES).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+/**
+ * Sube (comprimida) una foto inicial de infraestructura al bucket y devuelve su URL pública.
+ * Path: `{centroId}/{areaId}/{timestamp}.jpg`
+ */
+export async function subirFotoInfraestructura(
+  centroId: string,
+  areaId: string,
+  file: File,
+): Promise<string> {
+  const supabase = getCliente();
+  const blob = await comprimirImagen(file);
+  const path = `${centroId}/${areaId}/${Date.now()}.jpg`;
+
+  const { error } = await supabase.storage.from(BUCKET_INFRAESTRUCTURA).upload(path, blob, {
+    contentType: "image/jpeg",
+    upsert: true,
+    cacheControl: "3600",
+  });
+  if (error) throw new Error(error.message);
+
+  const { data } = supabase.storage.from(BUCKET_INFRAESTRUCTURA).getPublicUrl(path);
   return data.publicUrl;
 }

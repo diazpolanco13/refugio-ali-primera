@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import {
   BedDouble,
+  Building2,
   Camera,
   ClipboardList,
   Droplets,
@@ -53,6 +54,7 @@ import {
   FormularioServicios,
 } from "@/features/centros/LevantamientoCentro";
 import { FormularioRequerimientos } from "@/features/centros/RequerimientosCentro";
+import { InfraestructuraCentro } from "@/features/centros/InfraestructuraCentro";
 import { AccionesContacto } from "@/components/AccionesContacto";
 import { VistaEncabezado } from "@/components/VistaEncabezado";
 import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
@@ -110,6 +112,7 @@ type Pestana =
   | "novedades"
   | "requerimientos"
   | "capacidad"
+  | "infraestructura"
   | "contactos";
 
 const PESTANAS: {
@@ -126,6 +129,7 @@ const PESTANAS: {
   { valor: "novedades", numero: "VI", titulo: "Novedades", icono: ClipboardList },
   { valor: "requerimientos", titulo: "Requerimientos", icono: Package },
   { valor: "capacidad", titulo: "Capacidad", icono: BedDouble },
+  { valor: "infraestructura", titulo: "Infraestructura", icono: Building2 },
   { valor: "contactos", titulo: "Otros contactos", icono: Phone },
 ];
 
@@ -1126,6 +1130,14 @@ export function CentroForm({
               </div>
             </div>
           </div>
+          )}
+
+          {pestana === "infraestructura" && (
+            <InfraestructuraCentro
+              centroId={base.id}
+              puedeEditar={!soloLectura}
+              esNuevo={esNuevo}
+            />
           )}
 
           {/* Otros contactos adicionales */}

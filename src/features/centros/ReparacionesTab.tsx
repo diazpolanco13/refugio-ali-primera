@@ -11,12 +11,14 @@ import {
   Plus,
   Wrench,
 } from "lucide-react";
+import { useAreasInfraestructura } from "@/data/useAreasInfraestructura";
 import { useReparacionesCentros } from "@/data/useReparacionesCentros";
 import {
   actualizarReparacion,
   agregarFotoReparacion,
   crearReparacion,
 } from "@/data/reposReparaciones";
+import { actualizarArea } from "@/data/reposInfraestructura";
 import { supabaseDisponible } from "@/data/supabase";
 import {
   ESTATUS_REPARACION,
@@ -29,6 +31,11 @@ import {
   type Reparacion,
   type TipoFotoReparacion,
 } from "@/domain/reparaciones";
+import {
+  META_ESTADO,
+  sugerirEstadoArea,
+  type EstadoInfraestructura,
+} from "@/domain/infraestructura";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +49,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -189,11 +206,22 @@ function FormularioReparacion({
   onCancelar: () => void;
 }) {
   const esEdicion = Boolean(reparacion);
+  const areas = useAreasInfraestructura({ centroId });
+  const reparacionesCentro = useReparacionesCentros({ centroId });
   const [titulo, setTitulo] = useState(reparacion?.titulo ?? "");
   const [descripcion, setDescripcion] = useState(reparacion?.descripcion ?? "");
+  const [areaId, setAreaId] = useState<string | null>(
+    reparacion?.area_infraestructura_id ?? null,
+  );
   const [estatus, setEstatus] = useState<EstatusReparacion>(
     reparacion?.estatus ?? "dañado",
   );
+  const [sugerenciaEstado, setSugerenciaEstado] = useState<{
+    areaId: string;
+    nombre: string;
+    estadoActual: EstadoInfraestructura;
+    estadoSugerido: EstadoInfraestructura;
+  } | null>(null);
   const [fotos, setFotos] = useState<FotoReparacion[]>(reparacion?.fotos ?? []);
   const [repId, setRepId] = useState<string | undefined>(reparacion?.id);
   const [guardando, setGuardando] = useState(false);
@@ -201,6 +229,59 @@ function FormularioReparacion({
   const [error, setError] = useState<string | null>(null);
   const inputFoto = useRef<HTMLInputElement>(null);
   const [tipoFoto, setTipoFoto] = useState<TipoFotoReparacion>("antes");
+
+  function onCambiarArea(nuevoAreaId: string | null) {
+    setAreaId(nuevoAreaId);
+    if (nuevoAreaId) {
+      const area = areas.find((a) => a.id === nuevoAreaId);
+      if (area) setTitulo(area.nombre);
+    }
+  }
+
+  function evaluarSugerenciaEstadoArea(
+    nuevoEstatus: EstatusReparacion,
+    areaInfraId: string | null,
+    reparacionIdActual?: string,
+  ): boolean {
+    if (!areaInfraId) return false;
+    const area = areas.find((a) => a.id === areaInfraId);
+    if (!area) return false;
+    const repsVinculadas = reparacionesCentro
+      .filter((r) => r.area_infraestructura_id === areaInfraId)
+      .map((r) =>
+        r.id === reparacionIdActual || r.id === repId
+          ? { ...r, estatus: nuevoEstatus, area_infraestructura_id: areaInfraId }
+          : r,
+      );
+    const idActual = reparacionIdActual ?? repId;
+    if (idActual && !repsVinculadas.some((r) => r.id === idActual)) {
+      repsVinculadas.push({
+        id: idActual,
+        centro_id: centroId,
+        titulo: titulo.trim(),
+        descripcion,
+        estatus: nuevoEstatus,
+        fotos,
+        creada_ts: Date.now(),
+        creada_por: "",
+        updated_at: Date.now(),
+        updated_by: "",
+        resuelta_ts: nuevoEstatus === "reparado" ? Date.now() : null,
+        area_infraestructura_id: areaInfraId,
+      });
+    }
+    const sugerido = sugerirEstadoArea(area, repsVinculadas);
+    if (sugerido && sugerido !== area.estado) {
+      setSugerenciaEstado({
+        areaId: area.id,
+        nombre: area.nombre,
+        estadoActual: area.estado,
+        estadoSugerido: sugerido,
+      });
+      return true;
+    }
+    return false;
+  }
 
   async function asegurarId(): Promise<string> {
     if (repId) return repId;
@@ -210,6 +291,7 @@ function FormularioReparacion({
       descripcion,
       estatus,
       fotos: [],
+      area_infraestructura_id: areaId,
     });
     setRepId(id);
     return id;
@@ -223,30 +305,39 @@ function FormularioReparacion({
     setError(null);
     setGuardando(true);
     try {
+      let haySugerencia = false;
       if (esEdicion && reparacion) {
         await actualizarReparacion(reparacion.id, {
           titulo,
           descripcion,
           estatus,
           fotos,
+          area_infraestructura_id: areaId,
         });
+        haySugerencia = evaluarSugerenciaEstadoArea(estatus, areaId, reparacion.id);
       } else if (repId) {
         await actualizarReparacion(repId, {
           titulo,
           descripcion,
           estatus,
           fotos,
+          area_infraestructura_id: areaId,
         });
+        haySugerencia = evaluarSugerenciaEstadoArea(estatus, areaId, repId);
       } else {
-        await crearReparacion({
+        const nuevoId = await crearReparacion({
           centro_id: centroId,
           titulo,
           descripcion,
           estatus,
           fotos,
+          area_infraestructura_id: areaId,
         });
+        haySugerencia = areaId
+          ? evaluarSugerenciaEstadoArea(estatus, areaId, nuevoId)
+          : false;
       }
-      onGuardado();
+      if (!haySugerencia) onGuardado();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar la reparación.");
     } finally {
@@ -284,6 +375,27 @@ function FormularioReparacion({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 px-3 pb-3">
+        {areas.length > 0 && (
+          <div>
+            <Label className="text-[11px]">Área de infraestructura</Label>
+            <Select
+              value={areaId ?? "ninguna"}
+              onValueChange={(v) => onCambiarArea(v === "ninguna" ? null : v)}
+            >
+              <SelectTrigger className="mt-1 w-full">
+                <SelectValue placeholder="Seleccionar área (opcional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ninguna">Sin área vinculada</SelectItem>
+                {areas.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div>
           <Label htmlFor="rep-titulo" className="text-[11px]">
             Título del trabajo
@@ -311,7 +423,13 @@ function FormularioReparacion({
         </div>
         <div>
           <Label className="text-[11px]">Estatus</Label>
-          <Select value={estatus} onValueChange={(v) => setEstatus(v as EstatusReparacion)}>
+          <Select
+            value={estatus}
+            onValueChange={(v) => {
+              const nuevo = v as EstatusReparacion;
+              setEstatus(nuevo);
+            }}
+          >
             <SelectTrigger className="mt-1 w-full">
               <SelectValue />
             </SelectTrigger>
@@ -383,6 +501,55 @@ function FormularioReparacion({
           </Button>
         </div>
       </CardContent>
+
+      <AlertDialog
+        open={sugerenciaEstado != null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSugerenciaEstado(null);
+            onGuardado();
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Actualizar estado del área?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {sugerenciaEstado && (
+                <>
+                  La reparación sugiere cambiar &quot;{sugerenciaEstado.nombre}&quot; de{" "}
+                  <strong>{META_ESTADO[sugerenciaEstado.estadoActual].label}</strong> a{" "}
+                  <strong>{META_ESTADO[sugerenciaEstado.estadoSugerido].label}</strong>.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setSugerenciaEstado(null);
+                onGuardado();
+              }}
+            >
+              Mantener actual
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (sugerenciaEstado) {
+                  void actualizarArea(sugerenciaEstado.areaId, {
+                    estado: sugerenciaEstado.estadoSugerido,
+                  }).finally(() => {
+                    setSugerenciaEstado(null);
+                    onGuardado();
+                  });
+                }
+              }}
+            >
+              Actualizar área
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

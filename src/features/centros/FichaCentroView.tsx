@@ -36,6 +36,7 @@ import { PoblacionCentroPanel } from "./PoblacionCentroPanel";
 import { ResumenCentroPanel } from "./ResumenCentroPanel";
 import { SeccionReporteDiarioCentro } from "./ReporteDiarioCentro";
 import { SeccionIncidenciasCentro } from "./IncidenciasCentro";
+import { SeccionInfraestructuraCentro } from "./InfraestructuraCentro";
 import { cn } from "@/lib/utils";
 import { CentroForm } from "./CentroForm";
 import { ReporteDiarioForm } from "./ReporteDiarioForm";
@@ -50,6 +51,7 @@ const SECCIONES = [
   { id: "poblacion", label: "Población" },
   { id: "reporte", label: "Reporte" },
   { id: "incidencias", label: "Incidencias" },
+  { id: "infraestructura", label: "Infraestructura" },
   { id: "capacidad", label: "Capacidad" },
 ] as const;
 
@@ -375,6 +377,14 @@ export function FichaCentroView({ sesion }: Props) {
 
             <TabsContent value="incidencias" className="mt-0">
               <SeccionIncidenciasCentro
+                centro={centro}
+                puedeEditar={puedeEditar}
+                variant="expandido"
+              />
+            </TabsContent>
+
+            <TabsContent value="infraestructura" className="mt-0">
+              <SeccionInfraestructuraCentro
                 centro={centro}
                 puedeEditar={puedeEditar}
                 variant="expandido"

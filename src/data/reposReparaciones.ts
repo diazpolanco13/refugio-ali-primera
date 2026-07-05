@@ -52,6 +52,7 @@ export async function crearReparacion(datos: {
   descripcion?: string;
   estatus?: EstatusReparacion;
   fotos?: FotoReparacion[];
+  area_infraestructura_id?: string | null;
 }): Promise<string> {
   const ts = Date.now();
   const fila = {
@@ -65,6 +66,7 @@ export async function crearReparacion(datos: {
     updated_at: ts,
     updated_by: usuarioActual(),
     resuelta_ts: datos.estatus === "reparado" ? ts : null,
+    area_infraestructura_id: datos.area_infraestructura_id ?? null,
   };
   const { data, error } = await supabase
     .from("reparaciones_centros")
@@ -90,6 +92,7 @@ export async function actualizarReparacion(
     descripcion: string;
     estatus: EstatusReparacion;
     fotos: FotoReparacion[];
+    area_infraestructura_id: string | null;
   }>,
 ): Promise<void> {
   const now = Date.now();
@@ -104,6 +107,9 @@ export async function actualizarReparacion(
     fila.resuelta_ts = cambios.estatus === "reparado" ? now : null;
   }
   if (cambios.fotos !== undefined) fila.fotos = normalizarFotos(cambios.fotos);
+  if (cambios.area_infraestructura_id !== undefined) {
+    fila.area_infraestructura_id = cambios.area_infraestructura_id;
+  }
 
   const { error } = await supabase.from("reparaciones_centros").update(fila).eq("id", id);
   if (error) {
