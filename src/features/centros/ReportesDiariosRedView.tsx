@@ -1,11 +1,12 @@
 // Vista agregada de reportes diarios de toda la red de campamentos.
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowDownAZ,
   ArrowUpAZ,
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
@@ -13,8 +14,10 @@ import {
   ClipboardList,
   FilterX,
   ListFilter,
+  Search,
   Stethoscope,
   UtensilsCrossed,
+  X,
 } from "lucide-react";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { useReportesCentros } from "@/data/useReportesCentros";
@@ -33,6 +36,12 @@ import {
 } from "@/domain/reporteDiario";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
 import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
 import { VistaEncabezado } from "@/components/VistaEncabezado";
 import {
@@ -52,6 +61,7 @@ import {
   CalendarioSelectorDia,
   formatearDiaCalendario,
 } from "./CalendarioSelectorDia";
+import { normalizarTextoBusqueda } from "./CentrosListaItems";
 
 type FiltroEstado = EstadoReporteDia | "todos";
 
@@ -202,32 +212,32 @@ function TarjetaEstadoReporte({
       type="button"
       onClick={onClick}
       className={cn(
-        "group min-w-0 rounded-xl border bg-background/80 p-3 text-left transition-all hover:-translate-y-0.5 hover:bg-muted/20",
+        "group min-w-0 rounded-lg border bg-background/80 p-2 text-left transition-all sm:rounded-xl sm:p-3 sm:hover:-translate-y-0.5 sm:hover:bg-muted/20",
         activo ? "border-primary/60 ring-2 ring-primary/15" : "border-border/70",
       )}
       style={{
         borderColor: activo ? `${meta.color}99` : undefined,
       }}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
+      <div className="flex items-center justify-between gap-1 sm:gap-2">
+        <span className="inline-flex min-w-0 items-center gap-1 text-[10px] font-medium text-muted-foreground sm:gap-1.5 sm:text-xs">
           <span
-            className="size-2 shrink-0 rounded-full"
+            className="size-1.5 shrink-0 rounded-full sm:size-2"
             style={{ background: meta.color }}
           />
-          <span className="truncate">{meta.label}</span>
+          <span className="truncate leading-tight">{meta.label}</span>
         </span>
-        <span className="rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+        <span className="shrink-0 rounded-full bg-muted/60 px-1 py-0.5 text-[9px] font-medium tabular-nums text-muted-foreground sm:px-1.5 sm:text-[10px]">
           {porcentajeEntero(cantidad, total)}
         </span>
       </div>
-      <div className="mt-2 flex items-end gap-1.5">
-        <span className="text-2xl font-semibold leading-none tabular-nums text-foreground">
+      <div className="mt-1 flex items-end gap-1 sm:mt-2 sm:gap-1.5">
+        <span className="text-lg font-semibold leading-none tabular-nums text-foreground sm:text-2xl">
           {cantidad}
         </span>
-        <span className="pb-0.5 text-[11px] text-muted-foreground">centros</span>
+        <span className="pb-0.5 text-[10px] text-muted-foreground sm:text-[11px]">ctros</span>
       </div>
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+      <div className="mt-2 hidden h-1.5 overflow-hidden rounded-full bg-muted sm:block">
         <div
           className="h-full rounded-full transition-all"
           style={{ width: `${porcentaje}%`, background: meta.color }}
@@ -305,6 +315,46 @@ function SelectorFechaReporte({
   );
 }
 
+function BuscadorNombreCampamento({
+  valor,
+  onChange,
+  inputRef,
+  className,
+}: {
+  valor: string;
+  onChange: (v: string) => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+  className?: string;
+}) {
+  return (
+    <div className={cn("relative min-w-0", className)}>
+      <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        ref={inputRef}
+        type="search"
+        value={valor}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Buscar por nombre…"
+        aria-label="Buscar campamento por nombre"
+        className="h-8 border-border/60 bg-background/80 pl-7 pr-7 text-xs sm:h-7"
+      />
+      {valor && (
+        <button
+          type="button"
+          onClick={() => {
+            onChange("");
+            inputRef?.current?.focus();
+          }}
+          title="Limpiar búsqueda"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+        >
+          <X className="size-3" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Tablero global de reportes diarios por campamento. */
 export function ReportesDiariosRedView() {
   const hoyClave = useMemo(() => claveDia(Date.now()), []);
@@ -351,6 +401,9 @@ export function ReportesDiariosRedView() {
   const [estadoFiltro, setEstadoFiltro] = useState<FiltroEstado>("todos");
   const [grupoFiltro, setGrupoFiltro] = useState<string>("todos");
   const [orden, setOrden] = useState<OrdenReportes>("pendientes");
+  const [busquedaNombre, setBusquedaNombre] = useState("");
+  const inputBusquedaRef = useRef<HTMLInputElement>(null);
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
   const grupos = useMemo(
     () => [...new Set(centros.map((c) => c.grupo).filter(Boolean))].sort(),
@@ -358,6 +411,11 @@ export function ReportesDiariosRedView() {
   );
 
   const diaActivo = dia ?? hoyClave;
+
+  const terminoBusqueda = useMemo(
+    () => normalizarTextoBusqueda(busquedaNombre.trim()),
+    [busquedaNombre],
+  );
 
   const filas = useMemo(() => {
     const base = centros
@@ -372,7 +430,12 @@ export function ReportesDiariosRedView() {
           atenciones: reporte?.atenciones_medicas ?? 0,
         };
       })
-      .filter((f) => estadoFiltro === "todos" || f.estado === estadoFiltro);
+      .filter((f) => estadoFiltro === "todos" || f.estado === estadoFiltro)
+      .filter(
+        (f) =>
+          !terminoBusqueda ||
+          normalizarTextoBusqueda(f.centro.nombre).includes(terminoBusqueda),
+      );
 
     return ordenarFilas(base, orden);
   }, [
@@ -384,6 +447,7 @@ export function ReportesDiariosRedView() {
     reportes,
     reportesPorCentroDia,
     diasConPartePorCentro,
+    terminoBusqueda,
   ]);
 
   const conteosHoy = useMemo(() => {
@@ -446,14 +510,78 @@ export function ReportesDiariosRedView() {
     estadoFiltro !== "todos" ||
     grupoFiltro !== "todos" ||
     dia !== hoyClave ||
-    orden !== "pendientes";
+    orden !== "pendientes" ||
+    busquedaNombre.trim() !== "";
 
   function limpiarFiltros() {
     setEstadoFiltro("todos");
     setGrupoFiltro("todos");
     setDia(hoyClave);
     setOrden("pendientes");
+    setBusquedaNombre("");
+    setFiltrosAbiertos(false);
   }
+
+  const selectoresFiltro = (
+    <>
+      <Select
+        value={estadoFiltro}
+        onValueChange={(v) => setEstadoFiltro(v as FiltroEstado)}
+      >
+        <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
+          <SelectValue placeholder="Estado" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todos los estados</SelectItem>
+          {(Object.keys(META_ESTADO_REPORTE) as EstadoReporteDia[]).map((e) => (
+            <SelectItem key={e} value={e}>
+              <span
+                className="mr-1.5 inline-block size-2 rounded-full"
+                style={{ background: META_ESTADO_REPORTE[e].color }}
+              />
+              {META_ESTADO_REPORTE[e].label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select value={grupoFiltro} onValueChange={setGrupoFiltro}>
+        <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
+          <SelectValue placeholder="Grupo" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todos los grupos</SelectItem>
+          {grupos.map((g) => (
+            <SelectItem key={g} value={g}>
+              {g}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select value={orden} onValueChange={(v) => setOrden(v as OrdenReportes)}>
+        <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
+          <SelectValue placeholder="Orden" />
+        </SelectTrigger>
+        <SelectContent>
+          {OPCIONES_ORDEN.map(({ valor, label }) => (
+            <SelectItem key={valor} value={valor}>
+              {(valor === "nombre_asc" || valor === "nombre_desc") && (
+                <span className="mr-1.5 inline-flex">
+                  {valor === "nombre_asc" ? (
+                    <ArrowDownAZ className="size-3" />
+                  ) : (
+                    <ArrowUpAZ className="size-3" />
+                  )}
+                </span>
+              )}
+              {label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </>
+  );
 
   return (
     <MarcoVista ancho={ANCHO_VISTA_PRINCIPAL}>
@@ -466,28 +594,43 @@ export function ReportesDiariosRedView() {
           <>
             <Badge variant="outline" className="gap-1.5 border-teal-400/30 bg-teal-400/10 text-teal-200">
               <CalendarDays className="size-3" />
-              {formatearDiaSelector(diaActivo)}
+              <span className="tabular-nums">{formatearDiaSelector(diaActivo)}</span>
               {diaActivo === hoyClave ? " · Hoy" : ""}
             </Badge>
             <Badge variant="outline" className="gap-1 tabular-nums">
               <CheckCircle2 className="size-3 text-emerald-400" />
               {porcentajeCierreDia} reportado
             </Badge>
-            <Badge variant="outline" className="gap-1 tabular-nums">
+            <Badge variant="outline" className="hidden gap-1 tabular-nums sm:inline-flex">
               <UtensilsCrossed className="size-3 text-teal-400" />
-              {racionesDia.toLocaleString("es")} raciones visibles
+              {racionesDia.toLocaleString("es")} raciones
             </Badge>
-            <Badge variant="outline" className="gap-1 tabular-nums">
+            <Badge variant="outline" className="hidden gap-1 tabular-nums sm:inline-flex">
               <Stethoscope className="size-3 text-rose-400" />
-              {atencionesDia} atenciones visibles
+              {atencionesDia} atenciones
             </Badge>
           </>
         }
       />
 
-          <div className="border-b border-border bg-muted/10 px-4 py-4 lg:px-6">
-            <div className="space-y-3">
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="border-b border-border bg-muted/10 px-3 py-2.5 sm:px-4 sm:py-4 lg:px-6">
+            <div className="space-y-2 sm:space-y-3">
+                {/* Móvil: búsqueda + fecha arriba del todo */}
+                <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-[minmax(0,1fr)_168px] md:hidden">
+                  <BuscadorNombreCampamento
+                    valor={busquedaNombre}
+                    onChange={setBusquedaNombre}
+                    inputRef={inputBusquedaRef}
+                  />
+                  <SelectorFechaReporte
+                    dia={diaActivo}
+                    onSeleccionarDia={setDia}
+                    marcasPorDia={marcasPorDia}
+                    leyenda={leyendaCalendario}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5 sm:gap-2 xl:grid-cols-4">
                   {ORDEN_RESUMEN_ESTADOS.map((e) => (
                     <TarjetaEstadoReporte
                       key={e}
@@ -500,7 +643,59 @@ export function ReportesDiariosRedView() {
                   ))}
                 </div>
 
-                <div className="rounded-xl border border-border/70 bg-background/80 p-3">
+                {/* Móvil: filtros colapsables */}
+                <Collapsible
+                  open={filtrosAbiertos}
+                  onOpenChange={setFiltrosAbiertos}
+                  className="md:hidden"
+                >
+                  <div className="flex items-center gap-2">
+                    <CollapsibleTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 flex-1 justify-between gap-2 text-xs"
+                      >
+                        <span className="inline-flex items-center gap-1.5">
+                          <ListFilter className="size-3.5 text-muted-foreground" />
+                          Filtros y orden
+                          {hayFiltros && (
+                            <span className="size-1.5 rounded-full bg-primary" />
+                          )}
+                        </span>
+                        <ChevronDown
+                          className={cn(
+                            "size-3.5 text-muted-foreground transition-transform",
+                            filtrosAbiertos && "rotate-180",
+                          )}
+                        />
+                      </Button>
+                    </CollapsibleTrigger>
+                    {hayFiltros && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="shrink-0"
+                        title="Limpiar filtros"
+                        onClick={limpiarFiltros}
+                      >
+                        <FilterX className="size-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                  <CollapsibleContent className="mt-2 space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      {selectoresFiltro}
+                    </div>
+                    <p className="text-center text-[11px] text-muted-foreground">
+                      {filas.length} de {centros.length} centros visibles
+                    </p>
+                  </CollapsibleContent>
+                </Collapsible>
+
+                {/* Escritorio: panel de filtros completo */}
+                <div className="hidden rounded-xl border border-border/70 bg-background/80 p-3 md:block">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="flex size-7 items-center justify-center rounded-lg bg-muted/60">
@@ -540,63 +735,7 @@ export function ReportesDiariosRedView() {
                   </div>
 
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_180px]">
-                    <Select
-                      value={estadoFiltro}
-                      onValueChange={(v) => setEstadoFiltro(v as FiltroEstado)}
-                    >
-                      <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
-                        <SelectValue placeholder="Estado" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todos los estados</SelectItem>
-                        {(Object.keys(META_ESTADO_REPORTE) as EstadoReporteDia[]).map((e) => (
-                          <SelectItem key={e} value={e}>
-                            <span
-                              className="mr-1.5 inline-block size-2 rounded-full"
-                              style={{ background: META_ESTADO_REPORTE[e].color }}
-                            />
-                            {META_ESTADO_REPORTE[e].label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={grupoFiltro} onValueChange={setGrupoFiltro}>
-                      <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
-                        <SelectValue placeholder="Grupo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todos los grupos</SelectItem>
-                        {grupos.map((g) => (
-                          <SelectItem key={g} value={g}>
-                            {g}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={orden} onValueChange={(v) => setOrden(v as OrdenReportes)}>
-                      <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
-                        <SelectValue placeholder="Orden" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {OPCIONES_ORDEN.map(({ valor, label }) => (
-                          <SelectItem key={valor} value={valor}>
-                            {(valor === "nombre_asc" || valor === "nombre_desc") && (
-                              <span className="mr-1.5 inline-flex">
-                                {valor === "nombre_asc" ? (
-                                  <ArrowDownAZ className="size-3" />
-                                ) : (
-                                  <ArrowUpAZ className="size-3" />
-                                )}
-                              </span>
-                            )}
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
+                    {selectoresFiltro}
                     <SelectorFechaReporte
                       dia={diaActivo}
                       onSeleccionarDia={setDia}
@@ -606,7 +745,8 @@ export function ReportesDiariosRedView() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1.5">
+                {/* Escritorio: atajo «Hoy» + buscador */}
+                <div className="hidden flex-wrap items-center gap-1.5 md:flex">
                   <span className="mr-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                     Hoy · {formatearDiaCalendario(hoyClave)}
                   </span>
@@ -635,19 +775,48 @@ export function ReportesDiariosRedView() {
                       </span>
                     </button>
                   ))}
+                  <BuscadorNombreCampamento
+                    valor={busquedaNombre}
+                    onChange={setBusquedaNombre}
+                    inputRef={inputBusquedaRef}
+                    className="ml-auto w-52"
+                  />
                 </div>
+
+                {/* Móvil: atajo «Ver hoy» si se consulta otro día */}
+                {diaActivo !== hoyClave && (
+                  <div className="flex items-center justify-between gap-2 md:hidden">
+                    <p className="text-[11px] text-muted-foreground">
+                      Consultando {formatearDiaCalendario(diaActivo)}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      className="h-7 shrink-0 px-2 text-[11px]"
+                      onClick={() => setDia(hoyClave)}
+                    >
+                      Ver hoy
+                    </Button>
+                  </div>
+                )}
             </div>
           </div>
 
-          <div className="px-4 pt-4 pb-4 lg:px-6">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-medium text-foreground">Centros del día</p>
-                <p className="text-xs text-muted-foreground">
+          <div className="px-3 pt-3 pb-4 sm:px-4 sm:pt-4 lg:px-6">
+            <div className="mb-2 flex items-center justify-between gap-2 sm:mb-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">
+                  Centros del día
+                  <span className="ml-1.5 font-normal text-muted-foreground sm:hidden">
+                    · {filas.length}
+                  </span>
+                </p>
+                <p className="hidden text-xs text-muted-foreground sm:block">
                   Ordenados por prioridad del reporte seleccionado
                 </p>
               </div>
-              <Badge variant="outline" className="gap-1 tabular-nums">
+              <Badge variant="outline" className="hidden gap-1 tabular-nums sm:inline-flex">
                 <CircleDashed className="size-3 text-muted-foreground" />
                 {filas.length} visible(s)
               </Badge>
@@ -655,39 +824,67 @@ export function ReportesDiariosRedView() {
 
             {filas.length === 0 ? (
               <p className="rounded-xl border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
-                Ningún campamento coincide con los filtros seleccionados.
+                {busquedaNombre.trim()
+                  ? `Ningún campamento coincide con «${busquedaNombre.trim()}».`
+                  : "Ningún campamento coincide con los filtros seleccionados."}
               </p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-1.5 sm:space-y-2">
                 {filas.map(({ centro, estado, raciones, atenciones }) => (
                   <li key={centro.id}>
                     <Link
                       to={`/centro/${centro.id}`}
-                      className="group grid gap-3 rounded-xl border border-border/60 bg-background/65 px-3 py-3 transition-all hover:-translate-y-0.5 hover:border-border hover:bg-muted/25 hover:shadow-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                      className="group flex items-center gap-2 rounded-lg border border-border/60 bg-background/65 px-2.5 py-2 transition-all active:bg-muted/30 sm:gap-3 sm:rounded-xl sm:px-3 sm:py-3 sm:hover:-translate-y-0.5 sm:hover:border-border sm:hover:bg-muted/25 sm:hover:shadow-sm"
                     >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div
-                          className="flex size-10 shrink-0 flex-col items-center justify-center rounded-xl border bg-muted/30"
-                          style={{ borderColor: `${META_ESTADO_REPORTE[estado].color}55` }}
-                        >
-                          <span className="text-[9px] font-medium leading-none text-muted-foreground">
-                            N.°
-                          </span>
-                          <span className="text-sm font-semibold leading-none tabular-nums text-foreground">
-                            {centro.nro}
-                          </span>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-foreground">
-                            {centro.nombre}
-                          </p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {centro.grupo}
-                            {centro.parroquia ? ` · ${centro.parroquia}` : ""}
-                          </p>
+                      <div
+                        className="flex size-8 shrink-0 flex-col items-center justify-center rounded-lg border bg-muted/30 sm:size-10 sm:rounded-xl"
+                        style={{ borderColor: `${META_ESTADO_REPORTE[estado].color}55` }}
+                      >
+                        <span className="text-[8px] font-medium leading-none text-muted-foreground sm:text-[9px]">
+                          N.°
+                        </span>
+                        <span className="text-xs font-semibold leading-none tabular-nums text-foreground sm:text-sm">
+                          {centro.nro}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {centro.nombre}
+                        </p>
+                        <p className="truncate text-[11px] text-muted-foreground sm:text-xs">
+                          {centro.grupo}
+                          {centro.parroquia ? ` · ${centro.parroquia}` : ""}
+                        </p>
+                        <div className="mt-1 flex items-center gap-1.5 sm:hidden">
+                          {(raciones > 0 || atenciones > 0) && (
+                            <>
+                              {raciones > 0 && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-teal-300">
+                                  <UtensilsCrossed className="size-2.5" />
+                                  {raciones.toLocaleString("es")}
+                                </span>
+                              )}
+                              {atenciones > 0 && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-rose-300">
+                                  <Stethoscope className="size-2.5" />
+                                  {atenciones}
+                                </span>
+                              )}
+                            </>
+                          )}
+                          <Badge
+                            variant="outline"
+                            className="h-5 px-1.5 text-[10px]"
+                            style={{
+                              borderColor: `${META_ESTADO_REPORTE[estado].color}66`,
+                              color: META_ESTADO_REPORTE[estado].color,
+                            }}
+                          >
+                            {META_ESTADO_REPORTE[estado].label}
+                          </Badge>
                         </div>
                       </div>
-                      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
+                      <div className="hidden min-w-0 shrink-0 items-center gap-2 sm:flex sm:justify-end">
                         <span
                           className={cn(
                             "inline-flex h-7 items-center gap-1 rounded-lg border px-2 text-xs tabular-nums",
@@ -722,8 +919,8 @@ export function ReportesDiariosRedView() {
                         >
                           {META_ESTADO_REPORTE[estado].label}
                         </Badge>
-                        <ChevronRight className="ml-auto size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:ml-0" />
                       </div>
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                     </Link>
                   </li>
                 ))}
