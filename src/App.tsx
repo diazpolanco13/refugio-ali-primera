@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { CentrosView } from "./features/centros/CentrosView";
 import { FichaCentroView } from "./features/centros/FichaCentroView";
+import { NuevoCentroView } from "./features/centros/NuevoCentroView";
 import { DashboardView } from "./features/dashboard/DashboardView";
 import { IncidenciasRedirect } from "./features/incidencias/IncidenciasRedirect";
 import { IncidenciasLayout } from "./features/incidencias/IncidenciasLayout";
@@ -44,8 +45,8 @@ export function App() {
             path="/centros/traslados"
             element={
               <EnDesarrollo
-                titulo="Traslados entre centros"
-                descripcion="Registro y seguimiento de movimientos de refugiados entre centros de la red."
+                titulo="Traslados entre campamentos"
+                descripcion="Registro y seguimiento de movimientos de refugiados entre campamentos de la red."
               />
             }
           />
@@ -54,10 +55,11 @@ export function App() {
             element={
               <EnDesarrollo
                 titulo="Reportes diarios (red)"
-                descripcion="Vista agregada de reportes diarios de todos los centros."
+                descripcion="Vista agregada de reportes diarios de todos los campamentos."
               />
             }
           />
+          <Route path="/centro/nuevo" element={<NuevoCentroView sesion={sesion} />} />
           <Route path="/centro/:id" element={<FichaCentroView sesion={sesion} />} />
           <Route path="/incidencias" element={<IncidenciasLayout sesion={sesion} />}>
             <Route index element={<IncidenciasRedirect sesion={sesion} />} />

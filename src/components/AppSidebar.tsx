@@ -1,11 +1,10 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   Archive,
   BarChart3,
   ClipboardList,
   ChevronRight,
   LayoutGrid,
-  List,
   MapPinned,
   MonitorPlay,
   Plus,
@@ -24,7 +23,6 @@ import {
 } from "@/domain/permisos";
 import { useIncidencias } from "@/data/useIncidencias";
 import { incidenciasAbiertas } from "@/domain/incidencias";
-import { useMapaCentrosOptional } from "@/contexts/MapaCentrosContext";
 import { BadgeEnDesarrollo } from "@/components/BadgeEnDesarrollo";
 import {
   Collapsible,
@@ -51,9 +49,7 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   sesion: Sesion;
-  /** Cierra el drawer del mapa tras navegar o ejecutar una acción. */
-  onNavigate?: () => void;
-  /** Modo drawer (mapa): sin SidebarHeader/Footer externos. */
+  /** Modo drawer (mapa/tablero): sin SidebarHeader/Footer externos. */
   modoDrawer?: boolean;
 }
 
@@ -79,10 +75,8 @@ function ItemEnDesarrollo({
   );
 }
 
-function NavContenido({ sesion, onNavigate }: Omit<Props, "modoDrawer">) {
+function NavContenido({ sesion }: Omit<Props, "modoDrawer">) {
   const location = useLocation();
-  const navigate = useNavigate();
-  const mapaCtx = useMapaCentrosOptional();
   const puedeCrear = puedeCrearCentros(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
@@ -90,28 +84,9 @@ function NavContenido({ sesion, onNavigate }: Omit<Props, "modoDrawer">) {
   const abiertas = incidenciasAbiertas(incidencias).length;
   const urgentes = incidencias.filter((i) => i.etiqueta === "urgente").length;
 
-  function alAbrirListaCentros() {
-    onNavigate?.();
-    if (location.pathname !== "/centros/mapa") {
-      navigate("/centros/mapa");
-      sessionStorage.setItem("abrirListaCentros", "1");
-    } else {
-      mapaCtx?.abrirListaCentros();
-    }
-  }
-
-  function alRegistrarCentro() {
-    onNavigate?.();
-    if (location.pathname !== "/centros/mapa") {
-      navigate("/centros/mapa");
-      sessionStorage.setItem("abrirNuevoCentro", "1");
-    } else {
-      mapaCtx?.abrirNuevoCentro();
-    }
-  }
-
   const enMapa = location.pathname === "/centros/mapa";
   const enTablero = location.pathname === "/centros/tablero";
+  const enNuevoCentro = location.pathname === "/centro/nuevo";
   const enIncFunc = location.pathname === "/incidencias/funcionarios";
   const enIncArch = location.pathname === "/incidencias/archivadas";
   const enIncAnal = location.pathname === "/incidencias/analitica";
@@ -126,7 +101,7 @@ function NavContenido({ sesion, onNavigate }: Omit<Props, "modoDrawer">) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Pantalla completa">
-                <Link to="/dashboard" onClick={() => onNavigate?.()}>
+                <Link to="/dashboard">
                   <MonitorPlay />
                   <span>Pantalla</span>
                 </Link>
@@ -139,15 +114,15 @@ function NavContenido({ sesion, onNavigate }: Omit<Props, "modoDrawer">) {
       <SidebarSeparator />
 
       <SidebarGroup>
-        <SidebarGroupLabel>Centros</SidebarGroupLabel>
+        <SidebarGroupLabel>CAMPAMENTOS TRANSISTORIOS</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             <Collapsible defaultOpen className="group/collapsible">
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuButton tooltip="Centros transitorios">
+                  <SidebarMenuButton tooltip="Campamentos transitorios">
                     <MapPinned />
-                    <span>Centros</span>
+                    <span>SUB-MENU</span>
                     <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
                   </SidebarMenuButton>
                 </CollapsibleTrigger>
@@ -155,7 +130,7 @@ function NavContenido({ sesion, onNavigate }: Omit<Props, "modoDrawer">) {
                   <SidebarMenuSub>
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton asChild isActive={enMapa}>
-                        <Link to="/centros/mapa" onClick={() => onNavigate?.()}>
+                        <Link to="/centros/mapa">
                           <MapPinned />
                           <span>Mapa</span>
                         </Link>
@@ -163,30 +138,23 @@ function NavContenido({ sesion, onNavigate }: Omit<Props, "modoDrawer">) {
                     </SidebarMenuSubItem>
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton asChild isActive={enTablero}>
-                        <Link to="/centros/tablero" onClick={() => onNavigate?.()}>
+                        <Link to="/centros/tablero">
                           <LayoutGrid />
-                          <span>Tablero comparativo</span>
+                          <span>Campamentos</span>
                         </Link>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                    <SidebarMenuSubItem>
-                      <SidebarMenuSubButton
-                        isActive={enMapa && !!mapaCtx?.panelCentrosAbierto}
-                        onClick={alAbrirListaCentros}
-                      >
-                        <List />
-                        <span>Lista de centros</span>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                     {puedeCrear && (
                       <SidebarMenuSubItem>
-                        <SidebarMenuSubButton onClick={alRegistrarCentro}>
-                          <Plus />
-                          <span>Registrar centro</span>
+                        <SidebarMenuSubButton asChild isActive={enNuevoCentro}>
+                          <Link to="/centro/nuevo">
+                            <Plus />
+                            <span>Nuevo campamento</span>
+                          </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                     )}
-                    <ItemEnDesarrollo icono={Truck} label="Traslados entre centros" />
+                    <ItemEnDesarrollo icono={Truck} label="Traslados entre campamentos" />
                     <ItemEnDesarrollo icono={ClipboardList} label="Reportes diarios (red)" />
                   </SidebarMenuSub>
                 </CollapsibleContent>
@@ -220,10 +188,7 @@ function NavContenido({ sesion, onNavigate }: Omit<Props, "modoDrawer">) {
                   <SidebarMenuSub>
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton asChild isActive={enIncFunc}>
-                        <Link
-                          to="/incidencias/funcionarios"
-                          onClick={() => onNavigate?.()}
-                        >
+                        <Link to="/incidencias/funcionarios">
                           <Siren />
                           <span>Bandeja funcionarios</span>
                         </Link>
@@ -232,10 +197,7 @@ function NavContenido({ sesion, onNavigate }: Omit<Props, "modoDrawer">) {
                     <ItemEnDesarrollo icono={UserRound} label="Bandeja refugiados" />
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton asChild isActive={enIncArch}>
-                        <Link
-                          to="/incidencias/archivadas"
-                          onClick={() => onNavigate?.()}
-                        >
+                        <Link to="/incidencias/archivadas">
                           <Archive />
                           <span>Archivadas</span>
                         </Link>
@@ -243,10 +205,7 @@ function NavContenido({ sesion, onNavigate }: Omit<Props, "modoDrawer">) {
                     </SidebarMenuSubItem>
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton asChild isActive={enIncAnal}>
-                        <Link
-                          to="/incidencias/analitica"
-                          onClick={() => onNavigate?.()}
-                        >
+                        <Link to="/incidencias/analitica">
                           <BarChart3 />
                           <span>Calendario / analítica</span>
                         </Link>
@@ -279,7 +238,7 @@ function NavContenido({ sesion, onNavigate }: Omit<Props, "modoDrawer">) {
                       {esAdmin && (
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton asChild isActive={enUsuarios}>
-                            <Link to="/usuarios" onClick={() => onNavigate?.()}>
+                            <Link to="/usuarios">
                               <Users />
                               <span>Gestión de usuarios</span>
                             </Link>
@@ -289,7 +248,7 @@ function NavContenido({ sesion, onNavigate }: Omit<Props, "modoDrawer">) {
                       {veLogs && (
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton asChild isActive={enLogs}>
-                            <Link to="/logs" onClick={() => onNavigate?.()}>
+                            <Link to="/logs">
                               <ScrollText />
                               <span>Bitácora de acciones</span>
                             </Link>
@@ -311,7 +270,7 @@ function NavContenido({ sesion, onNavigate }: Omit<Props, "modoDrawer">) {
 }
 
 /** Sidebar completo para vistas con rail colapsado. */
-export function AppSidebar({ sesion, onNavigate, modoDrawer = false }: Props) {
+export function AppSidebar({ sesion, modoDrawer = false }: Props) {
   if (modoDrawer) {
     return (
       <div className="flex h-full flex-col overflow-y-auto bg-sidebar text-sidebar-foreground">
@@ -320,7 +279,7 @@ export function AppSidebar({ sesion, onNavigate, modoDrawer = false }: Props) {
           <p className="text-xs text-sidebar-foreground/70">Campamentos Transitorios — Caracas</p>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
-          <NavContenido sesion={sesion} onNavigate={onNavigate} />
+          <NavContenido sesion={sesion} />
         </div>
       </div>
     );
@@ -333,7 +292,7 @@ export function AppSidebar({ sesion, onNavigate, modoDrawer = false }: Props) {
         <p className="truncate text-xs text-sidebar-foreground/70">Caracas</p>
       </SidebarHeader>
       <SidebarContent>
-        <NavContenido sesion={sesion} onNavigate={onNavigate} />
+        <NavContenido sesion={sesion} />
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border p-2">
         <p className="px-2 text-[10px] text-sidebar-foreground/60">

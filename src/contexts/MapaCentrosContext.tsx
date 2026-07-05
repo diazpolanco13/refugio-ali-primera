@@ -3,7 +3,6 @@ import {
   useCallback,
   useContext,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -14,8 +13,6 @@ interface MapaCentrosContextValue {
   panelCentrosAbierto: boolean;
   setPanelCentrosAbierto: (open: boolean) => void;
   abrirListaCentros: () => void;
-  abrirNuevoCentro: () => void;
-  registrarAbrirNuevoCentro: (fn: (() => void) | null) => void;
 }
 
 const MapaCentrosContext = createContext<MapaCentrosContextValue | null>(null);
@@ -24,7 +21,6 @@ const MapaCentrosContext = createContext<MapaCentrosContextValue | null>(null);
 export function MapaCentrosProvider({ children }: { children: ReactNode }) {
   const [menuDrawerOpen, setMenuDrawerOpenRaw] = useState(false);
   const [panelCentrosAbierto, setPanelCentrosAbiertoRaw] = useState(false);
-  const abrirNuevoCentroRef = useRef<(() => void) | null>(null);
 
   const setMenuDrawerOpen = useCallback((open: boolean) => {
     setMenuDrawerOpenRaw(open);
@@ -41,15 +37,6 @@ export function MapaCentrosProvider({ children }: { children: ReactNode }) {
     setPanelCentrosAbiertoRaw(true);
   }, []);
 
-  const registrarAbrirNuevoCentro = useCallback((fn: (() => void) | null) => {
-    abrirNuevoCentroRef.current = fn;
-  }, []);
-
-  const abrirNuevoCentro = useCallback(() => {
-    setMenuDrawerOpenRaw(false);
-    abrirNuevoCentroRef.current?.();
-  }, []);
-
   const value = useMemo(
     () => ({
       menuDrawerOpen,
@@ -57,8 +44,6 @@ export function MapaCentrosProvider({ children }: { children: ReactNode }) {
       panelCentrosAbierto,
       setPanelCentrosAbierto,
       abrirListaCentros,
-      abrirNuevoCentro,
-      registrarAbrirNuevoCentro,
     }),
     [
       menuDrawerOpen,
@@ -66,8 +51,6 @@ export function MapaCentrosProvider({ children }: { children: ReactNode }) {
       panelCentrosAbierto,
       setPanelCentrosAbierto,
       abrirListaCentros,
-      abrirNuevoCentro,
-      registrarAbrirNuevoCentro,
     ],
   );
 

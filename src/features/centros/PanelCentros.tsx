@@ -98,7 +98,7 @@ export function PanelCentros({
       <div className="shrink-0 space-y-2 border-b border-border px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Lista de centros
+            Lista de campamentos
           </p>
           <button
             type="button"
@@ -117,9 +117,9 @@ export function PanelCentros({
             type="search"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar centro, parroquia, dirección…"
+            placeholder="Buscar campamento, parroquia, dirección…"
             className="h-8 pl-8 pr-7 text-xs"
-            aria-label="Buscar centro"
+            aria-label="Buscar campamento"
           />
           {busqueda && (
             <button
@@ -143,7 +143,7 @@ export function PanelCentros({
             <p className="px-2 pb-1 text-[10px] text-muted-foreground">
               {resultados.length === 0
                 ? "Sin coincidencias."
-                : `${resultados.length} centro(s) encontrado(s)`}
+                : `${resultados.length} campamento(s) encontrado(s)`}
             </p>
             {resultados.map((centro) => (
               <FilaCentroLista
@@ -197,7 +197,7 @@ export function PanelCentros({
                       <span className="flex-1 truncate text-foreground">{c.label}</span>
                       {alertasGrupo > 0 && (
                         <span
-                          title={`${alertasGrupo} centro(s) con servicios en déficit`}
+                          title={`${alertasGrupo} campamento(s) con servicios en déficit`}
                           className="flex size-4 items-center justify-center rounded-full bg-red-500/15 text-[9px] font-bold text-red-500"
                         >
                           {alertasGrupo}
@@ -210,7 +210,7 @@ export function PanelCentros({
                     <CollapsibleTrigger asChild>
                       <button
                         type="button"
-                        title="Ver centros asignados"
+                        title="Ver campamentos asignados"
                         className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                       >
                         <ChevronDown
@@ -243,7 +243,7 @@ export function PanelCentros({
             {sinUbicar.length > 0 && (
               <div className="mt-2 flex items-start gap-1.5 border-t border-border pt-2 text-[10px] text-muted-foreground">
                 <MapPinOff className="mt-0.5 size-3 shrink-0" />
-                <span>{sinUbicar.length} centro(s) sin coordenadas aún.</span>
+                <span>{sinUbicar.length} campamento(s) sin coordenadas aún.</span>
               </div>
             )}
           </div>

@@ -194,3 +194,105 @@ export function incidenciasAbiertas(incidencias: Incidencia[]): Incidencia[] {
     .filter((i) => i.estado === "abierta")
     .sort((a, b) => compararSeveridad(a.etiqueta, b.etiqueta) || b.ts - a.ts);
 }
+
+/** Componentes de una clave YYYY-MM-DD. */
+export function parsearDiaIncidencia(dia: string): { anio: number; mes: number; dia: number } {
+  const [anio, mes, diaNum] = dia.split("-").map(Number);
+  return { anio, mes, dia: diaNum };
+}
+
+/** Contadores por HOY, semana del mes en curso y mes calendario. */
+export function contadoresIncidenciasPorPeriodo(
+  incidencias: Incidencia[],
+  hoyClave: string,
+): {
+  hoy: number;
+  semanaDelMes: number;
+  semanaCount: number;
+  mesCount: number;
+  mesLabel: string;
+  abiertas: number;
+  urgentesAbiertas: number;
+} {
+  const { anio: hy, mes: hm, dia: hd } = parsearDiaIncidencia(hoyClave);
+  const semanaDelMes = Math.ceil(hd / 7);
+  const semInicio = (semanaDelMes - 1) * 7 + 1;
+  const diasEnMes = new Date(hy, hm, 0).getDate();
+  const semFin = Math.min(semanaDelMes * 7, diasEnMes);
+  const mesLabelRaw = new Date(hy, hm - 1, 1).toLocaleDateString("es-VE", { month: "long" });
+  const mesLabel = mesLabelRaw.charAt(0).toUpperCase() + mesLabelRaw.slice(1);
+
+  let hoy = 0;
+  let semanaCount = 0;
+  let mesCount = 0;
+  for (const inc of incidencias) {
+    const p = parsearDiaIncidencia(inc.dia);
+    if (inc.dia === hoyClave) hoy++;
+    if (p.anio === hy && p.mes === hm) {
+      mesCount++;
+      if (p.dia >= semInicio && p.dia <= semFin) semanaCount++;
+    }
+  }
+
+  const abiertasList = incidenciasAbiertas(incidencias);
+  return {
+    hoy,
+    semanaDelMes,
+    semanaCount,
+    mesCount,
+    mesLabel,
+    abiertas: abiertasList.length,
+    urgentesAbiertas: abiertasList.filter((i) => i.etiqueta === "urgente").length,
+  };
+}
+
+/** Ventana temporal del gráfico de incidencias (días). */
+export type VentanaSerieIncidencias = 7 | 15 | 30;
+
+export interface PuntoSerieIncidencias {
+  dia: string;
+  total: number;
+  urgentes: number;
+  importantes: number;
+  cotidianas: number;
+  abiertas: number;
+}
+
+/** Últimos N días calendario terminando en `hoyClave` (YYYY-MM-DD). */
+export function ultimosDiasIncidencias(
+  cantidad: VentanaSerieIncidencias,
+  hoyClave: string,
+): string[] {
+  const [hy, hm, hd] = hoyClave.split("-").map(Number);
+  const fin = new Date(hy, hm - 1, hd);
+  const out: string[] = [];
+  for (let i = cantidad - 1; i >= 0; i--) {
+    const d = new Date(fin);
+    d.setDate(d.getDate() - i);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    out.push(`${y}-${m}-${day}`);
+  }
+  return out;
+}
+
+/** Conteo diario por severidad para el gráfico de un centro. */
+export function serieIncidenciasCentroVentana(
+  incidencias: Incidencia[],
+  ventana: VentanaSerieIncidencias,
+  hoyClave: string,
+): PuntoSerieIncidencias[] {
+  const porDia = agruparIncidenciasPorDia(incidencias);
+  return ultimosDiasIncidencias(ventana, hoyClave).map((dia) => {
+    const incs = porDia.get(dia) ?? [];
+    return {
+      dia,
+      total: incs.length,
+      urgentes: incs.filter((i) => i.etiqueta === "urgente").length,
+      importantes: incs.filter((i) => i.etiqueta === "importante").length,
+      cotidianas: incs.filter((i) => i.etiqueta === "cotidiana").length,
+      abiertas: incs.filter((i) => i.estado === "abierta").length,
+    };
+  });
+}

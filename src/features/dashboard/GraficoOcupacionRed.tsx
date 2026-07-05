@@ -102,7 +102,7 @@ export function GraficoOcupacionRed() {
     return (
       <p className="text-sm text-muted-foreground">
         Aún no hay histórico de ocupación de la red. Se irá construyendo a
-        medida que se registren cambios en el levantamiento de cada centro
+        medida que se registren cambios en el levantamiento de cada campamento
         (pestaña V · Población).
       </p>
     );

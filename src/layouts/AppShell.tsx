@@ -20,7 +20,14 @@ interface Props {
 
 function AppShellInner({ sesion }: Props) {
   const location = useLocation();
-  const isMapView = location.pathname === "/centros/mapa";
+  const esVistaCentrosMapa = location.pathname === "/centros/mapa";
+  const esVistaCentrosTablero = location.pathname === "/centros/tablero";
+  const esVistaNuevoCentro = location.pathname === "/centro/nuevo";
+  const esFichaCentro =
+    /^\/centro\/[^/]+$/.test(location.pathname) && !esVistaNuevoCentro;
+  /** Mapa, tablero, alta y ficha comparten menú drawer (sin rail lateral colapsado). */
+  const usaMenuDrawerCentros =
+    esVistaCentrosMapa || esVistaCentrosTablero || esVistaNuevoCentro || esFichaCentro;
   const { menuDrawerOpen, setMenuDrawerOpen } = useMapaCentros();
   const [online, setOnline] = useState(() => navigator.onLine);
 
@@ -36,28 +43,24 @@ function AppShellInner({ sesion }: Props) {
   }, []);
 
   const titulo = tituloDeRuta(location.pathname);
-  const ocultarTopBar = location.pathname.startsWith("/centro/");
 
   return (
     <TooltipProvider delayDuration={200}>
-      {isMapView && (
-        <Sheet open={menuDrawerOpen} onOpenChange={setMenuDrawerOpen}>
+      {usaMenuDrawerCentros && (
+        <Sheet open={menuDrawerOpen} onOpenChange={setMenuDrawerOpen} modal={false}>
           <SheetContent
             side="left"
-            className="w-[min(18rem,86vw)] gap-0 p-0"
+            className="w-[min(18rem,86vw)] gap-0 p-0 shadow-xl"
             showCloseButton
+            showOverlay={false}
           >
-            <AppSidebar
-              sesion={sesion}
-              modoDrawer
-              onNavigate={() => setMenuDrawerOpen(false)}
-            />
+            <AppSidebar sesion={sesion} modoDrawer />
           </SheetContent>
         </Sheet>
       )}
 
       <div className="flex h-[100dvh] w-full overflow-hidden">
-        {!isMapView && (
+        {!usaMenuDrawerCentros && (
           <Sidebar collapsible="icon" variant="sidebar">
             <AppSidebar sesion={sesion} />
             <SidebarRail />
@@ -65,14 +68,17 @@ function AppShellInner({ sesion }: Props) {
         )}
 
         <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          {!ocultarTopBar && (
-            <TopBar
-              sesion={sesion}
-              titulo={titulo}
-              ocultarTriggerSidebar={isMapView}
-              online={online}
-            />
-          )}
+          <TopBar
+            sesion={sesion}
+            titulo={titulo}
+            ocultarTriggerSidebar={usaMenuDrawerCentros}
+            mostrarBotonMenuDrawer={
+              esVistaCentrosTablero || esVistaNuevoCentro || esFichaCentro
+            }
+            menuDrawerAbierto={menuDrawerOpen}
+            onToggleMenuDrawer={() => setMenuDrawerOpen(!menuDrawerOpen)}
+            online={online}
+          />
           <div className="relative min-h-0 flex-1 overflow-hidden">
             <Outlet context={{ sesion }} />
           </div>

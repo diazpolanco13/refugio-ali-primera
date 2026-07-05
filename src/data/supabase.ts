@@ -13,6 +13,9 @@ const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 /** Nombre del bucket público donde se guardan las fotos de los centros. */
 export const BUCKET_CENTROS = "centros-fotos";
 
+/** Bucket público para fotos de reparaciones (antes/después). */
+export const BUCKET_REPARACIONES = "reparaciones-fotos";
+
 let cliente: SupabaseClient | null = null;
 
 /** ¿Está configurado Supabase (hay URL + anon key)? */
@@ -75,5 +78,29 @@ export async function subirFotoCentro(centroId: string, file: File): Promise<str
   if (error) throw new Error(error.message);
 
   const { data } = supabase.storage.from(BUCKET_CENTROS).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+/**
+ * Sube (comprimida) una foto de reparación al bucket y devuelve su URL pública.
+ * Path: `{centroId}/{reparacionId}/{tipo}-{timestamp}.jpg`
+ */
+export async function subirFotoReparacion(
+  centroId: string,
+  reparacionId: string,
+  file: File,
+): Promise<string> {
+  const supabase = getCliente();
+  const blob = await comprimirImagen(file);
+  const path = `${centroId}/${reparacionId}/${Date.now()}.jpg`;
+
+  const { error } = await supabase.storage.from(BUCKET_REPARACIONES).upload(path, blob, {
+    contentType: "image/jpeg",
+    upsert: true,
+    cacheControl: "3600",
+  });
+  if (error) throw new Error(error.message);
+
+  const { data } = supabase.storage.from(BUCKET_REPARACIONES).getPublicUrl(path);
   return data.publicUrl;
 }

@@ -129,7 +129,7 @@ function FilaIncidencia({
         <Link
           to={`/centro/${incidencia.centro_id}`}
           className="group flex min-w-0 items-center gap-1 text-sm font-semibold text-foreground hover:text-primary"
-          title="Abrir ficha del centro"
+          title="Abrir ficha del campamento"
         >
           <span className="truncate group-hover:underline">{nombreCentro}</span>
           <ExternalLink className="size-3 shrink-0 text-muted-foreground" />

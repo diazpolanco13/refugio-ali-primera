@@ -50,7 +50,7 @@ export const INFO_ROLES: Record<Rol, InfoRol> = {
     rol: "analista_sae",
     etiqueta: "Analista SAE",
     descripcion:
-      "Opera toda la red (centros, reportes, incidencias); sin gestión de usuarios ni logs",
+      "Opera toda la red (campamentos, reportes, incidencias); sin gestión de usuarios ni logs",
     alcanceTotal: true,
     puedeEscribir: true,
     escrituraTotal: true,
@@ -73,7 +73,7 @@ export const INFO_ROLES: Record<Rol, InfoRol> = {
     rol: "supervisor",
     etiqueta: "Supervisor",
     descripcion:
-      "Responsabilidad operativa integral sobre sus centros asignados (uno o varios)",
+      "Responsabilidad operativa integral sobre sus campamentos asignados (uno o varios)",
     alcanceTotal: false,
     puedeEscribir: true,
     escrituraTotal: false,
@@ -85,7 +85,7 @@ export const INFO_ROLES: Record<Rol, InfoRol> = {
     rol: "operador",
     etiqueta: "Operador",
     descripcion:
-      "Reporta a diario en sus centros asignados; resuelve solo las incidencias que abrió",
+      "Reporta a diario en sus campamentos asignados; resuelve solo las incidencias que abrió",
     alcanceTotal: false,
     puedeEscribir: true,
     escrituraTotal: false,
@@ -145,4 +145,9 @@ export function puedeResolverIncidencia(
   if (!enSusCentros) return false;
   if (usuario.rol === "operador") return incidencia.creada_por === usuario.username;
   return true;
+}
+
+/** ¿Puede eliminar incidencias? Solo admin y analista SAE (RLS en Supabase). */
+export function puedeEliminarIncidencia(usuario: Usuario): boolean {
+  return usuario.rol === "admin" || usuario.rol === "analista_sae";
 }

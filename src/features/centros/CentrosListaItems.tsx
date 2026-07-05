@@ -72,7 +72,7 @@ export function FilaCentroLista({
       disabled={sinGeom}
       onClick={() => onSeleccionar(centro)}
       title={
-        sinGeom ? "Sin coordenadas aún" : `Centro N.° ${centro.nro} — ${centro.nombre}`
+        sinGeom ? "Sin coordenadas aún" : `Campamento N.° ${centro.nro} — ${centro.nombre}`
       }
       className={cn(
         "w-full rounded-lg px-2 py-1.5 text-left transition-colors",

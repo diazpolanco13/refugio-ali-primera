@@ -161,22 +161,22 @@ function SelectorCentros({
           >
             <span className="truncate text-left">
               {seleccion.length === 0
-                ? "Sin centros asignados"
+                ? "Sin campamentos asignados"
                 : todosSeleccionados
-                  ? `Todos los centros (${centros.length})`
-                  : `${seleccion.length} centro${seleccion.length === 1 ? "" : "s"} asignado${seleccion.length === 1 ? "" : "s"}`}
+                  ? `Todos los campamentos (${centros.length})`
+                  : `${seleccion.length} campamento${seleccion.length === 1 ? "" : "s"} asignado${seleccion.length === 1 ? "" : "s"}`}
             </span>
             <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
           <Command>
-            <CommandInput placeholder="Buscar centro…" />
+            <CommandInput placeholder="Buscar campamento…" />
             <CommandList>
               <CommandEmpty>Sin resultados.</CommandEmpty>
               <CommandGroup>
                 <CommandItem
-                  value="__todos__ todos los centros toda la red"
+                  value="__todos__ todos los campamentos toda la red"
                   onSelect={toggleTodos}
                   className="font-medium"
                 >
@@ -184,7 +184,7 @@ function SelectorCentros({
                     className={cn("size-4", todosSeleccionados ? "opacity-100" : "opacity-0")}
                   />
                   <Building2 className="size-3.5 text-muted-foreground" />
-                  <span>Todos los centros ({centros.length})</span>
+                  <span>Todos los campamentos ({centros.length})</span>
                 </CommandItem>
                 {centros.map((c) => {
                   const marcado = seleccion.includes(c.id);
@@ -213,13 +213,13 @@ function SelectorCentros({
             className="gap-1 border-primary/40 pr-1 text-[10px] text-primary"
           >
             <Building2 className="size-3" />
-            Toda la red ({centros.length} centros)
+            Toda la red ({centros.length} campamentos)
             {!disabled && (
               <button
                 type="button"
                 className="rounded-sm p-0.5 hover:bg-accent hover:text-foreground"
                 onClick={() => onCambiar([])}
-                aria-label="Quitar todos los centros"
+                aria-label="Quitar todos los campamentos"
               >
                 <X className="size-3" />
               </button>
@@ -242,7 +242,7 @@ function SelectorCentros({
                     type="button"
                     className="rounded-sm p-0.5 hover:bg-accent hover:text-foreground"
                     onClick={() => toggle(id)}
-                    aria-label="Quitar centro"
+                    aria-label="Quitar campamento"
                   >
                     <X className="size-3" />
                   </button>
@@ -385,7 +385,7 @@ function FormUsuario({
             {/* Rol y centros */}
             <section className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Cargo, rol y centros
+                Cargo, rol y campamentos
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
@@ -431,7 +431,7 @@ function FormUsuario({
                   </p>
                 </div>
                 <div className="space-y-1.5 sm:col-span-2">
-                  <Label>Centros asignados</Label>
+                  <Label>Campamentos asignados</Label>
                   <SelectorCentros
                     centros={centros}
                     seleccion={form.centros_asignados}
@@ -442,7 +442,7 @@ function FormUsuario({
                     {usaCentros
                       ? form.rol === "analista_sae"
                         ? "Ámbito de monitoreo del analista (su acceso operativo sigue siendo toda la red)."
-                        : "El supervisor y el operador solo ven y editan sus centros asignados."
+                        : "El supervisor y el operador solo ven y editan sus campamentos asignados."
                       : "Este rol tiene alcance sobre toda la red; no necesita asignación."}
                   </p>
                 </div>
@@ -689,7 +689,7 @@ function TarjetaUsuario({
                 className="gap-1 border-primary/40 text-[10px] text-primary"
               >
                 <Building2 className="size-3" />
-                Toda la red ({centros.length} centros)
+                Toda la red ({centros.length} campamentos)
               </Badge>
             ) : (
               asignados.map((id) => (
@@ -996,7 +996,7 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
 
       <FormUsuario
         titulo="Nuevo usuario"
-        descripcion="Crea la ficha completa con rol, centros asignados y permisos definidos."
+        descripcion="Crea la ficha completa con rol, campamentos asignados y permisos definidos."
         inicial={formVacio()}
         esEdicion={false}
         abierto={creando}

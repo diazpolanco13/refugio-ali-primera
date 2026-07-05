@@ -1,34 +1,80 @@
-// Sección "Reporte del día" de la ficha del centro: muestra el estado del
-// reporte de HOY (qué jornadas de comida ya se reportaron, raciones totales,
-// atenciones médicas y si el parte numérico se actualizó hoy) con un
-// indicador de pendiente. Se consume igual que las demás `Seccion*Centro` de
-// `DetalleCentro.tsx`, tanto en el panel lateral como en `FichaCentroView`.
-// Incluye el botón que abre `ReporteDiarioForm` (solo roles que editan).
+// Sección "Reporte del día" del campamento: estado de hoy, calendario
+// interactivo e historial. Modo `expandido` para la ficha; `compacto` para el panel.
 
-import { useMemo, useState } from "react";
-import { CircleCheck, CircleDashed, ClipboardCheck, Stethoscope, UtensilsCrossed } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import {
+  CalendarDays,
+  CircleCheck,
+  CircleDashed,
+  ClipboardCheck,
+  Clock,
+  HardHat,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Stethoscope,
+  Users,
+  UtensilsCrossed,
+  Wrench,
+} from "lucide-react";
 import { claveDia } from "@/data/reposSupabase";
 import { useReportesCentros } from "@/data/useReportesCentros";
+import { useReportesReparacionesDia } from "@/data/useReportesReparacionesDia";
+import { useReparacionesCentros } from "@/data/useReparacionesCentros";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import {
+  centroRequiereReparaciones,
+  META_ESTATUS,
+  reparacionesPendientes,
+  reporteReparacionesDelDia,
+  type Reparacion,
+  type ReporteReparacionesDia,
+} from "@/domain/reparaciones";
+import {
   CATALOGO_JORNADAS_REPORTE,
+  META_ESTADO_REPORTE,
+  contadoresReportesPorPeriodo,
+  estadosReportePorDia,
   jornadasReportadas,
+  normalizarComidas,
+  parsearDiaReporte,
   racionesDelDia,
   reporteCompleto,
   reporteDelDia,
+  ultimosDiasReporte,
+  type EstadoReporteDia,
+  type JornadaReporte,
+  type ReporteDiario,
 } from "@/domain/reporteDiario";
+import type { SnapshotOcupacion } from "@/domain/serieOcupacionCentros";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ReporteDiarioForm } from "./ReporteDiarioForm";
+import { GraficoReporteCentro } from "./GraficoReporteCentro";
+import {
+  CalendarioSelectorDia,
+  formatearDiaCalendario,
+} from "./CalendarioSelectorDia";
+import {
+  ParteNumericoResumen,
+  ultimoSnapshotAntes,
+} from "./ParteNumericoResumen";
 
 interface Props {
   centro: CentroTransitorio;
   puedeEditar: boolean;
+  variant?: "compacto" | "expandido";
 }
 
-/** Chip de estado de un ítem del reporte (jornada o parte numérico). */
+type FiltroLista = "hoy" | "semana" | "mes" | "dia" | "historial";
+
+function inicioMesClave(ref: string): string {
+  const { anio, mes } = parsearDiaReporte(ref);
+  return `${anio}-${String(mes).padStart(2, "0")}-01`;
+}
+
 function ChipReporte({ etiqueta, listo }: { etiqueta: string; listo: boolean }) {
   return (
     <span
@@ -45,20 +91,660 @@ function ChipReporte({ etiqueta, listo }: { etiqueta: string; listo: boolean }) 
   );
 }
 
-/** Estado del reporte diario de HOY del centro, con acceso al formulario. */
-export function SeccionReporteDiarioCentro({ centro, puedeEditar }: Props) {
+function BadgeEstadoReporte({ estado }: { estado: EstadoReporteDia }) {
+  const meta = META_ESTADO_REPORTE[estado];
+  return (
+    <Badge
+      variant="outline"
+      className="text-[10px]"
+      style={{ borderColor: `${meta.color}66`, color: meta.color }}
+    >
+      {meta.label}
+    </Badge>
+  );
+}
+
+function horaCorta(ts: number | null): string {
+  if (ts == null) return "";
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/** Bloque temático de la tarjeta de reporte (una pestaña del formulario). */
+function BloqueReporte({
+  icono,
+  titulo,
+  listo,
+  children,
+}: {
+  icono: ReactNode;
+  titulo: string;
+  listo?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-border/70 bg-muted/15 w-full px-3 py-2.5">
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <span className="text-muted-foreground">{icono}</span>
+        <span className="text-[11px] font-semibold text-foreground">{titulo}</span>
+        {listo !== undefined &&
+          (listo ? (
+            <CircleCheck className="ml-auto size-3.5 shrink-0 text-emerald-400" />
+          ) : (
+            <CircleDashed className="ml-auto size-3.5 shrink-0 text-muted-foreground" />
+          ))}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Tarjeta de un día en la lista expandida. */
+function TarjetaReporteDia({
+  dia,
+  reporte,
+  reporteRep,
+  snapshot,
+  snapshots,
+  reparaciones,
+  parteNumerico,
+  estado,
+  grande,
+  esHoy,
+  puedeEditar,
+  onEditar,
+}: {
+  dia: string;
+  reporte: ReporteDiario | undefined;
+  reporteRep?: ReporteReparacionesDia;
+  snapshot?: SnapshotOcupacion;
+  snapshots?: SnapshotOcupacion[];
+  reparaciones?: Reparacion[];
+  parteNumerico: boolean;
+  estado: EstadoReporteDia;
+  grande?: boolean;
+  esHoy?: boolean;
+  puedeEditar?: boolean;
+  onEditar?: () => void;
+}) {
+  const jornadas = jornadasReportadas(reporte);
+  const comidas = normalizarComidas(reporte?.comidas);
+  const raciones = racionesDelDia(reporte);
+  const atenciones = reporte?.atenciones_medicas ?? 0;
+  const pendientesRep = reparaciones ? reparacionesPendientes(reparaciones) : [];
+  const snapshotAnterior = snapshots ? ultimoSnapshotAntes(snapshots, dia) : undefined;
+  const hayAlgo =
+    parteNumerico ||
+    jornadas.length > 0 ||
+    atenciones > 0 ||
+    Boolean(reporte?.observaciones) ||
+    Boolean(reporteRep) ||
+    (esHoy && pendientesRep.length > 0);
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl border border-border bg-card",
+        grande ? "px-4 py-3 shadow-sm" : "rounded-lg px-3 py-2",
+        estado === "completo" && "border-emerald-500/30 bg-emerald-500/5",
+        estado === "parcial" && "border-amber-500/25 bg-amber-500/5",
+      )}
+    >
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={cn("font-semibold text-foreground", grande ? "text-sm" : "text-xs")}>
+              {formatearDiaCalendario(dia)}
+              {esHoy && (
+                <span className="ml-1.5 text-[10px] font-normal text-primary">· Hoy</span>
+              )}
+            </span>
+            <BadgeEstadoReporte estado={estado} />
+          </div>
+          {esHoy && puedeEditar && onEditar && (
+            <Button type="button" size="sm" variant="secondary" className="shrink-0" onClick={onEditar}>
+              <ClipboardCheck className="size-3.5" />
+              {reporte || parteNumerico ? "Editar" : "Reportar"}
+            </Button>
+          )}
+        </div>
+
+          {grande && hayAlgo ? (
+            <div className="grid w-full grid-cols-1 gap-2">
+              {parteNumerico && snapshot ? (
+                <ParteNumericoResumen
+                  snapshot={snapshot}
+                  snapshotAnterior={snapshotAnterior}
+                  confirmado
+                />
+              ) : (
+                <div className="rounded-lg border border-dashed border-sky-500/30 bg-sky-500/5 px-3 py-4 text-center">
+                  <Users className="mx-auto size-5 text-muted-foreground" />
+                  <p className="mt-1.5 text-xs font-medium text-foreground">
+                    Parte numérico sin confirmar
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Confirma población y personal en el reporte del día.
+                  </p>
+                </div>
+              )}
+
+              {/* Comidas */}
+              <BloqueReporte
+                icono={<UtensilsCrossed className="size-3.5 text-teal-400" />}
+                titulo="Comidas"
+                listo={jornadas.length === CATALOGO_JORNADAS_REPORTE.length}
+              >
+                {jornadas.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] text-muted-foreground">
+                      <span className="font-bold tabular-nums text-foreground">
+                        {raciones.toLocaleString("es")}
+                      </span>{" "}
+                      raciones en total
+                    </p>
+                    <ul className="space-y-1">
+                      {CATALOGO_JORNADAS_REPORTE.map((j) => {
+                        const c = comidas[j.valor];
+                        const reportada = jornadas.includes(j.valor);
+                        if (!reportada) return null;
+                        const hora = horaCorta(c.hora_llegada);
+                        const detalle = [
+                          `${c.raciones.toLocaleString("es")} raciones`,
+                          hora && `llegó ${hora}`,
+                          c.proveedor.trim() && c.proveedor.trim(),
+                        ]
+                          .filter(Boolean)
+                          .join(" · ");
+                        return (
+                          <li
+                            key={j.valor}
+                            className="flex gap-1.5 text-[11px] leading-snug text-muted-foreground"
+                          >
+                            <span className="shrink-0">{j.icono}</span>
+                            <span>
+                              <span className="font-medium text-foreground">{j.label}</span>
+                              {detalle ? ` — ${detalle}` : ""}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {jornadas.length < CATALOGO_JORNADAS_REPORTE.length && (
+                      <p className="text-[10px] text-amber-500/90">
+                        Falta:{" "}
+                        {CATALOGO_JORNADAS_REPORTE.filter(
+                          (j) => !jornadas.includes(j.valor),
+                        )
+                          .map((j) => j.label)
+                          .join(", ")}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">Sin comidas reportadas.</p>
+                )}
+              </BloqueReporte>
+
+              {/* Atención médica */}
+              <BloqueReporte
+                icono={<Stethoscope className="size-3.5 text-rose-400" />}
+                titulo="Atención médica"
+                listo={atenciones > 0 || Boolean(reporte?.observaciones?.trim())}
+              >
+                {atenciones > 0 || reporte?.observaciones ? (
+                  <div className="space-y-1">
+                    <p className="text-[11px] text-muted-foreground">
+                      <span className="font-bold tabular-nums text-foreground">{atenciones}</span>{" "}
+                      {atenciones === 1 ? "atención" : "atenciones"}
+                    </p>
+                    {reporte?.observaciones && (
+                      <p className="whitespace-pre-wrap text-[11px] leading-snug text-muted-foreground">
+                        {reporte.observaciones}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">Sin atenciones ni notas.</p>
+                )}
+              </BloqueReporte>
+
+              {/* Reparaciones */}
+              <BloqueReporte
+                icono={<Wrench className="size-3.5 text-amber-400" />}
+                titulo="Reparaciones"
+                listo={
+                  reporteRep
+                    ? !reporteRep.requiere_trabajos || pendientesRep.length === 0
+                    : undefined
+                }
+              >
+                {reporteRep ? (
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
+                      <span className="text-muted-foreground">
+                        Requiere trabajos:{" "}
+                        <span className="font-medium text-foreground">
+                          {reporteRep.requiere_trabajos ? "Sí" : "No"}
+                        </span>
+                      </span>
+                      <span className="text-muted-foreground">
+                        Se trabajó hoy:{" "}
+                        <span className="font-medium text-foreground">
+                          {reporteRep.se_trabajo_hoy ? "Sí" : "No"}
+                        </span>
+                      </span>
+                    </div>
+                    {reporteRep.observaciones && (
+                      <p className="whitespace-pre-wrap text-[11px] leading-snug text-muted-foreground">
+                        {reporteRep.observaciones}
+                      </p>
+                    )}
+                    {esHoy && pendientesRep.length > 0 && (
+                      <ul className="mt-1 space-y-1 border-t border-border/50 pt-1.5">
+                        <li className="text-[10px] font-medium text-muted-foreground">
+                          {pendientesRep.length}{" "}
+                          {pendientesRep.length === 1 ? "trabajo pendiente" : "trabajos pendientes"}
+                        </li>
+                        {pendientesRep.slice(0, 3).map((r) => (
+                          <li
+                            key={r.id}
+                            className="flex items-center gap-1.5 text-[11px] leading-snug"
+                          >
+                            <HardHat className="size-3 shrink-0 text-muted-foreground" />
+                            <span className="min-w-0 truncate text-foreground">{r.titulo}</span>
+                            <Badge
+                              variant="outline"
+                              className="ml-auto shrink-0 px-1.5 py-0 text-[9px]"
+                              style={{
+                                borderColor: `${META_ESTATUS[r.estatus].color}66`,
+                                color: META_ESTATUS[r.estatus].color,
+                              }}
+                            >
+                              {META_ESTATUS[r.estatus].label}
+                            </Badge>
+                          </li>
+                        ))}
+                        {pendientesRep.length > 3 && (
+                          <li className="text-[10px] text-muted-foreground">
+                            +{pendientesRep.length - 3} más…
+                          </li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+                ) : esHoy && pendientesRep.length > 0 ? (
+                  <p className="text-[11px] text-amber-500/90">
+                    {pendientesRep.length}{" "}
+                    {pendientesRep.length === 1 ? "reparación abierta" : "reparaciones abiertas"}{" "}
+                    sin reporte del día.
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">Sin registro de reparaciones.</p>
+                )}
+              </BloqueReporte>
+            </div>
+          ) : (
+            /* Vista compacta (historial / tarjeta pequeña) */
+            <>
+              <div className="flex flex-wrap gap-1.5">
+                <ChipReporte etiqueta="Parte numérico" listo={parteNumerico} />
+                {CATALOGO_JORNADAS_REPORTE.map((j) => (
+                  <ChipReporte
+                    key={j.valor}
+                    etiqueta={j.label}
+                    listo={jornadas.includes(j.valor as JornadaReporte)}
+                  />
+                ))}
+              </div>
+              {(raciones > 0 || atenciones > 0) && (
+                <div className="flex flex-wrap gap-4 text-xs">
+                  <span className="inline-flex items-center gap-1 text-muted-foreground">
+                    <UtensilsCrossed className="size-3.5 text-teal-400" />
+                    <span className="font-bold tabular-nums text-foreground">
+                      {raciones.toLocaleString("es")}
+                    </span>{" "}
+                    raciones
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-muted-foreground">
+                    <Stethoscope className="size-3.5 text-rose-400" />
+                    <span className="font-bold tabular-nums text-foreground">{atenciones}</span>{" "}
+                    atenciones
+                  </span>
+                </div>
+              )}
+              {parteNumerico && snapshot && (
+                <p className="text-[11px] text-muted-foreground">
+                  {snapshot.total_afectados.toLocaleString("es")} refug. ·{" "}
+                  {snapshot.familias.toLocaleString("es")} fam. ·{" "}
+                  {snapshot.personal_total.toLocaleString("es")} personal
+                </p>
+              )}
+              {reporte?.observaciones && (
+                <p className="whitespace-pre-wrap text-[11px] text-muted-foreground">
+                  {reporte.observaciones}
+                </p>
+              )}
+              {reporteRep && (
+                <p className="text-[11px] text-muted-foreground">
+                  <Wrench className="mr-1 inline size-3 text-amber-400" />
+                  Reparaciones: requiere {reporteRep.requiere_trabajos ? "sí" : "no"}, trabajó hoy{" "}
+                  {reporteRep.se_trabajo_hoy ? "sí" : "no"}
+                </p>
+              )}
+            </>
+          )}
+
+          {estado === "pendiente" && !hayAlgo && (
+            <p className="text-[11px] text-muted-foreground">Sin reporte registrado este día.</p>
+          )}
+      </div>
+    </div>
+  );
+}
+
+function ReporteExpandido({ centro, puedeEditar }: Props) {
+  const hoyClave = useMemo(() => claveDia(Date.now()), []);
+  const desde = useMemo(() => ultimosDiasReporte(30, hoyClave)[0], [hoyClave]);
+
+  const reportes = useReportesCentros({ centroId: centro.id, desde });
+  const reportesRep = useReportesReparacionesDia({ centroId: centro.id, desde });
+  const reparaciones = useReparacionesCentros({ centroId: centro.id });
+  const pendientesRep = reparacionesPendientes(reparaciones);
+  const snapshots = useOcupacionesCentros({ centroId: centro.id, desde });
+
+  const diasConParte = useMemo(
+    () => new Set(snapshots.map((s) => s.dia)),
+    [snapshots],
+  );
+  const estadosPorDia = useMemo(
+    () => estadosReportePorDia(reportes, diasConParte),
+    [reportes, diasConParte],
+  );
+  const marcasPorDia = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const [dia, estado] of estadosPorDia) {
+      if (estado !== "pendiente") m.set(dia, META_ESTADO_REPORTE[estado].color);
+    }
+    return m;
+  }, [estadosPorDia]);
+  const leyendaCalendario = useMemo(
+    () =>
+      (Object.keys(META_ESTADO_REPORTE) as EstadoReporteDia[]).map((e) => ({
+        color: META_ESTADO_REPORTE[e].color,
+        label: META_ESTADO_REPORTE[e].label,
+      })),
+    [],
+  );
+  const contadores = useMemo(
+    () => contadoresReportesPorPeriodo(reportes, diasConParte, hoyClave),
+    [reportes, diasConParte, hoyClave],
+  );
+
+  const [filtro, setFiltro] = useState<FiltroLista>("hoy");
+  const [diaSel, setDiaSel] = useState<string | null>(hoyClave);
+  const [reportando, setReportando] = useState(false);
+  const [calendarioAbierto, setCalendarioAbierto] = useState(false);
+
+  const { anio: hy, mes: hm } = parsearDiaReporte(hoyClave);
+  const semInicio = (contadores.semanaDelMes - 1) * 7 + 1;
+  const semFin = Math.min(contadores.semanaDelMes * 7, new Date(hy, hm, 0).getDate());
+  const inicioMes = inicioMesClave(hoyClave);
+
+  const diasLista = useMemo(() => {
+    const todos = new Set<string>([...estadosPorDia.keys()]);
+    todos.add(hoyClave);
+    let dias = [...todos].filter((d) => d >= inicioMes);
+
+    switch (filtro) {
+      case "hoy":
+        dias = [hoyClave];
+        break;
+      case "semana":
+        dias = dias.filter((d) => {
+          const p = parsearDiaReporte(d);
+          return (
+            p.anio === hy &&
+            p.mes === hm &&
+            p.dia >= semInicio &&
+            p.dia <= semFin &&
+            estadosPorDia.get(d) !== "pendiente"
+          );
+        });
+        break;
+      case "mes":
+        dias = dias.filter((d) => {
+          const p = parsearDiaReporte(d);
+          return p.anio === hy && p.mes === hm && estadosPorDia.get(d) !== "pendiente";
+        });
+        break;
+      case "dia":
+        dias = diaSel ? [diaSel] : [];
+        break;
+      case "historial":
+        dias = dias
+          .filter((d) => estadosPorDia.get(d) !== "pendiente")
+          .sort((a, b) => b.localeCompare(a))
+          .slice(0, 30);
+        break;
+    }
+
+    return dias.sort((a, b) => b.localeCompare(a));
+  }, [filtro, estadosPorDia, hoyClave, hy, hm, semInicio, semFin, inicioMes, diaSel]);
+
+  function seleccionarFiltro(f: FiltroLista, dia?: string | null) {
+    setFiltro(f);
+    if (f === "dia" && dia) setDiaSel(dia);
+    if (f === "hoy") setDiaSel(hoyClave);
+  }
+
+  function tituloLista(): string {
+    switch (filtro) {
+      case "hoy":
+        return `Reporte de hoy · ${formatearDiaCalendario(hoyClave)}`;
+      case "semana":
+        return `Semana ${contadores.semanaDelMes} · ${contadores.mesLabel} (${diasLista.length} días)`;
+      case "mes":
+        return `${contadores.mesLabel} · días reportados (${diasLista.length})`;
+      case "dia":
+        return diaSel ? `Día ${formatearDiaCalendario(diaSel)}` : "Selecciona un día en el calendario";
+      case "historial":
+        return `Historial reciente (${diasLista.length})`;
+    }
+  }
+
+  const hoyPendiente = contadores.hoyEstado !== "completo";
+
+  const diaMarcado = useMemo(() => {
+    if (filtro === "dia" && diaSel) return diaSel;
+    if (filtro === "hoy") return hoyClave;
+    return null;
+  }, [filtro, diaSel, hoyClave]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
+            <ClipboardCheck className="size-5 text-teal-400" />
+            Reportes diarios
+          </h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Parte numérico, comidas por jornada, atenciones médicas y reparaciones.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {centroRequiereReparaciones(reparaciones) && (
+            <Badge variant="outline" className="border-amber-500/50 text-amber-500">
+              <Wrench className="size-3" />
+              {pendientesRep.length} reparación{pendientesRep.length !== 1 ? "es pendientes" : " pendiente"}
+            </Badge>
+          )}
+          {hoyPendiente && (
+            <Badge variant="outline" className="border-amber-500/50 text-amber-500">
+              Hoy: {META_ESTADO_REPORTE[contadores.hoyEstado].label}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Fila 1: gráfico principal + calendario plegable */}
+      <div className="flex items-stretch gap-2">
+        {calendarioAbierto && (
+          <div className="w-[11.5rem] shrink-0 sm:w-[12.5rem]">
+            <CalendarioSelectorDia
+              diaSeleccionado={filtro === "dia" || filtro === "hoy" ? diaSel : null}
+              onSeleccionarDia={(dia) => {
+                if (dia) seleccionarFiltro("dia", dia);
+                else if (filtro === "dia") seleccionarFiltro("hoy");
+              }}
+              marcasPorDia={marcasPorDia}
+              leyenda={leyendaCalendario}
+              onCerrar={() => setCalendarioAbierto(false)}
+            />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <GraficoReporteCentro
+            centroId={centro.id}
+            snapshots={snapshots}
+            reportes={reportes}
+            diaMarcado={diaMarcado}
+            accionCalendario={
+              <Button
+                type="button"
+                size="xs"
+                variant={calendarioAbierto ? "secondary" : "outline"}
+                className="h-6 gap-1 px-2 text-[10px]"
+                onClick={() => setCalendarioAbierto((v) => !v)}
+              >
+                {calendarioAbierto ? (
+                  <PanelLeftClose className="size-3" />
+                ) : (
+                  <PanelLeftOpen className="size-3" />
+                )}
+                <CalendarDays className="size-3" />
+                {diaMarcado ? formatearDiaCalendario(diaMarcado) : "Fecha"}
+              </Button>
+            }
+          />
+        </div>
+      </div>
+
+      {/* Fila 2: acción + detalle a ancho completo */}
+      <div className="space-y-3">
+        {puedeEditar && filtro === "hoy" && (
+          <Card className="border-teal-500/25 bg-teal-500/5">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">Reporte de hoy</p>
+                <p className="text-xs text-muted-foreground">
+                  {contadores.hoyEstado === "completo"
+                    ? "Parte numérico, comidas, salud y reparaciones registrados."
+                    : contadores.hoyEstado === "parcial"
+                      ? "Faltan secciones por completar (parte numérico y/o alguna comida)."
+                      : contadores.hoyEstado === "solo_parte"
+                        ? "Solo está el parte numérico; faltan las comidas del día."
+                        : "Aún no se ha registrado nada hoy."}
+                </p>
+              </div>
+              <Button type="button" onClick={() => setReportando(true)}>
+                <ClipboardCheck className="size-4" />
+                {contadores.hoyEstado === "pendiente" ? "Reportar hoy" : "Editar reporte"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader className="space-y-3 pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-sm">{tituloLista()}</CardTitle>
+              <div className="flex flex-wrap gap-1">
+                <Button
+                  type="button"
+                  size="xs"
+                  variant={filtro === "hoy" ? "secondary" : "outline"}
+                  onClick={() => seleccionarFiltro("hoy")}
+                >
+                  Hoy
+                </Button>
+                <Button
+                  type="button"
+                  size="xs"
+                  variant={filtro === "historial" ? "secondary" : "outline"}
+                  onClick={() => seleccionarFiltro("historial")}
+                >
+                  <Clock className="size-3" />
+                  Historial
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {diasLista.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {filtro === "hoy"
+                    ? "Aún no hay reporte registrado hoy."
+                    : "No hay reportes en este periodo."}
+                </p>
+                {filtro === "hoy" && puedeEditar && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => setReportando(true)}
+                  >
+                    Registrar reporte de hoy
+                  </Button>
+                )}
+              </div>
+            ) : (
+              diasLista.map((dia) => (
+                <TarjetaReporteDia
+                  key={dia}
+                  dia={dia}
+                  reporte={reportes.find((r) => r.dia === dia)}
+                  reporteRep={reporteReparacionesDelDia(reportesRep, centro.id, dia)}
+                    snapshot={snapshots.find((s) => s.dia === dia)}
+                    snapshots={snapshots}
+                    reparaciones={reparaciones}
+                  parteNumerico={diasConParte.has(dia)}
+                  estado={estadosPorDia.get(dia) ?? "pendiente"}
+                  grande
+                  esHoy={dia === hoyClave}
+                  puedeEditar={puedeEditar}
+                  onEditar={() => setReportando(true)}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {reportando && (
+        <ReporteDiarioForm centro={centro} onCerrar={() => setReportando(false)} />
+      )}
+    </div>
+  );
+}
+
+function ReporteCompacto({ centro, puedeEditar }: Props) {
   const hoy = useMemo(() => claveDia(Date.now()), []);
   const [reportando, setReportando] = useState(false);
 
-  // Comidas + atención médica de hoy (tabla `reportes_centros`).
   const reportes = useReportesCentros({ centroId: centro.id, dia: hoy });
+  const reportesRep = useReportesReparacionesDia({ centroId: centro.id, dia: hoy });
+  const reparaciones = useReparacionesCentros({ centroId: centro.id });
+  const reporteRep = reporteReparacionesDelDia(reportesRep, centro.id, hoy);
+  const pendientesRep = reparacionesPendientes(reparaciones);
   const reporte = reporteDelDia(reportes, centro.id, hoy);
   const jornadas = jornadasReportadas(reporte);
   const raciones = racionesDelDia(reporte);
   const atenciones = reporte?.atenciones_medicas ?? 0;
 
-  // ¿El parte numérico (población) se actualizó hoy? Lo dice el snapshot
-  // diario de `ocupaciones_centros`, que escribe `guardarCentro()`.
   const snapshotsHoy = useOcupacionesCentros({ centroId: centro.id, desde: hoy });
   const parteHoy = snapshotsHoy.some((s) => s.dia === hoy);
 
@@ -83,6 +769,12 @@ export function SeccionReporteDiarioCentro({ centro, puedeEditar }: Props) {
         >
           {completo ? "Completo" : "Pendiente"}
         </Badge>
+        {centroRequiereReparaciones(reparaciones) && (
+          <Badge variant="outline" className="border-amber-500/40 text-[10px] text-amber-500">
+            <Wrench className="size-3" />
+            {pendientesRep.length} rep.
+          </Badge>
+        )}
       </div>
 
       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -98,7 +790,7 @@ export function SeccionReporteDiarioCentro({ centro, puedeEditar }: Props) {
 
       {nadaReportado ? (
         <p className="mt-2 text-[11px] text-muted-foreground">
-          Este centro aún no reporta nada hoy.
+          Este campamento aún no reporta nada hoy.
         </p>
       ) : (
         <div className="mt-2 grid grid-cols-2 gap-2">
@@ -129,6 +821,14 @@ export function SeccionReporteDiarioCentro({ centro, puedeEditar }: Props) {
         </p>
       )}
 
+      {reporteRep && (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          <Wrench className="mr-1 inline size-3 text-amber-400" />
+          Reparaciones: requiere trabajos {reporteRep.requiere_trabajos ? "sí" : "no"}
+          {reporteRep.se_trabajo_hoy ? ", se trabajó hoy" : ""}
+        </p>
+      )}
+
       {puedeEditar && (
         <Button
           variant="outline"
@@ -146,4 +846,16 @@ export function SeccionReporteDiarioCentro({ centro, puedeEditar }: Props) {
       )}
     </div>
   );
+}
+
+/** Estado del reporte diario del campamento. */
+export function SeccionReporteDiarioCentro({
+  centro,
+  puedeEditar,
+  variant = "compacto",
+}: Props) {
+  if (variant === "expandido") {
+    return <ReporteExpandido centro={centro} puedeEditar={puedeEditar} />;
+  }
+  return <ReporteCompacto centro={centro} puedeEditar={puedeEditar} />;
 }

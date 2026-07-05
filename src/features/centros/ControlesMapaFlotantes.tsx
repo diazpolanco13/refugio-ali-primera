@@ -54,7 +54,7 @@ export function ControlesMapaFlotantes({
                     ? "bg-primary/15 text-primary"
                     : "bg-card text-foreground",
                 )}
-                onClick={() => setMenuDrawerOpen(true)}
+                onClick={() => setMenuDrawerOpen(!menuDrawerOpen)}
                 aria-label="Abrir menú"
               >
                 <Menu className="size-4" />
@@ -73,13 +73,13 @@ export function ControlesMapaFlotantes({
                 size="icon"
                 className="h-10 w-10 min-w-10 shrink-0 border-0 bg-card text-foreground shadow-none hover:bg-muted/80"
                 onClick={onAbrirPanel}
-                aria-label="Lista de centros"
+                aria-label="Lista de campamentos"
               >
                 <PanelLeftOpen className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={8}>
-              Lista de centros
+              Lista de campamentos
             </TooltipContent>
           </Tooltip>
 

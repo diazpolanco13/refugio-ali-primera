@@ -9,15 +9,35 @@
 //   hora de llegada y proveedor. Se guarda en `reportes_centros`.
 // - Atención médica: número de atenciones del día + observaciones. También en
 //   `reportes_centros`.
+// - Reparaciones: flags diarios + lista histórica de trabajos. Flags en
+//   `reportes_reparaciones_dia`; ítems en `reparaciones_centros`.
 //
 // Si ya existe un reporte del día, el formulario carga sobre lo ya reportado
 // (clave lógica `centro_id, dia`: la última edición del día gana).
 
-import { useEffect, useMemo, useState } from "react";
-import { Clock, Loader2, Stethoscope, Users, UtensilsCrossed } from "lucide-react";
-import { guardarCentro, claveDia } from "@/data/reposSupabase";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Check,
+  CheckCircle2,
+  ClipboardCheck,
+  Clock,
+  Loader2,
+  Stethoscope,
+  Users,
+  UtensilsCrossed,
+  Wrench,
+} from "lucide-react";
+import {
+  confirmarParteNumericoDia,
+  guardarCentro,
+  claveDia,
+} from "@/data/reposSupabase";
+import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { guardarReporteDiario } from "@/data/reposReportes";
+import { guardarReporteReparacionesDia } from "@/data/reposReparaciones";
 import { useReportesCentros } from "@/data/useReportesCentros";
+import { useReportesReparacionesDia } from "@/data/useReportesReparacionesDia";
+import { reporteReparacionesDelDia } from "@/domain/reparaciones";
 import {
   CATALOGO_JORNADAS_REPORTE,
   normalizarComidas,
@@ -50,10 +70,28 @@ import { Label } from "@/components/ui/label";
 import { NumInput } from "@/components/ui/num-input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import { ReparacionesTab } from "./ReparacionesTab";
 
 interface Props {
   centro: CentroTransitorio;
   onCerrar: () => void;
+}
+
+interface ParteNumericoForm {
+  ocupacion: Vulnerables;
+  personal: PersonalCentro;
+  totalAfectados: number;
+  familias: number;
+}
+
+function parteNumericoIgual(a: ParteNumericoForm, b: ParteNumericoForm): boolean {
+  if (a.totalAfectados !== b.totalAfectados) return false;
+  if (a.familias !== b.familias) return false;
+  return (
+    JSON.stringify(a.ocupacion) === JSON.stringify(b.ocupacion) &&
+    JSON.stringify(a.personal) === JSON.stringify(b.personal)
+  );
 }
 
 /** Timestamp (ms) → "HH:MM" para el input time; "" si no hay hora. */
@@ -72,6 +110,20 @@ function tsDesdeHora(hora: string, dia: string): number | null {
   d.setHours(h, m, 0, 0);
   return d.getTime();
 }
+
+/** Estilo de pestañas del reporte: una fila (icono + texto), sin desbordar la franja. */
+const clasePestanaReporte = cn(
+  "relative flex h-full min-h-0 flex-row items-center justify-center gap-1 rounded-none px-0.5 py-0",
+  "!border-x-transparent !border-t-transparent !border-b-2 !border-b-transparent !bg-transparent !shadow-none",
+  "text-[10px] font-medium leading-none text-muted-foreground",
+  "transition-colors hover:text-foreground",
+  "after:!hidden after:!content-none",
+  "data-active:!border-x-transparent data-active:!border-t-transparent data-active:!border-b-primary",
+  "data-active:!bg-transparent data-active:!text-foreground data-active:!shadow-none",
+  "dark:data-active:!border-x-transparent dark:data-active:!border-t-transparent dark:data-active:!border-b-primary dark:data-active:!bg-transparent",
+  "sm:gap-1.5 sm:px-1 sm:text-sm",
+  "[&_svg]:size-3.5 shrink-0 sm:[&_svg]:size-4",
+);
 
 /** Formulario del reporte del día (parte numérico + comidas + atención médica). */
 export function ReporteDiarioForm({ centro, onCerrar }: Props) {
@@ -95,8 +147,34 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
   const [atenciones, setAtenciones] = useState(0);
   const [observaciones, setObservaciones] = useState("");
 
+  // Reparaciones (flags diarios en `reportes_reparaciones_dia`).
+  const [requiereTrabajos, setRequiereTrabajos] = useState(false);
+  const [seTrabajoHoy, setSeTrabajoHoy] = useState(false);
+  const [obsReparaciones, setObsReparaciones] = useState("");
+
   const [guardando, setGuardando] = useState(false);
+  const [confirmandoParte, setConfirmandoParte] = useState(false);
+  const [parteConfirmadoOk, setParteConfirmadoOk] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
+
+  const baselineParte = useRef<ParteNumericoForm>({
+    ocupacion: base.ocupacion,
+    personal: base.personal,
+    totalAfectados: base.total_afectados,
+    familias: base.familias_ocupadas,
+  });
+
+  const snapshotsHoy = useOcupacionesCentros({ centroId: centro.id, desde: hoy });
+  const parteHoyEnBd = snapshotsHoy.some((s) => s.dia === hoy);
+
+  const parteActual: ParteNumericoForm = {
+    ocupacion,
+    personal,
+    totalAfectados,
+    familias,
+  };
+  const parteModificado = !parteNumericoIgual(parteActual, baselineParte.current);
+  const parteHoyConfirmado = parteHoyEnBd || parteConfirmadoOk;
 
   // Si ya hay reporte de HOY, precarga comidas/atenciones para editar sobre
   // lo ya reportado (una sola vez, para no pisar lo que escriba el usuario).
@@ -117,6 +195,17 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
     setPrecargado(true);
   }, [precargado, reporteExistente]);
 
+  const reportesRep = useReportesReparacionesDia({ centroId: centro.id, dia: hoy });
+  const reporteRepExistente = reporteReparacionesDelDia(reportesRep, centro.id, hoy);
+  const [precargadoRep, setPrecargadoRep] = useState(false);
+  useEffect(() => {
+    if (precargadoRep || !reporteRepExistente) return;
+    setRequiereTrabajos(reporteRepExistente.requiere_trabajos);
+    setSeTrabajoHoy(reporteRepExistente.se_trabajo_hoy);
+    setObsReparaciones(reporteRepExistente.observaciones);
+    setPrecargadoRep(true);
+  }, [precargadoRep, reporteRepExistente]);
+
   const refugiados = poblacionCentro({
     ...centro,
     ocupacion,
@@ -132,18 +221,47 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
         [jornada]: { ...prev[jornada], [campo]: valor },
       }));
 
+  async function confirmarSinCambios() {
+    setErrorGuardado(null);
+    setConfirmandoParte(true);
+    try {
+      await confirmarParteNumericoDia(
+        {
+          ...centro,
+          ocupacion,
+          personal,
+          total_afectados: totalAfectados,
+          familias_ocupadas: familias,
+        },
+        hoy,
+      );
+      setParteConfirmadoOk(true);
+    } catch (err) {
+      console.error("[ReporteDiarioForm] error confirmando parte numérico:", err);
+      setErrorGuardado(
+        err instanceof Error
+          ? err.message
+          : "No se pudo confirmar el parte numérico del día.",
+      );
+    } finally {
+      setConfirmandoParte(false);
+    }
+  }
+
   async function guardar() {
     setErrorGuardado(null);
     setGuardando(true);
     try {
-      // 1) Parte numérico → centro (snapshot histórico automático si cambió).
-      await guardarCentro({
-        ...centro,
-        ocupacion,
-        personal,
-        total_afectados: totalAfectados,
-        familias_ocupadas: familias,
-      });
+      // 1) Parte numérico → solo si hubo cambios respecto al último registro.
+      if (parteModificado) {
+        await guardarCentro({
+          ...centro,
+          ocupacion,
+          personal,
+          total_afectados: totalAfectados,
+          familias_ocupadas: familias,
+        });
+      }
       // 2) Comidas + atención médica → reportes_centros (upsert del día).
       await guardarReporteDiario({
         centro_id: centro.id,
@@ -171,6 +289,14 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
         atenciones_medicas: atenciones,
         observaciones: observaciones.trim(),
       });
+      // 3) Flags diarios de reparaciones.
+      await guardarReporteReparacionesDia({
+        centro_id: centro.id,
+        dia: hoy,
+        requiere_trabajos: requiereTrabajos,
+        se_trabajo_hoy: seTrabajoHoy,
+        observaciones: obsReparaciones.trim(),
+      });
       onCerrar();
     } catch (err) {
       console.error("[ReporteDiarioForm] error guardando reporte:", err);
@@ -185,11 +311,12 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
   return (
     <Dialog open onOpenChange={(a) => !a && onCerrar()}>
       <DialogContent
-        className="flex max-h-[96dvh] flex-col gap-0 p-0 sm:max-w-2xl"
+        className="flex h-[96dvh] max-h-[96dvh] flex-col gap-0 bg-background p-0 sm:h-auto sm:max-h-[90vh] sm:max-w-2xl"
+        overlayClassName="bg-black"
         showCloseButton={false}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <DialogHeader className="px-5 py-4 sm:px-6">
+        <DialogHeader className="shrink-0 border-b border-border/80 bg-background px-5 py-4 sm:px-6">
           <DialogTitle className="text-lg">Reporte del día</DialogTitle>
           <DialogDescription className="text-sm">
             N.° {centro.nro} · {centro.nombre} ·{" "}
@@ -200,32 +327,99 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs
-          defaultValue="parte"
-          className="min-h-0 flex-1 gap-0"
-        >
-          <div className="shrink-0 border-b border-border px-5 pb-3 sm:px-6">
-            <TabsList className="w-full">
-              <TabsTrigger value="parte">
-                <Users className="size-4" />
-                <span className="hidden sm:inline">Parte numérico</span>
-                <span className="sm:hidden">Parte</span>
+        <Tabs defaultValue="parte" className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden">
+          <div className="relative z-30 shrink-0 border-b border-border/80 bg-background">
+            <TabsList
+              variant="line"
+              className="grid !h-[50px] w-full grid-cols-4 gap-0 rounded-none bg-background p-0"
+            >
+              <TabsTrigger value="parte" className={clasePestanaReporte}>
+                <Users />
+                <span className="truncate">Parte</span>
               </TabsTrigger>
-              <TabsTrigger value="comidas">
-                <UtensilsCrossed className="size-4" />
-                Comidas
+              <TabsTrigger value="comidas" className={clasePestanaReporte}>
+                <UtensilsCrossed />
+                <span className="truncate">Comidas</span>
               </TabsTrigger>
-              <TabsTrigger value="salud">
-                <Stethoscope className="size-4" />
-                <span className="hidden sm:inline">Atención médica</span>
-                <span className="sm:hidden">Salud</span>
+              <TabsTrigger value="salud" className={clasePestanaReporte}>
+                <Stethoscope />
+                <span className="truncate">Salud</span>
+              </TabsTrigger>
+              <TabsTrigger value="reparaciones" className={clasePestanaReporte}>
+                <Wrench />
+                <span className="truncate">Rep.</span>
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-5">
+          <div className="relative z-0 min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background px-5 py-4 sm:px-6 sm:py-5">
             {/* Parte numérico: población, familias, desglose y personal */}
-            <TabsContent value="parte" className="space-y-5">
+            <TabsContent value="parte" className="mt-0 block flex-none space-y-5 outline-none">
+              <div
+                className={cn(
+                  "rounded-lg border px-4 py-3.5",
+                  parteHoyConfirmado
+                    ? "border-emerald-500/35 bg-emerald-500/5"
+                    : parteModificado
+                      ? "border-amber-500/30 bg-amber-500/5"
+                      : "border-teal-500/35 bg-teal-500/5",
+                )}
+              >
+                <div className="flex flex-wrap items-start gap-3">
+                  <div
+                    className={cn(
+                      "flex size-9 shrink-0 items-center justify-center rounded-lg",
+                      parteHoyConfirmado
+                        ? "bg-emerald-500/15 text-emerald-400"
+                        : parteModificado
+                          ? "bg-amber-500/15 text-amber-400"
+                          : "bg-teal-500/15 text-teal-400",
+                    )}
+                  >
+                    {parteHoyConfirmado ? (
+                      <CheckCircle2 className="size-4" />
+                    ) : (
+                      <ClipboardCheck className="size-4" />
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-foreground">
+                        {parteHoyConfirmado
+                          ? "Parte numérico confirmado hoy"
+                          : "Parte numérico de hoy"}
+                      </p>
+                      <p className="text-xs leading-snug text-muted-foreground">
+                        {parteHoyConfirmado
+                          ? "El registro de hoy ya quedó en el histórico."
+                          : parteModificado
+                            ? "Hay cambios respecto al último registro. Guárdalos con el botón del pie del formulario."
+                            : "Si la población no cambió, confírmalo sin reescribir las cifras."}
+                      </p>
+                    </div>
+
+                    {!parteHoyConfirmado && !parteModificado && (
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        className="bg-teal-600 hover:bg-teal-500"
+                        disabled={confirmandoParte || guardando}
+                        onClick={() => void confirmarSinCambios()}
+                      >
+                        {confirmandoParte ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Check className="size-4" />
+                        )}
+                        Confirmar sin cambios
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <Label className="text-sm font-semibold">Población afectada</Label>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -242,7 +436,10 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
                       </span>
                     </>
                   )}
-                  . Al guardar se registra el snapshot del día en el histórico.
+                  .{" "}
+                  {parteModificado
+                    ? "Al guardar el reporte se actualiza el snapshot del día."
+                    : "Si hubo cambios, edita las cifras y guarda el reporte."}
                 </p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <div>
@@ -302,13 +499,13 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
             </TabsContent>
 
             {/* Comidas: una tarjeta por jornada */}
-            <TabsContent value="comidas" className="space-y-2">
+            <TabsContent value="comidas" className="mt-0 block flex-none space-y-2 outline-none">
               <p className="text-xs text-muted-foreground">
                 Registra las raciones recibidas en cada jornada, a qué hora llegó la
                 comida y quién la proveyó. Deja en 0 / vacío lo que aún no llega.
               </p>
               {CATALOGO_JORNADAS_REPORTE.map((j) => (
-                <Card key={j.valor} size="sm" className="py-2">
+                <Card key={j.valor} size="sm" className="border-border/80 py-2">
                   <CardContent className="space-y-2 px-3">
                     <div className="flex items-center gap-2 text-xs font-medium text-foreground">
                       <span className="text-base leading-none">{j.icono}</span>
@@ -384,7 +581,7 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
             </TabsContent>
 
             {/* Atención médica del día */}
-            <TabsContent value="salud" className="space-y-4">
+            <TabsContent value="salud" className="mt-0 block flex-none space-y-4 outline-none">
               <div>
                 <Label htmlFor="reporte-atenciones" className="text-sm font-semibold">
                   Atenciones médicas del día
@@ -411,22 +608,39 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
                 />
               </div>
             </TabsContent>
+
+            {/* Reparaciones: flags diarios + lista histórica */}
+            <TabsContent value="reparaciones" className="mt-0 block flex-none outline-none">
+              <ReparacionesTab
+                centroId={centro.id}
+                puedeEditar
+                requiereTrabajos={requiereTrabajos}
+                seTrabajoHoy={seTrabajoHoy}
+                observaciones={obsReparaciones}
+                onRequiereTrabajos={setRequiereTrabajos}
+                onSeTrabajoHoy={setSeTrabajoHoy}
+                onObservaciones={setObsReparaciones}
+                deshabilitado={guardando || confirmandoParte}
+              />
+            </TabsContent>
           </div>
         </Tabs>
 
-        <DialogFooter className="pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <DialogFooter className="shrink-0 border-t border-border/80 bg-background px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
           {errorGuardado && (
-            <p className="mr-auto max-w-[60%] text-xs leading-snug text-destructive">
+            <p className="w-full text-xs leading-snug text-destructive sm:mr-auto sm:max-w-[60%]">
               {errorGuardado}
             </p>
           )}
-          <Button variant="outline" onClick={onCerrar}>
-            Cancelar
-          </Button>
-          <Button onClick={() => void guardar()} disabled={guardando}>
-            {guardando ? <Loader2 className="size-4 animate-spin" /> : null}
-            Guardar reporte
-          </Button>
+          <div className="flex w-full flex-col-reverse gap-2 sm:ml-auto sm:w-auto sm:flex-row">
+            <Button variant="outline" onClick={onCerrar} disabled={guardando || confirmandoParte}>
+              Cancelar
+            </Button>
+            <Button onClick={() => void guardar()} disabled={guardando || confirmandoParte}>
+              {guardando ? <Loader2 className="size-4 animate-spin" /> : null}
+              {parteModificado ? "Guardar reporte" : "Guardar comidas y atención"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

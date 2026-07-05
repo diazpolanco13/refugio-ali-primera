@@ -1,4 +1,4 @@
-import { LogOut, MapPinned } from "lucide-react";
+import { LogOut, MapPinned, Menu } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
 import { cerrarSesion } from "@/data/authSupabase";
 import { puedeEscribir } from "@/domain/permisos";
@@ -21,8 +21,12 @@ import { cn } from "@/lib/utils";
 interface Props {
   sesion: Sesion;
   titulo?: string;
-  /** En vista mapa no hay rail lateral; el menú va en controles flotantes. */
+  /** En vista mapa/tablero no hay rail lateral; el menú va en drawer o controles flotantes. */
   ocultarTriggerSidebar?: boolean;
+  /** Botón de menú drawer (p. ej. tablero comparativo). */
+  mostrarBotonMenuDrawer?: boolean;
+  menuDrawerAbierto?: boolean;
+  onToggleMenuDrawer?: () => void;
   online: boolean;
 }
 
@@ -70,7 +74,15 @@ function IconoAppConEstado({
 }
 
 /** Barra superior mínima: título, conexión y usuario. */
-export function TopBar({ sesion, titulo, ocultarTriggerSidebar = false, online }: Props) {
+export function TopBar({
+  sesion,
+  titulo,
+  ocultarTriggerSidebar = false,
+  mostrarBotonMenuDrawer = false,
+  menuDrawerAbierto = false,
+  onToggleMenuDrawer,
+  online,
+}: Props) {
   const conectado = useSupabaseConectado();
   const puedeEditar = puedeEscribir(sesion.user.rol);
   const nombre = sesion.user.nombre || sesion.user.username;
@@ -79,7 +91,20 @@ export function TopBar({ sesion, titulo, ocultarTriggerSidebar = false, online }
   return (
     <header className="z-20 flex h-12 shrink-0 items-center justify-between border-b border-border bg-background/95 px-2 backdrop-blur-sm sm:px-3">
       <div className="flex min-w-0 items-center gap-2">
-        {!ocultarTriggerSidebar && <SidebarTrigger className="shrink-0" />}
+        {mostrarBotonMenuDrawer && onToggleMenuDrawer ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className={cn("shrink-0", menuDrawerAbierto && "bg-primary/15 text-primary")}
+            onClick={onToggleMenuDrawer}
+            aria-label={menuDrawerAbierto ? "Cerrar menú" : "Abrir menú"}
+          >
+            <Menu className="size-4" />
+          </Button>
+        ) : (
+          !ocultarTriggerSidebar && <SidebarTrigger className="shrink-0" />
+        )}
         <IconoAppConEstado online={online} conectado={conectado} />
         <div className="min-w-0">
           <h1 className="truncate text-sm font-semibold leading-tight text-foreground">

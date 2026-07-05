@@ -1,4 +1,4 @@
-import { Scale, Stethoscope, UserCog, Users } from "lucide-react";
+import { HardHat, Scale, Stethoscope, UserCog, Users } from "lucide-react";
 import {
   normalizarPersonal,
   totalJusticia,
@@ -83,6 +83,12 @@ export function PersonalResumen({
         etiqueta="Funcionarios"
         valor={p.funcionarios}
         icono={<UserCog className="size-3" />}
+      />
+      <Fila
+        siempre={mostrarEstructura}
+        etiqueta="Trabajadores"
+        valor={p.trabajadores}
+        icono={<HardHat className="size-3" />}
       />
       <Fila
         siempre={mostrarEstructura}

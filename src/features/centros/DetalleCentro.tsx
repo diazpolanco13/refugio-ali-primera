@@ -180,7 +180,7 @@ export function SeccionFotoCentro({ centro }: SeccionProps) {
         <img src={c.foto_url} alt={centro.nombre} className="h-44 w-full object-cover" />
       ) : (
         <div className="flex h-24 items-center justify-center text-xs text-muted-foreground">
-          Sin foto del centro
+          Sin foto del campamento
         </div>
       )}
     </div>
@@ -318,8 +318,9 @@ export function SeccionPersonalCentro({ centro }: SeccionProps) {
       <div className="mt-2">
         <KpiGrande etiqueta="Total desplegado" valor={analisis.personal} anchoCompleto />
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         <MiniKpi etiqueta="Funcionarios" valor={personal.funcionarios} />
+        <MiniKpi etiqueta="Trabajadores" valor={personal.trabajadores} />
         <MiniKpi etiqueta="Médicos" valor={personal.medicos} />
         <MiniKpi etiqueta="Psicólogos" valor={personal.psicologos} />
         <MiniKpi etiqueta="Justicia" valor={justicia} />
@@ -549,7 +550,7 @@ export function DetalleCentro({ centro, puedeEditar, onEditar }: Props) {
       {/* Cabecera propia del panel (la vista completa tiene la suya) */}
       <div className="space-y-1.5">
         <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {centro.nro != null ? `Centro N.° ${centro.nro} · ` : ""}
+          {centro.nro != null ? `Campamento N.° ${centro.nro} · ` : ""}
           {centro.grupo}
         </p>
         <h2 className="text-base font-bold leading-snug text-foreground">{centro.nombre}</h2>

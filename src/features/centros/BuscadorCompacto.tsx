@@ -73,7 +73,7 @@ export function BuscadorCompacto({
               setAbierto((v) => !v);
               if (!abierto) requestAnimationFrame(() => inputRef.current?.focus());
             }}
-            aria-label="Buscar un centro"
+            aria-label="Buscar un campamento"
             aria-expanded={abierto}
           >
             <Search className="size-4" />
@@ -88,7 +88,7 @@ export function BuscadorCompacto({
         <div
           className="absolute left-[3.25rem] top-0 z-30 flex max-h-[min(20rem,70dvh)] w-[min(18rem,calc(86vw-3.25rem))] flex-col overflow-hidden rounded-xl border border-border bg-background/95 shadow-xl backdrop-blur-sm"
           role="dialog"
-          aria-label="Búsqueda de centros"
+          aria-label="Búsqueda de campamentos"
         >
           <div className="shrink-0 border-b border-border p-2">
             <div className="relative">
@@ -98,9 +98,9 @@ export function BuscadorCompacto({
                 type="search"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar centro, parroquia…"
+                placeholder="Buscar campamento, parroquia…"
                 className="h-8 pl-8 pr-7 text-xs"
-                aria-label="Buscar centro"
+                aria-label="Buscar campamento"
               />
               <button
                 type="button"
@@ -118,7 +118,7 @@ export function BuscadorCompacto({
           <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
             {!termino ? (
               <p className="px-2 py-2 text-[10px] text-muted-foreground">
-                Escribe para buscar entre los {centros.length} centros.
+                Escribe para buscar entre los {centros.length} campamentos.
               </p>
             ) : resultados.length === 0 ? (
               <p className="px-2 py-2 text-[10px] text-muted-foreground">

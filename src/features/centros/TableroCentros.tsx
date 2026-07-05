@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   ArrowUpDown,
   BedDouble,
+  ChevronDown,
   Droplets,
   PawPrint,
   Search,
@@ -44,6 +45,11 @@ import { AGUA_LITROS_PERSONA_DIA } from "@/domain/estandares";
 import { AccionesContacto } from "@/components/AccionesContacto";
 import { tieneTelefonoContacto } from "@/lib/contacto";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -51,7 +57,7 @@ interface Props {
   onSeleccionar: (id: string) => void;
 }
 
-type Orden = "prioridad" | "cupo" | "lleno" | "ocupados" | "nombre";
+type Orden = "prioridad" | "ocupados" | "nombre";
 
 /** Comidas servidas por persona/día (desayuno, almuerzo, cena). */
 const COMIDAS_POR_DIA = 3;
@@ -103,6 +109,7 @@ export function TableroCentros({ centros, onSeleccionar }: Props) {
   const [filtroNivel, setFiltroNivel] = useState<NivelPrioridad | null>(null);
   const [filtroCuerpo, setFiltroCuerpo] = useState<ClaveCuerpo | null>(null);
   const [busqueda, setBusqueda] = useState("");
+  const [cuerposAbiertos, setCuerposAbiertos] = useState(false);
 
   const base = useMemo<Fila[]>(
     () => centros.map((c) => ({ centro: c, prioridad: prioridadCentro(c) })),
@@ -189,55 +196,80 @@ export function TableroCentros({ centros, onSeleccionar }: Props) {
       const aa = a.prioridad.analisis;
       const bb = b.prioridad.analisis;
       switch (orden) {
-        case "cupo":
-          return (bb.cupoReal ?? -1) - (aa.cupoReal ?? -1);
-        case "lleno":
-          return (bb.porcentajeOcupacion ?? -1) - (aa.porcentajeOcupacion ?? -1);
         case "ocupados":
           return bb.refugiados - aa.refugiados;
         case "nombre":
           return a.centro.nombre.localeCompare(b.centro.nombre, "es");
+        default:
+          return 0;
       }
     });
     return arr;
   }, [enContexto, orden, filtroNivel]);
 
   const ordenes: { valor: Orden; label: string }[] = [
-    { valor: "prioridad", label: "Prioridad" },
-    { valor: "cupo", label: "Cupo real" },
-    { valor: "lleno", label: "% lleno" },
-    { valor: "ocupados", label: "Alojados" },
-    { valor: "nombre", label: "Nombre" },
+    { valor: "prioridad", label: "Nivel de atención" },
+    { valor: "ocupados", label: "Refugiados" },
+    { valor: "nombre", label: "Alfabético" },
   ];
+
+  const cuerpoActivo = filtroCuerpo
+    ? CATALOGO_CUERPOS.find((c) => c.clave === filtroCuerpo)
+    : null;
 
   return (
     <div className="flex h-full flex-col">
-      {/* Fila de totales de la red */}
+      {/* Totales de la red — en móvil solo población */}
       <div className="shrink-0 border-b border-border bg-background/95 px-3 py-2.5 sm:px-4">
-        <div className="flex items-stretch gap-3 overflow-x-auto pb-0.5">
-          <GrupoTotales titulo="Población">
+        <div className="flex w-full items-stretch gap-3 overflow-x-auto pb-0.5 md:w-auto">
+          <GrupoTotales titulo="Población" className="w-full md:w-auto">
             <Tot etiqueta="Refugiados" valor={totales.refugiados} clase="text-sky-300" />
             <Tot etiqueta="Funcionarios" valor={totales.funcionarios} clase="text-violet-300" />
             <Tot etiqueta="Mascotas" valor={totales.mascotas} />
             <Tot etiqueta="Total" valor={totales.total} />
           </GrupoTotales>
-          <GrupoTotales titulo="Instalado">
+          <GrupoTotales titulo="Instalado" className="hidden md:flex">
             <Tot etiqueta="Camas" valor={totales.camas} />
             <Tot etiqueta="Baños" valor={totales.banos} />
             <Tot etiqueta="Duchas" valor={totales.duchas} />
           </GrupoTotales>
-          <GrupoTotales titulo="Necesidad diaria">
+          <GrupoTotales titulo="Necesidad diaria" className="hidden md:flex">
             <Tot etiqueta="Agua (L)" valor={totales.aguaDia} clase="text-sky-300" />
             <Tot etiqueta="Comidas" valor={totales.comidasDia} clase="text-amber-300" />
           </GrupoTotales>
-          <GrupoTotales titulo="Capacidad">
+          <GrupoTotales titulo="Capacidad" className="hidden md:flex">
             <Tot etiqueta="Cupo real" valor={totales.cupo} clase="text-emerald-400" />
           </GrupoTotales>
         </div>
       </div>
 
-      {/* Triage por nivel + buscador */}
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4">
+      {/* Buscador — fila propia, más visible en móvil */}
+      <div className="shrink-0 border-b border-border px-3 py-2.5 sm:px-4">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar campamento…"
+            aria-label="Buscar campamento"
+            className="h-10 w-full rounded-xl border-2 border-border bg-muted/40 pl-10 pr-10 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-primary/70 focus:bg-background focus:ring-2 focus:ring-primary/20 md:h-9 md:max-w-md md:text-xs"
+          />
+          {busqueda && (
+            <button
+              type="button"
+              onClick={() => setBusqueda("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              title="Limpiar búsqueda"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Triage por nivel */}
+      <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-border px-3 py-2 sm:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {ORDEN_NIVELES.map((nivel) => (
           <ChipTriage
             key={nivel}
@@ -247,79 +279,62 @@ export function TableroCentros({ centros, onSeleccionar }: Props) {
             onClick={() => setFiltroNivel((prev) => (prev === nivel ? null : nivel))}
           />
         ))}
-        <div className="relative ml-auto w-full sm:w-64">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar centro…"
-            className="h-8 w-full rounded-lg border border-border bg-background pl-8 pr-8 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
-          />
-          {busqueda && (
-            <button
-              type="button"
-              onClick={() => setBusqueda("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
-              title="Limpiar búsqueda"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </div>
       </div>
 
-      {/* Filtro por cuerpo */}
+      {/* Filtro por cuerpo — plegable en móvil, siempre visible en escritorio */}
       {cuerposPresentes.length > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-border px-3 py-2 sm:px-4">
-          <span className="text-[11px] text-muted-foreground">Cuerpo:</span>
-          <button
-            type="button"
-            onClick={() => setFiltroCuerpo(null)}
-            className={cn(
-              "rounded-lg border px-2 py-1 text-[11px] transition-colors",
-              filtroCuerpo === null
-                ? "border-primary/50 bg-primary/10 text-foreground"
-                : "border-border text-muted-foreground hover:bg-muted/50",
-            )}
+        <>
+          <Collapsible
+            open={cuerposAbiertos}
+            onOpenChange={setCuerposAbiertos}
+            className="shrink-0 border-b border-border md:hidden"
           >
-            Todos
-          </button>
-          {cuerposPresentes.map(({ meta, cantidad }) => {
-            const activo = filtroCuerpo === meta.clave;
-            return (
+            <CollapsibleTrigger asChild>
               <button
-                key={meta.clave}
                 type="button"
-                onClick={() =>
-                  setFiltroCuerpo((prev) => (prev === meta.clave ? null : meta.clave))
-                }
-                title={meta.label}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-lg border px-1.5 py-1 text-[11px] transition-colors",
-                  activo ? "bg-muted" : "hover:bg-muted/50",
-                )}
-                style={{ borderColor: activo ? meta.color : "var(--border)" }}
+                className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left sm:px-4"
               >
-                <span
-                  className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-white text-[9px]"
-                  style={{ borderColor: meta.color }}
-                >
-                  {meta.logo ? (
-                    <img src={meta.logo} alt="" className="size-full object-cover" />
+                <span className="text-xs font-medium text-foreground">
+                  Filtrar por cuerpo
+                  {cuerpoActivo ? (
+                    <span className="ml-1.5 font-normal text-muted-foreground">
+                      · {cuerpoActivo.label}
+                    </span>
                   ) : (
-                    meta.icono
+                    <span className="ml-1.5 font-normal text-muted-foreground">
+                      · Todos ({cuerposPresentes.length})
+                    </span>
                   )}
                 </span>
-                <span className="text-foreground">{meta.label}</span>
-                <span className="tabular-nums text-muted-foreground">{cantidad}</span>
+                <ChevronDown
+                  className={cn(
+                    "size-4 shrink-0 text-muted-foreground transition-transform",
+                    cuerposAbiertos && "rotate-180",
+                  )}
+                />
               </button>
-            );
-          })}
-        </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-3 pb-2.5 sm:px-4">
+              <FiltroCuerpos
+                cuerposPresentes={cuerposPresentes}
+                filtroCuerpo={filtroCuerpo}
+                onFiltroCuerpo={setFiltroCuerpo}
+              />
+            </CollapsibleContent>
+          </Collapsible>
+
+          <div className="hidden shrink-0 border-b border-border px-3 py-2 md:block sm:px-4">
+            <FiltroCuerpos
+              cuerposPresentes={cuerposPresentes}
+              filtroCuerpo={filtroCuerpo}
+              onFiltroCuerpo={setFiltroCuerpo}
+              inlineLabel
+            />
+          </div>
+        </>
       )}
 
-      {/* Orden */}
+      {/* Orden — 3 opciones */}
       <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-border px-3 py-2 sm:px-4">
         <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
           <ArrowUpDown className="size-3" />
@@ -330,7 +345,7 @@ export function TableroCentros({ centros, onSeleccionar }: Props) {
             key={o.valor}
             size="xs"
             variant={orden === o.valor ? "secondary" : "outline"}
-            className="h-6 px-2 text-[11px]"
+            className="h-7 px-2.5 text-[11px] md:h-6"
             onClick={() => setOrden(o.valor)}
           >
             {o.label}
@@ -340,7 +355,7 @@ export function TableroCentros({ centros, onSeleccionar }: Props) {
           <Button
             size="xs"
             variant="ghost"
-            className="ml-auto h-6 px-2 text-[11px] text-muted-foreground"
+            className="ml-auto h-7 px-2 text-[11px] text-muted-foreground md:h-6"
             onClick={() => setFiltroNivel(null)}
           >
             Quitar filtro: {ETIQUETA_NIVEL[filtroNivel]}
@@ -352,7 +367,7 @@ export function TableroCentros({ centros, onSeleccionar }: Props) {
       <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
         {filas.length === 0 ? (
           <p className="px-2 py-8 text-center text-xs text-muted-foreground">
-            No hay centros que coincidan con el filtro.
+            No hay campamentos que coincidan con el filtro.
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:grid-cols-3">
@@ -765,13 +780,88 @@ function Barra({
 }
 
 /** Grupo de la fila de totales de red (título + métricas). */
-function GrupoTotales({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function GrupoTotales({
+  titulo,
+  children,
+  className,
+}: {
+  titulo: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="flex shrink-0 flex-col gap-1 rounded-lg border border-border bg-muted/30 px-2.5 py-1.5">
+    <div
+      className={cn(
+        "flex shrink-0 flex-col gap-1 rounded-lg border border-border bg-muted/30 px-2.5 py-1.5",
+        className,
+      )}
+    >
       <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
         {titulo}
       </span>
-      <div className="flex items-stretch gap-3">{children}</div>
+      <div className="flex w-full items-stretch justify-between gap-1 md:w-auto md:justify-start md:gap-3">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Chips de filtro por cuerpo policial (reutilizado en móvil plegable y escritorio). */
+function FiltroCuerpos({
+  cuerposPresentes,
+  filtroCuerpo,
+  onFiltroCuerpo,
+  inlineLabel,
+}: {
+  cuerposPresentes: { meta: (typeof CATALOGO_CUERPOS)[number]; cantidad: number }[];
+  filtroCuerpo: ClaveCuerpo | null;
+  onFiltroCuerpo: (clave: ClaveCuerpo | null) => void;
+  inlineLabel?: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {inlineLabel && <span className="text-[11px] text-muted-foreground">Cuerpo:</span>}
+      <button
+        type="button"
+        onClick={() => onFiltroCuerpo(null)}
+        className={cn(
+          "rounded-lg border px-2 py-1 text-[11px] transition-colors",
+          filtroCuerpo === null
+            ? "border-primary/50 bg-primary/10 text-foreground"
+            : "border-border text-muted-foreground hover:bg-muted/50",
+        )}
+      >
+        Todos
+      </button>
+      {cuerposPresentes.map(({ meta, cantidad }) => {
+        const activo = filtroCuerpo === meta.clave;
+        return (
+          <button
+            key={meta.clave}
+            type="button"
+            onClick={() => onFiltroCuerpo(activo ? null : meta.clave)}
+            title={meta.label}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg border px-1.5 py-1 text-[11px] transition-colors",
+              activo ? "bg-muted" : "hover:bg-muted/50",
+            )}
+            style={{ borderColor: activo ? meta.color : "var(--border)" }}
+          >
+            <span
+              className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-white text-[9px]"
+              style={{ borderColor: meta.color }}
+            >
+              {meta.logo ? (
+                <img src={meta.logo} alt="" className="size-full object-cover" />
+              ) : (
+                meta.icono
+              )}
+            </span>
+            <span className="text-foreground">{meta.label}</span>
+            <span className="tabular-nums text-muted-foreground">{cantidad}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -786,7 +876,7 @@ function Tot({
   clase?: string;
 }) {
   return (
-    <div className="text-center">
+    <div className="min-w-0 flex-1 text-center md:flex-none">
       <div className={cn("text-base font-bold leading-none tabular-nums text-foreground", clase)}>
         {n(valor)}
       </div>

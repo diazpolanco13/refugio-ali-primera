@@ -1,4 +1,4 @@
-import { Scale, Stethoscope, UserCog, Users } from "lucide-react";
+import { Scale, HardHat, Stethoscope, UserCog, Users } from "lucide-react";
 import {
   normalizarPersonal,
   totalJusticia,
@@ -36,10 +36,18 @@ export function DesglosePersonal({
       <div className="space-y-2">
         <FilaPersonal
           titulo="Funcionarios"
-          descripcion="Apoyo administrativo y logístico del centro"
+          descripcion="Apoyo administrativo y logístico del campamento"
           icono={<UserCog className="size-3.5 text-muted-foreground" />}
           valor={p.funcionarios}
           onChange={(n) => onCampo("funcionarios", n)}
+          deshabilitado={deshabilitado}
+        />
+        <FilaPersonal
+          titulo="Trabajadores"
+          descripcion="Obreros de reparación u otros que requieren comida"
+          icono={<HardHat className="size-3.5 text-orange-400" />}
+          valor={p.trabajadores}
+          onChange={(n) => onCampo("trabajadores", n)}
           deshabilitado={deshabilitado}
         />
         <FilaPersonal

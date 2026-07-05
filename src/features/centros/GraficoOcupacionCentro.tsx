@@ -48,7 +48,7 @@ export function GraficoOcupacionCentro({ centroId }: Props) {
   if (serie.length === 0) {
     return (
       <p className="text-[11px] text-muted-foreground">
-        Aún no hay histórico de ocupación para este centro. Se irá construyendo
+        Aún no hay histórico de ocupación para este campamento. Se irá construyendo
         a medida que se registren cambios en el levantamiento (pestaña V ·
         Población).
       </p>

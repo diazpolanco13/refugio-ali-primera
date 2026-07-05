@@ -38,15 +38,17 @@ const META_ACCION: Record<
   string,
   { label: string; icono: typeof Plus; clase: string }
 > = {
-  crear_centro: { label: "Creó centro", icono: Plus, clase: "text-emerald-400" },
-  editar_centro: { label: "Editó centro", icono: Pencil, clase: "text-sky-400" },
-  eliminar_centro: { label: "Eliminó centro", icono: Trash2, clase: "text-red-400" },
+  crear_centro: { label: "Creó campamento", icono: Plus, clase: "text-emerald-400" },
+  editar_centro: { label: "Editó campamento", icono: Pencil, clase: "text-sky-400" },
+  eliminar_centro: { label: "Eliminó campamento", icono: Trash2, clase: "text-red-400" },
   abrir_incidencia: { label: "Abrió incidencia", icono: Siren, clase: "text-amber-400" },
+  editar_incidencia: { label: "Editó incidencia", icono: Pencil, clase: "text-sky-400" },
   resolver_incidencia: {
     label: "Resolvió incidencia",
     icono: ClipboardCheck,
     clase: "text-emerald-400",
   },
+  eliminar_incidencia: { label: "Eliminó incidencia", icono: Trash2, clase: "text-red-400" },
   reporte_diario: {
     label: "Reporte diario",
     icono: ClipboardCheck,
@@ -62,7 +64,7 @@ const META_ACCION: Record<
 };
 
 const ETIQUETA_ENTIDAD: Record<string, string> = {
-  centro: "Centro",
+  centro: "Campamento",
   incidencia: "Incidencia",
   reporte: "Reporte diario",
   usuario: "Usuario",
@@ -154,7 +156,7 @@ function FilaLog({ entrada }: { entrada: EntradaHistorial }) {
                 to={`/centro/${entrada.entidad_id}`}
                 className="text-primary hover:underline"
               >
-                ver centro
+                ver campamento
               </Link>
             </>
           )}

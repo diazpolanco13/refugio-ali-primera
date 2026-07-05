@@ -403,18 +403,52 @@ export async function deshacerUltimaLimpieza(
 
 // ---- Centros Transitorios ----
 
-/** ¿Cambió la ocupación del centro respecto a su versión previa? */
-function ocupacionCambio(
+/** ¿Cambió el parte numérico (población + personal) respecto a la versión previa? */
+function parteNumericoCambio(
   previo: CentroTransitorio | undefined,
   nuevo: CentroTransitorio,
 ): boolean {
   if (!previo) return true;
   if ((previo.familias_ocupadas ?? 0) !== (nuevo.familias_ocupadas ?? 0)) return true;
   if ((previo.total_afectados ?? 0) !== (nuevo.total_afectados ?? 0)) return true;
+  if (
+    JSON.stringify(normalizarPersonal(previo.personal)) !==
+    JSON.stringify(normalizarPersonal(nuevo.personal))
+  ) {
+    return true;
+  }
   return (
     JSON.stringify(normalizarVulnerables(previo.ocupacion)) !==
     JSON.stringify(normalizarVulnerables(nuevo.ocupacion))
   );
+}
+
+function filaSnapshotOcupacion(centro: CentroTransitorio, dia: string, ts: number) {
+  const norm = normalizarCentro(centro);
+  return {
+    centro_id: centro.id,
+    dia,
+    ts,
+    total_afectados: norm.total_afectados,
+    familias: norm.familias_ocupadas,
+    personal_total: totalPersonalOperativo(normalizarPersonal(norm.personal)),
+    ocupacion: normalizarVulnerables(norm.ocupacion),
+    updated_at: ts,
+    updated_by: usuarioActual(),
+  };
+}
+
+async function upsertSnapshotOcupacion(
+  centro: CentroTransitorio,
+  dia: string,
+  ts: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from("ocupaciones_centros")
+    .upsert(filaSnapshotOcupacion(centro, dia, ts), { onConflict: "centro_id,dia" });
+  if (error) {
+    throw new Error(`[reposSupabase] upsert ocupaciones_centros: ${error.message}`);
+  }
 }
 
 /** Lee un centro por id desde Supabase. */
@@ -462,29 +496,27 @@ export async function guardarCentro(
     nro: centro.nro ?? null,
   });
 
-  // Snapshot diario de ocupación (histórico) si la ocupación cambió.
-  if (ocupacionCambio(previo, centro)) {
+  // Snapshot diario de ocupación (histórico) si el parte numérico cambió.
+  if (parteNumericoCambio(previo, centro)) {
     const ts = centro.updated_at as number;
-    const norm = normalizarCentro(centro);
-    const snap = {
-      centro_id: centro.id,
-      dia: claveDia(ts),
-      ts,
-      total_afectados: norm.total_afectados,
-      familias: norm.familias_ocupadas,
-      personal_total: totalPersonalOperativo(normalizarPersonal(norm.personal)),
-      ocupacion: normalizarVulnerables(norm.ocupacion),
-      updated_at: ts,
-      updated_by: usuarioActual(),
-    };
-    const { error } = await supabase
-      .from("ocupaciones_centros")
-      .upsert(snap, { onConflict: "centro_id,dia" });
-    if (error) {
-      console.warn("[reposSupabase] upsert ocupaciones_centros:", error.message);
-    }
+    await upsertSnapshotOcupacion(centro, claveDia(ts), ts);
   }
   return centro.id;
+}
+
+/**
+ * Confirma el parte numérico del día sin modificar el centro: crea/actualiza
+ * el snapshot en `ocupaciones_centros` aunque las cifras sean iguales al último
+ * registro. Uso típico: «sin cambios respecto a ayer» en el reporte del día.
+ */
+export async function confirmarParteNumericoDia(
+  datos: Omit<CentroTransitorio, "updated_at" | "updated_by">,
+  dia?: string,
+): Promise<void> {
+  const ts = Date.now();
+  const diaSnap = dia ?? claveDia(ts);
+  const centro = normalizarCentro({ ...datos, updated_at: ts, updated_by: usuarioActual() });
+  await upsertSnapshotOcupacion(centro, diaSnap, ts);
 }
 
 /**

@@ -145,13 +145,13 @@ export function IncidenciasFuncionariosView({ sesion }: { sesion: Sesion }) {
               </Select>
             </CampoFiltro>
 
-            <CampoFiltro label="Centro">
+              <CampoFiltro label="Campamento">
               <Select value={centroId} onValueChange={setCentroId}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent position="popper">
-                  <SelectItem value="todos">Todos los centros</SelectItem>
+                  <SelectItem value="todos">Todos los campamentos</SelectItem>
                   {centros.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       N.° {c.nro} · {c.nombre}

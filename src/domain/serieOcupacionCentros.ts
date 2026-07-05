@@ -12,6 +12,7 @@
 // referencias en CLAUDE.md), aplicado ahora a la red de centros.
 
 import type { Vulnerables } from "./tipos";
+import { normalizarVulnerables } from "./tipos";
 
 export interface SnapshotOcupacion {
   centro_id: string;
@@ -38,6 +39,16 @@ export interface PuntoSeriePorGrupo {
   areaMetropolitana: number;
   granCaracas: number;
 }
+
+/** Punto diario de población desglosada (gráfico de la pestaña Población). */
+export interface PuntoSeriePoblacion {
+  dia: string;
+  refugiados: number;
+  funcionarios: number;
+  mascotas: number;
+}
+
+export type VentanaSeriePoblacion = 7 | 15 | 30;
 
 /** Catálogo mínimo de centro para las series agregadas (solo id + grupo). */
 export interface CentroParaAgregado {
@@ -158,6 +169,48 @@ export function serieDiariaOcupacionCentro(
       total: ult?.total_afectados ?? 0,
       familias: ult?.familias ?? 0,
       personal: ult?.personal_total ?? 0,
+    };
+  });
+}
+
+/** Últimos N días calendario terminando en `hoyClave` (YYYY-MM-DD). */
+export function ultimosDiasSerie(cantidad: VentanaSeriePoblacion, hoyClave: string): string[] {
+  const [hy, hm, hd] = hoyClave.split("-").map(Number);
+  const fin = new Date(hy, hm - 1, hd);
+  const out: string[] = [];
+  for (let i = cantidad - 1; i >= 0; i--) {
+    const d = new Date(fin);
+    d.setDate(d.getDate() - i);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    out.push(`${y}-${m}-${day}`);
+  }
+  return out;
+}
+
+/**
+ * Serie diaria de población (refugiados, funcionarios, mascotas) con
+ * carry-forward, para la ventana de N días.
+ */
+export function seriePoblacionCentroVentana(
+  centroId: string,
+  snapshots: SnapshotOcupacion[],
+  ventana: VentanaSeriePoblacion,
+  hoyClave: string,
+): PuntoSeriePoblacion[] {
+  const delCentro = snapshots
+    .filter((s) => s.centro_id === centroId)
+    .sort((a, b) => (a.dia < b.dia ? -1 : a.dia > b.dia ? 1 : a.ts - b.ts));
+  const dias = ultimosDiasSerie(ventana, hoyClave);
+  return dias.map((dia) => {
+    const ult = ultimoHasta(delCentro, dia);
+    const vuln = normalizarVulnerables(ult?.ocupacion);
+    return {
+      dia,
+      refugiados: ult?.total_afectados ?? 0,
+      funcionarios: ult?.personal_total ?? 0,
+      mascotas: vuln.mascotas,
     };
   });
 }

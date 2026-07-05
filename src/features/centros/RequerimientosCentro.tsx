@@ -89,7 +89,7 @@ export function FormularioRequerimientos({
   return (
     <div className="space-y-4">
       <div>
-        <Label className="text-sm font-semibold">Requerimientos del centro</Label>
+        <Label className="text-sm font-semibold">Requerimientos del campamento</Label>
         <p className="mt-1 text-xs text-muted-foreground">
           Indica qué necesita el refugio y en qué cantidad. Puedes agregar ítems personalizados o
           usar las sugerencias rápidas.

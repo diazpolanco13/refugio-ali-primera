@@ -4,7 +4,6 @@ import { PanelFlotante } from "@/components/PanelFlotante";
 import { cargarBaseMapaCentros, guardarBaseMapaCentros } from "@/data/preferenciasMapa";
 import type { BaseMapa } from "@/map/estiloMapa";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
-import { nuevoId } from "@/data/reposSupabase";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import {
   CATALOGO_CUERPOS,
@@ -32,12 +31,11 @@ export function CentrosView() {
   const location = useLocation();
   const vista = location.pathname.includes("/tablero") ? "tablero" : "mapa";
   const puedeEditar = puedeEscribir(sesion.user.rol);
-  const puedeCrear = puedeCrearCentros(sesion.user.rol);
+  const puedeEliminar = puedeCrearCentros(sesion.user.rol);
   const navigate = useNavigate();
   const {
     panelCentrosAbierto,
     setPanelCentrosAbierto,
-    registrarAbrirNuevoCentro,
   } = useMapaCentros();
 
   const [baseMapa, setBaseMapa] = useState<BaseMapa>(
@@ -46,7 +44,6 @@ export function CentrosView() {
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
   const [editando, setEditando] = useState<CentroTransitorio | null>(null);
-  const [creandoNuevo, setCreandoNuevo] = useState(false);
   const [cuerposVisibles, setCuerposVisibles] = useState<Set<ClaveCuerpo>>(
     () => new Set(CATALOGO_CUERPOS.map((c) => c.clave)),
   );
@@ -73,42 +70,14 @@ export function CentrosView() {
 
   const estadosFilas = useMemo(() => calcularEstadosFilas(centros), [centros]);
 
-  function abrirNuevoCentro() {
-    const nro = centros.reduce((max, c) => Math.max(max, c.nro ?? 0), 0) + 1;
-    setEditando({
-      id: nuevoId(),
-      nro,
-      nombre: "",
-      grupo: "Área Metropolitana",
-      cuerpo: "",
-      parroquia: "",
-      direccion: "",
-      mapsUrl: "",
-      geom: null,
-      notas: "",
-      estado: "preparacion",
-    });
-    setCreandoNuevo(true);
-  }
-
-  useEffect(() => {
-    registrarAbrirNuevoCentro(puedeCrear ? abrirNuevoCentro : null);
-    return () => registrarAbrirNuevoCentro(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puedeCrear, centros, registrarAbrirNuevoCentro]);
-
   useEffect(() => {
     if (vista !== "mapa") return;
     if (sessionStorage.getItem("abrirListaCentros") === "1") {
       sessionStorage.removeItem("abrirListaCentros");
       setPanelCentrosAbierto(true);
     }
-    if (sessionStorage.getItem("abrirNuevoCentro") === "1") {
-      sessionStorage.removeItem("abrirNuevoCentro");
-      if (puedeCrear) abrirNuevoCentro();
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vista, setPanelCentrosAbierto, puedeCrear]);
+  }, [vista, setPanelCentrosAbierto]);
 
   async function exportarVista() {
     setExportando(true);
@@ -182,7 +151,6 @@ export function CentrosView() {
 
   function cerrarFormulario() {
     setEditando(null);
-    setCreandoNuevo(false);
   }
 
   useEffect(() => {
@@ -258,8 +226,7 @@ export function CentrosView() {
         <CentroForm
           centro={editando}
           soloLectura={!puedeEditar}
-          esNuevo={creandoNuevo}
-          puedeEliminar={puedeCrear}
+          puedeEliminar={puedeEliminar}
           onCerrar={cerrarFormulario}
         />
       )}

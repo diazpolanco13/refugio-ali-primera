@@ -88,7 +88,11 @@ interface Props {
   esNuevo?: boolean;
   /** Eliminar centros es solo para roles de alcance total (admin/analista SAE). */
   puedeEliminar?: boolean;
+  /** `dialog` para edición modal; `pantallaCompleta` para alta en ruta dedicada. */
+  variant?: "dialog" | "pantallaCompleta";
   onCerrar: () => void;
+  /** Tras guardar con éxito (antes de `onCerrar`). */
+  onGuardado?: (centroId: string) => void;
 }
 
 /** Grupos logísticos válidos del listado de la red. */
@@ -148,7 +152,9 @@ export function CentroForm({
   soloLectura = false,
   esNuevo = false,
   puedeEliminar = false,
+  variant = "dialog",
   onCerrar,
+  onGuardado,
 }: Props) {
   const base = normalizarCentro(centro);
 
@@ -284,7 +290,7 @@ export function CentroForm({
     setErrorGuardado(null);
     if (!nombre.trim()) {
       setPestana("identificacion");
-      setErrorGuardado("El centro necesita un nombre.");
+      setErrorGuardado("El campamento necesita un nombre.");
       return;
     }
     const geom = parsearCoordenadas();
@@ -357,6 +363,7 @@ export function CentroForm({
         foto_url: fotoUrl,
         notas: notas.trim(),
       });
+      onGuardado?.(centro.id);
       onCerrar();
     } catch (err) {
       console.error("[CentroForm] error guardando centro:", err);
@@ -365,7 +372,7 @@ export function CentroForm({
           ? err.message
           : typeof err === "string"
             ? err
-            : "No se pudo guardar el centro. Revisa la consola para más detalle.";
+            : "No se pudo guardar el campamento. Revisa la consola para más detalle.";
       setErrorGuardado(mensaje);
     } finally {
       setGuardando(false);
@@ -381,7 +388,7 @@ export function CentroForm({
     } catch (err) {
       console.error("[CentroForm] error eliminando centro:", err);
       setErrorGuardado(
-        err instanceof Error ? err.message : "No se pudo eliminar el centro.",
+        err instanceof Error ? err.message : "No se pudo eliminar el campamento.",
       );
     } finally {
       setEliminando(false);
@@ -401,32 +408,82 @@ export function CentroForm({
     setResponsables((prev) => prev.filter((r) => r.id !== id));
   }
 
-  return (
-    <Dialog open onOpenChange={(a) => !a && onCerrar()}>
-      <DialogContent
-        className="flex max-h-[96dvh] flex-col gap-0 p-0 sm:max-w-3xl"
-        showCloseButton={false}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        <DialogHeader className="px-5 py-4 sm:px-6">
-          <DialogTitle className="text-lg">
-            {esNuevo
-              ? "Registrar centro nuevo"
-              : soloLectura
-                ? "Estado del centro"
-                : "Registrar estado del centro"}
-          </DialogTitle>
-          <DialogDescription className="text-sm">
-            {esNuevo
-              ? `N.° ${centro.nro} · Alta de un nuevo centro en la red`
-              : `N.° ${centro.nro} · ${centro.nombre}`}
-          </DialogDescription>
-        </DialogHeader>
+  const tituloFormulario = esNuevo
+    ? "Registrar campamento nuevo"
+    : soloLectura
+      ? "Estado del campamento"
+      : "Registrar estado del campamento";
+  const descripcionFormulario = esNuevo
+    ? `N.° ${centro.nro} · Alta de un nuevo campamento en la red`
+    : `N.° ${centro.nro} · ${centro.nombre}`;
 
-        <nav
-          className="grid shrink-0 grid-cols-2 gap-2 border-b border-border px-4 py-3 sm:grid-cols-3 sm:px-6 sm:py-4"
-          aria-label="Secciones del reporte de levantamiento"
-        >
+  const navegacionPestanas = (
+    <nav
+      className={cn(
+        "shrink-0 border-b border-border",
+        variant === "dialog" && "px-4 py-3 sm:px-6 sm:py-4",
+      )}
+      aria-label="Secciones del reporte de levantamiento"
+    >
+      {variant === "pantallaCompleta" ? (
+        <>
+          <div className="flex gap-1.5 overflow-x-auto px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">
+            {PESTANAS.map(({ valor, titulo, icono: Icono }) => {
+              const activa = pestana === valor;
+              return (
+                <button
+                  key={valor}
+                  type="button"
+                  onClick={() => setPestana(valor)}
+                  className={cn(
+                    "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+                    activa
+                      ? "border-primary/40 bg-primary/10 text-primary"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                  )}
+                >
+                  <Icono className="size-3.5 shrink-0" />
+                  {titulo}
+                </button>
+              );
+            })}
+          </div>
+          <div className="hidden gap-2 px-4 py-3 sm:grid sm:grid-cols-3 sm:px-6 sm:py-4">
+            {PESTANAS.map(({ valor, numero, titulo, icono: Icono }) => {
+              const activa = pestana === valor;
+              return (
+                <button
+                  key={valor}
+                  type="button"
+                  onClick={() => setPestana(valor)}
+                  className={cn(
+                    "flex min-h-12 items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors",
+                    activa
+                      ? "border-primary/40 bg-primary/10 text-primary shadow-sm"
+                      : "border-border bg-card text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground",
+                  )}
+                >
+                  <Icono className="size-5 shrink-0" />
+                  <span className="min-w-0 leading-tight">
+                    {numero && (
+                      <span
+                        className={cn(
+                          "block text-[10px] font-semibold uppercase tracking-wide",
+                          activa ? "text-primary/80" : "text-muted-foreground",
+                        )}
+                      >
+                        Sección {numero}
+                      </span>
+                    )}
+                    <span className="block text-sm font-medium">{titulo}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {PESTANAS.map(({ valor, numero, titulo, icono: Icono }) => {
             const activa = pestana === valor;
             return (
@@ -458,9 +515,76 @@ export function CentroForm({
               </button>
             );
           })}
-        </nav>
+        </div>
+      )}
+    </nav>
+  );
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-5">
+  const pieFormulario = (
+    <>
+      {errorGuardado && (
+        <p className="mr-auto max-w-[60%] text-xs leading-snug text-destructive">
+          {errorGuardado}
+        </p>
+      )}
+      {!soloLectura && !esNuevo && puedeEliminar && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="destructive"
+              className="sm:mr-auto"
+              disabled={guardando || eliminando}
+            >
+              {eliminando ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+              Eliminar campamento
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar este campamento de la red?</AlertDialogTitle>
+              <AlertDialogDescription>
+                N.° {centro.nro} · {centro.nombre}. Desaparecerá del mapa, el tablero y
+                el dashboard en todos los dispositivos. El histórico queda guardado y un
+                administrador puede restaurarlo desde la base de datos.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" onClick={() => void eliminar()}>
+                Eliminar campamento
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+      <Button variant="outline" onClick={onCerrar}>
+        {soloLectura ? "Cerrar" : "Cancelar"}
+      </Button>
+      {!soloLectura && (
+        <Button
+          onClick={() => void guardar()}
+          disabled={guardando || eliminando || subiendoFoto}
+        >
+          {guardando ? <Loader2 className="size-4 animate-spin" /> : null}
+          {esNuevo ? "Crear campamento" : "Guardar"}
+        </Button>
+      )}
+    </>
+  );
+
+  const cuerpoFormulario = (
+    <div
+      className={cn(
+        "min-h-0 flex-1 overflow-y-auto overscroll-contain",
+        variant === "pantallaCompleta"
+          ? "px-3 py-4 sm:px-4 sm:py-5 lg:px-6"
+          : "px-5 py-4 sm:px-6 sm:py-5",
+      )}
+    >
           {/* I · Identificación */}
           {pestana === "identificacion" && (
           <div className="space-y-5">
@@ -502,7 +626,7 @@ export function CentroForm({
             </div>
 
             <div>
-              <Label htmlFor="centro-nombre">Nombre del centro</Label>
+              <Label htmlFor="centro-nombre">Nombre del campamento</Label>
               <Input
                 id="centro-nombre"
                 className="mt-1.5"
@@ -594,7 +718,7 @@ export function CentroForm({
               <Label>Ubicación en el mapa (coordenadas)</Label>
               <p className="mt-1 text-xs text-muted-foreground">
                 Latitud y longitud en grados decimales (ej. 10.48061, -66.90360). Sin
-                coordenadas, el centro no aparece en el mapa.
+                coordenadas, el campamento no aparece en el mapa.
               </p>
               <div className="mt-2 flex items-end gap-2">
                 <div className="flex-1">
@@ -649,10 +773,10 @@ export function CentroForm({
             </div>
 
             <div>
-              <Label>Foto del centro</Label>
+              <Label>Foto del campamento</Label>
               <div className="mt-1.5 overflow-hidden rounded-xl border border-border bg-muted/20">
                 {fotoUrl ? (
-                  <img src={fotoUrl} alt="Foto del centro" className="h-40 w-full object-cover" />
+                  <img src={fotoUrl} alt="Foto del campamento" className="h-40 w-full object-cover" />
                 ) : (
                   <div className="flex h-28 items-center justify-center text-xs text-muted-foreground">
                     Sin foto
@@ -839,7 +963,7 @@ export function CentroForm({
             <div>
               <Label className="text-sm font-semibold">Personal operativo</Label>
               <p className="mt-1 text-xs text-muted-foreground">
-                Funcionarios, salud y justicia desplegados en el centro. Se suman a los refugiados
+                Funcionarios, salud y justicia desplegados en el campamento. Se suman a los refugiados
                 para calcular agua, comida y baños.
               </p>
               <div className="mt-3">
@@ -1005,7 +1129,7 @@ export function CentroForm({
               <div className="mb-2 flex items-center justify-between">
                 <Label className="flex items-center gap-1.5">
                   <Users className="size-3.5" />
-                  Responsables del centro ({responsables.length})
+                  Responsables del campamento ({responsables.length})
                 </Label>
                 {!soloLectura && (
                   <Button type="button" size="xs" variant="secondary" onClick={agregarResponsable}>
@@ -1103,59 +1227,50 @@ export function CentroForm({
           </div>
           )}
         </div>
+  );
+
+  if (variant === "pantallaCompleta") {
+    return (
+      <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
+        <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden">
+          <header className="z-10 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-3 backdrop-blur-sm sm:px-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-sm font-semibold leading-tight text-foreground">
+                {tituloFormulario}
+              </h1>
+              <p className="truncate text-[11px] leading-tight text-muted-foreground">
+                {descripcionFormulario}
+              </p>
+            </div>
+          </header>
+
+          {navegacionPestanas}
+          {cuerpoFormulario}
+          <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-background/95 px-3 py-3 backdrop-blur-sm sm:px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            {pieFormulario}
+          </footer>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open onOpenChange={(a) => !a && onCerrar()}>
+      <DialogContent
+        className="flex max-h-[96dvh] flex-col gap-0 p-0 sm:max-w-3xl"
+        showCloseButton={false}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <DialogHeader className="px-5 py-4 sm:px-6">
+          <DialogTitle className="text-lg">{tituloFormulario}</DialogTitle>
+          <DialogDescription className="text-sm">{descripcionFormulario}</DialogDescription>
+        </DialogHeader>
+
+        {navegacionPestanas}
+        {cuerpoFormulario}
 
         <DialogFooter className="pb-[max(1rem,env(safe-area-inset-bottom))]">
-          {errorGuardado && (
-            <p className="mr-auto max-w-[60%] text-xs leading-snug text-destructive">
-              {errorGuardado}
-            </p>
-          )}
-          {!soloLectura && !esNuevo && puedeEliminar && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  className="sm:mr-auto"
-                  disabled={guardando || eliminando}
-                >
-                  {eliminando ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="size-4" />
-                  )}
-                  Eliminar centro
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Eliminar este centro de la red?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    N.° {centro.nro} · {centro.nombre}. Desaparecerá del mapa, el tablero y
-                    el dashboard en todos los dispositivos. El histórico queda guardado y un
-                    administrador puede restaurarlo desde la base de datos.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction variant="destructive" onClick={() => void eliminar()}>
-                    Eliminar centro
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-          <Button variant="outline" onClick={onCerrar}>
-            {soloLectura ? "Cerrar" : "Cancelar"}
-          </Button>
-          {!soloLectura && (
-            <Button
-              onClick={() => void guardar()}
-              disabled={guardando || eliminando || subiendoFoto}
-            >
-              {guardando ? <Loader2 className="size-4 animate-spin" /> : null}
-              {esNuevo ? "Crear centro" : "Guardar"}
-            </Button>
-          )}
+          {pieFormulario}
         </DialogFooter>
       </DialogContent>
     </Dialog>

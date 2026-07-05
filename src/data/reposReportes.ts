@@ -124,6 +124,10 @@ export async function actualizarIncidencia(
   if (cambios.categorias !== undefined) {
     fila.categorias = normalizarCategorias(cambios.categorias);
   }
+  if (cambios.estado === "abierta") {
+    fila.resuelta_ts = null;
+    fila.resuelta_por = null;
+  }
   const { error } = await supabase
     .from("incidencias_centros")
     .update(fila)
@@ -131,6 +135,20 @@ export async function actualizarIncidencia(
   if (error) {
     throw new Error(`[reposReportes] update incidencias_centros: ${error.message}`);
   }
+  registrarHistorial("editar_incidencia", "incidencia", id, {
+    campos: Object.keys(cambios),
+  });
+}
+
+/**
+ * Elimina una incidencia de forma permanente. Solo admin/analista_sae (RLS).
+ */
+export async function eliminarIncidencia(id: string): Promise<void> {
+  const { error } = await supabase.from("incidencias_centros").delete().eq("id", id);
+  if (error) {
+    throw new Error(`[reposReportes] delete incidencias_centros: ${error.message}`);
+  }
+  registrarHistorial("eliminar_incidencia", "incidencia", id);
 }
 
 /**

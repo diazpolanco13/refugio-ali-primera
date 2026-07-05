@@ -431,6 +431,8 @@ export function poblacionCentro(c: CentroTransitorio): number {
 export interface PersonalCentro {
   /** Funcionarios administrativos / apoyo logístico del centro. */
   funcionarios: number;
+  /** Obreros/trabajadores de reparación que requieren comida. */
+  trabajadores: number;
   medicos: number;
   psicologos: number;
   /** Tribunal Supremo de Justicia / jueces de paz. */
@@ -443,6 +445,7 @@ export interface PersonalCentro {
 
 export const PERSONAL_VACIO: PersonalCentro = {
   funcionarios: 0,
+  trabajadores: 0,
   medicos: 0,
   psicologos: 0,
   justicia_tjs: 0,
@@ -456,6 +459,7 @@ export function normalizarPersonal(
   const base = { ...PERSONAL_VACIO, ...(p ?? {}) };
   return {
     funcionarios: Math.max(0, Number(base.funcionarios) || 0),
+    trabajadores: Math.max(0, Number(base.trabajadores) || 0),
     medicos: Math.max(0, Number(base.medicos) || 0),
     psicologos: Math.max(0, Number(base.psicologos) || 0),
     justicia_tjs: Math.max(0, Number(base.justicia_tjs) || 0),
@@ -469,6 +473,7 @@ export function totalPersonalOperativo(p: Partial<PersonalCentro> | null | undef
   const n = normalizarPersonal(p);
   return (
     n.funcionarios +
+    n.trabajadores +
     n.medicos +
     n.psicologos +
     n.justicia_tjs +

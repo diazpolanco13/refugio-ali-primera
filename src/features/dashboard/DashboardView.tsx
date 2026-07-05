@@ -129,7 +129,7 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
           <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
             <Link to="/centros/mapa">
               <ArrowLeft className="size-4" />
-              <span className="hidden sm:inline">Centros</span>
+              <span className="hidden sm:inline">Campamentos</span>
             </Link>
           </Button>
           <div className="min-w-0">
@@ -166,7 +166,7 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
             acento="text-violet-300"
           />
           <KpiGrande
-            label="Centros con datos"
+            label="Campamentos con datos"
             valor={kpis.centrosConDatos}
             sub={`de ${kpis.centrosTotal}`}
             icono={<Building2 className="size-5" />}
@@ -178,7 +178,7 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
             acento="text-emerald-300"
           />
           <KpiGrande
-            label="Centros críticos"
+            label="Campamentos críticos"
             valor={kpis.centrosCriticos}
             icono={<AlertTriangle className="size-5" />}
             acento={kpis.centrosCriticos > 0 ? "text-red-300" : "text-emerald-300"}
@@ -213,7 +213,7 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
             </CardTitle>
             <CardDescription>
               Refugiados alojados por día con carry-forward del último snapshot
-              conocido de cada centro
+              conocido de cada campamento
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -228,13 +228,13 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
                 Población por parroquia
               </CardTitle>
               <CardDescription>
-                Refugiados alojados en centros activos, agrupados por parroquia
+                Refugiados alojados en campamentos activos, agrupados por parroquia
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {parroquias.length === 0 || kpis.refugiadosTotal === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  Aún no hay ocupación registrada en los centros. Completa el
+                  Aún no hay ocupación registrada en los campamentos. Completa el
                   levantamiento de campo (pestaña V · Población) para ver la
                   distribución territorial.
                 </p>
@@ -250,7 +250,7 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Estado de la red</CardTitle>
-                <CardDescription>Centros por nivel de urgencia</CardDescription>
+                <CardDescription>Campamentos por nivel de urgencia</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2.5">
                 {ORDEN_NIVELES.map((nivel) => {
@@ -304,7 +304,7 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
         <Card className="mt-4">
           <CardHeader className="pb-2">
             <CardTitle className="text-base lg:text-lg">
-              Centros que requieren atención
+              Campamentos que requieren atención
             </CardTitle>
             <CardDescription>
               Ordenados por urgencia operativa (saturación, agua, saneamiento,
@@ -313,7 +313,7 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
           </CardHeader>
           <CardContent>
             {prioridades.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No hay centros registrados.</p>
+              <p className="text-sm text-muted-foreground">No hay campamentos registrados.</p>
             ) : (
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {prioridades.map(({ centro, prioridad }) => (
@@ -375,11 +375,11 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base text-red-300">
                 <AlertTriangle className="size-4" />
-                {kpis.centrosSaturados} centro(s) saturado(s)
+                {kpis.centrosSaturados} campamento(s) saturado(s)
               </CardTitle>
               <CardDescription>
                 Ocupación ≥ 100% de la capacidad efectiva. Evalúe reubicación hacia
-                centros con cupo disponible ({kpis.cupoDisponible.toLocaleString("es")}{" "}
+                campamentos con cupo disponible ({kpis.cupoDisponible.toLocaleString("es")}{" "}
                 plazas en la red).
               </CardDescription>
             </CardHeader>
@@ -406,7 +406,7 @@ function BarraParroquia({
           {fila.parroquia}
         </span>
         <span className="shrink-0 tabular-nums text-muted-foreground">
-          {fila.refugiados.toLocaleString("es")} pers · {fila.centros} centro(s)
+          {fila.refugiados.toLocaleString("es")} pers · {fila.centros} campamento(s)
         </span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">

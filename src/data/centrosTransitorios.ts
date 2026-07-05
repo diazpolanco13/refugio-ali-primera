@@ -42,6 +42,7 @@ export const LEVANTAMIENTO_DEMO_CENTRO_10: Partial<CentroTransitorio> = {
   censo_en_proceso: true,
   personal: {
     funcionarios: 12,
+    trabajadores: 0,
     medicos: 4,
     psicologos: 2,
     justicia_tjs: 1,

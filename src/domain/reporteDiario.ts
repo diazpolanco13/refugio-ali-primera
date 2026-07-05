@@ -8,6 +8,9 @@
 // como snapshot en `ocupaciones_centros`, así los gráficos existentes siguen
 // valiendo.
 
+import type { SnapshotOcupacion } from "./serieOcupacionCentros";
+import { normalizarVulnerables } from "./tipos";
+
 /** Jornadas fijas del reporte diario (subconjunto de `Jornada` de tipos.ts). */
 export type JornadaReporte = "desayuno" | "almuerzo" | "cena";
 
@@ -141,4 +144,201 @@ export function reporteDelDia(
   dia: string,
 ): ReporteDiario | undefined {
   return reportes.find((r) => r.centro_id === centroId && r.dia === dia);
+}
+
+/** Componentes de una clave YYYY-MM-DD. */
+export function parsearDiaReporte(dia: string): { anio: number; mes: number; dia: number } {
+  const [anio, mes, diaNum] = dia.split("-").map(Number);
+  return { anio, mes, dia: diaNum };
+}
+
+/** Estado agregado del reporte de un día (comidas + parte numérico). */
+export type EstadoReporteDia = "completo" | "parcial" | "solo_parte" | "pendiente";
+
+export const META_ESTADO_REPORTE: Record<
+  EstadoReporteDia,
+  { label: string; color: string }
+> = {
+  completo: { label: "Completo", color: "#22c55e" },
+  parcial: { label: "Parcial", color: "#f59e0b" },
+  solo_parte: { label: "Solo parte numérico", color: "#38bdf8" },
+  pendiente: { label: "Sin reporte", color: "#64748b" },
+};
+
+/** Evalúa qué tan completo está el reporte de un día. */
+export function estadoReporteDia(
+  reporte: ReporteDiario | undefined | null,
+  parteNumerico: boolean,
+): EstadoReporteDia {
+  const jornadas = jornadasReportadas(reporte).length;
+  const comidasOk = reporteCompleto(reporte);
+  if (comidasOk && parteNumerico) return "completo";
+  if (comidasOk || (parteNumerico && jornadas > 0)) return "parcial";
+  if (parteNumerico) return "solo_parte";
+  if (jornadas > 0) return "parcial";
+  return "pendiente";
+}
+
+/** Mapa día → estado (combina filas de reportes y días con parte numérico). */
+export function estadosReportePorDia(
+  reportes: ReporteDiario[],
+  diasConParte: Set<string>,
+): Map<string, EstadoReporteDia> {
+  const map = new Map<string, EstadoReporteDia>();
+  const dias = new Set<string>();
+  for (const r of reportes) dias.add(r.dia);
+  for (const d of diasConParte) dias.add(d);
+  for (const dia of dias) {
+    const reporte = reportes.find((r) => r.dia === dia);
+    map.set(dia, estadoReporteDia(reporte, diasConParte.has(dia)));
+  }
+  return map;
+}
+
+/** Contadores por HOY, semana del mes y mes calendario. */
+export function contadoresReportesPorPeriodo(
+  reportes: ReporteDiario[],
+  diasConParte: Set<string>,
+  hoyClave: string,
+): {
+  hoyEstado: EstadoReporteDia;
+  hoyRaciones: number;
+  hoyAtenciones: number;
+  semanaDelMes: number;
+  semanaDiasActivos: number;
+  mesDiasActivos: number;
+  mesDiasCompletos: number;
+  mesLabel: string;
+  mesRaciones: number;
+  mesAtenciones: number;
+} {
+  const { anio: hy, mes: hm, dia: hd } = parsearDiaReporte(hoyClave);
+  const semanaDelMes = Math.ceil(hd / 7);
+  const semInicio = (semanaDelMes - 1) * 7 + 1;
+  const semFin = Math.min(semanaDelMes * 7, new Date(hy, hm, 0).getDate());
+  const mesLabelRaw = new Date(hy, hm - 1, 1).toLocaleDateString("es-VE", { month: "long" });
+  const mesLabel = mesLabelRaw.charAt(0).toUpperCase() + mesLabelRaw.slice(1);
+
+  const reporteHoy = reportes.find((r) => r.dia === hoyClave);
+  const hoyEstado = estadoReporteDia(reporteHoy, diasConParte.has(hoyClave));
+
+  let semanaDiasActivos = 0;
+  let mesDiasActivos = 0;
+  let mesDiasCompletos = 0;
+  let mesRaciones = 0;
+  let mesAtenciones = 0;
+
+  const estados = estadosReportePorDia(reportes, diasConParte);
+  for (const [dia, estado] of estados) {
+    const p = parsearDiaReporte(dia);
+    if (p.anio !== hy || p.mes !== hm) continue;
+    if (estado !== "pendiente") mesDiasActivos++;
+    if (estado === "completo") mesDiasCompletos++;
+    if (p.dia >= semInicio && p.dia <= semFin && estado !== "pendiente") semanaDiasActivos++;
+  }
+
+  for (const r of reportes) {
+    const p = parsearDiaReporte(r.dia);
+    if (p.anio === hy && p.mes === hm) {
+      mesRaciones += racionesDelDia(r);
+      mesAtenciones += r.atenciones_medicas;
+    }
+  }
+
+  return {
+    hoyEstado,
+    hoyRaciones: racionesDelDia(reporteHoy),
+    hoyAtenciones: reporteHoy?.atenciones_medicas ?? 0,
+    semanaDelMes,
+    semanaDiasActivos,
+    mesDiasActivos,
+    mesDiasCompletos,
+    mesLabel,
+    mesRaciones,
+    mesAtenciones,
+  };
+}
+
+/** Ventana temporal del gráfico de reportes (días). */
+export type VentanaReporte = 7 | 15 | 30;
+
+/** Punto diario para el gráfico de reportes del campamento. */
+export interface PuntoSerieReporte {
+  dia: string;
+  refugiados: number;
+  funcionarios: number;
+  mascotas: number;
+  atenciones: number;
+  desayuno: number;
+  almuerzo: number;
+  cena: number;
+  comidasTotal: number;
+}
+
+function claveDiaLocal(anio: number, mes: number, dia: number): string {
+  return `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+}
+
+/** Últimos N días calendario terminando en `hoyClave` (inclusive). */
+export function ultimosDiasReporte(cantidad: number, hoyClave: string): string[] {
+  const { anio, mes, dia } = parsearDiaReporte(hoyClave);
+  const fin = new Date(anio, mes - 1, dia);
+  const out: string[] = [];
+  for (let i = cantidad - 1; i >= 0; i--) {
+    const d = new Date(fin);
+    d.setDate(d.getDate() - i);
+    out.push(claveDiaLocal(d.getFullYear(), d.getMonth() + 1, d.getDate()));
+  }
+  return out;
+}
+
+function ultimoSnapshotHasta(
+  snaps: SnapshotOcupacion[],
+  diaActual: string,
+): SnapshotOcupacion | undefined {
+  const sorted = [...snaps].sort(
+    (a, b) => a.dia.localeCompare(b.dia) || a.ts - b.ts,
+  );
+  let res: import("./serieOcupacionCentros").SnapshotOcupacion | undefined;
+  for (const s of sorted) {
+    if (s.dia <= diaActual) res = s;
+    else break;
+  }
+  return res;
+}
+
+/**
+ * Serie diaria para el gráfico de reportes: población (carry-forward desde
+ * `ocupaciones_centros`) + comidas/atenciones (día exacto en `reportes_centros`).
+ */
+export function serieReporteCentro(
+  centroId: string,
+  snapshots: SnapshotOcupacion[],
+  reportes: ReporteDiario[],
+  ventana: VentanaReporte,
+  hoyClave: string,
+): PuntoSerieReporte[] {
+  const delCentro = snapshots.filter((s) => s.centro_id === centroId);
+  const reportesMap = new Map(
+    reportes.filter((r) => r.centro_id === centroId).map((r) => [r.dia, r]),
+  );
+  const dias = ultimosDiasReporte(ventana, hoyClave);
+
+  return dias.map((dia) => {
+    const snap = ultimoSnapshotHasta(delCentro, dia);
+    const vuln = normalizarVulnerables(snap?.ocupacion);
+    const reporte = reportesMap.get(dia);
+    const comidas = normalizarComidas(reporte?.comidas);
+    return {
+      dia,
+      refugiados: snap?.total_afectados ?? 0,
+      funcionarios: snap?.personal_total ?? 0,
+      mascotas: vuln.mascotas,
+      atenciones: reporte?.atenciones_medicas ?? 0,
+      desayuno: comidas.desayuno.raciones,
+      almuerzo: comidas.almuerzo.raciones,
+      cena: comidas.cena.raciones,
+      comidasTotal: racionesDelDia(reporte),
+    };
+  });
 }
