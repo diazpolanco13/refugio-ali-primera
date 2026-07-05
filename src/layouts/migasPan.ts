@@ -43,8 +43,11 @@ function migasCentro(
   const vista = searchParams.get("vista");
   const reportar = searchParams.get("reportar") === "1";
   const editar = searchParams.get("editar") === "1";
+  const registrar = searchParams.get("registrar") === "1";
+  const refugiadoId = searchParams.get("refugiado");
 
   const baseCentro = `/centro/${id}`;
+  const basePoblacion = `${baseCentro}?vista=poblacion`;
   const migas: MigaPan[] = [
     INICIO,
     CAMPAMENTOS,
@@ -58,6 +61,18 @@ function migasCentro(
 
   if (reportar) {
     migas.push({ label: "Reporte del día" });
+    return migas;
+  }
+
+  if (registrar) {
+    migas.push({ label: "Población", to: basePoblacion });
+    migas.push({ label: "Registrar persona" });
+    return migas;
+  }
+
+  if (refugiadoId) {
+    migas.push({ label: "Población", to: basePoblacion });
+    migas.push({ label: "Detalle refugiado" });
     return migas;
   }
 
@@ -85,6 +100,20 @@ export function migasPanDeRuta(
 
   if (pathname === "/centros/reportes") {
     return [INICIO, CAMPAMENTOS, { label: "Reportes diarios" }];
+  }
+
+  if (pathname === "/centros/refugiados") {
+    return [INICIO, CAMPAMENTOS, { label: "Población (red)" }];
+  }
+
+  const matchRefugiadoRed = matchPath("/centros/refugiados/:alojamientoId", pathname);
+  if (matchRefugiadoRed?.params.alojamientoId) {
+    return [
+      INICIO,
+      CAMPAMENTOS,
+      { label: "Población (red)", to: "/centros/refugiados" },
+      { label: "Detalle refugiado" },
+    ];
   }
 
   if (pathname === "/centros/traslados") {

@@ -10,6 +10,10 @@
 #   ./reiniciar.sh update   Trae cambios de git (ff-only) y reinicia
 #   ./reiniciar.sh stop     Solo detiene el frontend
 #   ./reiniciar.sh logs     Muestra los logs en vivo (Ctrl-C para salir)
+#   ./reiniciar.sh build    Compila el build de producción y lo sirve en :4173
+#                           (MUCHO más rápido para probar desde conexiones
+#                           lentas: 9 archivos empaquetados en vez de cientos
+#                           de módulos sueltos del dev server)
 #
 # En cada arranque reinstala dependencias automáticamente si cambió
 # package-lock.json (p. ej. tras un git pull) — así "todo se actualiza bien".
@@ -22,6 +26,7 @@ set -uo pipefail
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOGS="$RAIZ/.dev-logs"
 PUERTO_WEB=5173
+PUERTO_PREVIEW=4173
 
 detener() {
   echo "→ Deteniendo procesos en el puerto $PUERTO_WEB…"
@@ -63,6 +68,25 @@ case "${1:-restart}" in
     tail -n 50 -f "$LOGS/frontend.log"
     exit 0
     ;;
+  build)
+    mkdir -p "$LOGS"
+    instalar_deps "$RAIZ" "frontend"
+    echo "→ Compilando build de producción…"
+    ( cd "$RAIZ" && npm run build ) || { echo "✗ Falló el build."; exit 1; }
+    echo "→ (Re)levantando preview (:$PUERTO_PREVIEW)…"
+    fuser -k "${PUERTO_PREVIEW}/tcp" 2>/dev/null || true
+    sleep 1
+    # `serve` (no `vite preview`) para mandar Cache-Control immutable en los
+    # assets con hash: así las recargas del navegador no re-descargan nada.
+    # (lee serve.json de la raíz: public=dist, SPA fallback y Cache-Control)
+    ( cd "$RAIZ" && setsid nohup npx serve -l "tcp://0.0.0.0:$PUERTO_PREVIEW" >"$LOGS/preview.log" 2>&1 & )
+    esperar "http://localhost:$PUERTO_PREVIEW/" "preview"
+    IP="$(curl -s -4 -m 3 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')"
+    echo
+    echo "Build servido en:  http://localhost:$PUERTO_PREVIEW/"
+    [ -n "$IP" ] && echo "  (desde la red:   http://$IP:$PUERTO_PREVIEW/)"
+    exit 0
+    ;;
   update)
     echo "→ Trayendo cambios de git (ff-only)…"
     if git -C "$RAIZ" pull --ff-only; then
@@ -85,7 +109,7 @@ echo "→ Levantando frontend (:$PUERTO_WEB)…"
 
 esperar "http://localhost:$PUERTO_WEB/" "frontend"
 
-IP="$(curl -s -4 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')"
+IP="$(curl -s -4 -m 3 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')"
 echo
 echo "Listo. Frontend de desarrollo en segundo plano:"
 echo "  • Frontend:  http://localhost:$PUERTO_WEB/"

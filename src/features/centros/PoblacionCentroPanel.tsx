@@ -5,10 +5,8 @@ import { useMemo, useState } from "react";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { claveDia } from "@/data/reposSupabase";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarDays, PanelLeftClose, PanelLeftOpen, Users } from "lucide-react";
+import { CalendarDays, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   SeccionPersonalCentro,
   SeccionPoblacionCentro,
@@ -19,14 +17,23 @@ import {
   formatearDiaCalendario,
 } from "./CalendarioSelectorDia";
 import { GraficoPoblacionCentro } from "./GraficoPoblacionCentro";
+import { ListaRefugiadosCentro } from "@/features/refugiados/ListaRefugiadosCentro";
 
 const COLOR_REGISTRO = "#22c55e";
 
 interface Props {
   centro: CentroTransitorio;
+  puedeEditar?: boolean;
+  onRegistrar?: () => void;
+  onAbrirRefugiado?: (alojamientoId: string) => void;
 }
 
-export function PoblacionCentroPanel({ centro }: Props) {
+export function PoblacionCentroPanel({
+  centro,
+  puedeEditar = false,
+  onRegistrar,
+  onAbrirRefugiado,
+}: Props) {
   const hoyClave = useMemo(() => claveDia(Date.now()), []);
   const [calendarioAbierto, setCalendarioAbierto] = useState(false);
   const [diaSel, setDiaSel] = useState<string | null>(hoyClave);
@@ -93,23 +100,12 @@ export function PoblacionCentroPanel({ centro }: Props) {
       <SeccionPersonalCentro centro={centro} />
       <SeccionServiciosCentro centro={centro} />
 
-      <Card className="border-dashed border-border/80 bg-muted/10">
-        <CardHeader className="pb-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Users className="size-4 text-muted-foreground" />
-              Lista de refugiados
-            </CardTitle>
-            <Badge variant="outline" className="text-[10px] text-muted-foreground">
-              Por desarrollar
-            </Badge>
-          </div>
-          <CardDescription className="text-xs">
-            Registro nominal de cada persona alojada: identificación, grupo familiar,
-            vulnerabilidades y trazabilidad de traslados.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <ListaRefugiadosCentro
+        centro={centro}
+        puedeEditar={puedeEditar}
+        onRegistrar={onRegistrar ?? (() => {})}
+        onAbrirRefugiado={onAbrirRefugiado ?? (() => {})}
+      />
     </div>
   );
 }

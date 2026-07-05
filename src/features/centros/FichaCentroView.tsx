@@ -5,7 +5,10 @@
 
 import { useEffect, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ClipboardCheck, LayoutGrid, Pencil, SearchX } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, LayoutGrid, Pencil, SearchX, UserPlus } from "lucide-react";
+import { useAlojamientosCentro } from "@/data/useAlojamientosCentro";
+import { RefugiadoForm } from "@/features/refugiados/RefugiadoForm";
+import { FichaRefugiadoView } from "@/features/refugiados/FichaRefugiadoView";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { claveDia } from "@/data/reposSupabase";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
@@ -71,6 +74,8 @@ export function FichaCentroView({ sesion }: Props) {
   const seccionActiva: SeccionFicha = esSeccionFicha(seccionParam) ? seccionParam : "resumen";
   const modoReporte = searchParams.get("reportar") === "1";
   const modoEditar = searchParams.get("editar") === "1";
+  const modoRegistrar = searchParams.get("registrar") === "1";
+  const refugiadoId = searchParams.get("refugiado");
 
   const hoyClave = useMemo(() => claveDia(Date.now()), []);
 
@@ -135,13 +140,30 @@ export function FichaCentroView({ sesion }: Props) {
     setSearchParams(paramsFicha(), { replace: true });
   }
 
+  function volverPoblacion() {
+    setSearchParams({ vista: "poblacion" }, { replace: true });
+  }
+
+  function abrirFichaRefugiado(id: string) {
+    setSearchParams({ vista: "poblacion", refugiado: id }, { replace: true });
+  }
+
+  const { familias: familiasCentro } = useAlojamientosCentro({
+    centroId: centro?.id ?? "",
+  });
+  const nombresCentros = useMemo(
+    () => new Map(centros.map((c) => [c.id, c.nombre || c.id])),
+    [centros],
+  );
+
   // Si no puede editar, no mantener modos de edición en la URL.
   useEffect(() => {
     if (centro && !puedeEditar) {
       if (modoReporte) cerrarReporte();
       if (modoEditar) cerrarEditar();
+      if (modoRegistrar) volverPoblacion();
     }
-  }, [modoReporte, modoEditar, centro, puedeEditar]);
+  }, [modoReporte, modoEditar, modoRegistrar, centro, puedeEditar]);
 
   if (!centro) {
     return (
@@ -172,6 +194,54 @@ export function FichaCentroView({ sesion }: Props) {
   });
   const etiquetaBotonReporte =
     hoyEstado === "pendiente" ? "Reportar hoy" : "Editar reporte de hoy";
+
+  if (refugiadoId && centro) {
+    return (
+      <FichaRefugiadoView
+        alojamientoId={refugiadoId}
+        puedeEditar={puedeEditar}
+        onVolver={volverPoblacion}
+        onAbrirMiembro={abrirFichaRefugiado}
+      />
+    );
+  }
+
+  if (modoRegistrar && puedeEditar && centro) {
+    return (
+      <MarcoVista
+        ancho={ANCHO_VISTA_PRINCIPAL}
+        rellenarAltura
+        className="overflow-hidden"
+        marcoClassName="flex min-h-0 flex-col text-foreground"
+      >
+        <VistaEncabezado
+          icono={UserPlus}
+          acento="emerald"
+          titulo="Registrar persona"
+          descripcion={`Censo nominal · ${titulo}`}
+          acciones={
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0 gap-1.5 px-2"
+              onClick={volverPoblacion}
+            >
+              <ArrowLeft className="size-3.5" />
+              <span className="hidden sm:inline">Volver a Población</span>
+              <span className="sm:hidden">Volver</span>
+            </Button>
+          }
+        />
+        <RefugiadoForm
+          centroId={centro.id}
+          familias={familiasCentro}
+          nombresCentros={nombresCentros}
+          onCancelar={volverPoblacion}
+          onRegistrado={abrirFichaRefugiado}
+        />
+      </MarcoVista>
+    );
+  }
 
   if (modoEditar && puedeEditar) {
     return (
@@ -363,7 +433,14 @@ export function FichaCentroView({ sesion }: Props) {
             </TabsContent>
 
             <TabsContent value="poblacion" className="mt-0">
-              <PoblacionCentroPanel centro={centro} />
+              <PoblacionCentroPanel
+                centro={centro}
+                puedeEditar={puedeEditar}
+                onRegistrar={() =>
+                  setSearchParams({ vista: "poblacion", registrar: "1" }, { replace: true })
+                }
+                onAbrirRefugiado={abrirFichaRefugiado}
+              />
             </TabsContent>
 
             <TabsContent value="reporte" className="mt-0">

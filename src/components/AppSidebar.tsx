@@ -117,6 +117,7 @@ function NavContenido({ sesion }: Props) {
     /^\/centro\/[^/]+$/.test(pathname) && pathname !== "/centro/nuevo";
   const esSeccionCampamentos =
     rutaActiva(pathname, "/centros/tablero") ||
+    rutaActiva(pathname, "/centros/refugiados") ||
     esFichaCentro ||
     pathname === "/centro/nuevo";
 
@@ -159,6 +160,12 @@ function NavContenido({ sesion }: Props) {
               icono={ClipboardList}
               label="Reportes diarios (red)"
               activo={rutaActiva(pathname, "/centros/reportes")}
+            />
+            <ItemMenu
+              to="/centros/refugiados"
+              icono={Users}
+              label="Población (red)"
+              activo={rutaActiva(pathname, "/centros/refugiados")}
             />
             <ItemEnDesarrollo icono={Truck} label="Traslados entre campamentos" />
           </SidebarMenu>

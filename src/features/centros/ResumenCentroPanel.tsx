@@ -30,6 +30,7 @@ import {
   SeccionNovedadesNotasCentro,
 } from "./DetalleCentro";
 import { AlertasDelDiaCentro, type VistaFichaCentro } from "./AlertasDelDiaCentro";
+import { ProgresoCensoPoblacion } from "@/features/refugiados/ProgresoCensoPoblacion";
 import { ultimoSnapshotAntes } from "./ParteNumericoResumen";
 
 interface Props {
@@ -235,6 +236,7 @@ export function ResumenCentroPanel({ centro, onIrAPestana }: Props) {
     <div className="space-y-4">
       <SeccionFotoCentro centro={centro} />
       <KpisResumen centro={centro} />
+      <ProgresoCensoPoblacion centro={centro} />
       <AlertasDelDiaCentro centro={centro} onIrAPestana={onIrAPestana} />
       <SeccionIdentificacionCentro centro={centro} />
       <ChipAlertaServicios centro={centro} onIrAPestana={onIrAPestana} />

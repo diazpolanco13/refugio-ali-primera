@@ -22,6 +22,20 @@ export type AccionHistorial =
   | "resolver_incidencia"
   | "eliminar_incidencia"
   | "reporte_diario"
+  | "registrar_refugiado"
+  | "editar_refugiado"
+  | "egreso_refugiado"
+  | "otorgar_beneficio"
+  | "otorgar_item_kit"
+  | "eliminar_beneficio"
+  | "editar_tallas"
+  | "editar_contacto"
+  | "editar_salud"
+  | "editar_habilidades"
+  | "editar_documentacion"
+  | "editar_seguimiento"
+  | "editar_familiares_referencia"
+  | "editar_residencia"
   | "crear_usuario"
   | "eliminar_usuario"
   | "cambiar_password"
@@ -72,7 +86,11 @@ export function registrarHistorial(
  * devuelve vacío). Filtros server-side por rango de fechas; los filtros por
  * entidad/usuario se aplican en el cliente (el volumen es moderado).
  */
-export function useHistorial({ desdeTs, limite = 500 }: { desdeTs?: number; limite?: number } = {}) {
+export function useHistorial({
+  desdeTs,
+  entidadId,
+  limite = 500,
+}: { desdeTs?: number; entidadId?: string; limite?: number } = {}) {
   const [entradas, setEntradas] = useState<EntradaHistorial[]>([]);
   const [cargando, setCargando] = useState(true);
 
@@ -86,6 +104,7 @@ export function useHistorial({ desdeTs, limite = 500 }: { desdeTs?: number; limi
         .order("ts", { ascending: false })
         .limit(limite);
       if (desdeTs) q = q.gte("ts", desdeTs);
+      if (entidadId) q = q.eq("entidad_id", entidadId);
       const { data, error } = await q;
       if (cancelado) return;
       if (error) {
@@ -116,7 +135,7 @@ export function useHistorial({ desdeTs, limite = 500 }: { desdeTs?: number; limi
       cancelado = true;
       void supabase.removeChannel(canal);
     };
-  }, [desdeTs, limite]);
+  }, [desdeTs, entidadId, limite]);
 
   return { entradas, cargando };
 }

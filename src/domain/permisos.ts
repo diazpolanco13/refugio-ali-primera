@@ -148,6 +148,11 @@ export function puedeResolverIncidencia(
 }
 
 /** ¿Puede eliminar incidencias? Solo admin y analista SAE (RLS en Supabase). */
+export function puedeVerSaludMental(rol: Rol): boolean {
+  return rol !== "autoridad";
+}
+
+/** ¿Puede eliminar incidencias? Solo admin y analista SAE (RLS en Supabase). */
 export function puedeEliminarIncidencia(usuario: Usuario): boolean {
   return usuario.rol === "admin" || usuario.rol === "analista_sae";
 }

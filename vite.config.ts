@@ -12,6 +12,12 @@ export default defineConfig({
   },
   // Sin proxy: la PWA habla directo con Supabase (Postgres, Auth, Realtime,
   // Storage) vía supabase-js. Ya no hay backend Fastify propio que proxyar.
+  optimizeDeps: {
+    // Pre-empaqueta las deps pesadas de import dinámico al arrancar el server:
+    // si Vite las descubre a mitad de sesión fuerza una re-optimización con
+    // recarga completa de la página (era parte del cuelgue de arranque).
+    include: ["jspdf", "qrcode"],
+  },
   plugins: [
     react(),
     tailwindcss(),
