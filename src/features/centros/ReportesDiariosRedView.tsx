@@ -10,7 +10,7 @@ import {
   ChevronRight,
   CheckCircle2,
   CircleDashed,
-  ClipboardCheck,
+  ClipboardList,
   FilterX,
   ListFilter,
   Stethoscope,
@@ -33,13 +33,8 @@ import {
 } from "@/domain/reporteDiario";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
+import { VistaEncabezado } from "@/components/VistaEncabezado";
 import {
   Popover,
   PopoverContent,
@@ -461,43 +456,34 @@ export function ReportesDiariosRedView() {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 lg:p-6">
-      <div className="mx-auto w-full max-w-7xl">
-        <Card className="border-border/80 bg-card/95">
-          <CardHeader className="border-b border-border/70 pb-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <CardTitle className="flex flex-wrap items-center gap-2 text-base lg:text-lg">
-                  <span className="flex size-8 items-center justify-center rounded-lg border border-teal-400/25 bg-teal-400/10">
-                    <ClipboardCheck className="size-4 text-teal-300" />
-                  </span>
-                  Reportes por campamento
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  Corte diario de la red · clic en una fila para abrir la ficha del centro
-                </CardDescription>
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Badge variant="outline" className="gap-1.5 border-teal-400/30 bg-teal-400/10 text-teal-200">
-                  <CalendarDays className="size-3" />
-                  {formatearDiaSelector(diaActivo)}
-                  {diaActivo === hoyClave ? " · Hoy" : ""}
-                </Badge>
-                <Badge variant="outline" className="gap-1 tabular-nums">
-                  <CheckCircle2 className="size-3 text-emerald-400" />
-                  {porcentajeCierreDia} reportado
-                </Badge>
-                <Badge variant="outline" className="gap-1 tabular-nums">
-                  <UtensilsCrossed className="size-3 text-teal-400" />
-                  {racionesDia.toLocaleString("es")} raciones visibles
-                </Badge>
-                <Badge variant="outline" className="gap-1 tabular-nums">
-                  <Stethoscope className="size-3 text-rose-400" />
-                  {atencionesDia} atenciones visibles
-                </Badge>
-              </div>
-            </div>
-          </CardHeader>
+    <MarcoVista ancho={ANCHO_VISTA_PRINCIPAL}>
+      <VistaEncabezado
+        icono={ClipboardList}
+        acento="teal"
+        titulo="Reportes por campamento"
+        descripcion="Corte diario de la red · clic en una fila para abrir la ficha del centro"
+        acciones={
+          <>
+            <Badge variant="outline" className="gap-1.5 border-teal-400/30 bg-teal-400/10 text-teal-200">
+              <CalendarDays className="size-3" />
+              {formatearDiaSelector(diaActivo)}
+              {diaActivo === hoyClave ? " · Hoy" : ""}
+            </Badge>
+            <Badge variant="outline" className="gap-1 tabular-nums">
+              <CheckCircle2 className="size-3 text-emerald-400" />
+              {porcentajeCierreDia} reportado
+            </Badge>
+            <Badge variant="outline" className="gap-1 tabular-nums">
+              <UtensilsCrossed className="size-3 text-teal-400" />
+              {racionesDia.toLocaleString("es")} raciones visibles
+            </Badge>
+            <Badge variant="outline" className="gap-1 tabular-nums">
+              <Stethoscope className="size-3 text-rose-400" />
+              {atencionesDia} atenciones visibles
+            </Badge>
+          </>
+        }
+      />
 
           <div className="border-b border-border bg-muted/10 px-4 py-4 lg:px-6">
             <div className="space-y-3">
@@ -653,7 +639,7 @@ export function ReportesDiariosRedView() {
             </div>
           </div>
 
-          <CardContent className="pt-4">
+          <div className="px-4 pt-4 pb-4 lg:px-6">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="text-sm font-medium text-foreground">Centros del día</p>
@@ -743,9 +729,7 @@ export function ReportesDiariosRedView() {
                 ))}
               </ul>
             )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+          </div>
+    </MarcoVista>
   );
 }

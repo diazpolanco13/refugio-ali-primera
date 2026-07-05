@@ -8,6 +8,7 @@ import { nuevoId } from "@/data/reposSupabase";
 import type { Sesion } from "@/data/authSupabase";
 import { puedeCrearCentros } from "@/domain/permisos";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
 import { CentroForm } from "./CentroForm";
 
 interface Props {
@@ -57,9 +58,9 @@ export function NuevoCentroView({ sesion }: Props) {
 
   if (filasCentros.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center bg-background px-6">
+      <MarcoVista ancho={ANCHO_VISTA_PRINCIPAL} marcoClassName="flex min-h-[50vh] items-center justify-center px-6">
         <p className="text-sm text-muted-foreground">Preparando formulario…</p>
-      </div>
+      </MarcoVista>
     );
   }
 

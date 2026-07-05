@@ -14,6 +14,7 @@ import {
 import type { Sesion } from "@/data/authSupabase";
 import { puedeEscribir, puedeCrearCentros } from "@/domain/permisos";
 import { useMapaCentros } from "@/contexts/MapaCentrosContext";
+import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
 import { CentrosMap, type CentrosMapHandle } from "./CentrosMap";
 import { DetalleCentro } from "./DetalleCentro";
 import { CentroForm } from "./CentroForm";
@@ -199,12 +200,16 @@ export function CentrosView() {
             />
           </>
         ) : (
-          <div className="h-full overflow-y-auto">
+          <MarcoVista
+            ancho={ANCHO_VISTA_PRINCIPAL}
+            className="overflow-hidden"
+            marcoClassName="h-full min-h-0"
+          >
             <TableroCentros
               centros={centros}
               onSeleccionar={(id) => navigate(`/centro/${id}`)}
             />
-          </div>
+          </MarcoVista>
         )}
 
         {vista === "mapa" && centroSel && detalleAbierto && (

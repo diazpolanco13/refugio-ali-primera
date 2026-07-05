@@ -1,4 +1,4 @@
-import { Menu, PanelLeftOpen } from "lucide-react";
+import { PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
@@ -7,8 +7,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
-import { useMapaCentros } from "@/contexts/MapaCentrosContext";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { BuscadorCompacto } from "./BuscadorCompacto";
 import type { EstadoFilaCentro } from "./CentrosListaItems";
@@ -22,7 +20,7 @@ interface Props {
   onAbrirPanel: () => void;
 }
 
-/** Columna flotante del mapa: menú · lista · búsqueda (sin botón +). */
+/** Columna flotante del mapa: lista y búsqueda rápida. */
 export function ControlesMapaFlotantes({
   centros,
   estados,
@@ -31,8 +29,6 @@ export function ControlesMapaFlotantes({
   panelAbierto,
   onAbrirPanel,
 }: Props) {
-  const { menuDrawerOpen, setMenuDrawerOpen } = useMapaCentros();
-
   if (panelAbierto) return null;
 
   return (
@@ -42,29 +38,6 @@ export function ControlesMapaFlotantes({
           orientation="vertical"
           className="pointer-events-auto w-10 min-w-10 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
         >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className={cn(
-                  "h-10 w-10 min-w-10 shrink-0 border-0 shadow-none hover:bg-muted/80",
-                  menuDrawerOpen
-                    ? "bg-primary/15 text-primary"
-                    : "bg-card text-foreground",
-                )}
-                onClick={() => setMenuDrawerOpen(!menuDrawerOpen)}
-                aria-label="Abrir menú"
-              >
-                <Menu className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right" sideOffset={8}>
-              Menú
-            </TooltipContent>
-          </Tooltip>
-
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

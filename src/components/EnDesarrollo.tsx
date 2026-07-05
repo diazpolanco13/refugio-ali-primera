@@ -5,29 +5,24 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
+import { VistaPagina } from "@/components/VistaPagina";
 
 interface Props {
   titulo: string;
   descripcion?: string;
+  conMarco?: boolean;
 }
 
 /** Placeholder para funcionalidades aún no implementadas. */
-export function EnDesarrollo({ titulo, descripcion }: Props) {
-  return (
-    <div className="flex min-h-[50vh] items-center justify-center p-4 lg:p-6">
-      <Card className="max-w-lg w-full">
+export function EnDesarrollo({ titulo, descripcion, conMarco = true }: Props) {
+  const cuerpo = (
+    <div className="flex min-h-[40vh] items-center justify-center p-4 lg:p-6">
+      <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground">
-            <Construction className="size-6" />
-          </div>
-          <div className="flex items-center justify-center gap-2">
-            <CardTitle>{titulo}</CardTitle>
-            <Badge variant="outline" className="text-[10px] text-muted-foreground">
-              Por desarrollar
-            </Badge>
-          </div>
+          <Badge variant="outline" className="mx-auto mb-3 text-[10px] text-muted-foreground">
+            Por desarrollar
+          </Badge>
           <CardDescription>
             {descripcion ??
               "Esta función está planificada y aparecerá en una próxima versión de la plataforma."}
@@ -38,5 +33,18 @@ export function EnDesarrollo({ titulo, descripcion }: Props) {
         </CardContent>
       </Card>
     </div>
+  );
+
+  if (!conMarco) return cuerpo;
+
+  return (
+    <VistaPagina
+      icono={Construction}
+      acento="primary"
+      titulo={titulo}
+      descripcion="Funcionalidad planificada para una próxima versión"
+    >
+      {cuerpo}
+    </VistaPagina>
   );
 }

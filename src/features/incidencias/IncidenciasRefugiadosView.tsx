@@ -6,6 +6,7 @@ export function IncidenciasRefugiadosView() {
     <EnDesarrollo
       titulo="Bandeja refugiados"
       descripcion="Canal público de reportes vía QR/formulario y triage de incidencias ciudadanas. Próximamente."
+      conMarco={false}
     />
   );
 }

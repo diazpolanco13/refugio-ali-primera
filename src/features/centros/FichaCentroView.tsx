@@ -1,15 +1,17 @@
 // Vista completa de un campamento (`/centro/:id`): segmentada por pestañas
 // (Resumen, Coordinación, Población, Reporte, Incidencias, Capacidad).
-// Comparte el menú drawer global vía AppShell + TopBar.
+// Vive dentro del AppShell global, con sidebar y TopBar compartidos.
 
 import { useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ClipboardCheck, Pencil, SearchX } from "lucide-react";
+import { ClipboardCheck, LayoutGrid, Pencil, SearchX } from "lucide-react";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { Sesion } from "@/data/authSupabase";
 import { puedeCrearCentros, puedeEditarCentro } from "@/domain/permisos";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
+import { VistaEncabezado } from "@/components/VistaEncabezado";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -105,49 +107,50 @@ export function FichaCentroView({ sesion }: Props) {
   const titulo = `${centro.nro != null ? `N.° ${centro.nro} · ` : ""}${centro.nombre}`;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
-      {/* Subcabecera del campamento (TopBar global va en AppShell) */}
-      <div className="z-10 shrink-0 border-b border-border bg-background/95 px-2 py-2 backdrop-blur-sm sm:px-3">
-        <div className="mx-auto flex max-w-5xl items-start gap-2 sm:items-center">
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-sm font-semibold leading-tight text-foreground">
-              {titulo}
-            </h2>
-            {centro.parroquia && (
-              <p className="truncate text-[11px] leading-tight text-muted-foreground">
-                {centro.parroquia}
-              </p>
+    <MarcoVista
+      ancho={ANCHO_VISTA_PRINCIPAL}
+      className="overflow-hidden"
+      marcoClassName="flex h-full min-h-0 flex-col text-foreground"
+    >
+      <VistaEncabezado
+        icono={LayoutGrid}
+        acento="sky"
+        titulo={titulo}
+        descripcion={centro.parroquia || "Ficha del campamento en la red"}
+        acciones={
+          <>
+            <div className="hidden shrink-0 sm:block">
+              <BadgesEstadoCentro centro={centro} />
+            </div>
+            {puedeEditar && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 gap-1.5 px-2"
+                onClick={() => setReportando(true)}
+              >
+                <ClipboardCheck className="size-3.5" />
+                <span className="hidden sm:inline">Reporte</span>
+              </Button>
             )}
-          </div>
-          <div className="hidden shrink-0 sm:block">
+            {puedeEditar && (
+              <Button
+                size="sm"
+                className="h-8 shrink-0 gap-1.5 px-2"
+                onClick={() => setEditando(true)}
+              >
+                <Pencil className="size-3.5" />
+                <span className="hidden sm:inline">Editar</span>
+              </Button>
+            )}
+          </>
+        }
+        debajo={
+          <div className="sm:hidden">
             <BadgesEstadoCentro centro={centro} />
           </div>
-          {puedeEditar && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 shrink-0 gap-1.5 px-2"
-              onClick={() => setReportando(true)}
-            >
-              <ClipboardCheck className="size-3.5" />
-              <span className="hidden sm:inline">Reporte</span>
-            </Button>
-          )}
-          {puedeEditar && (
-            <Button
-              size="sm"
-              className="h-8 shrink-0 gap-1.5 px-2"
-              onClick={() => setEditando(true)}
-            >
-              <Pencil className="size-3.5" />
-              <span className="hidden sm:inline">Editar</span>
-            </Button>
-          )}
-        </div>
-        <div className="mx-auto mt-2 max-w-5xl sm:hidden">
-          <BadgesEstadoCentro centro={centro} />
-        </div>
-      </div>
+        }
+      />
 
       <Tabs
         value={seccionActiva}
@@ -155,10 +158,10 @@ export function FichaCentroView({ sesion }: Props) {
         className="flex min-h-0 flex-1 flex-col"
       >
         {/* Pestañas segmentadas — scroll horizontal en móvil */}
-        <div className="h-[50px] shrink-0 border-b border-border bg-background/95 px-2 text-center align-middle sm:px-3">
+        <div className="h-[50px] shrink-0 border-b border-border bg-background/95 px-4 sm:px-6">
           <TabsList
             variant="line"
-            className="mx-auto !h-[50px] w-full max-w-5xl justify-start gap-0 overflow-x-auto rounded-none bg-transparent p-0 align-middle [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="!h-[50px] w-full justify-start gap-0 overflow-x-auto rounded-none bg-transparent p-0 align-middle [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {SECCIONES.map((s) => (
               <TabsTrigger
@@ -173,7 +176,7 @@ export function FichaCentroView({ sesion }: Props) {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <div className="mx-auto w-full max-w-5xl p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4">
+          <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:p-6">
             <TabsContent value="resumen" className="mt-0">
               <ResumenCentroPanel
                 centro={centro}
@@ -227,6 +230,6 @@ export function FichaCentroView({ sesion }: Props) {
       {reportando && (
         <ReporteDiarioForm centro={centro} onCerrar={() => setReportando(false)} />
       )}
-    </div>
+    </MarcoVista>
   );
 }

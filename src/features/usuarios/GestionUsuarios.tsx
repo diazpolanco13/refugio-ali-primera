@@ -14,6 +14,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Trash2,
+  Users,
   X,
 } from "lucide-react";
 import type { Rol, Sesion } from "@/data/authSupabase";
@@ -32,6 +33,7 @@ import { BadgeRol } from "@/components/BadgeRol";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { VistaPagina } from "@/components/VistaPagina";
 import {
   Command,
   CommandEmpty,
@@ -887,9 +889,23 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
 
   return (
     <>
-    <div className="h-full min-h-0 overflow-y-auto p-4 lg:p-6">
+    <VistaPagina
+      icono={Users}
+      acento="violet"
+      titulo="Gestión de usuarios"
+      descripcion="Fichas, roles y permisos de acceso a la plataforma"
+      acciones={
+        esAdmin ? (
+          <Button onClick={() => setCreando(true)} className="gap-1.5">
+            <Plus className="size-4" />
+            <span className="hidden sm:inline">Nuevo usuario</span>
+          </Button>
+        ) : undefined
+      }
+      cuerpoClassName="p-4 lg:p-6"
+    >
       {!esAdmin ? (
-          <div className="mx-auto mt-16 max-w-md rounded-xl border border-border bg-card p-6 text-center">
+          <div className="mx-auto mt-6 max-w-md rounded-xl border border-border bg-background/70 p-6 text-center">
             <ShieldCheck className="mx-auto mb-3 size-8 text-muted-foreground" />
             <p className="text-sm font-medium text-foreground">Acceso restringido</p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -897,16 +913,7 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
             </p>
           </div>
         ) : (
-          <div className="mx-auto max-w-5xl space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm text-muted-foreground">
-                Fichas, roles y permisos de acceso a la plataforma
-              </p>
-              <Button onClick={() => setCreando(true)} className="gap-1.5">
-                <Plus className="size-4" />
-                <span className="hidden sm:inline">Nuevo usuario</span>
-              </Button>
-            </div>
+          <div className="space-y-4">
             {error && (
               <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                 {error}
@@ -992,7 +999,7 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
             )}
           </div>
         )}
-    </div>
+    </VistaPagina>
 
       <FormUsuario
         titulo="Nuevo usuario"

@@ -24,6 +24,7 @@ import { useHistorial, type EntradaHistorial } from "@/data/historial";
 import { puedeVerLogs } from "@/domain/permisos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { VistaPagina } from "@/components/VistaPagina";
 import {
   Select,
   SelectContent,
@@ -207,9 +208,15 @@ export function LogsView({ sesion }: { sesion: Sesion }) {
   const hayFiltros = entidad !== "todas" || usuario !== "todos" || rango !== "7d";
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto p-4 lg:p-6">
+    <VistaPagina
+      icono={ScrollText}
+      acento="amber"
+      titulo="Bitácora de acciones"
+      descripcion="Registro cronológico de cambios en campamentos, incidencias y usuarios"
+      cuerpoClassName="p-4 lg:p-6"
+    >
         {!tieneAcceso ? (
-          <div className="mx-auto mt-16 max-w-md rounded-xl border border-border bg-card p-6 text-center">
+          <div className="mx-auto mt-6 max-w-md rounded-xl border border-border bg-background/70 p-6 text-center">
             <ShieldCheck className="mx-auto mb-3 size-8 text-muted-foreground" />
             <p className="text-sm font-medium text-foreground">Acceso restringido</p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -217,7 +224,7 @@ export function LogsView({ sesion }: { sesion: Sesion }) {
             </p>
           </div>
         ) : (
-          <div className="mx-auto max-w-4xl space-y-4">
+          <div className="space-y-4">
             {/* Filtros */}
             <div className="flex flex-wrap items-center gap-2">
               <Select value={rango} onValueChange={(v) => setRango(v as FiltroRango)}>
@@ -304,6 +311,6 @@ export function LogsView({ sesion }: { sesion: Sesion }) {
             )}
           </div>
         )}
-    </div>
+    </VistaPagina>
   );
 }

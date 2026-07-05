@@ -3,7 +3,6 @@ import {
   Archive,
   BarChart3,
   ClipboardList,
-  ChevronRight,
   LayoutGrid,
   MapPinned,
   MonitorPlay,
@@ -25,11 +24,6 @@ import { useIncidencias } from "@/data/useIncidencias";
 import { incidenciasAbiertas } from "@/domain/incidencias";
 import { BadgeEnDesarrollo } from "@/components/BadgeEnDesarrollo";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
@@ -40,42 +34,79 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
 interface Props {
   sesion: Sesion;
-  /** Modo drawer (mapa/tablero): sin SidebarHeader/Footer externos. */
-  modoDrawer?: boolean;
+}
+
+type IconoMenu = typeof Siren;
+
+function rutaActiva(pathname: string, ruta: string): boolean {
+  if (ruta === "/") return pathname === ruta;
+  return pathname === ruta || pathname.startsWith(`${ruta}/`);
+}
+
+function TextoMenu({ children }: { children: string }) {
+  return <span className="group-data-[collapsible=icon]:hidden">{children}</span>;
+}
+
+function ItemMenu({
+  to,
+  icono: Icono,
+  label,
+  activo,
+  badge,
+  badgeClassName,
+}: {
+  to: string;
+  icono: IconoMenu;
+  label: string;
+  activo: boolean;
+  badge?: number;
+  badgeClassName?: string;
+}) {
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={activo} tooltip={label}>
+        <Link to={to}>
+          <Icono />
+          <TextoMenu>{label}</TextoMenu>
+        </Link>
+      </SidebarMenuButton>
+      {badge != null && badge > 0 && (
+        <SidebarMenuBadge className={badgeClassName}>{badge}</SidebarMenuBadge>
+      )}
+    </SidebarMenuItem>
+  );
 }
 
 function ItemEnDesarrollo({
   icono: Icono,
   label,
 }: {
-  icono: typeof Siren;
+  icono: IconoMenu;
   label: string;
 }) {
   return (
-    <SidebarMenuSubItem>
-      <SidebarMenuSubButton
+    <SidebarMenuItem>
+      <SidebarMenuButton
         aria-disabled
+        tooltip={label}
         className="pointer-events-none opacity-60"
         onClick={(e) => e.preventDefault()}
       >
         <Icono />
-        <span>{label}</span>
-        <BadgeEnDesarrollo />
-      </SidebarMenuSubButton>
-    </SidebarMenuSubItem>
+        <TextoMenu>{label}</TextoMenu>
+        <BadgeEnDesarrollo className="group-data-[collapsible=icon]:hidden" />
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
 
-function NavContenido({ sesion }: Omit<Props, "modoDrawer">) {
+function NavContenido({ sesion }: Props) {
   const location = useLocation();
   const puedeCrear = puedeCrearCentros(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
@@ -84,15 +115,9 @@ function NavContenido({ sesion }: Omit<Props, "modoDrawer">) {
   const abiertas = incidenciasAbiertas(incidencias).length;
   const urgentes = incidencias.filter((i) => i.etiqueta === "urgente").length;
 
-  const enMapa = location.pathname === "/centros/mapa";
-  const enTablero = location.pathname === "/centros/tablero";
-  const enNuevoCentro = location.pathname === "/centro/nuevo";
-  const enIncFunc = location.pathname === "/incidencias/funcionarios";
-  const enIncArch = location.pathname === "/incidencias/archivadas";
-  const enIncAnal = location.pathname === "/incidencias/analitica";
-  const enReportes = location.pathname === "/centros/reportes";
-  const enUsuarios = location.pathname === "/usuarios";
-  const enLogs = location.pathname === "/logs";
+  const pathname = location.pathname;
+  const esFichaCentro =
+    /^\/centro\/[^/]+$/.test(pathname) && pathname !== "/centro/nuevo";
 
   return (
     <>
@@ -100,14 +125,12 @@ function NavContenido({ sesion }: Omit<Props, "modoDrawer">) {
         <SidebarGroupLabel>Sala situacional</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Pantalla completa">
-                <Link to="/dashboard">
-                  <MonitorPlay />
-                  <span>Pantalla</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            <ItemMenu
+              to="/dashboard"
+              icono={MonitorPlay}
+              label="Pantalla"
+              activo={rutaActiva(pathname, "/dashboard")}
+            />
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -115,59 +138,36 @@ function NavContenido({ sesion }: Omit<Props, "modoDrawer">) {
       <SidebarSeparator />
 
       <SidebarGroup>
-        <SidebarGroupLabel>CAMPAMENTOS TRANSISTORIOS</SidebarGroupLabel>
+        <SidebarGroupLabel>Campamentos transitorios</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            <Collapsible defaultOpen className="group/collapsible">
-              <SidebarMenuItem>
-                <CollapsibleTrigger asChild>
-                  <SidebarMenuButton tooltip="Campamentos transitorios">
-                    <MapPinned />
-                    <span>SUB-MENU</span>
-                    <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                  </SidebarMenuButton>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <SidebarMenuSub>
-                    <SidebarMenuSubItem>
-                      <SidebarMenuSubButton asChild isActive={enMapa}>
-                        <Link to="/centros/mapa">
-                          <MapPinned />
-                          <span>Mapa</span>
-                        </Link>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                    <SidebarMenuSubItem>
-                      <SidebarMenuSubButton asChild isActive={enTablero}>
-                        <Link to="/centros/tablero">
-                          <LayoutGrid />
-                          <span>Campamentos</span>
-                        </Link>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                    {puedeCrear && (
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild isActive={enNuevoCentro}>
-                          <Link to="/centro/nuevo">
-                            <Plus />
-                            <span>Nuevo campamento</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    )}
-                    <SidebarMenuSubItem>
-                      <SidebarMenuSubButton asChild isActive={enReportes}>
-                        <Link to="/centros/reportes">
-                          <ClipboardList />
-                          <span>Reportes diarios (red)</span>
-                        </Link>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                    <ItemEnDesarrollo icono={Truck} label="Traslados entre campamentos" />
-                  </SidebarMenuSub>
-                </CollapsibleContent>
-              </SidebarMenuItem>
-            </Collapsible>
+            <ItemMenu
+              to="/centros/mapa"
+              icono={MapPinned}
+              label="Mapa"
+              activo={pathname === "/" || rutaActiva(pathname, "/centros/mapa")}
+            />
+            <ItemMenu
+              to="/centros/tablero"
+              icono={LayoutGrid}
+              label="Campamentos"
+              activo={rutaActiva(pathname, "/centros/tablero") || esFichaCentro}
+            />
+            {puedeCrear && (
+              <ItemMenu
+                to="/centro/nuevo"
+                icono={Plus}
+                label="Nuevo campamento"
+                activo={rutaActiva(pathname, "/centro/nuevo")}
+              />
+            )}
+            <ItemMenu
+              to="/centros/reportes"
+              icono={ClipboardList}
+              label="Reportes diarios (red)"
+              activo={rutaActiva(pathname, "/centros/reportes")}
+            />
+            <ItemEnDesarrollo icono={Truck} label="Traslados entre campamentos" />
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -176,53 +176,27 @@ function NavContenido({ sesion }: Omit<Props, "modoDrawer">) {
         <SidebarGroupLabel>Incidencias</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            <Collapsible defaultOpen className="group/collapsible">
-              <SidebarMenuItem>
-                <CollapsibleTrigger asChild>
-                  <SidebarMenuButton tooltip="Incidencias">
-                    <Siren />
-                    <span>Incidencias</span>
-                    {abiertas > 0 && (
-                      <SidebarMenuBadge
-                        className={cn(urgentes > 0 && "bg-red-500/20 text-red-400")}
-                      >
-                        {abiertas}
-                      </SidebarMenuBadge>
-                    )}
-                    <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                  </SidebarMenuButton>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <SidebarMenuSub>
-                    <SidebarMenuSubItem>
-                      <SidebarMenuSubButton asChild isActive={enIncFunc}>
-                        <Link to="/incidencias/funcionarios">
-                          <Siren />
-                          <span>Bandeja funcionarios</span>
-                        </Link>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                    <ItemEnDesarrollo icono={UserRound} label="Bandeja refugiados" />
-                    <SidebarMenuSubItem>
-                      <SidebarMenuSubButton asChild isActive={enIncArch}>
-                        <Link to="/incidencias/archivadas">
-                          <Archive />
-                          <span>Archivadas</span>
-                        </Link>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                    <SidebarMenuSubItem>
-                      <SidebarMenuSubButton asChild isActive={enIncAnal}>
-                        <Link to="/incidencias/analitica">
-                          <BarChart3 />
-                          <span>Calendario / analítica</span>
-                        </Link>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                  </SidebarMenuSub>
-                </CollapsibleContent>
-              </SidebarMenuItem>
-            </Collapsible>
+            <ItemMenu
+              to="/incidencias/funcionarios"
+              icono={Siren}
+              label="Bandeja funcionarios"
+              activo={rutaActiva(pathname, "/incidencias/funcionarios")}
+              badge={abiertas}
+              badgeClassName={cn(urgentes > 0 && "bg-red-500/20 text-red-400")}
+            />
+            <ItemEnDesarrollo icono={UserRound} label="Bandeja refugiados" />
+            <ItemMenu
+              to="/incidencias/archivadas"
+              icono={Archive}
+              label="Archivadas"
+              activo={rutaActiva(pathname, "/incidencias/archivadas")}
+            />
+            <ItemMenu
+              to="/incidencias/analitica"
+              icono={BarChart3}
+              label="Calendario / analítica"
+              activo={rutaActiva(pathname, "/incidencias/analitica")}
+            />
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -232,43 +206,24 @@ function NavContenido({ sesion }: Omit<Props, "modoDrawer">) {
           <SidebarGroupLabel>Configuración</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <Collapsible defaultOpen className="group/collapsible">
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton tooltip="Configuración">
-                      <Settings />
-                      <span>Configuración</span>
-                      <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {esAdmin && (
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton asChild isActive={enUsuarios}>
-                            <Link to="/usuarios">
-                              <Users />
-                              <span>Gestión de usuarios</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      )}
-                      {veLogs && (
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton asChild isActive={enLogs}>
-                            <Link to="/logs">
-                              <ScrollText />
-                              <span>Bitácora de acciones</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      )}
-                      <ItemEnDesarrollo icono={Settings} label="Preferencias de cuenta" />
-                      <ItemEnDesarrollo icono={Settings} label="Catálogos / parámetros" />
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
+              {esAdmin && (
+                <ItemMenu
+                  to="/usuarios"
+                  icono={Users}
+                  label="Gestión de usuarios"
+                  activo={rutaActiva(pathname, "/usuarios")}
+                />
+              )}
+              {veLogs && (
+                <ItemMenu
+                  to="/logs"
+                  icono={ScrollText}
+                  label="Bitácora de acciones"
+                  activo={rutaActiva(pathname, "/logs")}
+                />
+              )}
+              <ItemEnDesarrollo icono={Settings} label="Preferencias de cuenta" />
+              <ItemEnDesarrollo icono={Settings} label="Catálogos / parámetros" />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -278,32 +233,36 @@ function NavContenido({ sesion }: Omit<Props, "modoDrawer">) {
 }
 
 /** Sidebar completo para vistas con rail colapsado. */
-export function AppSidebar({ sesion, modoDrawer = false }: Props) {
-  if (modoDrawer) {
-    return (
-      <div className="flex h-full flex-col overflow-y-auto bg-sidebar text-sidebar-foreground">
-        <div className="shrink-0 border-b border-sidebar-border px-4 py-3">
-          <p className="text-sm font-semibold text-sidebar-foreground">Menú</p>
-          <p className="text-xs text-sidebar-foreground/70">Campamentos Transitorios — Caracas</p>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-2">
-          <NavContenido sesion={sesion} />
-        </div>
-      </div>
-    );
-  }
-
+export function AppSidebar({ sesion }: Props) {
   return (
     <>
-      <SidebarHeader className="border-b border-sidebar-border px-3 py-2">
-        <p className="truncate text-sm font-semibold">Campamentos Transitorios</p>
-        <p className="truncate text-xs text-sidebar-foreground/70">Caracas</p>
+      <SidebarHeader className="border-b border-sidebar-border p-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              size="lg"
+              tooltip="Campamentos Transitorios"
+              className="group-data-[collapsible=icon]:justify-center"
+            >
+              <Link to="/centros/mapa">
+                <span className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-inset ring-primary/30">
+                  <MapPinned className="size-4" />
+                </span>
+                <span className="flex min-w-0 flex-col leading-none group-data-[collapsible=icon]:hidden">
+                  <span className="truncate text-sm font-semibold">Campamentos Transitorios</span>
+                  <span className="truncate text-xs text-sidebar-foreground/70">Caracas</span>
+                </span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <NavContenido sesion={sesion} />
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border p-2">
-        <p className="px-2 text-[10px] text-sidebar-foreground/60">
+        <p className="truncate px-2 text-[10px] text-sidebar-foreground/60 group-data-[collapsible=icon]:sr-only">
           @{sesion.user.username}
         </p>
       </SidebarFooter>

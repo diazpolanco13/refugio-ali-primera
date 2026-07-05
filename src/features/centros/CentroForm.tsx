@@ -9,6 +9,7 @@ import {
   LocateFixed,
   MapPin,
   Package,
+  Pencil,
   Phone,
   Plus,
   Shield,
@@ -53,6 +54,8 @@ import {
 } from "@/features/centros/LevantamientoCentro";
 import { FormularioRequerimientos } from "@/features/centros/RequerimientosCentro";
 import { AccionesContacto } from "@/components/AccionesContacto";
+import { VistaEncabezado } from "@/components/VistaEncabezado";
+import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1231,26 +1234,23 @@ export function CentroForm({
 
   if (variant === "pantallaCompleta") {
     return (
-      <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
-        <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden">
-          <header className="z-10 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-3 backdrop-blur-sm sm:px-4">
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-sm font-semibold leading-tight text-foreground">
-                {tituloFormulario}
-              </h1>
-              <p className="truncate text-[11px] leading-tight text-muted-foreground">
-                {descripcionFormulario}
-              </p>
-            </div>
-          </header>
-
-          {navegacionPestanas}
-          {cuerpoFormulario}
-          <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-background/95 px-3 py-3 backdrop-blur-sm sm:px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            {pieFormulario}
-          </footer>
-        </div>
-      </div>
+      <MarcoVista
+        ancho={ANCHO_VISTA_PRINCIPAL}
+        className="overflow-hidden"
+        marcoClassName="flex h-full min-h-0 flex-col text-foreground"
+      >
+        <VistaEncabezado
+          icono={esNuevo ? Plus : Pencil}
+          acento={esNuevo ? "emerald" : "sky"}
+          titulo={tituloFormulario}
+          descripcion={descripcionFormulario}
+        />
+        {navegacionPestanas}
+        {cuerpoFormulario}
+        <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-sm lg:px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {pieFormulario}
+        </footer>
+      </MarcoVista>
     );
   }
 

@@ -4,6 +4,7 @@ import {
   BedDouble,
   ChevronDown,
   Droplets,
+  LayoutGrid,
   PawPrint,
   Search,
   Shirt,
@@ -43,6 +44,7 @@ import {
 } from "@/domain/prioridadCentros";
 import { AGUA_LITROS_PERSONA_DIA } from "@/domain/estandares";
 import { AccionesContacto } from "@/components/AccionesContacto";
+import { VistaEncabezado } from "@/components/VistaEncabezado";
 import { tieneTelefonoContacto } from "@/lib/contacto";
 import { Button } from "@/components/ui/button";
 import {
@@ -219,6 +221,13 @@ export function TableroCentros({ centros, onSeleccionar }: Props) {
 
   return (
     <div className="flex h-full flex-col">
+      <VistaEncabezado
+        icono={LayoutGrid}
+        acento="sky"
+        titulo="Tablero comparativo"
+        descripcion="Prioridad, capacidad y déficits logísticos de la red de campamentos"
+      />
+
       {/* Totales de la red — en móvil solo población */}
       <div className="shrink-0 border-b border-border bg-background/95 px-3 py-2.5 sm:px-4">
         <div className="flex w-full items-stretch gap-3 overflow-x-auto pb-0.5 md:w-auto">
