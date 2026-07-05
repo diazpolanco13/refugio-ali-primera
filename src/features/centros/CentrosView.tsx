@@ -207,8 +207,9 @@ export function CentrosView() {
         ) : (
           <MarcoVista
             ancho={ANCHO_VISTA_PRINCIPAL}
+            rellenarAltura
             className="overflow-hidden"
-            marcoClassName="h-full min-h-0"
+            marcoClassName="min-h-0"
           >
             <TableroCentros
               centros={centros}

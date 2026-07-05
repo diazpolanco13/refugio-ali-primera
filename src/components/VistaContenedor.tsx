@@ -38,6 +38,8 @@ export function VistaContenedor({
 
 interface MarcoVistaProps extends VistaContenedorProps {
   marcoClassName?: string;
+  /** Ocupa la altura del viewport; el scroll queda en hijos con overflow-y-auto. */
+  rellenarAltura?: boolean;
 }
 
 /** Marco visual compartido: la línea que delimita el contenido de la vista. */
@@ -47,14 +49,22 @@ export function MarcoVista({
   className,
   contenidoClassName,
   marcoClassName,
+  rellenarAltura = false,
 }: MarcoVistaProps) {
   return (
-    <VistaContenedor ancho={ancho} className={className}>
+    <VistaContenedor
+      ancho={ancho}
+      className={className}
+      contenidoClassName={cn(
+        rellenarAltura && "flex h-full min-h-0 flex-col",
+        contenidoClassName,
+      )}
+    >
       <div
         className={cn(
           "overflow-hidden rounded-xl border border-border/80 bg-card/95 shadow-sm shadow-black/25",
+          rellenarAltura && "flex min-h-0 flex-1 flex-col",
           marcoClassName,
-          contenidoClassName,
         )}
       >
         {children}

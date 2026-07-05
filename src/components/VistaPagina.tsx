@@ -39,8 +39,9 @@ export function VistaPagina({
   return (
     <MarcoVista
       ancho={ANCHO_VISTA_PRINCIPAL}
+      rellenarAltura
       className={cn("overflow-hidden", className)}
-      marcoClassName={cn("flex h-full min-h-0 flex-col", marcoClassName)}
+      marcoClassName={cn("flex min-h-0 flex-col", marcoClassName)}
     >
       <VistaEncabezado
         icono={icono}

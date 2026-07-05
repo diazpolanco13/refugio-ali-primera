@@ -54,8 +54,9 @@ export function IncidenciasLayout({ sesion: _sesion }: Props) {
   return (
     <MarcoVista
       ancho={ANCHO_VISTA_PRINCIPAL}
+      rellenarAltura
       className="overflow-hidden"
-      marcoClassName="flex h-full min-h-0 flex-col"
+      marcoClassName="flex min-h-0 flex-col"
     >
       <VistaEncabezado
         icono={Siren}

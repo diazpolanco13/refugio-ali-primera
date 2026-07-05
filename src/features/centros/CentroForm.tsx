@@ -91,8 +91,8 @@ interface Props {
   esNuevo?: boolean;
   /** Eliminar centros es solo para roles de alcance total (admin/analista SAE). */
   puedeEliminar?: boolean;
-  /** `dialog` para edición modal; `pantallaCompleta` para alta en ruta dedicada. */
-  variant?: "dialog" | "pantallaCompleta";
+  /** `dialog` = modal; `pantallaCompleta` = ruta `/centro/nuevo`; `integrado` = ficha del campamento. */
+  variant?: "dialog" | "pantallaCompleta" | "integrado";
   onCerrar: () => void;
   /** Tras guardar con éxito (antes de `onCerrar`). */
   onGuardado?: (centroId: string) => void;
@@ -418,7 +418,9 @@ export function CentroForm({
       : "Registrar estado del campamento";
   const descripcionFormulario = esNuevo
     ? `N.° ${centro.nro} · Alta de un nuevo campamento en la red`
-    : `N.° ${centro.nro} · ${centro.nombre}`;
+    : `${centro.nro != null ? `N.° ${centro.nro} · ` : ""}${centro.nombre}`;
+
+  const esVistaCompleta = variant === "pantallaCompleta" || variant === "integrado";
 
   const navegacionPestanas = (
     <nav
@@ -428,7 +430,7 @@ export function CentroForm({
       )}
       aria-label="Secciones del reporte de levantamiento"
     >
-      {variant === "pantallaCompleta" ? (
+      {esVistaCompleta ? (
         <>
           <div className="flex gap-1.5 overflow-x-auto px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">
             {PESTANAS.map(({ valor, titulo, icono: Icono }) => {
@@ -564,9 +566,11 @@ export function CentroForm({
           </AlertDialogContent>
         </AlertDialog>
       )}
-      <Button variant="outline" onClick={onCerrar}>
-        {soloLectura ? "Cerrar" : "Cancelar"}
-      </Button>
+      {(variant === "dialog" || soloLectura) && (
+        <Button variant="outline" onClick={onCerrar}>
+          {soloLectura ? "Cerrar" : "Cancelar"}
+        </Button>
+      )}
       {!soloLectura && (
         <Button
           onClick={() => void guardar()}
@@ -583,7 +587,7 @@ export function CentroForm({
     <div
       className={cn(
         "min-h-0 flex-1 overflow-y-auto overscroll-contain",
-        variant === "pantallaCompleta"
+        esVistaCompleta
           ? "px-3 py-4 sm:px-4 sm:py-5 lg:px-6"
           : "px-5 py-4 sm:px-6 sm:py-5",
       )}
@@ -1232,12 +1236,33 @@ export function CentroForm({
         </div>
   );
 
+  const pieFooter = (
+    <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-sm lg:px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      {pieFormulario}
+    </footer>
+  );
+
+  const cuerpoVistaCompleta = (
+    <>
+      {navegacionPestanas}
+      {cuerpoFormulario}
+      {pieFooter}
+    </>
+  );
+
+  if (variant === "integrado") {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{cuerpoVistaCompleta}</div>
+    );
+  }
+
   if (variant === "pantallaCompleta") {
     return (
       <MarcoVista
         ancho={ANCHO_VISTA_PRINCIPAL}
+        rellenarAltura
         className="overflow-hidden"
-        marcoClassName="flex h-full min-h-0 flex-col text-foreground"
+        marcoClassName="flex min-h-0 flex-col text-foreground"
       >
         <VistaEncabezado
           icono={esNuevo ? Plus : Pencil}
@@ -1245,11 +1270,7 @@ export function CentroForm({
           titulo={tituloFormulario}
           descripcion={descripcionFormulario}
         />
-        {navegacionPestanas}
-        {cuerpoFormulario}
-        <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-sm lg:px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          {pieFormulario}
-        </footer>
+        {cuerpoVistaCompleta}
       </MarcoVista>
     );
   }

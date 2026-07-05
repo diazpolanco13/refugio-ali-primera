@@ -68,6 +68,8 @@ interface Props {
   centro: CentroTransitorio;
   puedeEditar: boolean;
   variant?: "compacto" | "expandido";
+  /** Si se define, abre el formulario integrado en la ficha (sin modal). */
+  onAbrirReporte?: () => void;
 }
 
 type FiltroLista = "hoy" | "semana" | "mes" | "dia" | "historial";
@@ -477,7 +479,7 @@ function TarjetaReporteDia({
   );
 }
 
-function ReporteExpandido({ centro, puedeEditar }: Props) {
+function ReporteExpandido({ centro, puedeEditar, onAbrirReporte }: Props) {
   const hoyClave = useMemo(() => claveDia(Date.now()), []);
   const desde = useMemo(() => ultimosDiasReporte(30, hoyClave)[0], [hoyClave]);
 
@@ -519,6 +521,14 @@ function ReporteExpandido({ centro, puedeEditar }: Props) {
   const [diaSel, setDiaSel] = useState<string | null>(hoyClave);
   const [reportando, setReportando] = useState(false);
   const [calendarioAbierto, setCalendarioAbierto] = useState(false);
+
+  function abrirFormularioReporte() {
+    if (onAbrirReporte) {
+      onAbrirReporte();
+      return;
+    }
+    setReportando(true);
+  }
 
   const { anio: hy, mes: hm } = parsearDiaReporte(hoyClave);
   const semInicio = (contadores.semanaDelMes - 1) * 7 + 1;
@@ -682,7 +692,7 @@ function ReporteExpandido({ centro, puedeEditar }: Props) {
                         : "Aún no se ha registrado nada hoy."}
                 </p>
               </div>
-              <Button type="button" onClick={() => setReportando(true)}>
+              <Button type="button" onClick={abrirFormularioReporte}>
                 <ClipboardCheck className="size-4" />
                 {contadores.hoyEstado === "pendiente" ? "Reportar hoy" : "Editar reporte"}
               </Button>
@@ -729,7 +739,7 @@ function ReporteExpandido({ centro, puedeEditar }: Props) {
                     variant="link"
                     size="sm"
                     className="mt-2"
-                    onClick={() => setReportando(true)}
+                    onClick={abrirFormularioReporte}
                   >
                     Registrar reporte de hoy
                   </Button>
@@ -750,7 +760,7 @@ function ReporteExpandido({ centro, puedeEditar }: Props) {
                   grande
                   esHoy={dia === hoyClave}
                   puedeEditar={puedeEditar}
-                  onEditar={() => setReportando(true)}
+                  onEditar={abrirFormularioReporte}
                 />
               ))
             )}
@@ -758,16 +768,24 @@ function ReporteExpandido({ centro, puedeEditar }: Props) {
         </Card>
       </div>
 
-      {reportando && (
+      {!onAbrirReporte && reportando && (
         <ReporteDiarioForm centro={centro} onCerrar={() => setReportando(false)} />
       )}
     </div>
   );
 }
 
-function ReporteCompacto({ centro, puedeEditar }: Props) {
+function ReporteCompacto({ centro, puedeEditar, onAbrirReporte }: Props) {
   const hoy = useMemo(() => claveDia(Date.now()), []);
   const [reportando, setReportando] = useState(false);
+
+  function abrirFormularioReporte() {
+    if (onAbrirReporte) {
+      onAbrirReporte();
+      return;
+    }
+    setReportando(true);
+  }
 
   const reportes = useReportesCentros({ centroId: centro.id, dia: hoy });
   const reportesRep = useReportesReparacionesDia({ centroId: centro.id, dia: hoy });
@@ -875,14 +893,14 @@ function ReporteCompacto({ centro, puedeEditar }: Props) {
           variant="outline"
           size="sm"
           className="mt-3 w-full"
-          onClick={() => setReportando(true)}
+          onClick={abrirFormularioReporte}
         >
           <ClipboardCheck className="size-4" />
           {reporte || parteHoy ? "Editar reporte del día" : "Reporte del día"}
         </Button>
       )}
 
-      {reportando && (
+      {!onAbrirReporte && reportando && (
         <ReporteDiarioForm centro={centro} onCerrar={() => setReportando(false)} />
       )}
     </div>
@@ -894,9 +912,22 @@ export function SeccionReporteDiarioCentro({
   centro,
   puedeEditar,
   variant = "compacto",
+  onAbrirReporte,
 }: Props) {
   if (variant === "expandido") {
-    return <ReporteExpandido centro={centro} puedeEditar={puedeEditar} />;
+    return (
+      <ReporteExpandido
+        centro={centro}
+        puedeEditar={puedeEditar}
+        onAbrirReporte={onAbrirReporte}
+      />
+    );
   }
-  return <ReporteCompacto centro={centro} puedeEditar={puedeEditar} />;
+  return (
+    <ReporteCompacto
+      centro={centro}
+      puedeEditar={puedeEditar}
+      onAbrirReporte={onAbrirReporte}
+    />
+  );
 }

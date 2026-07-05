@@ -73,7 +73,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -94,6 +93,8 @@ import { ReparacionesTab } from "./ReparacionesTab";
 
 interface Props {
   centro: CentroTransitorio;
+  /** `dialog` = modal a pantalla casi completa; `integrado` = dentro del MarcoVista de la ficha. */
+  variant?: "dialog" | "integrado";
   onCerrar: () => void;
 }
 
@@ -425,7 +426,7 @@ const clasePestanaReporte = cn(
 );
 
 /** Formulario del reporte del día (parte numérico + comidas + atención médica). */
-export function ReporteDiarioForm({ centro, onCerrar }: Props) {
+export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Props) {
   const base = normalizarCentro(centro);
   const hoy = useMemo(() => claveDia(Date.now()), []);
 
@@ -608,25 +609,47 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
     }
   }
 
-  return (
-    <Dialog open onOpenChange={(a) => !a && onCerrar()}>
-      <DialogContent
-        className="flex h-[96dvh] max-h-[96dvh] flex-col gap-0 bg-background p-0 sm:h-auto sm:max-h-[90vh] sm:max-w-2xl"
-        overlayClassName="bg-black"
-        showCloseButton={false}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        <DialogHeader className="shrink-0 border-b border-border/80 bg-background px-5 py-4 sm:px-6">
-          <DialogTitle className="text-lg">Reporte del día</DialogTitle>
-          <DialogDescription className="text-sm">
-            N.° {centro.nro} · {centro.nombre} ·{" "}
-            {new Date(`${hoy}T12:00:00`).toLocaleDateString("es-VE", {
-              day: "2-digit",
-              month: "long",
-            })}
-          </DialogDescription>
-        </DialogHeader>
+  const descripcionFecha = new Date(`${hoy}T12:00:00`).toLocaleDateString("es-VE", {
+    day: "2-digit",
+    month: "long",
+  });
 
+  const pieFormulario = (
+    <div
+      className={cn(
+        "flex shrink-0 flex-wrap items-center gap-2 border-t border-border/80 bg-background/95 px-4 py-4 backdrop-blur-sm sm:px-6",
+        "pb-[max(1rem,env(safe-area-inset-bottom))]",
+        variant === "integrado" ? "justify-end lg:px-6" : "",
+      )}
+    >
+      {errorGuardado && (
+        <p className="w-full text-xs leading-snug text-destructive sm:mr-auto sm:max-w-[60%]">
+          {errorGuardado}
+        </p>
+      )}
+      <div
+        className={cn(
+          "flex w-full gap-2",
+          variant === "integrado"
+            ? "flex-row justify-end sm:w-auto"
+            : "flex-col-reverse sm:ml-auto sm:w-auto sm:flex-row",
+        )}
+      >
+        {variant === "dialog" && (
+          <Button variant="outline" onClick={onCerrar} disabled={guardando || confirmandoParte}>
+            Cancelar
+          </Button>
+        )}
+        <Button onClick={() => void guardar()} disabled={guardando || confirmandoParte}>
+          {guardando ? <Loader2 className="size-4 animate-spin" /> : null}
+          {parteModificado ? "Guardar reporte" : "Guardar comidas y atención"}
+        </Button>
+      </div>
+    </div>
+  );
+
+  const cuerpoFormulario = (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Tabs defaultValue="parte" className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden">
           <div className="relative z-30 shrink-0 overflow-hidden border-b border-border/80 bg-background">
             <TabsList
@@ -909,23 +932,29 @@ export function ReporteDiarioForm({ centro, onCerrar }: Props) {
             </TabsContent>
           </div>
         </Tabs>
+      {pieFormulario}
+    </div>
+  );
 
-        <DialogFooter className="shrink-0 border-t border-border/80 bg-background px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
-          {errorGuardado && (
-            <p className="w-full text-xs leading-snug text-destructive sm:mr-auto sm:max-w-[60%]">
-              {errorGuardado}
-            </p>
-          )}
-          <div className="flex w-full flex-col-reverse gap-2 sm:ml-auto sm:w-auto sm:flex-row">
-            <Button variant="outline" onClick={onCerrar} disabled={guardando || confirmandoParte}>
-              Cancelar
-            </Button>
-            <Button onClick={() => void guardar()} disabled={guardando || confirmandoParte}>
-              {guardando ? <Loader2 className="size-4 animate-spin" /> : null}
-              {parteModificado ? "Guardar reporte" : "Guardar comidas y atención"}
-            </Button>
-          </div>
-        </DialogFooter>
+  if (variant === "integrado") {
+    return cuerpoFormulario;
+  }
+
+  return (
+    <Dialog open onOpenChange={(a) => !a && onCerrar()}>
+      <DialogContent
+        className="flex h-[96dvh] max-h-[96dvh] flex-col gap-0 bg-background p-0 sm:h-auto sm:max-h-[90vh] sm:max-w-2xl"
+        overlayClassName="bg-black"
+        showCloseButton={false}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <DialogHeader className="shrink-0 border-b border-border/80 bg-background px-5 py-4 sm:px-6">
+          <DialogTitle className="text-lg">Reporte del día</DialogTitle>
+          <DialogDescription className="text-sm">
+            N.° {centro.nro} · {centro.nombre} · {descripcionFecha}
+          </DialogDescription>
+        </DialogHeader>
+        {cuerpoFormulario}
       </DialogContent>
     </Dialog>
   );
