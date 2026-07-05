@@ -16,11 +16,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { MigasPanNav } from "@/components/MigasPanNav";
 import { cn } from "@/lib/utils";
 
 interface Props {
   sesion: Sesion;
-  titulo?: string;
   online: boolean;
 }
 
@@ -67,10 +67,9 @@ function IconoAppConEstado({
   );
 }
 
-/** Barra superior mínima: título, conexión y usuario. */
+/** Barra superior mínima: migas de pan, conexión y usuario. */
 export function TopBar({
   sesion,
-  titulo,
   online,
 }: Props) {
   const conectado = useSupabaseConectado();
@@ -83,17 +82,8 @@ export function TopBar({
       <div className="flex min-w-0 items-center gap-2">
         <SidebarTrigger className="shrink-0" />
         <IconoAppConEstado online={online} conectado={conectado} />
-        <div className="min-w-0">
-          <h1 className="truncate text-sm font-semibold leading-tight text-foreground">
-            {titulo ?? (
-              <>
-                <span className="sm:hidden">Campamentos</span>
-                <span className="hidden sm:inline">
-                  Campamentos Transitorios — Caracas
-                </span>
-              </>
-            )}
-          </h1>
+        <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <MigasPanNav />
         </div>
       </div>
 

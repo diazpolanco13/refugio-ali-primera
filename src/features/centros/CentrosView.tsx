@@ -214,6 +214,7 @@ export function CentrosView() {
             <TableroCentros
               centros={centros}
               onSeleccionar={(id) => navigate(`/centro/${id}`)}
+              puedeCrearCentro={puedeEliminar}
             />
           </MarcoVista>
         )}

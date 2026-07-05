@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import type { Sesion } from "@/data/authSupabase";
 import { MapaCentrosProvider } from "@/contexts/MapaCentrosContext";
 import { AppSidebar } from "@/components/AppSidebar";
 import { TopBar } from "@/components/TopBar";
-import { tituloDeRuta } from "@/layouts/titulosPagina";
 import {
   Sidebar,
   SidebarInset,
@@ -18,7 +17,6 @@ interface Props {
 }
 
 function AppShellInner({ sesion }: Props) {
-  const location = useLocation();
   const [online, setOnline] = useState(() => navigator.onLine);
 
   useEffect(() => {
@@ -32,8 +30,6 @@ function AppShellInner({ sesion }: Props) {
     };
   }, []);
 
-  const titulo = tituloDeRuta(location.pathname);
-
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex h-[100dvh] w-full overflow-hidden">
@@ -43,11 +39,7 @@ function AppShellInner({ sesion }: Props) {
         </Sidebar>
 
         <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <TopBar
-            sesion={sesion}
-            titulo={titulo}
-            online={online}
-          />
+          <TopBar sesion={sesion} online={online} />
           <div className="relative min-h-0 flex-1 overflow-hidden">
             <Outlet context={{ sesion }} />
           </div>

@@ -6,7 +6,6 @@ import {
   LayoutGrid,
   MapPinned,
   MonitorPlay,
-  Plus,
   ScrollText,
   Settings,
   Siren,
@@ -16,7 +15,6 @@ import {
 } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
 import {
-  puedeCrearCentros,
   puedeGestionarUsuarios,
   puedeVerLogs,
 } from "@/domain/permisos";
@@ -108,7 +106,6 @@ function ItemEnDesarrollo({
 
 function NavContenido({ sesion }: Props) {
   const location = useLocation();
-  const puedeCrear = puedeCrearCentros(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
   const incidencias = useIncidencias({ estado: "abierta" });
@@ -118,6 +115,10 @@ function NavContenido({ sesion }: Props) {
   const pathname = location.pathname;
   const esFichaCentro =
     /^\/centro\/[^/]+$/.test(pathname) && pathname !== "/centro/nuevo";
+  const esSeccionCampamentos =
+    rutaActiva(pathname, "/centros/tablero") ||
+    esFichaCentro ||
+    pathname === "/centro/nuevo";
 
   return (
     <>
@@ -151,16 +152,8 @@ function NavContenido({ sesion }: Props) {
               to="/centros/tablero"
               icono={LayoutGrid}
               label="Campamentos"
-              activo={rutaActiva(pathname, "/centros/tablero") || esFichaCentro}
+              activo={esSeccionCampamentos}
             />
-            {puedeCrear && (
-              <ItemMenu
-                to="/centro/nuevo"
-                icono={Plus}
-                label="Nuevo campamento"
-                activo={rutaActiva(pathname, "/centro/nuevo")}
-              />
-            )}
             <ItemMenu
               to="/centros/reportes"
               icono={ClipboardList}

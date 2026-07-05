@@ -1,5 +1,6 @@
 import { LogoCuerpo } from "@/components/LogoCuerpo";
 import { useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   BedDouble,
   ChevronDown,
@@ -10,6 +11,7 @@ import {
   List,
   ListFilter,
   PawPrint,
+  Plus,
   Search,
   Shirt,
   ShowerHead,
@@ -80,6 +82,7 @@ import { cn } from "@/lib/utils";
 interface Props {
   centros: CentroTransitorio[];
   onSeleccionar: (id: string) => void;
+  puedeCrearCentro?: boolean;
 }
 
 type Orden = "prioridad" | "ocupados" | "nombre";
@@ -305,7 +308,7 @@ function KpiRed({
  * capacidad logística se evalúa con una barra "tienes / deberías / faltan"
  * coloreada por gravedad. El clic abre la ficha completa del centro.
  */
-export function TableroCentros({ centros, onSeleccionar }: Props) {
+export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Props) {
   const [orden, setOrden] = useState<Orden>("prioridad");
   const [filtroNivel, setFiltroNivel] = useState<NivelPrioridad | null>(null);
   const [filtroCuerpo, setFiltroCuerpo] = useState<ClaveCuerpo | "todos">("todos");
@@ -480,6 +483,17 @@ export function TableroCentros({ centros, onSeleccionar }: Props) {
         acento="sky"
         titulo="Campamentos"
         descripcion="Prioridad, capacidad y déficits logísticos · clic para abrir la ficha del centro"
+        acciones={
+          puedeCrearCentro ? (
+            <Button asChild size="sm" className="h-8 shrink-0 gap-1.5">
+              <Link to="/centro/nuevo">
+                <Plus className="size-3.5" />
+                <span className="hidden sm:inline">Nuevo campamento</span>
+                <span className="sm:hidden">Nuevo</span>
+              </Link>
+            </Button>
+          ) : undefined
+        }
         debajo={
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 lg:grid-cols-6">
             <KpiRed
