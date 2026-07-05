@@ -2,7 +2,7 @@ import { matchPath } from "react-router-dom";
 
 const TITULOS: { pattern: string; titulo: string }[] = [
   { pattern: "/centros/mapa", titulo: "Mapa de campamentos" },
-  { pattern: "/centros/tablero", titulo: "Tablero comparativo" },
+  { pattern: "/centros/tablero", titulo: "Campamentos" },
   { pattern: "/centros/traslados", titulo: "Traslados entre campamentos" },
   { pattern: "/centros/reportes", titulo: "Reportes diarios (red)" },
   { pattern: "/centro/nuevo", titulo: "Registrar campamento nuevo" },

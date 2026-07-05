@@ -81,8 +81,27 @@ export const VENTANAS_COMIDA: Record<
   cena: { inicio: 17.5, fin: 20.5, label: "Cena" },
 };
 
-/** Litros de agua por persona/día recomendados (Esfera). */
+/** Litros de agua por persona/día recomendados (Esfera) — uso doméstico total
+ *  (aseo, pocetas, cocina, bebida y lavado de ropa). */
 export const AGUA_LITROS_PERSONA_DIA = 15;
+
+/** Litros mínimos de agua potable (bebida y preparación de alimentos) por
+ *  persona/día (Esfera / referencia OMS en emergencias). */
+export const AGUA_POTABLE_LITROS_PERSONA_DIA = 3;
+
+/** Comidas principales servidas por persona/día (desayuno, almuerzo, cena). */
+export const COMIDAS_POR_PERSONA_DIA = 3;
+
+/** Demanda diaria de agua según estándares Esfera para una población dada. */
+export function demandaAguaDia(personas: number): {
+  potableL: number;
+  usoCotidianoL: number;
+} {
+  return {
+    potableL: personas * AGUA_POTABLE_LITROS_PERSONA_DIA,
+    usoCotidianoL: personas * AGUA_LITROS_PERSONA_DIA,
+  };
+}
 
 /** m² cubiertos mínimos por persona (Esfera). */
 export const M2_CUBIERTOS_POR_PERSONA = 3.5;

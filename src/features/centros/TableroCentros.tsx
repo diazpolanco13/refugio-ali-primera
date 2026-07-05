@@ -1,19 +1,22 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
-  ArrowUpDown,
   BedDouble,
   ChevronDown,
+  ChevronRight,
   Droplets,
+  FilterX,
   LayoutGrid,
+  List,
+  ListFilter,
   PawPrint,
   Search,
   Shirt,
   ShowerHead,
   Trash,
   TriangleAlert,
+  UserCog,
   Users,
   Users2,
-  UserCog,
   Utensils,
   X,
 } from "lucide-react";
@@ -42,9 +45,20 @@ import {
   type NivelPrioridad,
   type PrioridadCentro,
 } from "@/domain/prioridadCentros";
-import { AGUA_LITROS_PERSONA_DIA } from "@/domain/estandares";
+import {
+  AGUA_LITROS_PERSONA_DIA,
+  AGUA_POTABLE_LITROS_PERSONA_DIA,
+  COMIDAS_POR_PERSONA_DIA,
+  demandaAguaDia,
+} from "@/domain/estandares";
+import {
+  cargarVistaTableroCentros,
+  guardarVistaTableroCentros,
+  type VistaTableroCentros,
+} from "@/data/preferenciasTablero";
 import { AccionesContacto } from "@/components/AccionesContacto";
 import { VistaEncabezado } from "@/components/VistaEncabezado";
+import { Badge } from "@/components/ui/badge";
 import { tieneTelefonoContacto } from "@/lib/contacto";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +66,14 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -60,9 +82,6 @@ interface Props {
 }
 
 type Orden = "prioridad" | "ocupados" | "nombre";
-
-/** Comidas servidas por persona/día (desayuno, almuerzo, cena). */
-const COMIDAS_POR_DIA = 3;
 
 const VERDE = "#22c55e";
 const AMBAR = "#f59e0b";
@@ -98,7 +117,186 @@ function normalizarTexto(s: string): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+function porcentajeEntero(valor: number, total: number): string {
+  if (total <= 0) return "0%";
+  return `${Math.round((valor / total) * 100)}%`;
+}
+
+function TarjetaNivelPrioridad({
+  nivel,
+  cantidad,
+  total,
+  activo,
+  onClick,
+}: {
+  nivel: NivelPrioridad;
+  cantidad: number;
+  total: number;
+  activo: boolean;
+  onClick: () => void;
+}) {
+  const color = COLOR_NIVEL[nivel];
+  const porcentaje = total > 0 ? Math.round((cantidad / total) * 100) : 0;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group min-w-0 rounded-lg border bg-background/80 p-2 text-left transition-all sm:rounded-xl sm:p-3 sm:hover:-translate-y-0.5 sm:hover:bg-muted/20",
+        activo ? "border-primary/60 ring-2 ring-primary/15" : "border-border/70",
+      )}
+      style={{ borderColor: activo ? `${color}99` : undefined }}
+    >
+      <div className="flex items-center justify-between gap-1 sm:gap-2">
+        <span className="inline-flex min-w-0 items-center gap-1 text-[10px] font-medium text-muted-foreground sm:gap-1.5 sm:text-xs">
+          <span
+            className="size-1.5 shrink-0 rounded-full sm:size-2"
+            style={{ background: color }}
+          />
+          <span className="truncate leading-tight">{ETIQUETA_NIVEL[nivel]}</span>
+        </span>
+        <span className="shrink-0 rounded-full bg-muted/60 px-1 py-0.5 text-[9px] font-medium tabular-nums text-muted-foreground sm:px-1.5 sm:text-[10px]">
+          {porcentajeEntero(cantidad, total)}
+        </span>
+      </div>
+      <div className="mt-1 flex items-end gap-1 sm:mt-2 sm:gap-1.5">
+        <span className="text-lg font-semibold leading-none tabular-nums text-foreground sm:text-2xl">
+          {cantidad}
+        </span>
+        <span className="pb-0.5 text-[10px] text-muted-foreground sm:text-[11px]">ctros</span>
+      </div>
+      <div className="mt-2 hidden h-1.5 overflow-hidden rounded-full bg-muted sm:block">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${porcentaje}%`, background: color }}
+        />
+      </div>
+    </button>
+  );
+}
+
+function BuscadorCampamento({
+  valor,
+  onChange,
+  inputRef,
+  className,
+}: {
+  valor: string;
+  onChange: (v: string) => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+  className?: string;
+}) {
+  return (
+    <div className={cn("relative min-w-0", className)}>
+      <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        ref={inputRef}
+        type="search"
+        value={valor}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Buscar por nombre…"
+        aria-label="Buscar campamento"
+        className="h-8 border-border/60 bg-background/80 pl-7 pr-7 text-xs sm:h-7"
+      />
+      {valor && (
+        <button
+          type="button"
+          onClick={() => {
+            onChange("");
+            inputRef?.current?.focus();
+          }}
+          title="Limpiar búsqueda"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+        >
+          <X className="size-3" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ToggleVistaTablero({
+  vista,
+  onChange,
+  className,
+}: {
+  vista: VistaTableroCentros;
+  onChange: (v: VistaTableroCentros) => void;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "inline-flex h-8 overflow-hidden rounded-lg border border-border/60 bg-card/70",
+        className,
+      )}
+    >
+      <Button
+        type="button"
+        variant={vista === "grid" ? "secondary" : "ghost"}
+        size="icon-xs"
+        className="h-full rounded-none border-r border-border/60"
+        title="Vista cuadrícula"
+        onClick={() => onChange("grid")}
+      >
+        <LayoutGrid className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant={vista === "lista" ? "secondary" : "ghost"}
+        size="icon-xs"
+        className="h-full rounded-none"
+        title="Vista lista"
+        onClick={() => onChange("lista")}
+      >
+        <List className="size-3.5" />
+      </Button>
+    </div>
+  );
+}
+
 const n = (x: number) => x.toLocaleString("es");
+
+/** KPI destacado de la red (población, agua, comidas). */
+function KpiRed({
+  icono,
+  valor,
+  etiqueta,
+  unidad,
+  detalle,
+}: {
+  icono: React.ReactNode;
+  valor: number;
+  etiqueta: string;
+  unidad?: string;
+  detalle?: string;
+}) {
+  return (
+    <div
+      className="min-w-0 rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 sm:rounded-xl sm:px-3 sm:py-2.5"
+      title={detalle}
+    >
+      <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground sm:text-[11px]">
+        {icono}
+        <span className="truncate">{etiqueta}</span>
+      </div>
+      <div className="mt-0.5 flex items-baseline gap-1">
+        <span className="text-lg font-bold tabular-nums leading-none text-foreground sm:text-xl">
+          {n(valor)}
+        </span>
+        {unidad && (
+          <span className="text-[10px] text-muted-foreground sm:text-[11px]">{unidad}</span>
+        )}
+      </div>
+      {detalle && (
+        <p className="mt-1 hidden truncate text-[9px] leading-tight text-muted-foreground/80 sm:block">
+          {detalle}
+        </p>
+      )}
+    </div>
+  );
+}
 
 /**
  * Sala situacional de la red de Centros Transitorios: cuadrícula de tarjetas
@@ -109,9 +307,16 @@ const n = (x: number) => x.toLocaleString("es");
 export function TableroCentros({ centros, onSeleccionar }: Props) {
   const [orden, setOrden] = useState<Orden>("prioridad");
   const [filtroNivel, setFiltroNivel] = useState<NivelPrioridad | null>(null);
-  const [filtroCuerpo, setFiltroCuerpo] = useState<ClaveCuerpo | null>(null);
+  const [filtroCuerpo, setFiltroCuerpo] = useState<ClaveCuerpo | "todos">("todos");
   const [busqueda, setBusqueda] = useState("");
-  const [cuerposAbiertos, setCuerposAbiertos] = useState(false);
+  const [vista, setVista] = useState<VistaTableroCentros>(() => cargarVistaTableroCentros());
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
+  const inputBusquedaRef = useRef<HTMLInputElement>(null);
+
+  function cambiarVista(nueva: VistaTableroCentros) {
+    setVista(nueva);
+    guardarVistaTableroCentros(nueva);
+  }
 
   const base = useMemo<Fila[]>(
     () => centros.map((c) => ({ centro: c, prioridad: prioridadCentro(c) })),
@@ -133,7 +338,9 @@ export function TableroCentros({ centros, onSeleccionar }: Props) {
   const enContexto = useMemo(() => {
     const q = normalizarTexto(busqueda.trim());
     return base.filter(({ centro }) => {
-      if (filtroCuerpo && normalizarCuerpo(centro.cuerpo) !== filtroCuerpo) return false;
+      if (filtroCuerpo !== "todos" && normalizarCuerpo(centro.cuerpo) !== filtroCuerpo) {
+        return false;
+      }
       if (q) {
         const heno = normalizarTexto(`${centro.nombre} ${centro.parroquia}`);
         if (!heno.includes(q)) return false;
@@ -174,6 +381,7 @@ export function TableroCentros({ centros, onSeleccionar }: Props) {
       if (a.cupoReal != null) cupo += a.cupoReal;
     }
     const total = refugiados + funcionarios;
+    const agua = demandaAguaDia(total);
     return {
       refugiados,
       funcionarios,
@@ -183,8 +391,9 @@ export function TableroCentros({ centros, onSeleccionar }: Props) {
       banos,
       duchas,
       cupo,
-      aguaDia: total * AGUA_LITROS_PERSONA_DIA,
-      comidasDia: total * COMIDAS_POR_DIA,
+      aguaPotableDia: agua.potableL,
+      aguaUsoCotidianoDia: agua.usoCotidianoL,
+      comidasDia: total * COMIDAS_POR_PERSONA_DIA,
     };
   }, [enContexto]);
 
@@ -215,170 +424,302 @@ export function TableroCentros({ centros, onSeleccionar }: Props) {
     { valor: "nombre", label: "Alfabético" },
   ];
 
-  const cuerpoActivo = filtroCuerpo
-    ? CATALOGO_CUERPOS.find((c) => c.clave === filtroCuerpo)
-    : null;
+  const hayFiltros =
+    filtroNivel !== null ||
+    filtroCuerpo !== "todos" ||
+    orden !== "prioridad" ||
+    busqueda.trim() !== "";
+
+  function limpiarFiltros() {
+    setFiltroNivel(null);
+    setFiltroCuerpo("todos");
+    setOrden("prioridad");
+    setBusqueda("");
+    setFiltrosAbiertos(false);
+  }
+
+  const selectoresFiltro = (
+    <>
+      <Select
+        value={filtroCuerpo}
+        onValueChange={(v) => setFiltroCuerpo(v as ClaveCuerpo | "todos")}
+      >
+        <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
+          <SelectValue placeholder="Cuerpo" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todos los cuerpos</SelectItem>
+          {cuerposPresentes.map(({ meta, cantidad }) => (
+            <SelectItem key={meta.clave} value={meta.clave}>
+              {meta.label} ({cantidad})
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select value={orden} onValueChange={(v) => setOrden(v as Orden)}>
+        <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
+          <SelectValue placeholder="Orden" />
+        </SelectTrigger>
+        <SelectContent>
+          {ordenes.map(({ valor, label }) => (
+            <SelectItem key={valor} value={valor}>
+              {label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </>
+  );
 
   return (
     <div className="flex h-full flex-col">
       <VistaEncabezado
         icono={LayoutGrid}
         acento="sky"
-        titulo="Tablero comparativo"
-        descripcion="Prioridad, capacidad y déficits logísticos de la red de campamentos"
+        titulo="Campamentos"
+        descripcion="Prioridad, capacidad y déficits logísticos · clic para abrir la ficha del centro"
+        debajo={
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 lg:grid-cols-6">
+            <KpiRed
+              icono={<Users className="size-3.5 text-sky-300" />}
+              valor={totales.refugiados}
+              etiqueta="Refugiados"
+            />
+            <KpiRed
+              icono={<UserCog className="size-3.5 text-violet-300" />}
+              valor={totales.funcionarios}
+              etiqueta="Funcionarios"
+            />
+            <KpiRed
+              icono={<PawPrint className="size-3.5 text-amber-300" />}
+              valor={totales.mascotas}
+              etiqueta="Mascotas"
+            />
+            <KpiRed
+              icono={<Droplets className="size-3.5 text-cyan-300" />}
+              valor={totales.aguaPotableDia}
+              etiqueta="Agua potable"
+              unidad="L/día"
+              detalle={`${AGUA_POTABLE_LITROS_PERSONA_DIA} L/pers. · bebida y cocina`}
+            />
+            <KpiRed
+              icono={<Droplets className="size-3.5 text-sky-300" />}
+              valor={totales.aguaUsoCotidianoDia}
+              etiqueta="Agua uso cotidiano"
+              unidad="L/día"
+              detalle={`${AGUA_LITROS_PERSONA_DIA} L/pers. · aseo, pocetas, lavado`}
+            />
+            <KpiRed
+              icono={<Utensils className="size-3.5 text-amber-300" />}
+              valor={totales.comidasDia}
+              etiqueta="Comidas"
+              unidad="/día"
+              detalle={`${COMIDAS_POR_PERSONA_DIA} raciones/pers.`}
+            />
+          </div>
+        }
       />
 
-      {/* Totales de la red — en móvil solo población */}
-      <div className="shrink-0 border-b border-border bg-background/95 px-3 py-2.5 sm:px-4">
-        <div className="flex w-full items-stretch gap-3 overflow-x-auto pb-0.5 md:w-auto">
-          <GrupoTotales titulo="Población" className="w-full md:w-auto">
-            <Tot etiqueta="Refugiados" valor={totales.refugiados} clase="text-sky-300" />
-            <Tot etiqueta="Funcionarios" valor={totales.funcionarios} clase="text-violet-300" />
-            <Tot etiqueta="Mascotas" valor={totales.mascotas} />
-            <Tot etiqueta="Total" valor={totales.total} />
-          </GrupoTotales>
-          <GrupoTotales titulo="Instalado" className="hidden md:flex">
-            <Tot etiqueta="Camas" valor={totales.camas} />
-            <Tot etiqueta="Baños" valor={totales.banos} />
-            <Tot etiqueta="Duchas" valor={totales.duchas} />
-          </GrupoTotales>
-          <GrupoTotales titulo="Necesidad diaria" className="hidden md:flex">
-            <Tot etiqueta="Agua (L)" valor={totales.aguaDia} clase="text-sky-300" />
-            <Tot etiqueta="Comidas" valor={totales.comidasDia} clase="text-amber-300" />
-          </GrupoTotales>
-          <GrupoTotales titulo="Capacidad" className="hidden md:flex">
-            <Tot etiqueta="Cupo real" valor={totales.cupo} clase="text-emerald-400" />
-          </GrupoTotales>
-        </div>
-      </div>
+      <div className="border-b border-border bg-muted/10 px-3 py-2.5 sm:px-4 sm:py-3 lg:px-6">
+        <div className="space-y-2 sm:space-y-3">
+          <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-[minmax(0,1fr)_auto] md:hidden">
+            <BuscadorCampamento
+              valor={busqueda}
+              onChange={setBusqueda}
+              inputRef={inputBusquedaRef}
+            />
+            <ToggleVistaTablero vista={vista} onChange={cambiarVista} />
+          </div>
 
-      {/* Buscador — fila propia, más visible en móvil */}
-      <div className="shrink-0 border-b border-border px-3 py-2.5 sm:px-4">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar campamento…"
-            aria-label="Buscar campamento"
-            className="h-10 w-full rounded-xl border-2 border-border bg-muted/40 pl-10 pr-10 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-primary/70 focus:bg-background focus:ring-2 focus:ring-primary/20 md:h-9 md:max-w-md md:text-xs"
-          />
-          {busqueda && (
-            <button
-              type="button"
-              onClick={() => setBusqueda("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-              title="Limpiar búsqueda"
-            >
-              <X className="size-4" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Triage por nivel */}
-      <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-border px-3 py-2 sm:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {ORDEN_NIVELES.map((nivel) => (
-          <ChipTriage
-            key={nivel}
-            nivel={nivel}
-            cantidad={conteo[nivel]}
-            activo={filtroNivel === nivel}
-            onClick={() => setFiltroNivel((prev) => (prev === nivel ? null : nivel))}
-          />
-        ))}
-      </div>
-
-      {/* Filtro por cuerpo — plegable en móvil, siempre visible en escritorio */}
-      {cuerposPresentes.length > 0 && (
-        <>
-          <Collapsible
-            open={cuerposAbiertos}
-            onOpenChange={setCuerposAbiertos}
-            className="shrink-0 border-b border-border md:hidden"
-          >
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left sm:px-4"
-              >
-                <span className="text-xs font-medium text-foreground">
-                  Filtrar por cuerpo
-                  {cuerpoActivo ? (
-                    <span className="ml-1.5 font-normal text-muted-foreground">
-                      · {cuerpoActivo.label}
-                    </span>
-                  ) : (
-                    <span className="ml-1.5 font-normal text-muted-foreground">
-                      · Todos ({cuerposPresentes.length})
-                    </span>
-                  )}
-                </span>
-                <ChevronDown
-                  className={cn(
-                    "size-4 shrink-0 text-muted-foreground transition-transform",
-                    cuerposAbiertos && "rotate-180",
-                  )}
-                />
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="px-3 pb-2.5 sm:px-4">
-              <FiltroCuerpos
-                cuerposPresentes={cuerposPresentes}
-                filtroCuerpo={filtroCuerpo}
-                onFiltroCuerpo={setFiltroCuerpo}
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 xl:grid-cols-5">
+            {ORDEN_NIVELES.map((nivel) => (
+              <TarjetaNivelPrioridad
+                key={nivel}
+                nivel={nivel}
+                cantidad={conteo[nivel]}
+                total={enContexto.length}
+                activo={filtroNivel === nivel}
+                onClick={() => setFiltroNivel(filtroNivel === nivel ? null : nivel)}
               />
+            ))}
+          </div>
+
+          <Collapsible open={filtrosAbiertos} onOpenChange={setFiltrosAbiertos} className="md:hidden">
+            <div className="flex items-center gap-2">
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 flex-1 justify-between gap-2 text-xs"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <ListFilter className="size-3.5 text-muted-foreground" />
+                    Filtros y orden
+                    {hayFiltros && <span className="size-1.5 rounded-full bg-primary" />}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "size-3.5 text-muted-foreground transition-transform",
+                      filtrosAbiertos && "rotate-180",
+                    )}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+              {hayFiltros && (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="shrink-0"
+                  title="Limpiar filtros"
+                  onClick={limpiarFiltros}
+                >
+                  <FilterX className="size-3.5" />
+                </Button>
+              )}
+            </div>
+            <CollapsibleContent className="mt-2 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={filtroCuerpo}
+                  onValueChange={(v) => setFiltroCuerpo(v as ClaveCuerpo | "todos")}
+                >
+                  <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
+                    <SelectValue placeholder="Cuerpo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los cuerpos</SelectItem>
+                    {cuerposPresentes.map(({ meta, cantidad }) => (
+                      <SelectItem key={meta.clave} value={meta.clave}>
+                        {meta.label} ({cantidad})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={orden}
+                  onValueChange={(v) => setOrden(v as Orden)}
+                >
+                  <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
+                    <SelectValue placeholder="Orden" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ordenes.map(({ valor, label }) => (
+                      <SelectItem key={valor} value={valor}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-center text-[11px] text-muted-foreground">
+                {filas.length} de {centros.length} campamentos visibles
+              </p>
             </CollapsibleContent>
           </Collapsible>
 
-          <div className="hidden shrink-0 border-b border-border px-3 py-2 md:block sm:px-4">
-            <FiltroCuerpos
-              cuerposPresentes={cuerposPresentes}
-              filtroCuerpo={filtroCuerpo}
-              onFiltroCuerpo={setFiltroCuerpo}
-              inlineLabel
+          <div className="hidden rounded-xl border border-border/70 bg-background/80 p-3 md:block">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="flex size-7 items-center justify-center rounded-lg bg-muted/60">
+                  <ListFilter className="size-3.5 text-muted-foreground" />
+                </span>
+                <div>
+                  <p className="text-xs font-semibold text-foreground">Filtros de vista</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {filas.length} de {centros.length} campamentos visibles
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {hayFiltros && (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className="h-6 gap-1 px-2 text-[11px]"
+                    onClick={limpiarFiltros}
+                  >
+                    <FilterX className="size-3" />
+                    Limpiar
+                  </Button>
+                )}
+                <ToggleVistaTablero vista={vista} onChange={cambiarVista} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {selectoresFiltro}
+            </div>
+          </div>
+
+          <div className="hidden flex-wrap items-center gap-1.5 md:flex">
+            <span className="mr-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Nivel
+            </span>
+            {ORDEN_NIVELES.map((nivel) => (
+              <button
+                key={nivel}
+                type="button"
+                onClick={() => setFiltroNivel(filtroNivel === nivel ? null : nivel)}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors",
+                  filtroNivel === nivel
+                    ? "border-primary/60 bg-primary/10"
+                    : "border-border bg-background/80 hover:bg-muted/40",
+                )}
+              >
+                <span
+                  className="size-1.5 rounded-full"
+                  style={{ background: COLOR_NIVEL[nivel] }}
+                />
+                <span className="text-muted-foreground">{ETIQUETA_NIVEL[nivel]}</span>
+                <span className="font-bold tabular-nums text-foreground">{conteo[nivel]}</span>
+              </button>
+            ))}
+            <BuscadorCampamento
+              valor={busqueda}
+              onChange={setBusqueda}
+              inputRef={inputBusquedaRef}
+              className="ml-auto w-52"
             />
           </div>
-        </>
-      )}
-
-      {/* Orden — 3 opciones */}
-      <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-border px-3 py-2 sm:px-4">
-        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-          <ArrowUpDown className="size-3" />
-          Ordenar:
-        </span>
-        {ordenes.map((o) => (
-          <Button
-            key={o.valor}
-            size="xs"
-            variant={orden === o.valor ? "secondary" : "outline"}
-            className="h-7 px-2.5 text-[11px] md:h-6"
-            onClick={() => setOrden(o.valor)}
-          >
-            {o.label}
-          </Button>
-        ))}
-        {filtroNivel && (
-          <Button
-            size="xs"
-            variant="ghost"
-            className="ml-auto h-7 px-2 text-[11px] text-muted-foreground md:h-6"
-            onClick={() => setFiltroNivel(null)}
-          >
-            Quitar filtro: {ETIQUETA_NIVEL[filtroNivel]}
-          </Button>
-        )}
+        </div>
       </div>
 
-      {/* Cuadrícula de tarjetas */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-3 sm:px-4 sm:pt-4 lg:px-6">
+        <div className="mb-2 flex items-center justify-between gap-2 sm:mb-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">
+              {vista === "grid" ? "Cuadrícula de campamentos" : "Lista de campamentos"}
+              <span className="ml-1.5 font-normal text-muted-foreground sm:hidden">
+                · {filas.length}
+              </span>
+            </p>
+            <p className="hidden text-xs text-muted-foreground sm:block">
+              {orden === "prioridad"
+                ? "Ordenados por nivel de atención"
+                : orden === "ocupados"
+                  ? "Ordenados por población refugiada"
+                  : "Orden alfabético"}
+            </p>
+          </div>
+          <Badge variant="outline" className="hidden gap-1 tabular-nums sm:inline-flex">
+            {vista === "grid" ? (
+              <LayoutGrid className="size-3 text-muted-foreground" />
+            ) : (
+              <List className="size-3 text-muted-foreground" />
+            )}
+            {filas.length} visible(s)
+          </Badge>
+        </div>
+
         {filas.length === 0 ? (
-          <p className="px-2 py-8 text-center text-xs text-muted-foreground">
-            No hay campamentos que coincidan con el filtro.
+          <p className="rounded-xl border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
+            {busqueda.trim()
+              ? `Ningún campamento coincide con «${busqueda.trim()}».`
+              : "Ningún campamento coincide con los filtros seleccionados."}
           </p>
-        ) : (
+        ) : vista === "grid" ? (
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:grid-cols-3">
             {filas.map((fila) => (
               <TarjetaCentro
@@ -388,9 +729,124 @@ export function TableroCentros({ centros, onSeleccionar }: Props) {
               />
             ))}
           </div>
+        ) : (
+          <ul className="space-y-1.5 sm:space-y-2">
+            {filas.map((fila) => (
+              <li key={fila.centro.id}>
+                <FilaCentroTablero
+                  fila={fila}
+                  onSeleccionar={() => onSeleccionar(fila.centro.id)}
+                />
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Fila compacta de un campamento (vista lista), al estilo de reportes diarios.
+ */
+function FilaCentroTablero({
+  fila,
+  onSeleccionar,
+}: {
+  fila: Fila;
+  onSeleccionar: () => void;
+}) {
+  const { centro, prioridad } = fila;
+  const meta = metaCuerpoDe(centro.cuerpo);
+  const analisis = prioridad.analisis;
+  const colorNivel = COLOR_NIVEL[prioridad.nivel];
+  const colorSemaforo =
+    analisis.semaforo === "sin_datos" ? null : COLOR_SEMAFORO[analisis.semaforo];
+  const logistica = analisis.personasLogistica;
+
+  return (
+    <button
+      type="button"
+      onClick={onSeleccionar}
+      className="group flex w-full items-center gap-2 rounded-lg border border-border/60 bg-background/65 px-2.5 py-2 text-left transition-all active:bg-muted/30 sm:gap-3 sm:rounded-xl sm:px-3 sm:py-3 sm:hover:-translate-y-0.5 sm:hover:border-border sm:hover:bg-muted/25 sm:hover:shadow-sm"
+    >
+      <div
+        className="flex size-8 shrink-0 flex-col items-center justify-center overflow-hidden rounded-lg border bg-muted/30 sm:size-10 sm:rounded-xl"
+        style={{ borderColor: `${meta.color}55` }}
+      >
+        {meta.logo ? (
+          <img src={meta.logo} alt="" className="size-full object-cover" />
+        ) : (
+          <>
+            <span className="text-[8px] font-medium leading-none text-muted-foreground sm:text-[9px]">
+              N.°
+            </span>
+            <span className="text-xs font-semibold leading-none tabular-nums text-foreground sm:text-sm">
+              {centro.nro}
+            </span>
+          </>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-foreground">{centro.nombre}</p>
+        <p className="truncate text-[11px] text-muted-foreground sm:text-xs">
+          {meta.label}
+          {centro.parroquia ? ` · ${centro.parroquia.replace(/^Parroquia\s/i, "")}` : ""}
+        </p>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5 sm:hidden">
+          <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-sky-300">
+            <Users className="size-2.5" />
+            {n(analisis.refugiados)}
+          </span>
+          <Badge
+            variant="outline"
+            className="h-5 px-1.5 text-[10px]"
+            style={{ borderColor: `${colorNivel}66`, color: colorNivel }}
+          >
+            {ETIQUETA_NIVEL[prioridad.nivel]}
+          </Badge>
+        </div>
+      </div>
+      <div className="hidden min-w-0 shrink-0 items-center gap-2 sm:flex sm:justify-end">
+        <span className="inline-flex h-7 items-center gap-1 rounded-lg border border-sky-400/25 bg-sky-400/10 px-2 text-xs tabular-nums text-sky-100">
+          <Users className="size-3 text-sky-300" />
+          <span className="font-semibold">{n(analisis.refugiados)}</span>
+        </span>
+        <span className="inline-flex h-7 items-center gap-1 rounded-lg border border-violet-400/25 bg-violet-400/10 px-2 text-xs tabular-nums text-violet-100">
+          <UserCog className="size-3 text-violet-300" />
+          <span className="font-semibold">{n(analisis.personal)}</span>
+        </span>
+        {colorSemaforo && analisis.porcentajeOcupacion != null && (
+          <span
+            className="inline-flex h-7 items-center rounded-lg border px-2 text-xs font-semibold tabular-nums"
+            style={{
+              borderColor: `${colorSemaforo}44`,
+              background: `${colorSemaforo}15`,
+              color: colorSemaforo,
+            }}
+          >
+            {Math.min(999, analisis.porcentajeOcupacion)}%
+          </span>
+        )}
+        {logistica > 0 && (
+          <span className="inline-flex h-7 items-center gap-1 rounded-lg border border-amber-400/25 bg-amber-400/10 px-2 text-xs tabular-nums text-amber-100">
+            <Utensils className="size-3 text-amber-300" />
+            <span className="font-semibold">{n(logistica * COMIDAS_POR_PERSONA_DIA)}</span>
+          </span>
+        )}
+        <Badge
+          variant="outline"
+          className="h-7"
+          style={{ borderColor: `${colorNivel}66`, color: colorNivel }}
+        >
+          {prioridad.nivel === "critico" && (
+            <TriangleAlert className="mr-1 size-3" />
+          )}
+          {ETIQUETA_NIVEL[prioridad.nivel]}
+        </Badge>
+      </div>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+    </button>
   );
 }
 
@@ -418,7 +874,7 @@ function TarjetaCentro({
 
   const logistica = analisis.personasLogistica;
   const aguaDiaL = logistica * AGUA_LITROS_PERSONA_DIA;
-  const comidasDia = logistica * COMIDAS_POR_DIA;
+  const comidasDia = logistica * COMIDAS_POR_PERSONA_DIA;
   const mascotas = c.ocupacion.mascotas;
 
   const responsables = c.responsables.filter(
@@ -788,139 +1244,3 @@ function Barra({
   );
 }
 
-/** Grupo de la fila de totales de red (título + métricas). */
-function GrupoTotales({
-  titulo,
-  children,
-  className,
-}: {
-  titulo: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex shrink-0 flex-col gap-1 rounded-lg border border-border bg-muted/30 px-2.5 py-1.5",
-        className,
-      )}
-    >
-      <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {titulo}
-      </span>
-      <div className="flex w-full items-stretch justify-between gap-1 md:w-auto md:justify-start md:gap-3">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-/** Chips de filtro por cuerpo policial (reutilizado en móvil plegable y escritorio). */
-function FiltroCuerpos({
-  cuerposPresentes,
-  filtroCuerpo,
-  onFiltroCuerpo,
-  inlineLabel,
-}: {
-  cuerposPresentes: { meta: (typeof CATALOGO_CUERPOS)[number]; cantidad: number }[];
-  filtroCuerpo: ClaveCuerpo | null;
-  onFiltroCuerpo: (clave: ClaveCuerpo | null) => void;
-  inlineLabel?: boolean;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {inlineLabel && <span className="text-[11px] text-muted-foreground">Cuerpo:</span>}
-      <button
-        type="button"
-        onClick={() => onFiltroCuerpo(null)}
-        className={cn(
-          "rounded-lg border px-2 py-1 text-[11px] transition-colors",
-          filtroCuerpo === null
-            ? "border-primary/50 bg-primary/10 text-foreground"
-            : "border-border text-muted-foreground hover:bg-muted/50",
-        )}
-      >
-        Todos
-      </button>
-      {cuerposPresentes.map(({ meta, cantidad }) => {
-        const activo = filtroCuerpo === meta.clave;
-        return (
-          <button
-            key={meta.clave}
-            type="button"
-            onClick={() => onFiltroCuerpo(activo ? null : meta.clave)}
-            title={meta.label}
-            className={cn(
-              "flex items-center gap-1.5 rounded-lg border px-1.5 py-1 text-[11px] transition-colors",
-              activo ? "bg-muted" : "hover:bg-muted/50",
-            )}
-            style={{ borderColor: activo ? meta.color : "var(--border)" }}
-          >
-            <span
-              className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-white text-[9px]"
-              style={{ borderColor: meta.color }}
-            >
-              {meta.logo ? (
-                <img src={meta.logo} alt="" className="size-full object-cover" />
-              ) : (
-                meta.icono
-              )}
-            </span>
-            <span className="text-foreground">{meta.label}</span>
-            <span className="tabular-nums text-muted-foreground">{cantidad}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function Tot({
-  etiqueta,
-  valor,
-  clase,
-}: {
-  etiqueta: string;
-  valor: number;
-  clase?: string;
-}) {
-  return (
-    <div className="min-w-0 flex-1 text-center md:flex-none">
-      <div className={cn("text-base font-bold leading-none tabular-nums text-foreground", clase)}>
-        {n(valor)}
-      </div>
-      <div className="mt-0.5 whitespace-nowrap text-[9px] leading-tight text-muted-foreground">
-        {etiqueta}
-      </div>
-    </div>
-  );
-}
-
-function ChipTriage({
-  nivel,
-  cantidad,
-  activo,
-  onClick,
-}: {
-  nivel: NivelPrioridad;
-  cantidad: number;
-  activo: boolean;
-  onClick: () => void;
-}) {
-  const color = COLOR_NIVEL[nivel];
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] transition-colors",
-        activo ? "bg-muted" : "hover:bg-muted/50",
-      )}
-      style={{ borderColor: activo ? color : "var(--border)" }}
-    >
-      <span className="size-2 rounded-full" style={{ background: color }} />
-      <span className="font-semibold tabular-nums text-foreground">{cantidad}</span>
-      <span className="text-muted-foreground">{ETIQUETA_NIVEL[nivel]}</span>
-    </button>
-  );
-}
