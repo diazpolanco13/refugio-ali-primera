@@ -34,7 +34,7 @@ export interface MetaCuerpo {
   label: string;
   icono: string;
   color: string;
-  /** Logo/escudo oficial (PNG/JPG en `public/logos-cuerpos/`). `null` si no se consiguió uno. */
+  /** Logo/escudo oficial (WebP 96×96 en `public/logos-cuerpos/`). `null` si no hay uno. */
   logo: string | null;
 }
 
@@ -45,17 +45,17 @@ export interface MetaCuerpo {
  * fueron provistos directamente por el equipo de campo.
  */
 export const CATALOGO_CUERPOS: MetaCuerpo[] = [
-  { clave: "gnb", label: "GNB", icono: "🪖", color: "#4d7c0f", logo: "/logos-cuerpos/gnb.png" },
-  { clave: "sebin", label: "SEBIN", icono: "🛡️", color: "#1e3a8a", logo: "/logos-cuerpos/sebin.png" },
-  { clave: "dgcim", label: "DGCIM", icono: "🎖️", color: "#334155", logo: "/logos-cuerpos/dgcim.jpg" },
-  { clave: "cicpc", label: "CICPC", icono: "🔍", color: "#7c3aed", logo: "/logos-cuerpos/cicpc.png" },
-  { clave: "pnb", label: "PNB", icono: "👮", color: "#1d4ed8", logo: "/logos-cuerpos/pnb.jpg" },
-  { clave: "poli_baruta", label: "Poli Baruta", icono: "🚓", color: "#0ea5e9", logo: "/logos-cuerpos/poli_baruta.jpg" },
-  { clave: "poli_caracas", label: "PoliCaracas", icono: "🚔", color: "#059669", logo: "/logos-cuerpos/poli_caracas.jpg" },
-  { clave: "poli_chacao", label: "PoliChacao", icono: "🚨", color: "#d97706", logo: "/logos-cuerpos/poli_chacao.jpg" },
-  { clave: "poli_hatillo", label: "Poli El Hatillo", icono: "🛵", color: "#db2777", logo: "/logos-cuerpos/poli_hatillo.jpg" },
-  { clave: "poli_sucre", label: "Poli Sucre", icono: "🚦", color: "#ea580c", logo: "/logos-cuerpos/poli_sucre.jpg" },
-  { clave: "poli_miranda", label: "Poli Miranda", icono: "🏍️", color: "#65a30d", logo: "/logos-cuerpos/poli_miranda.jpg" },
+  { clave: "gnb", label: "GNB", icono: "🪖", color: "#4d7c0f", logo: "/logos-cuerpos/gnb.webp" },
+  { clave: "sebin", label: "SEBIN", icono: "🛡️", color: "#1e3a8a", logo: "/logos-cuerpos/sebin.webp" },
+  { clave: "dgcim", label: "DGCIM", icono: "🎖️", color: "#334155", logo: "/logos-cuerpos/dgcim.webp" },
+  { clave: "cicpc", label: "CICPC", icono: "🔍", color: "#7c3aed", logo: "/logos-cuerpos/cicpc.webp" },
+  { clave: "pnb", label: "PNB", icono: "👮", color: "#1d4ed8", logo: "/logos-cuerpos/pnb.webp" },
+  { clave: "poli_baruta", label: "Poli Baruta", icono: "🚓", color: "#0ea5e9", logo: "/logos-cuerpos/poli_baruta.webp" },
+  { clave: "poli_caracas", label: "PoliCaracas", icono: "🚔", color: "#059669", logo: "/logos-cuerpos/poli_caracas.webp" },
+  { clave: "poli_chacao", label: "PoliChacao", icono: "🚨", color: "#d97706", logo: "/logos-cuerpos/poli_chacao.webp" },
+  { clave: "poli_hatillo", label: "Poli El Hatillo", icono: "🛵", color: "#db2777", logo: "/logos-cuerpos/poli_hatillo.webp" },
+  { clave: "poli_sucre", label: "Poli Sucre", icono: "🚦", color: "#ea580c", logo: "/logos-cuerpos/poli_sucre.webp" },
+  { clave: "poli_miranda", label: "Poli Miranda", icono: "🏍️", color: "#65a30d", logo: "/logos-cuerpos/poli_miranda.webp" },
   { clave: "sin_asignar", label: "Sin asignar", icono: "❔", color: "#64748b", logo: null },
 ];
 

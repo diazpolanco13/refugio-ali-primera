@@ -1,3 +1,4 @@
+import { LogoCuerpo } from "@/components/LogoCuerpo";
 import { useMemo, useRef, useState } from "react";
 import {
   BedDouble,
@@ -775,7 +776,7 @@ function FilaCentroTablero({
         style={{ borderColor: `${meta.color}55` }}
       >
         {meta.logo ? (
-          <img src={meta.logo} alt="" className="size-full object-cover" />
+          <LogoCuerpo src={meta.logo} priority="low" />
         ) : (
           <>
             <span className="text-[8px] font-medium leading-none text-muted-foreground sm:text-[9px]">
@@ -913,7 +914,7 @@ function TarjetaCentro({
               style={{ borderColor: meta.color }}
             >
               {meta.logo ? (
-                <img src={meta.logo} alt="" className="size-full object-cover" />
+                <LogoCuerpo src={meta.logo} priority="low" />
               ) : (
                 meta.icono
               )}
@@ -945,7 +946,7 @@ function TarjetaCentro({
               style={{ borderColor: meta.color }}
             >
               {meta.logo ? (
-                <img src={meta.logo} alt="" className="size-full object-cover" />
+                <LogoCuerpo src={meta.logo} priority="low" />
               ) : (
                 meta.icono
               )}

@@ -1,3 +1,4 @@
+import { LogoCuerpo } from "@/components/LogoCuerpo";
 import { MapPin, MapPinOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -90,7 +91,7 @@ export function FilaCentroLista({
             aria-hidden
           >
             {meta.logo ? (
-              <img src={meta.logo} alt="" className="size-full object-cover" />
+              <LogoCuerpo src={meta.logo} priority="low" />
             ) : (
               meta.icono
             )}

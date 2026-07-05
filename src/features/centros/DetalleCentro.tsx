@@ -1,3 +1,4 @@
+import { LogoCuerpo } from "@/components/LogoCuerpo";
 import {
   BedDouble,
   ChevronDown,
@@ -215,7 +216,7 @@ export function SeccionIdentificacionCentro({ centro }: SeccionProps) {
       >
         <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
           {meta.logo ? (
-            <img src={meta.logo} alt="" className="size-full object-cover" />
+            <LogoCuerpo src={meta.logo} />
           ) : (
             <span className="text-sm leading-none">{meta.icono}</span>
           )}

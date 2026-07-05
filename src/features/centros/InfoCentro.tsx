@@ -1,3 +1,4 @@
+import { LogoCuerpo } from "@/components/LogoCuerpo";
 import { MapPin, Navigation, ShieldCheck, Users } from "lucide-react";
 import {
   metaCuerpoDe,
@@ -81,7 +82,7 @@ export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle 
           aria-hidden
         >
           {meta.logo ? (
-            <img src={meta.logo} alt="" className="size-full object-cover" />
+            <LogoCuerpo src={meta.logo} priority="high" />
           ) : (
             <span className="text-sm leading-none">{meta.icono}</span>
           )}

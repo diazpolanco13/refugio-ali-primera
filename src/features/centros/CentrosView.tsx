@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { PanelFlotante } from "@/components/PanelFlotante";
+import { preloadLogosCuerpos } from "@/data/preloadLogosCuerpos";
 import { cargarBaseMapaCentros, guardarBaseMapaCentros } from "@/data/preferenciasMapa";
 import type { BaseMapa } from "@/map/estiloMapa";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
@@ -55,6 +56,10 @@ export function CentrosView() {
   useEffect(() => {
     guardarBaseMapaCentros(baseMapa);
   }, [baseMapa]);
+
+  useEffect(() => {
+    preloadLogosCuerpos();
+  }, []);
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
   const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(

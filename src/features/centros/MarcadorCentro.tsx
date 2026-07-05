@@ -1,3 +1,4 @@
+import { LogoCuerpo } from "@/components/LogoCuerpo";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -45,7 +46,7 @@ export function MarcadorCentro({
       style={{ borderColor: color }}
     >
       {logo ? (
-        <img src={logo} alt="" className="size-full object-cover" draggable={false} />
+        <LogoCuerpo src={logo} priority="high" />
       ) : (
         <span className={cn("leading-none", conContador ? "text-sm" : "text-base")}>{icono}</span>
       )}
