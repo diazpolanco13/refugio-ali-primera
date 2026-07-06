@@ -1,0 +1,254 @@
+// Censo rápido en terreno (sin login): RPCs públicas censo_centros /
+// censo_registrar / censo_actualizar / censo_eliminar / censo_listado.
+// La escritura pasa por funciones security definer en Supabase; el rol anon
+// no tiene acceso directo a las tablas.
+
+import { supabase } from "./supabaseClient";
+
+export interface CentroCenso {
+  id: string;
+  nombre: string;
+}
+
+/** Funcionario que dirige el levantamiento en la escuela. */
+export interface FuncionarioCenso {
+  jerarquia: string;
+  nombre: string;
+  institucion: string;
+  telefono: string;
+}
+
+/** Geolocalización opcional del censador (validador de presencia en el refugio). */
+export interface UbicacionCensador {
+  en_refugio: boolean;
+  lat: number | null;
+  lng: number | null;
+  /** Precisión del GPS en metros. */
+  precision: number | null;
+}
+
+export function ubicacionCensadorVacia(): UbicacionCensador {
+  return { en_refugio: true, lat: null, lng: null, precision: null };
+}
+
+/** Condición de la vivienda perdida (planilla física). */
+export type CondicionVivienda = "" | "destruida" | "inhabitable" | "no_posee";
+
+export const CONDICIONES_VIVIENDA: { valor: CondicionVivienda; label: string }[] = [
+  { valor: "destruida", label: "Destruida" },
+  { valor: "inhabitable", label: "Inhabitable" },
+  { valor: "no_posee", label: "No posee" },
+];
+
+/** Parentesco de un menor con el jefe de su familia. */
+export const PARENTESCOS_MENOR = [
+  "Hijo/a",
+  "Nieto/a",
+  "Hermano/a",
+  "Sobrino/a",
+  "Otro familiar",
+] as const;
+
+/** Datos de la persona refugiada capturados en terreno (planilla física). */
+export interface RegistroCenso {
+  primer_nombre: string;
+  segundo_nombre: string;
+  primer_apellido: string;
+  segundo_apellido: string;
+  edad: number | null;
+  tipo_doc: "V" | "E" | "P" | "";
+  documento: string;
+  sexo: "M" | "F" | "";
+  telefono: string;
+  embarazada: boolean;
+  embarazo_semanas: number | null;
+  discapacidad: boolean;
+  discapacidad_detalle: string;
+  enfermedad: boolean;
+  enfermedad_detalle: string;
+  /** Menores de edad: cédula del jefe de familia y parentesco. */
+  jefe_tipo_doc: "V" | "E" | "P" | "";
+  jefe_documento: string;
+  parentesco_jefe: string;
+  pais: string;
+  estado_federativo: string;
+  municipio: string;
+  parroquia: string;
+  condicion_vivienda: CondicionVivienda;
+  calle: string;
+  casa_edificio: string;
+}
+
+/** Fila devuelta por censo_listado (registros de un refugio). */
+export interface RegistroCensoGuardado {
+  id: string;
+  creado_en: string;
+  primer_nombre: string;
+  segundo_nombre: string;
+  primer_apellido: string;
+  segundo_apellido: string;
+  edad: number | null;
+  tipo_doc: string | null;
+  documento: string;
+  sexo: string | null;
+  telefono: string;
+  embarazada: boolean;
+  embarazo_semanas: number | null;
+  discapacidad: boolean;
+  discapacidad_detalle: string;
+  enfermedad: boolean;
+  enfermedad_detalle: string;
+  jefe_tipo_doc: string | null;
+  jefe_documento: string;
+  parentesco_jefe: string;
+  jefe_registro_id: string | null;
+  pais: string;
+  condicion_vivienda: string;
+  estado_federativo: string;
+  municipio: string;
+  parroquia: string;
+  calle: string;
+  casa_edificio: string;
+}
+
+/** Último cierre declarado del censo de un refugio. */
+export interface CierreCenso {
+  creado_en: string;
+  funcionario_nombre: string;
+  funcionario_institucion: string;
+  total_registrados: number;
+}
+
+/** Payload JSON que esperan censo_registrar y censo_actualizar. */
+function payloadRegistro(registro: RegistroCenso) {
+  return {
+    primer_nombre: registro.primer_nombre.trim(),
+    segundo_nombre: registro.segundo_nombre.trim(),
+    primer_apellido: registro.primer_apellido.trim(),
+    segundo_apellido: registro.segundo_apellido.trim(),
+    edad: registro.edad != null ? String(registro.edad) : "",
+    tipo_doc: registro.tipo_doc,
+    documento: registro.documento.trim(),
+    sexo: registro.sexo,
+    telefono: registro.telefono.trim(),
+    embarazada: registro.embarazada,
+    embarazo_semanas:
+      registro.embarazada && registro.embarazo_semanas != null
+        ? String(registro.embarazo_semanas)
+        : "",
+    discapacidad: registro.discapacidad,
+    discapacidad_detalle: registro.discapacidad ? registro.discapacidad_detalle.trim() : "",
+    enfermedad: registro.enfermedad,
+    enfermedad_detalle: registro.enfermedad ? registro.enfermedad_detalle.trim() : "",
+    jefe_tipo_doc: registro.jefe_tipo_doc,
+    jefe_documento: registro.jefe_documento.trim(),
+    parentesco_jefe: registro.parentesco_jefe,
+    pais: registro.pais,
+    estado_federativo: registro.estado_federativo,
+    municipio: registro.municipio,
+    parroquia: registro.parroquia,
+    condicion_vivienda: registro.condicion_vivienda,
+    calle: registro.calle.trim(),
+    casa_edificio: registro.casa_edificio.trim(),
+  };
+}
+
+/** Convierte una fila guardada al formulario de edición. */
+export function registroDesdeGuardado(fila: RegistroCensoGuardado): RegistroCenso {
+  const tipoDoc = fila.tipo_doc === "V" || fila.tipo_doc === "E" || fila.tipo_doc === "P"
+    ? fila.tipo_doc
+    : "V";
+  const jefeTipoDoc =
+    fila.jefe_tipo_doc === "V" || fila.jefe_tipo_doc === "E" || fila.jefe_tipo_doc === "P"
+      ? fila.jefe_tipo_doc
+      : "V";
+  const sexo = fila.sexo === "M" || fila.sexo === "F" ? fila.sexo : "";
+  const condicion =
+    fila.condicion_vivienda === "destruida" ||
+    fila.condicion_vivienda === "inhabitable" ||
+    fila.condicion_vivienda === "no_posee"
+      ? fila.condicion_vivienda
+      : "";
+
+  return {
+    primer_nombre: fila.primer_nombre,
+    segundo_nombre: fila.segundo_nombre,
+    primer_apellido: fila.primer_apellido,
+    segundo_apellido: fila.segundo_apellido,
+    edad: fila.edad,
+    tipo_doc: tipoDoc,
+    documento: fila.documento,
+    sexo,
+    telefono: fila.telefono,
+    embarazada: fila.embarazada,
+    embarazo_semanas: fila.embarazo_semanas,
+    discapacidad: fila.discapacidad,
+    discapacidad_detalle: fila.discapacidad_detalle,
+    enfermedad: fila.enfermedad,
+    enfermedad_detalle: fila.enfermedad_detalle,
+    jefe_tipo_doc: jefeTipoDoc,
+    jefe_documento: fila.jefe_documento,
+    parentesco_jefe: fila.parentesco_jefe,
+    pais: fila.pais || "Venezuela",
+    estado_federativo: fila.estado_federativo,
+    municipio: fila.municipio,
+    parroquia: fila.parroquia,
+    condicion_vivienda: condicion,
+    calle: fila.calle,
+    casa_edificio: fila.casa_edificio,
+  };
+}
+
+/** Lista de refugios activos (id + nombre) para el selector público. */
+export async function listarCentrosCenso(): Promise<CentroCenso[]> {
+  const { data, error } = await supabase.rpc("censo_centros");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as CentroCenso[];
+}
+
+/** Registra una persona en el censo rápido. Devuelve el id del registro. */
+export async function registrarCenso(
+  centroId: string,
+  funcionario: FuncionarioCenso,
+  registro: RegistroCenso,
+  ubicacion?: UbicacionCensador,
+): Promise<string> {
+  const { data, error } = await supabase.rpc("censo_registrar", {
+    p_centro_id: centroId,
+    p_funcionario: {
+      jerarquia: funcionario.jerarquia.trim(),
+      nombre: funcionario.nombre.trim(),
+      institucion: funcionario.institucion.trim(),
+      telefono: funcionario.telefono.trim(),
+      en_refugio: ubicacion?.en_refugio ?? false,
+      lat: ubicacion?.lat ?? null,
+      lng: ubicacion?.lng ?? null,
+      precision: ubicacion?.precision ?? null,
+    },
+    p_registro: payloadRegistro(registro),
+  });
+  if (error) throw new Error(error.message);
+  return data as string;
+}
+
+/** Corrige un registro existente del censo. */
+export async function actualizarCenso(id: string, registro: RegistroCenso): Promise<void> {
+  const { error } = await supabase.rpc("censo_actualizar", {
+    p_id: id,
+    p_registro: payloadRegistro(registro),
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** Elimina un registro del censo (irreversible). */
+export async function eliminarCenso(id: string): Promise<void> {
+  const { error } = await supabase.rpc("censo_eliminar", { p_id: id });
+  if (error) throw new Error(error.message);
+}
+
+/** Registros del censo de un refugio (vista de estadística del operador). */
+export async function listarRegistrosCenso(centroId: string): Promise<RegistroCensoGuardado[]> {
+  const { data, error } = await supabase.rpc("censo_listado", { p_centro_id: centroId });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as RegistroCensoGuardado[];
+}

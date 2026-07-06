@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Login } from "./features/auth/Login";
 import { initAuth, useSesion } from "./data/authSupabase";
 import { MarcaAgua } from "./components/MarcaAgua";
@@ -36,6 +36,7 @@ const importRefugiadoDetalleRedView = () =>
   import("./features/refugiados/RefugiadoDetalleRedView");
 const importDotacionesPendientesView = () =>
   import("./features/refugiados/DotacionesPendientesView");
+const importCensoView = () => import("./features/censo/CensoView");
 
 const CentrosView = lazy(() => importCentrosView().then((m) => ({ default: m.CentrosView })));
 const FichaCentroView = lazy(() =>
@@ -81,6 +82,7 @@ const RefugiadoDetalleRedView = lazy(() =>
 const DotacionesPendientesView = lazy(() =>
   importDotacionesPendientesView().then((m) => ({ default: m.DotacionesPendientesView })),
 );
+const CensoView = lazy(() => importCensoView().then((m) => ({ default: m.CensoView })));
 
 /**
  * Devuelve el import del chunk que renderizará la ruta actual, para
@@ -88,6 +90,7 @@ const DotacionesPendientesView = lazy(() =>
  * listadas caen al chunk del mapa (destino del fallback `*`).
  */
 function precargarRutaInicial(pathname: string): Promise<unknown> {
+  if (pathname.startsWith("/censo")) return importCensoView();
   if (pathname.startsWith("/dashboard")) return importDashboardView();
   if (pathname.startsWith("/centros/tablero")) return importCentrosView();
   if (pathname.startsWith("/centros/reportes")) return importReportesDiariosRedView();
@@ -106,6 +109,7 @@ function precargarRutaInicial(pathname: string): Promise<unknown> {
 
 export function App() {
   const sesion = useSesion();
+  const location = useLocation();
   const [arrancando, setArrancando] = useState(true);
 
   useEffect(() => {
@@ -125,6 +129,17 @@ export function App() {
   }, [arrancando]);
 
   if (arrancando) return null;
+
+  // Planilla de censo rápido en terreno: vista pública, sin login. Va antes
+  // del gate de sesión para que los operadores accedan directo desde el enlace.
+  if (location.pathname.startsWith("/censo")) {
+    return (
+      <Suspense fallback={<PantallaCarga />}>
+        <CensoView />
+      </Suspense>
+    );
+  }
+
   if (!sesion) return <Login />;
   const mostrarMarcaAgua = sesion.user.marca_agua !== false;
 
