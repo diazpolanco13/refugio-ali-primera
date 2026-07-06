@@ -4,6 +4,7 @@ import {
   BookOpen,
   ClipboardList,
   LocateFixed,
+  Send,
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { telegramHref } from "@/lib/contacto";
+
+/** Soporte del censo (no mostrar en UI; solo enlace a Telegram). */
+const TELEGRAM_SOPORTE_CENSO = "+584129317099";
 
 interface Props {
   onContinuar: () => void;
@@ -44,6 +49,8 @@ function BloqueInstruccion({
 
 /** Pantalla de inicio con instrucciones básicas para el funcionario censador. */
 export function CensoInstrucciones({ onContinuar }: Props) {
+  const enlaceTelegram = telegramHref(TELEGRAM_SOPORTE_CENSO);
+
   return (
     <Card className="-mt-3 flex min-h-[calc(100dvh-9rem)] flex-col shadow-lg">
       <CardHeader className="pb-2">
@@ -90,6 +97,21 @@ export function CensoInstrucciones({ onContinuar }: Props) {
           Geolocalizar ayuda a validar que está en el campamento, pero no es obligatorio: si falla el GPS o no hay
           permiso, puede continuar igual.
         </BloqueInstruccion>
+
+        {enlaceTelegram && (
+          <BloqueInstruccion icono={Send} titulo="¿Dudas o problemas?">
+            Si tiene alguna pregunta sobre el uso de la planilla,{" "}
+            <a
+              href={enlaceTelegram}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              escríbanos por Telegram
+            </a>
+            .
+          </BloqueInstruccion>
+        )}
       </CardContent>
 
       <CardFooter className="border-t border-border pt-4">
