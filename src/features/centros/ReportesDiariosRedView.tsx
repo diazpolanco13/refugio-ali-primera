@@ -1,7 +1,7 @@
 // Vista agregada de reportes diarios de toda la red de campamentos.
 
 import { useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import {
   ArrowDownAZ,
   ArrowUpAZ,
@@ -27,6 +27,7 @@ import { useReportesCentros } from "@/data/useReportesCentros";
 import { useReportesReparacionesDia } from "@/data/useReportesReparacionesDia";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
+import { useIncidencias } from "@/data/useIncidencias";
 import { claveDia } from "@/data/reposSupabase";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import { metaCuerpoDe, type CentroTransitorio } from "@/domain/centrosTransitorios";
@@ -42,6 +43,8 @@ import {
   type EstadoReporteDia,
   type ReporteDiario,
 } from "@/domain/reporteDiario";
+import { construirReporteEjecutivoCampamentos } from "@/domain/reporteEjecutivoCampamentos";
+import type { Sesion } from "@/data/authSupabase";
 import { reporteReparacionesDelDia } from "@/domain/reparaciones";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -72,8 +75,13 @@ import {
   formatearDiaCalendario,
 } from "./CalendarioSelectorDia";
 import { normalizarTextoBusqueda } from "./CentrosListaItems";
+import { BotonReporteEjecutivo } from "./reporte-ejecutivo/BotonReporteEjecutivo";
 
 type FiltroEstado = EstadoReporteDia | "todos";
+
+interface OutletContext {
+  sesion: Sesion;
+}
 
 type OrdenReportes =
   | "pendientes"
@@ -398,6 +406,7 @@ function IndicadorBloqueReporte({
 
 /** Tablero global de reportes diarios por campamento. */
 export function ReportesDiariosRedView() {
+  const { sesion } = useOutletContext<OutletContext>();
   const hoyClave = useMemo(() => claveDia(Date.now()), []);
   const desde = useMemo(() => ultimosDiasReporte(30, hoyClave)[0], [hoyClave]);
 
@@ -417,6 +426,7 @@ export function ReportesDiariosRedView() {
   const reportes = useReportesCentros({ desde });
   const reportesRep = useReportesReparacionesDia({ desde });
   const eventos = useEventosReportes({ desde });
+  const incidencias = useIncidencias({ desde });
   const snapshots = useOcupacionesCentros({ desde });
 
   const reportesPorCentroDia = useMemo(() => {
@@ -596,6 +606,31 @@ export function ReportesDiariosRedView() {
     orden !== "pendientes" ||
     busquedaNombre.trim() !== "";
 
+  const reporteEjecutivo = useMemo(
+    () =>
+      construirReporteEjecutivoCampamentos({
+        centros,
+        snapshots,
+        reportes,
+        reportesReparaciones: reportesRep,
+        eventos,
+        incidencias,
+        dia: diaActivo,
+        generadoPor: sesion.user.nombre ?? sesion.user.username,
+      }),
+    [
+      centros,
+      snapshots,
+      reportes,
+      reportesRep,
+      eventos,
+      incidencias,
+      diaActivo,
+      sesion.user.nombre,
+      sesion.user.username,
+    ],
+  );
+
   function limpiarFiltros() {
     setEstadoFiltro("todos");
     setGrupoFiltro("todos");
@@ -700,6 +735,7 @@ export function ReportesDiariosRedView() {
               <CalendarPlus className="size-3 text-emerald-400" />
               {eventosDia} eventos
             </Badge>
+            <BotonReporteEjecutivo reporte={reporteEjecutivo} />
           </>
         }
       />

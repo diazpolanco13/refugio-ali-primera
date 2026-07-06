@@ -77,12 +77,11 @@ export async function guardarReporteDiario(
         error.message.includes("eventos_revisados")) &&
       (error.message.includes("schema cache") || error.message.includes("column"))
     ) {
-      const filaSinColumna: Omit<typeof fila, "salud_reportada" | "eventos_revisados"> & {
-        salud_reportada?: never;
-        eventos_revisados?: never;
-      } = { ...fila };
-      delete filaSinColumna.salud_reportada;
-      delete filaSinColumna.eventos_revisados;
+      const {
+        salud_reportada: _saludReportada,
+        eventos_revisados: _eventosRevisados,
+        ...filaSinColumna
+      } = fila;
       const { error: fallbackError } = await supabase
         .from("reportes_centros")
         .upsert(filaSinColumna, { onConflict: "centro_id,dia" });
