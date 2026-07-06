@@ -24,6 +24,8 @@ create table public.reportes_centros (
   atenciones_medicas int,
   -- Array de casos: [{ id, nombre, cedula, edad, tipo_atencion, sintomas, diagnostico }]
   atenciones_medicas_detalle jsonb not null default '[]'::jsonb,
+  -- Marca Salud como revisada aunque el total del día sea 0 atenciones.
+  salud_reportada boolean not null default false,
   observaciones text,
   updated_at bigint,
   updated_by text,

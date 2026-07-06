@@ -41,6 +41,7 @@ import {
   racionesDelDia,
   reporteCompleto,
   reporteDelDia,
+  saludReportada,
   textoResumenTiposAtencion,
   ultimosDiasReporte,
   type EstadoReporteDia,
@@ -123,7 +124,13 @@ function ResumenAtencionesMedicas({ reporte }: { reporte: ReporteDiario | undefi
   const legacySinDetalle = casos.length === 0 && total > 0;
 
   if (total === 0 && !obs) {
-    return <p className="text-[11px] text-muted-foreground">Sin atenciones ni notas.</p>;
+    return (
+      <p className="text-[11px] text-muted-foreground">
+        {saludReportada(reporte)
+          ? "Se confirmó que no hubo atenciones médicas."
+          : "Sin registro de atenciones."}
+      </p>
+    );
   }
 
   return (
@@ -214,13 +221,13 @@ function TarjetaReporteDia({
   const casosAtencion = reporte?.atenciones_medicas_detalle ?? [];
   const atenciones = contarAtenciones(casosAtencion, reporte?.atenciones_medicas);
   const obsSalud = reporte?.observaciones?.trim();
+  const saludLista = saludReportada(reporte);
   const pendientesRep = reparaciones ? reparacionesPendientes(reparaciones) : [];
   const snapshotAnterior = snapshots ? ultimoSnapshotAntes(snapshots, dia) : undefined;
   const hayAlgo =
     parteNumerico ||
     jornadas.length > 0 ||
-    atenciones > 0 ||
-    Boolean(obsSalud) ||
+    saludLista ||
     Boolean(reporteRep) ||
     (esHoy && pendientesRep.length > 0);
 
@@ -333,7 +340,7 @@ function TarjetaReporteDia({
               <BloqueReporte
                 icono={<Stethoscope className="size-3.5 text-rose-400" />}
                 titulo="Atención médica"
-                listo={atenciones > 0 || Boolean(obsSalud)}
+                listo={saludLista}
               >
                 <ResumenAtencionesMedicas reporte={reporte} />
               </BloqueReporte>
@@ -798,12 +805,13 @@ function ReporteCompacto({ centro, puedeEditar, onAbrirReporte }: Props) {
   const casosAtencion = reporte?.atenciones_medicas_detalle ?? [];
   const atenciones = contarAtenciones(casosAtencion, reporte?.atenciones_medicas);
   const obsSalud = reporte?.observaciones?.trim();
+  const saludLista = saludReportada(reporte);
 
   const snapshotsHoy = useOcupacionesCentros({ centroId: centro.id, desde: hoy });
   const parteHoy = snapshotsHoy.some((s) => s.dia === hoy);
 
   const completo = reporteCompleto(reporte) && parteHoy;
-  const nadaReportado = !parteHoy && jornadas.length === 0 && !reporte;
+  const nadaReportado = !parteHoy && jornadas.length === 0 && !saludLista && !reporteRep;
 
   return (
     <div className="rounded-xl border border-border bg-card p-3">
@@ -840,6 +848,7 @@ function ReporteCompacto({ centro, puedeEditar, onAbrirReporte }: Props) {
             listo={jornadas.includes(j.valor)}
           />
         ))}
+        <ChipReporte etiqueta="Salud" listo={saludLista} />
       </div>
 
       {nadaReportado ? (
@@ -863,7 +872,7 @@ function ReporteCompacto({ centro, puedeEditar, onAbrirReporte }: Props) {
               {atenciones.toLocaleString("es")}
             </div>
             <div className="mt-0.5 text-[10px] leading-tight text-muted-foreground">
-              Atenciones médicas
+              {saludLista && atenciones === 0 ? "Sin atenciones confirmado" : "Atenciones médicas"}
             </div>
           </div>
         </div>

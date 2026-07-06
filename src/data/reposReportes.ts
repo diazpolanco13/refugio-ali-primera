@@ -7,8 +7,10 @@
 // los dispositivos tras cada mutación; aquí no hay estado local.
 
 import {
+  contarAtenciones,
   normalizarAtencionesMedicas,
   normalizarComidas,
+  type ComidasDia,
   type ReporteDiario,
 } from "../domain/reporteDiario";
 import {
@@ -37,13 +39,24 @@ export async function guardarReporteDiario(
 ): Promise<void> {
   const now = Date.now();
   const detalle = normalizarAtencionesMedicas(datos.atenciones_medicas_detalle);
+  const observaciones = datos.observaciones ?? "";
+  const totalAtenciones = Math.max(datos.atenciones_medicas ?? 0, detalle.length);
+  const saludReportada =
+    datos.salud_reportada ||
+    contarAtenciones(detalle, totalAtenciones) > 0 ||
+    observaciones.trim() !== "";
+  const comidas: ComidasDia & { _salud_reportada?: boolean } = {
+    ...normalizarComidas(datos.comidas),
+    _salud_reportada: saludReportada,
+  };
   const fila = {
     centro_id: datos.centro_id,
     dia: datos.dia ?? claveDia(now),
-    comidas: normalizarComidas(datos.comidas),
+    comidas,
     atenciones_medicas_detalle: detalle,
-    atenciones_medicas: Math.max(datos.atenciones_medicas ?? 0, detalle.length),
-    observaciones: datos.observaciones ?? "",
+    atenciones_medicas: totalAtenciones,
+    salud_reportada: saludReportada,
+    observaciones,
     updated_at: now,
     updated_by: usuarioActual(),
   };
@@ -51,6 +64,28 @@ export async function guardarReporteDiario(
     .from("reportes_centros")
     .upsert(fila, { onConflict: "centro_id,dia" });
   if (error) {
+    // Compatibilidad temporal: algunos despliegues aún no tienen la columna
+    // `salud_reportada`; el mismo estado viaja respaldado en `comidas`.
+    if (
+      error.message.includes("salud_reportada") &&
+      (error.message.includes("schema cache") || error.message.includes("column"))
+    ) {
+      const filaSinColumna: Omit<typeof fila, "salud_reportada"> & {
+        salud_reportada?: never;
+      } = { ...fila };
+      delete filaSinColumna.salud_reportada;
+      const { error: fallbackError } = await supabase
+        .from("reportes_centros")
+        .upsert(filaSinColumna, { onConflict: "centro_id,dia" });
+      if (!fallbackError) {
+        registrarHistorial("reporte_diario", "reporte", `${fila.centro_id}/${fila.dia}`, {
+          centro_id: fila.centro_id,
+          dia: fila.dia,
+        });
+        return;
+      }
+      throw new Error(`[reposReportes] upsert reportes_centros: ${fallbackError.message}`);
+    }
     throw new Error(`[reposReportes] upsert reportes_centros: ${error.message}`);
   }
   registrarHistorial("reporte_diario", "reporte", `${fila.centro_id}/${fila.dia}`, {

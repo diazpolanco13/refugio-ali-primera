@@ -148,11 +148,15 @@ function labelTipoAtencion(tipo: TipoAtencionMedica): string {
 function AtencionesMedicasSalud({
   casos,
   onCasosChange,
+  sinAtenciones,
+  onSinAtencionesChange,
   observaciones,
   onObservaciones,
 }: {
   casos: AtencionMedicaCaso[];
   onCasosChange: (casos: AtencionMedicaCaso[]) => void;
+  sinAtenciones: boolean;
+  onSinAtencionesChange: (v: boolean) => void;
   observaciones: string;
   onObservaciones: (v: string) => void;
 }) {
@@ -181,6 +185,7 @@ function AtencionesMedicasSalud({
     } else {
       onCasosChange([...casos, caso]);
     }
+    onSinAtencionesChange(false);
     resetBorrador();
   }
 
@@ -212,8 +217,52 @@ function AtencionesMedicasSalud({
         </div>
         <Badge variant="secondary" className="shrink-0 tabular-nums">
           {total} {total === 1 ? "atención" : "atenciones"}
+          {sinAtenciones && total === 0 ? " · confirmado" : ""}
         </Badge>
       </div>
+
+      {casos.length === 0 && (
+        <div
+          className={cn(
+            "rounded-xl border px-3 py-3.5 shadow-sm transition-colors",
+            sinAtenciones
+              ? "border-emerald-500/50 bg-emerald-500/10"
+              : "border-teal-500/45 bg-teal-500/10",
+          )}
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">
+                {sinAtenciones
+                  ? "Salud confirmada sin atenciones"
+                  : "¿No hubo casos médicos hoy?"}
+              </p>
+              <p className="mt-1 text-xs leading-snug text-muted-foreground">
+                Marca esta opción cuando el equipo de salud revisó el día y no hubo casos
+                que registrar.
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="default"
+              variant={sinAtenciones ? "secondary" : "default"}
+              className={cn(
+                "min-h-10 w-full shrink-0 justify-center font-semibold shadow-sm sm:w-auto",
+                !sinAtenciones && "bg-teal-600 text-white shadow-teal-950/20 hover:bg-teal-500",
+                sinAtenciones && "border border-emerald-500/40 text-emerald-400",
+              )}
+              onClick={() => onSinAtencionesChange(!sinAtenciones)}
+            >
+              {sinAtenciones ? (
+                <CheckCircle2 className="size-4.5" />
+              ) : (
+                <Check className="size-4.5" />
+              )}
+              {sinAtenciones ? "Confirmado: cero atenciones" : "Confirmar cero atenciones"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {casos.length > 0 && (
         <ul className="space-y-2">
@@ -445,6 +494,7 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
     cena: "",
   });
   const [atencionesCasos, setAtencionesCasos] = useState<AtencionMedicaCaso[]>([]);
+  const [sinAtencionesMedicas, setSinAtencionesMedicas] = useState(false);
   const [observaciones, setObservaciones] = useState("");
 
   // Reparaciones (flags diarios en `reportes_reparaciones_dia`).
@@ -490,7 +540,12 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
       almuerzo: horaDesdeTs(c.almuerzo.hora_llegada),
       cena: horaDesdeTs(c.cena.hora_llegada),
     });
-    setAtencionesCasos(normalizarAtencionesMedicas(reporteExistente.atenciones_medicas_detalle));
+    const casos = normalizarAtencionesMedicas(reporteExistente.atenciones_medicas_detalle);
+    setAtencionesCasos(casos);
+    setSinAtencionesMedicas(
+      reporteExistente.salud_reportada &&
+        contarAtenciones(casos, reporteExistente.atenciones_medicas) === 0,
+    );
     setObservaciones(reporteExistente.observaciones);
     setPrecargado(true);
   }, [precargado, reporteExistente]);
@@ -588,6 +643,10 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
         },
         atenciones_medicas_detalle: atencionesCasos,
         atenciones_medicas: contarAtenciones(atencionesCasos),
+        salud_reportada:
+          sinAtencionesMedicas ||
+          atencionesCasos.length > 0 ||
+          observaciones.trim() !== "",
         observaciones: observaciones.trim(),
       });
       // 3) Flags diarios de reparaciones.
@@ -911,6 +970,8 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
               <AtencionesMedicasSalud
                 casos={atencionesCasos}
                 onCasosChange={setAtencionesCasos}
+                sinAtenciones={sinAtencionesMedicas}
+                onSinAtencionesChange={setSinAtencionesMedicas}
                 observaciones={observaciones}
                 onObservaciones={setObservaciones}
               />

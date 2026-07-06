@@ -199,6 +199,8 @@ export interface ReporteDiario {
   atenciones_medicas: number;
   /** Casos individuales de atención médica (jsonb en BD). */
   atenciones_medicas_detalle: AtencionMedicaCaso[];
+  /** Indica que Salud fue revisada aunque el total sea 0 atenciones. */
+  salud_reportada: boolean;
   /** Notas generales del día (legacy; distinto de los casos individuales). */
   observaciones: string;
   updated_at: number;
@@ -246,18 +248,35 @@ export function normalizarComidas(
 export function normalizarReporte(
   raw: (Partial<ReporteDiario> & { centro_id: string; dia: string }) | ReporteDiario,
 ): ReporteDiario {
+  const comidasRaw = raw.comidas as
+    | (Partial<Record<JornadaReporte, Partial<ComidaJornada>>> & {
+        _salud_reportada?: unknown;
+      })
+    | undefined
+    | null;
   const detalle = normalizarAtencionesMedicas(
     (raw as { atenciones_medicas_detalle?: unknown }).atenciones_medicas_detalle,
   );
   const almacenado = raw.atenciones_medicas ?? 0;
+  const observaciones = raw.observaciones ?? "";
+  const saludReportadaExplicita =
+    (raw as { salud_reportada?: unknown }).salud_reportada === true;
+  const saludReportadaEnComidas = comidasRaw?._salud_reportada === true;
+  const saludReportada =
+    saludReportadaExplicita ||
+    saludReportadaEnComidas ||
+    detalle.length > 0 ||
+    almacenado > 0 ||
+    observaciones.trim() !== "";
   return {
     id: raw.id,
     centro_id: raw.centro_id,
     dia: raw.dia,
-    comidas: normalizarComidas(raw.comidas),
+    comidas: normalizarComidas(comidasRaw),
     atenciones_medicas_detalle: detalle,
     atenciones_medicas: Math.max(almacenado, detalle.length),
-    observaciones: raw.observaciones ?? "",
+    salud_reportada: saludReportada,
+    observaciones,
     updated_at: raw.updated_at ?? 0,
     updated_by: raw.updated_by ?? "",
   };
@@ -276,9 +295,20 @@ export function jornadasReportadas(reporte: ReporteDiario | undefined | null): J
   return JORNADAS_REPORTE.filter((j) => jornadaReportada(comidas[j]));
 }
 
-/** ¿El reporte del día está completo (las tres comidas reportadas)? */
+/** ¿La sección Salud fue reportada, incluso si el total fue 0 atenciones? */
+export function saludReportada(reporte: ReporteDiario | undefined | null): boolean {
+  if (!reporte) return false;
+  const casos = reporte.atenciones_medicas_detalle ?? [];
+  return (
+    reporte.salud_reportada ||
+    contarAtenciones(casos, reporte.atenciones_medicas) > 0 ||
+    reporte.observaciones.trim() !== ""
+  );
+}
+
+/** ¿El reporte del día está completo (las tres comidas + Salud reportada)? */
 export function reporteCompleto(reporte: ReporteDiario | undefined | null): boolean {
-  return jornadasReportadas(reporte).length === JORNADAS_REPORTE.length;
+  return jornadasReportadas(reporte).length === JORNADAS_REPORTE.length && saludReportada(reporte);
 }
 
 /** Total de raciones reportadas en el día (suma de las tres jornadas). */
@@ -303,7 +333,7 @@ export function parsearDiaReporte(dia: string): { anio: number; mes: number; dia
   return { anio, mes, dia: diaNum };
 }
 
-/** Estado agregado del reporte de un día (comidas + parte numérico). */
+/** Estado agregado del reporte de un día (parte numérico + comidas + Salud). */
 export type EstadoReporteDia = "completo" | "parcial" | "solo_parte" | "pendiente";
 
 export const META_ESTADO_REPORTE: Record<
@@ -322,9 +352,10 @@ export function estadoReporteDia(
   parteNumerico: boolean,
 ): EstadoReporteDia {
   const jornadas = jornadasReportadas(reporte).length;
-  const comidasOk = reporteCompleto(reporte);
-  if (comidasOk && parteNumerico) return "completo";
-  if (comidasOk || (parteNumerico && jornadas > 0)) return "parcial";
+  const saludOk = saludReportada(reporte);
+  const reporteOperativoOk = reporteCompleto(reporte);
+  if (reporteOperativoOk && parteNumerico) return "completo";
+  if (reporteOperativoOk || saludOk || (parteNumerico && jornadas > 0)) return "parcial";
   if (parteNumerico) return "solo_parte";
   if (jornadas > 0) return "parcial";
   return "pendiente";
