@@ -12,13 +12,14 @@ import {
   BarChart3,
   Check,
   CheckCircle2,
-  ChevronsUpDown,
   ClipboardList,
+  Flag,
   Loader2,
   LocateFixed,
   MapPin,
   Pencil,
   RefreshCw,
+  Search,
   Tent,
   Trash2,
   UserPlus,
@@ -33,17 +34,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -75,13 +67,16 @@ import {
   CONDICIONES_VIVIENDA,
   PARENTESCOS_MENOR,
   actualizarCenso,
+  completarCenso,
   eliminarCenso,
   listarCentrosCenso,
   listarRegistrosCenso,
+  obtenerCierreCenso,
   registrarCenso,
   registroDesdeGuardado,
   ubicacionCensadorVacia,
   type CentroCenso,
+  type CierreCenso,
   type FuncionarioCenso,
   type RegistroCenso,
   type RegistroCensoGuardado,
@@ -153,6 +148,9 @@ export function CensoView() {
   const guardada = useMemo(cargarSesionGuardada, []);
 
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
+  const [paso1Seccion, setPaso1Seccion] = useState<"centro" | "funcionario">(
+    guardada?.centroId ? "funcionario" : "centro",
+  );
   const [centros, setCentros] = useState<CentroCenso[]>([]);
   const [cargandoCentros, setCargandoCentros] = useState(true);
   const [errorCentros, setErrorCentros] = useState("");
@@ -344,8 +342,11 @@ export function CensoView() {
             activo={paso === 1}
             completado={paso > 1}
             numero={1}
-            label="Funcionario"
-            onClick={() => setPaso(1)}
+            label="Refugio"
+            onClick={() => {
+              setPaso(1);
+              setPaso1Seccion(centroId ? "funcionario" : "centro");
+            }}
           />
           <div className="h-px flex-1 bg-primary-foreground/30" />
           <PasoChip
@@ -366,16 +367,42 @@ export function CensoView() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-xl px-4">
-        {paso === 1 && (
+      <main className="mx-auto w-full max-w-xl px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+        {paso === 1 && paso1Seccion === "centro" && (
+          <Card className="-mt-3 flex min-h-[calc(100dvh-11.5rem)] flex-col shadow-lg">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <MapPin className="size-4 text-primary" />
+                Seleccione el refugio
+              </CardTitle>
+              <CardDescription>
+                Elija el campamento transitorio donde realiza el censo. Toque un nombre de la
+                lista o búsquelo por escrito.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex min-h-0 flex-1 flex-col pb-4">
+              <SelectorCentroLista
+                centros={centros}
+                centroId={centroId}
+                onSelect={setCentroId}
+                cargando={cargandoCentros}
+                onContinuar={() => setPaso1Seccion("funcionario")}
+              />
+              {errorCentros && <p className="mt-2 text-xs text-destructive">{errorCentros}</p>}
+            </CardContent>
+          </Card>
+        )}
+
+        {paso === 1 && paso1Seccion === "funcionario" && (
           <Card className="-mt-3 shadow-lg">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <ClipboardList className="size-4 text-primary" />
-                Datos del levantamiento
+                Datos del funcionario
               </CardTitle>
               <CardDescription>
-                Seleccione el refugio e identifique al funcionario que realiza el censo.
+                Identifique al funcionario que realiza el censo en{" "}
+                <span className="font-medium text-foreground">{centroNombre}</span>.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -386,15 +413,23 @@ export function CensoView() {
                   if (paso1Completo) continuarAPaso2();
                 }}
               >
-                <div className="space-y-1.5">
-                  <Label>Nombre del refugio</Label>
-                  <ComboboxCentro
-                    centros={centros}
-                    centroId={centroId}
-                    onSelect={setCentroId}
-                    cargando={cargandoCentros}
-                  />
-                  {errorCentros && <p className="text-xs text-destructive">{errorCentros}</p>}
+                <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2.5">
+                  <MapPin className="size-4 shrink-0 text-primary" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Refugio
+                    </p>
+                    <p className="truncate text-sm font-medium">{centroNombre}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => setPaso1Seccion("centro")}
+                  >
+                    Cambiar
+                  </Button>
                 </div>
 
                 <Separator />
@@ -529,7 +564,10 @@ export function CensoView() {
                   variant="outline"
                   size="sm"
                   className="shrink-0"
-                  onClick={() => setPaso(1)}
+                  onClick={() => {
+                    setPaso(1);
+                    setPaso1Seccion("funcionario");
+                  }}
                 >
                   <ArrowLeft className="size-4" />
                   Cambiar
@@ -984,6 +1022,7 @@ export function CensoView() {
           <PasoRegistrados
             centroId={centroId}
             centroNombre={centroNombre}
+            funcionario={funcionario}
             onVolver={() => {
               cancelarEdicion();
               setPaso(2);
@@ -997,68 +1036,93 @@ export function CensoView() {
 }
 
 // ============================================================================
-// Paso 1: combobox de refugio con búsqueda
+// Paso 1a: lista de refugios (sin popover; usable en móvil con teclado)
 // ============================================================================
 
-function ComboboxCentro({
+function SelectorCentroLista({
   centros,
   centroId,
   onSelect,
   cargando,
+  onContinuar,
 }: {
   centros: CentroCenso[];
   centroId: string;
   onSelect: (id: string) => void;
   cargando: boolean;
+  onContinuar: () => void;
 }) {
-  const [abierto, setAbierto] = useState(false);
-  const seleccionado = centros.find((c) => c.id === centroId);
+  const [busqueda, setBusqueda] = useState("");
+
+  const filtrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return centros;
+    return centros.filter((c) => c.nombre.toLowerCase().includes(q));
+  }, [centros, busqueda]);
+
+  function elegir(id: string) {
+    onSelect(id);
+    onContinuar();
+  }
 
   return (
-    <Popover open={abierto} onOpenChange={setAbierto}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={abierto}
-          disabled={cargando}
-          className="h-11 w-full justify-between font-normal"
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="relative shrink-0">
+        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="search"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar refugio por nombre…"
+          className="h-11 pl-9"
+          autoComplete="off"
+          enterKeyHint="search"
+        />
+      </div>
+
+      {cargando ? (
+        <div className="flex flex-1 items-center justify-center py-16 text-sm text-muted-foreground">
+          <Loader2 className="mr-2 size-5 animate-spin" />
+          Cargando refugios…
+        </div>
+      ) : (
+        <ul
+          className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border sm:max-h-96"
+          role="listbox"
+          aria-label="Refugios disponibles"
         >
-          <span className={cn("truncate", !seleccionado && "text-muted-foreground")}>
-            {cargando
-              ? "Cargando refugios…"
-              : (seleccionado?.nombre ?? "Buscar o seleccionar refugio…")}
-          </span>
-          <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Buscar refugio por nombre…" />
-          <CommandList className="max-h-64">
-            <CommandEmpty>No se encontró ningún refugio.</CommandEmpty>
-            <CommandGroup>
-              {centros.map((c) => (
-                <CommandItem
-                  key={c.id}
-                  value={c.nombre}
-                  onSelect={() => {
-                    onSelect(c.id);
-                    setAbierto(false);
-                  }}
+          {filtrados.length === 0 ? (
+            <li className="px-4 py-10 text-center text-sm text-muted-foreground">
+              No se encontró ningún refugio.
+            </li>
+          ) : (
+            filtrados.map((c) => (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={centroId === c.id}
+                  onClick={() => elegir(c.id)}
+                  className={cn(
+                    "flex w-full items-center gap-3 border-b px-4 py-3.5 text-left text-sm transition-colors last:border-b-0 active:bg-accent",
+                    centroId === c.id && "bg-primary/10 font-medium text-primary",
+                  )}
                 >
-                  <Check
-                    className={cn("size-4", centroId === c.id ? "opacity-100" : "opacity-0")}
-                  />
-                  {c.nombre}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+                  <MapPin className="size-4 shrink-0 opacity-60" />
+                  <span className="min-w-0 flex-1 leading-snug">{c.nombre}</span>
+                  {centroId === c.id && <Check className="size-4 shrink-0" />}
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+
+      <p className="mt-3 text-[11px] text-muted-foreground">
+        {centros.length} refugio{centros.length === 1 ? "" : "s"} disponible
+        {centros.length === 1 ? "" : "s"}. Toque uno para continuar.
+      </p>
+    </div>
   );
 }
 
@@ -1118,30 +1182,67 @@ function CampoSiNo({
 // Paso 3: estadística y lista de registrados del refugio
 // ============================================================================
 
+/** Normaliza texto para búsqueda sin exigir tildes exactas. */
+function normalizarBusqueda(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function filtrarRegistrosCenso(
+  filas: RegistroCensoGuardado[],
+  termino: string,
+): RegistroCensoGuardado[] {
+  const q = normalizarBusqueda(termino.trim());
+  if (!q) return filas;
+  return filas.filter((f) => {
+    const nombreCompleto = [
+      f.primer_nombre,
+      f.segundo_nombre,
+      f.primer_apellido,
+      f.segundo_apellido,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const doc = [f.tipo_doc, f.documento].filter(Boolean).join("");
+    const campos = [nombreCompleto, f.primer_nombre, f.primer_apellido, doc, f.telefono];
+    return campos.some((c) => normalizarBusqueda(c).includes(q));
+  });
+}
+
 function PasoRegistrados({
   centroId,
   centroNombre,
+  funcionario,
   onVolver,
   onEditar,
 }: {
   centroId: string;
   centroNombre: string;
+  funcionario: FuncionarioCenso;
   onVolver: () => void;
   onEditar: (fila: RegistroCensoGuardado) => void;
 }) {
   const [filas, setFilas] = useState<RegistroCensoGuardado[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+  const [busqueda, setBusqueda] = useState("");
   const [eliminarTarget, setEliminarTarget] = useState<RegistroCensoGuardado | null>(null);
   const [eliminando, setEliminando] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState("");
+  const [cierre, setCierre] = useState<CierreCenso | null>(null);
+  const [confirmarCompletar, setConfirmarCompletar] = useState(false);
+  const [completando, setCompletando] = useState(false);
+  const [errorCompletar, setErrorCompletar] = useState("");
 
   const cargar = useCallback(() => {
     setCargando(true);
     setError("");
-    listarRegistrosCenso(centroId)
-      .then((lista) => {
+    Promise.all([listarRegistrosCenso(centroId), obtenerCierreCenso(centroId)])
+      .then(([lista, ultimoCierre]) => {
         setFilas(lista);
+        setCierre(ultimoCierre);
         setCargando(false);
       })
       .catch((err) => {
@@ -1153,6 +1254,11 @@ function PasoRegistrados({
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  const filasFiltradas = useMemo(
+    () => filtrarRegistrosCenso(filas, busqueda),
+    [filas, busqueda],
+  );
 
   async function confirmarEliminar() {
     if (!eliminarTarget) return;
@@ -1169,6 +1275,26 @@ function PasoRegistrados({
     }
   }
 
+  async function confirmarCensoCompletado() {
+    setCompletando(true);
+    setErrorCompletar("");
+    try {
+      const total = await completarCenso(centroId, funcionario);
+      setConfirmarCompletar(false);
+      setCierre({
+        creado_en: new Date().toISOString(),
+        funcionario_nombre: funcionario.nombre,
+        funcionario_institucion: funcionario.institucion,
+        total_registrados: total,
+      });
+      cargar();
+    } catch (err) {
+      setErrorCompletar(err instanceof Error ? err.message : "No se pudo registrar el cierre");
+    } finally {
+      setCompletando(false);
+    }
+  }
+
   const stats = useMemo(() => {
     const total = filas.length;
     const mujeres = filas.filter((f) => f.sexo === "F").length;
@@ -1180,6 +1306,16 @@ function PasoRegistrados({
     const adultosMayores = filas.filter((f) => f.edad != null && f.edad >= 60).length;
     return { total, mujeres, hombres, embarazadas, discapacidad, enfermedad, menores, adultosMayores };
   }, [filas]);
+
+  const fechaCierre = cierre
+    ? new Date(cierre.creado_en).toLocaleString("es-VE", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
 
   return (
     <div className="-mt-3 space-y-4">
@@ -1201,6 +1337,23 @@ function PasoRegistrados({
           </div>
         </CardContent>
       </Card>
+
+      {cierre && (
+        <div className="flex items-start gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-800 dark:text-emerald-300">
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+          <div className="min-w-0">
+            <p className="font-medium">Censo completado</p>
+            <p className="text-xs opacity-90">
+              {fechaCierre} · {cierre.funcionario_nombre} ({cierre.funcionario_institucion}) ·{" "}
+              {cierre.total_registrados} persona{cierre.total_registrados === 1 ? "" : "s"}
+            </p>
+            <p className="mt-0.5 text-[11px] opacity-75">
+              Puede seguir registrando o corrigiendo personas; el cierre es una constancia
+              declarativa.
+            </p>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
@@ -1240,49 +1393,92 @@ function PasoRegistrados({
           <CardDescription>
             {cargando
               ? "Cargando…"
-              : `${filas.length} registro${filas.length === 1 ? "" : "s"} · toque el lápiz para corregir o la papelera para eliminar`}
+              : `${filas.length} registro${filas.length === 1 ? "" : "s"} · busque por nombre, cédula o teléfono`}
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="space-y-3 p-4 pt-0">
+          {!cargando && filas.length > 0 && (
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar por nombre, apellido, cédula o teléfono…"
+                className="h-10 pl-9"
+                autoComplete="off"
+              />
+            </div>
+          )}
+
           {cargando ? (
-            <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
               Cargando registros…
             </div>
           ) : filas.length === 0 ? (
-            <p className="p-6 text-center text-sm text-muted-foreground">
+            <p className="py-6 text-center text-sm text-muted-foreground">
               Aún no hay personas registradas en este refugio.
             </p>
+          ) : filasFiltradas.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Ninguna persona coincide con «{busqueda.trim()}». Verifique la cédula o el nombre e
+              intente de nuevo.
+            </p>
           ) : (
-            <Table className="text-xs">
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="h-8 w-8 px-2 text-center">#</TableHead>
-                  <TableHead className="h-8 px-2">Nombre</TableHead>
-                  <TableHead className="h-8 px-2">Documento</TableHead>
-                  <TableHead className="h-8 px-2 text-center">Edad</TableHead>
-                  <TableHead className="h-8 px-2 text-center">Sexo</TableHead>
-                  <TableHead className="h-8 px-2">Parroquia</TableHead>
-                  <TableHead className="h-8 px-2 text-center">Viv.</TableHead>
-                  <TableHead className="h-8 px-2 text-right">Hora</TableHead>
-                  <TableHead className="h-8 w-16 px-1 text-center" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filas.map((f, i) => (
-                  <FilaTabla
-                    key={f.id}
-                    fila={f}
-                    numero={filas.length - i}
-                    onEditar={() => onEditar(f)}
-                    onEliminar={() => setEliminarTarget(f)}
-                  />
-                ))}
-              </TableBody>
-            </Table>
+            <div className="-mx-4 overflow-x-auto">
+              <Table className="text-xs">
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="h-8 w-8 px-2 text-center">#</TableHead>
+                    <TableHead className="h-8 px-2">Nombre</TableHead>
+                    <TableHead className="h-8 px-2">Documento</TableHead>
+                    <TableHead className="h-8 px-2 text-center">Edad</TableHead>
+                    <TableHead className="h-8 px-2 text-center">Sexo</TableHead>
+                    <TableHead className="h-8 px-2">Parroquia</TableHead>
+                    <TableHead className="h-8 px-2 text-center">Viv.</TableHead>
+                    <TableHead className="h-8 px-2 text-right">Hora</TableHead>
+                    <TableHead className="h-8 w-16 px-1 text-center" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filasFiltradas.map((f, i) => (
+                    <FilaTabla
+                      key={f.id}
+                      fila={f}
+                      numero={filasFiltradas.length - i}
+                      onEditar={() => onEditar(f)}
+                      onEliminar={() => setEliminarTarget(f)}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Cierre declarativo del censo */}
+      {!cargando && filas.length > 0 && (
+        <Card className="shadow-lg">
+          <CardContent className="space-y-3 py-4">
+            <p className="text-sm text-muted-foreground">
+              Cuando haya registrado a todas las personas del refugio, confirme el cierre del censo.
+              Esto no impide seguir agregando o corrigiendo registros después.
+            </p>
+            <Button
+              type="button"
+              className="h-12 w-full text-base"
+              onClick={() => {
+                setErrorCompletar("");
+                setConfirmarCompletar(true);
+              }}
+            >
+              <Flag className="size-4" />
+              Censo completado
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <AlertDialog
         open={eliminarTarget != null}
@@ -1327,6 +1523,50 @@ function PasoRegistrados({
                 </>
               ) : (
                 "Eliminar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmarCompletar}
+        onOpenChange={(abierto) => {
+          if (!abierto) {
+            setConfirmarCompletar(false);
+            setErrorCompletar("");
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Confirmar censo completado?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Declara que se registró la totalidad de las personas presentes en{" "}
+              <strong>{centroNombre}</strong> ({stats.total} persona
+              {stats.total === 1 ? "" : "s"} al momento). Podrá seguir registrando o corrigiendo
+              después si hace falta.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {errorCompletar && (
+            <p className="text-sm text-destructive">{errorCompletar}</p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={completando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={completando}
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmarCensoCompletado();
+              }}
+            >
+              {completando ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Guardando…
+                </>
+              ) : (
+                "Sí, censo completado"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

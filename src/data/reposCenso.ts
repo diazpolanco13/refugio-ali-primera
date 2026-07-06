@@ -252,3 +252,29 @@ export async function listarRegistrosCenso(centroId: string): Promise<RegistroCe
   if (error) throw new Error(error.message);
   return (data ?? []) as RegistroCensoGuardado[];
 }
+
+/** Declara completado el registro del refugio. Devuelve el total al momento del cierre. */
+export async function completarCenso(
+  centroId: string,
+  funcionario: FuncionarioCenso,
+): Promise<number> {
+  const { data, error } = await supabase.rpc("censo_completar", {
+    p_centro_id: centroId,
+    p_funcionario: {
+      jerarquia: funcionario.jerarquia.trim(),
+      nombre: funcionario.nombre.trim(),
+      institucion: funcionario.institucion.trim(),
+      telefono: funcionario.telefono.trim(),
+    },
+  });
+  if (error) throw new Error(error.message);
+  return data as number;
+}
+
+/** Último cierre declarado del censo de un refugio (null si nunca se completó). */
+export async function obtenerCierreCenso(centroId: string): Promise<CierreCenso | null> {
+  const { data, error } = await supabase.rpc("censo_cierre", { p_centro_id: centroId });
+  if (error) throw new Error(error.message);
+  const filas = (data ?? []) as CierreCenso[];
+  return filas[0] ?? null;
+}
