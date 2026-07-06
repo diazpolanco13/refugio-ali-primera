@@ -10,6 +10,7 @@ import type { Rol, Usuario } from "../data/authSupabase";
  * | autoridad    | No       | Todos       | No           | No                             | Sí   | Sí        |
  * | supervisor   | No       | Asignados   | Asignados    | Abrir/resolver en asignados    | No   | No        |
  * | operador     | No       | Asignados   | Asignados    | Abrir; resolver solo las suyas | No   | No        |
+ * | censo_rapido | No       | Todos       | No           | No                             | No   | No        |
  *
  * La RLS de Supabase aplica esta misma matriz en el servidor (migración
  * `sistema_usuarios_5_roles`); estos helpers solo controlan la UI.
@@ -32,7 +33,14 @@ export interface InfoRol {
   puedeCrearCentros: boolean;
 }
 
-export const ROLES: Rol[] = ["admin", "analista_sae", "autoridad", "supervisor", "operador"];
+export const ROLES: Rol[] = [
+  "admin",
+  "analista_sae",
+  "autoridad",
+  "supervisor",
+  "operador",
+  "censo_rapido",
+];
 
 export const INFO_ROLES: Record<Rol, InfoRol> = {
   admin: {
@@ -88,6 +96,18 @@ export const INFO_ROLES: Record<Rol, InfoRol> = {
       "Reporta a diario en sus campamentos asignados; resuelve solo las incidencias que abrió",
     alcanceTotal: false,
     puedeEscribir: true,
+    escrituraTotal: false,
+    puedeGestionarUsuarios: false,
+    puedeVerLogs: false,
+    puedeCrearCentros: false,
+  },
+  censo_rapido: {
+    rol: "censo_rapido",
+    etiqueta: "Censo Rápido",
+    descripcion:
+      "Consulta el mapa de campamentos y los reportes diarios de toda la red; sin edición",
+    alcanceTotal: true,
+    puedeEscribir: false,
     escrituraTotal: false,
     puedeGestionarUsuarios: false,
     puedeVerLogs: false,
@@ -165,4 +185,19 @@ export function puedeVerSaludMental(rol: Rol): boolean {
 /** ¿Puede eliminar incidencias? Solo admin y analista SAE (RLS en Supabase). */
 export function puedeEliminarIncidencia(usuario: Usuario): boolean {
   return usuario.rol === "admin" || usuario.rol === "analista_sae";
+}
+
+/** Rol restringido a mapa + reportes diarios (sin resto del menú). */
+export function esRolCensoRapido(rol: Rol): boolean {
+  return rol === "censo_rapido";
+}
+
+/** Rutas permitidas para el rol Censo Rápido. */
+export function rutaPermitidaParaRol(pathname: string, rol: Rol): boolean {
+  if (!esRolCensoRapido(rol)) return true;
+  return (
+    pathname === "/" ||
+    pathname === "/centros/mapa" ||
+    pathname.startsWith("/centros/reportes")
+  );
 }

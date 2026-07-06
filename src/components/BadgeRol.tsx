@@ -9,6 +9,7 @@ const ESTILOS: Record<Rol, string> = {
   autoridad: "border-amber-500/40 bg-amber-950/40 text-amber-300",
   supervisor: "border-sky-500/40 bg-sky-950/40 text-sky-300",
   operador: "border-emerald-500/40 bg-emerald-950/40 text-emerald-300",
+  censo_rapido: "border-rose-500/40 bg-rose-950/40 text-rose-300",
 };
 
 export function BadgeRol({ rol, className }: { rol: Rol; className?: string }) {

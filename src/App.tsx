@@ -1,12 +1,13 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Login } from "./features/auth/Login";
-import { initAuth, useSesion } from "./data/authSupabase";
+import { initAuth, useSesion, type Sesion } from "./data/authSupabase";
 import { MarcaAgua } from "./components/MarcaAgua";
 import { PantallaCarga } from "./components/PantallaCarga";
 import { EnDesarrollo } from "./components/EnDesarrollo";
 import { AppShell } from "./layouts/AppShell";
 import { ocultarSplash } from "./lib/splash";
+import { rutaPermitidaParaRol } from "./domain/permisos";
 
 // Rutas con carga perezosa: cada vista pesada (MapLibre, recharts, ficha
 // humanitaria…) viaja en su propio chunk. El bundle inicial queda en el núcleo
@@ -120,6 +121,15 @@ function precargarRutaInicial(pathname: string): Promise<unknown> {
   return importCentrosView();
 }
 
+/** Redirige al mapa si el rol no tiene acceso a la ruta actual. */
+function RutaAutorizada({ sesion, children }: { sesion: Sesion; children: ReactNode }) {
+  const { pathname } = useLocation();
+  if (!rutaPermitidaParaRol(pathname, sesion.user.rol)) {
+    return <Navigate to="/centros/mapa" replace />;
+  }
+  return children;
+}
+
 export function App() {
   const sesion = useSesion();
   const location = useLocation();
@@ -162,9 +172,22 @@ export function App() {
     <>
       <Suspense fallback={<PantallaCarga />}>
         <Routes>
-          <Route path="/dashboard" element={<DashboardView sesion={sesion} />} />
+          <Route
+            path="/dashboard"
+            element={
+              <RutaAutorizada sesion={sesion}>
+                <DashboardView sesion={sesion} />
+              </RutaAutorizada>
+            }
+          />
 
-          <Route element={<AppShell sesion={sesion} />}>
+          <Route
+            element={
+              <RutaAutorizada sesion={sesion}>
+                <AppShell sesion={sesion} />
+              </RutaAutorizada>
+            }
+          >
             <Route path="/" element={<Navigate to="/centros/mapa" replace />} />
             <Route path="/centros/mapa" element={<CentrosView />} />
             <Route path="/centros/tablero" element={<CentrosView />} />

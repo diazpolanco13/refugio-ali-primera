@@ -18,6 +18,7 @@ import {
   puedeGestionarUsuarios,
   puedeVerCensoRapidoRed,
   puedeVerLogs,
+  esRolCensoRapido,
 } from "@/domain/permisos";
 import { useIncidencias } from "@/data/useIncidencias";
 import { incidenciasAbiertas } from "@/domain/incidencias";
@@ -107,14 +108,40 @@ function ItemEnDesarrollo({
 
 function NavContenido({ sesion }: Props) {
   const location = useLocation();
+  const esCensoRapido = esRolCensoRapido(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
   const veCensoRed = puedeVerCensoRapidoRed(sesion.user.rol);
   const incidencias = useIncidencias({ estado: "abierta" });
-  const abiertas = incidenciasAbiertas(incidencias).length;
-  const urgentes = incidencias.filter((i) => i.etiqueta === "urgente").length;
+  const abiertas = esCensoRapido ? 0 : incidenciasAbiertas(incidencias).length;
+  const urgentes = esCensoRapido ? 0 : incidencias.filter((i) => i.etiqueta === "urgente").length;
 
   const pathname = location.pathname;
+
+  if (esCensoRapido) {
+    return (
+      <SidebarGroup>
+        <SidebarGroupLabel>Campamentos transitorios</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <ItemMenu
+              to="/centros/mapa"
+              icono={MapPinned}
+              label="Mapa"
+              activo={pathname === "/" || rutaActiva(pathname, "/centros/mapa")}
+            />
+            <ItemMenu
+              to="/centros/reportes"
+              icono={ClipboardList}
+              label="Reportes diarios (red)"
+              activo={rutaActiva(pathname, "/centros/reportes")}
+            />
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+  }
+
   const esFichaCentro =
     /^\/centro\/[^/]+$/.test(pathname) && pathname !== "/centro/nuevo";
   const esSeccionCampamentos =

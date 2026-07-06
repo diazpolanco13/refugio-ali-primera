@@ -13,7 +13,13 @@ import { useSyncExternalStore } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 
-export type Rol = "admin" | "analista_sae" | "autoridad" | "supervisor" | "operador";
+export type Rol =
+  | "admin"
+  | "analista_sae"
+  | "autoridad"
+  | "supervisor"
+  | "operador"
+  | "censo_rapido";
 
 export interface Usuario {
   /** Mantiene compatibilidad con la sesión legacy (sub = auth.uid). */
@@ -59,7 +65,14 @@ interface Perfil {
   brazalete: string | null;
 }
 
-const ROLES_CONOCIDOS: Rol[] = ["admin", "analista_sae", "autoridad", "supervisor", "operador"];
+const ROLES_CONOCIDOS: Rol[] = [
+  "admin",
+  "analista_sae",
+  "autoridad",
+  "supervisor",
+  "operador",
+  "censo_rapido",
+];
 
 const listeners = new Set<() => void>();
 let estado: Sesion | null = null;

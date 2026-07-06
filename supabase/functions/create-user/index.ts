@@ -17,7 +17,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ROLES_VALIDOS = ["admin", "analista_sae", "autoridad", "supervisor", "operador"];
+const ROLES_VALIDOS = [
+  "admin",
+  "analista_sae",
+  "autoridad",
+  "supervisor",
+  "operador",
+  "censo_rapido",
+];
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
