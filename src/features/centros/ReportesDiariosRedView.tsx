@@ -560,7 +560,8 @@ export function ReportesDiariosRedView() {
           parte,
           alimentacion: alimentacionReportada(reporte),
           salud: saludReportada(reporte),
-          reparaciones: Boolean(reporteRep),
+          reparacionesRevisadas: Boolean(reporteRep),
+          reparacionesTrabajadas: reporteRep?.se_trabajo_hoy === true,
           eventosRevisados: eventosRevisados(reporte, eventosCount),
           raciones: racionesDelDia(reporte),
           atenciones: reporte?.atenciones_medicas ?? 0,
@@ -640,6 +641,7 @@ export function ReportesDiariosRedView() {
     let alimentacionOk = 0;
     let saludOk = 0;
     let reparacionesOk = 0;
+    let reparacionesTrabajadas = 0;
     let eventosOk = 0;
     let raciones = 0;
     let atenciones = 0;
@@ -663,6 +665,7 @@ export function ReportesDiariosRedView() {
       if (alimentacionReportada(reporte)) alimentacionOk++;
       if (saludReportada(reporte)) saludOk++;
       if (Boolean(reporteRep)) reparacionesOk++;
+      if (reporteRep?.se_trabajo_hoy === true) reparacionesTrabajadas++;
       if (eventosRevisados(reporte, eventosCount)) eventosOk++;
       raciones += racionesDelDia(reporte);
       atenciones += reporte?.atenciones_medicas ?? 0;
@@ -674,6 +677,7 @@ export function ReportesDiariosRedView() {
       alimentacionOk,
       saludOk,
       reparacionesOk,
+      reparacionesTrabajadas,
       eventosOk,
       raciones,
       atenciones,
@@ -823,7 +827,7 @@ export function ReportesDiariosRedView() {
             </Badge>
             <Badge variant="outline" className="hidden gap-1 tabular-nums lg:inline-flex">
               <Wrench className="size-3 text-amber-400" />
-              {totalesIndicadoresDia.reparacionesOk} rep.
+              {totalesIndicadoresDia.reparacionesTrabajadas} trab.
             </Badge>
             <Badge variant="outline" className="hidden gap-1 tabular-nums lg:inline-flex">
               <CalendarPlus className="size-3 text-emerald-400" />
@@ -877,10 +881,10 @@ export function ReportesDiariosRedView() {
                     color="#fb7185"
                   />
                   <TarjetaTotalIndicadorReporte
-                    titulo="Reparaciones"
+                    titulo="Trabajos de reparación"
                     icono={<Wrench className="size-3 shrink-0 text-amber-400" />}
-                    valor={totalesIndicadoresDia.reparacionesOk.toLocaleString("es")}
-                    completados={totalesIndicadoresDia.reparacionesOk}
+                    valor={totalesIndicadoresDia.reparacionesTrabajadas.toLocaleString("es")}
+                    completados={totalesIndicadoresDia.reparacionesTrabajadas}
                     total={centros.length}
                     color="#fbbf24"
                   />
@@ -1101,7 +1105,8 @@ export function ReportesDiariosRedView() {
                     parte,
                     alimentacion,
                     salud,
-                    reparaciones,
+                    reparacionesRevisadas,
+                    reparacionesTrabajadas,
                     eventosRevisados: eventosOk,
                     raciones,
                     atenciones,
@@ -1148,7 +1153,7 @@ export function ReportesDiariosRedView() {
                           </span>
                           <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-amber-300">
                             <Wrench className="size-2.5" />
-                            {reparaciones ? 1 : 0}
+                            {reparacionesTrabajadas ? 1 : 0}
                           </span>
                           <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-emerald-300">
                             <CalendarPlus className="size-2.5" />
@@ -1188,11 +1193,21 @@ export function ReportesDiariosRedView() {
                           className={salud ? "border-rose-400/25 bg-rose-400/10 text-rose-100" : ""}
                         />
                         <IndicadorBloqueReporte
-                          titulo="Reparaciones"
+                          titulo={
+                            reparacionesRevisadas
+                              ? "Reparaciones revisadas"
+                              : "Reparaciones pendientes de revisar"
+                          }
                           icono={<Wrench className="size-3 text-amber-400" />}
-                          valor={reparaciones ? 1 : 0}
-                          listo={reparaciones}
-                          className={reparaciones ? "border-amber-400/25 bg-amber-400/10 text-amber-100" : ""}
+                          valor={reparacionesTrabajadas ? 1 : 0}
+                          listo={reparacionesRevisadas}
+                          className={
+                            reparacionesTrabajadas
+                              ? "border-amber-400/25 bg-amber-400/10 text-amber-100"
+                              : reparacionesRevisadas
+                                ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-100"
+                                : ""
+                          }
                         />
                         <IndicadorBloqueReporte
                           titulo="Eventos"

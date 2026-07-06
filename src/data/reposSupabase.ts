@@ -524,6 +524,22 @@ export async function confirmarParteNumericoDia(
   await upsertSnapshotOcupacion(centro, diaSnap, ts);
 }
 
+/** Quita solo el snapshot del parte numérico de un día; no modifica el centro. */
+export async function eliminarParteNumericoDia(centroId: string, dia: string): Promise<void> {
+  const { error } = await supabase
+    .from("ocupaciones_centros")
+    .delete()
+    .eq("centro_id", centroId)
+    .eq("dia", dia);
+  if (error) {
+    throw new Error(`[reposSupabase] delete ocupaciones_centros: ${error.message}`);
+  }
+  registrarHistorial("desmarcar_parte_numerico", "reporte", `${centroId}/${dia}`, {
+    centro_id: centroId,
+    dia,
+  });
+}
+
 /**
  * Elimina un centro (borrado suave, igual que el resto de entidades). La fila
  * queda con `deleted: true`, así que desaparece de la UI pero el histórico de

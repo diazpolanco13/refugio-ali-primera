@@ -212,7 +212,13 @@ create policy ocupaciones_centros_update on public.ocupaciones_centros
 
 create policy ocupaciones_centros_delete on public.ocupaciones_centros
   for delete to authenticated
-  using ((select public.mi_rol()) in ('admin', 'analista_sae'));
+  using (
+    (select public.mi_rol()) in ('admin', 'analista_sae')
+    or (
+      (select public.mi_rol()) in ('supervisor', 'operador')
+      and centro_id = any ((select public.mis_centros())::text[])
+    )
+  );
 
 -- ---- reportes_centros ------------------------------------------------------
 

@@ -43,6 +43,25 @@ export async function guardarReporteReparacionesDia(
   });
 }
 
+/** Quita la revisión diaria de reparaciones; no borra los trabajos históricos. */
+export async function eliminarReporteReparacionesDia(datos: {
+  centro_id: string;
+  dia: string;
+}): Promise<void> {
+  const { error } = await supabase
+    .from("reportes_reparaciones_dia")
+    .delete()
+    .eq("centro_id", datos.centro_id)
+    .eq("dia", datos.dia);
+  if (error) {
+    throw new Error(`[reposReparaciones] delete reportes_reparaciones_dia: ${error.message}`);
+  }
+  registrarHistorial("desmarcar_reporte_reparaciones", "reporte", `${datos.centro_id}/${datos.dia}`, {
+    centro_id: datos.centro_id,
+    dia: datos.dia,
+  });
+}
+
 // ---- Ítems de reparación persistentes ----
 
 /** Crea un ítem de reparación nuevo. Devuelve el id generado. */

@@ -251,7 +251,7 @@ export function EventosReporteTab({
             onClick={() => onEventosRevisadosChange(!eventosRevisados)}
           >
             {eventosRevisados ? <Check className="size-4" /> : <CalendarPlus className="size-4" />}
-            {eventosRevisados ? "Eventos revisados: sin novedades" : "Confirmar que no hubo eventos"}
+            {eventosRevisados ? "Quitar revisión sin novedades" : "Confirmar que no hubo eventos"}
           </Button>
         )}
       </div>

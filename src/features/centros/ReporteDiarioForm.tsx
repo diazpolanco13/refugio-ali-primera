@@ -34,13 +34,17 @@ import {
 } from "lucide-react";
 import {
   confirmarParteNumericoDia,
+  eliminarParteNumericoDia,
   guardarCentro,
   claveDia,
   nuevoId,
 } from "@/data/reposSupabase";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { guardarReporteDiario } from "@/data/reposReportes";
-import { guardarReporteReparacionesDia } from "@/data/reposReparaciones";
+import {
+  eliminarReporteReparacionesDia,
+  guardarReporteReparacionesDia,
+} from "@/data/reposReparaciones";
 import { guardarEventosReporteDia } from "@/data/reposEventosReportes";
 import { useReportesCentros } from "@/data/useReportesCentros";
 import { useReportesReparacionesDia } from "@/data/useReportesReparacionesDia";
@@ -259,7 +263,7 @@ function AtencionesMedicasSalud({
               ) : (
                 <Check className="size-4.5" />
               )}
-              {sinAtenciones ? "Confirmado: cero atenciones" : "Confirmar cero atenciones"}
+              {sinAtenciones ? "Quitar cero atenciones" : "Confirmar cero atenciones"}
             </Button>
           </div>
         )}
@@ -475,6 +479,8 @@ const clasePestanaReporte = cn(
   "[&_svg]:size-4 shrink-0",
 );
 
+type GuardandoBloque = "parte" | "salud" | "reparaciones" | "eventos" | JornadaReporte | null;
+
 /** Formulario del reporte del día (parte numérico + comidas + atención médica). */
 export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Props) {
   const base = normalizarCentro(centro);
@@ -502,16 +508,19 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
   const [requiereTrabajos, setRequiereTrabajos] = useState(false);
   const [seTrabajoHoy, setSeTrabajoHoy] = useState(false);
   const [obsReparaciones, setObsReparaciones] = useState("");
+  const [reparacionesRevisadas, setReparacionesRevisadas] = useState(false);
 
   // Eventos (múltiples filas en `eventos_reportes` + flag de revisión en el reporte base).
   const [eventosReporte, setEventosReporte] = useState<EventoReporte[]>([]);
   const [eventosRevisados, setEventosRevisados] = useState(false);
   const [idsEventosExistentes, setIdsEventosExistentes] = useState<string[]>([]);
 
-  const [guardando, setGuardando] = useState(false);
+  const [guardandoBloque, setGuardandoBloque] = useState<GuardandoBloque>(null);
   const [confirmandoParte, setConfirmandoParte] = useState(false);
   const [parteConfirmadoOk, setParteConfirmadoOk] = useState(false);
+  const [parteDesmarcadoOk, setParteDesmarcadoOk] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
+  const guardando = guardandoBloque !== null;
 
   const baselineParte = useRef<ParteNumericoForm>({
     ocupacion: base.ocupacion,
@@ -530,7 +539,7 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
     familias,
   };
   const parteModificado = !parteNumericoIgual(parteActual, baselineParte.current);
-  const parteHoyConfirmado = parteHoyEnBd || parteConfirmadoOk;
+  const parteHoyConfirmado = !parteDesmarcadoOk && (parteHoyEnBd || parteConfirmadoOk);
 
   // Si ya hay reporte de HOY, precarga comidas/atenciones para editar sobre
   // lo ya reportado (una sola vez, para no pisar lo que escriba el usuario).
@@ -565,6 +574,7 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
     setRequiereTrabajos(reporteRepExistente.requiere_trabajos);
     setSeTrabajoHoy(reporteRepExistente.se_trabajo_hoy);
     setObsReparaciones(reporteRepExistente.observaciones);
+    setReparacionesRevisadas(true);
     setPrecargadoRep(true);
   }, [precargadoRep, reporteRepExistente]);
 
@@ -593,115 +603,170 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
         [jornada]: { ...prev[jornada], [campo]: valor },
       }));
 
-  async function confirmarSinCambios() {
+  function comidasConHoras(): ComidasDia {
+    return {
+      desayuno: {
+        ...comidas.desayuno,
+        hora_llegada: tsDesdeHora(horas.desayuno, hoy),
+        proveedor: comidas.desayuno.proveedor.trim(),
+        observacion: comidas.desayuno.observacion.trim(),
+      },
+      almuerzo: {
+        ...comidas.almuerzo,
+        hora_llegada: tsDesdeHora(horas.almuerzo, hoy),
+        proveedor: comidas.almuerzo.proveedor.trim(),
+        observacion: comidas.almuerzo.observacion.trim(),
+      },
+      cena: {
+        ...comidas.cena,
+        hora_llegada: tsDesdeHora(horas.cena, hoy),
+        proveedor: comidas.cena.proveedor.trim(),
+        observacion: comidas.cena.observacion.trim(),
+      },
+    };
+  }
+
+  async function guardarReporteBase(): Promise<void> {
+    await guardarReporteDiario({
+      centro_id: centro.id,
+      dia: hoy,
+      comidas: comidasConHoras(),
+      atenciones_medicas_detalle: atencionesCasos,
+      atenciones_medicas: contarAtenciones(atencionesCasos),
+      salud_reportada:
+        sinAtencionesMedicas ||
+        atencionesCasos.length > 0 ||
+        observaciones.trim() !== "",
+      eventos_revisados: eventosRevisados || eventosReporte.length > 0,
+      observaciones: observaciones.trim(),
+    });
+  }
+
+  async function guardarParte() {
     setErrorGuardado(null);
     setConfirmandoParte(true);
     try {
-      await confirmarParteNumericoDia(
-        {
-          ...centro,
-          ocupacion,
-          personal,
-          total_afectados: totalAfectados,
-          familias_ocupadas: familias,
-        },
-        hoy,
-      );
+      const centroActualizado = {
+        ...centro,
+        ocupacion,
+        personal,
+        total_afectados: totalAfectados,
+        familias_ocupadas: familias,
+      };
+      if (parteModificado) {
+        await guardarCentro(centroActualizado);
+      } else {
+        await confirmarParteNumericoDia(centroActualizado, hoy);
+      }
+      baselineParte.current = {
+        ocupacion,
+        personal,
+        totalAfectados,
+        familias,
+      };
       setParteConfirmadoOk(true);
+      setParteDesmarcadoOk(false);
     } catch (err) {
-      console.error("[ReporteDiarioForm] error confirmando parte numérico:", err);
+      console.error("[ReporteDiarioForm] error guardando parte numérico:", err);
       setErrorGuardado(
-        err instanceof Error
-          ? err.message
-          : "No se pudo confirmar el parte numérico del día.",
+        err instanceof Error ? err.message : "No se pudo guardar el parte numérico del día.",
       );
     } finally {
       setConfirmandoParte(false);
     }
   }
 
-  async function guardar() {
+  async function desmarcarParte() {
     setErrorGuardado(null);
-    setGuardando(true);
+    setConfirmandoParte(true);
     try {
-      // 1) Parte numérico → si cambió, guarda el centro; si no cambió,
-      // confirma el parte vigente para que el cierre del día alimente el mapa.
-      if (parteModificado) {
-        await guardarCentro({
-          ...centro,
-          ocupacion,
-          personal,
-          total_afectados: totalAfectados,
-          familias_ocupadas: familias,
+      await eliminarParteNumericoDia(centro.id, hoy);
+      setParteConfirmadoOk(false);
+      setParteDesmarcadoOk(true);
+    } catch (err) {
+      console.error("[ReporteDiarioForm] error desmarcando parte numérico:", err);
+      setErrorGuardado(
+        err instanceof Error ? err.message : "No se pudo desmarcar el parte numérico.",
+      );
+    } finally {
+      setConfirmandoParte(false);
+    }
+  }
+
+  async function guardarComida(jornada: JornadaReporte) {
+    setErrorGuardado(null);
+    setGuardandoBloque(jornada);
+    try {
+      await guardarReporteBase();
+    } catch (err) {
+      console.error("[ReporteDiarioForm] error guardando comida:", err);
+      setErrorGuardado(err instanceof Error ? err.message : "No se pudo guardar la comida.");
+    } finally {
+      setGuardandoBloque(null);
+    }
+  }
+
+  async function guardarSalud() {
+    setErrorGuardado(null);
+    setGuardandoBloque("salud");
+    try {
+      await guardarReporteBase();
+    } catch (err) {
+      console.error("[ReporteDiarioForm] error guardando salud:", err);
+      setErrorGuardado(err instanceof Error ? err.message : "No se pudo guardar salud.");
+    } finally {
+      setGuardandoBloque(null);
+    }
+  }
+
+  async function guardarReparaciones() {
+    setErrorGuardado(null);
+    setGuardandoBloque("reparaciones");
+    try {
+      const bloqueRevisado =
+        reparacionesRevisadas ||
+        requiereTrabajos ||
+        seTrabajoHoy ||
+        obsReparaciones.trim() !== "";
+      if (bloqueRevisado) {
+        await guardarReporteReparacionesDia({
+          centro_id: centro.id,
+          dia: hoy,
+          requiere_trabajos: requiereTrabajos,
+          se_trabajo_hoy: seTrabajoHoy,
+          observaciones: obsReparaciones.trim(),
         });
-      } else {
-        await confirmarParteNumericoDia(
-          {
-            ...centro,
-            ocupacion,
-            personal,
-            total_afectados: totalAfectados,
-            familias_ocupadas: familias,
-          },
-          hoy,
-        );
+      } else if (reporteRepExistente) {
+        await eliminarReporteReparacionesDia({ centro_id: centro.id, dia: hoy });
       }
-      // 2) Comidas + atención médica → reportes_centros (upsert del día).
-      await guardarReporteDiario({
-        centro_id: centro.id,
-        dia: hoy,
-        comidas: {
-          desayuno: {
-            ...comidas.desayuno,
-            hora_llegada: tsDesdeHora(horas.desayuno, hoy),
-            proveedor: comidas.desayuno.proveedor.trim(),
-            observacion: comidas.desayuno.observacion.trim(),
-          },
-          almuerzo: {
-            ...comidas.almuerzo,
-            hora_llegada: tsDesdeHora(horas.almuerzo, hoy),
-            proveedor: comidas.almuerzo.proveedor.trim(),
-            observacion: comidas.almuerzo.observacion.trim(),
-          },
-          cena: {
-            ...comidas.cena,
-            hora_llegada: tsDesdeHora(horas.cena, hoy),
-            proveedor: comidas.cena.proveedor.trim(),
-            observacion: comidas.cena.observacion.trim(),
-          },
-        },
-        atenciones_medicas_detalle: atencionesCasos,
-        atenciones_medicas: contarAtenciones(atencionesCasos),
-        salud_reportada:
-          sinAtencionesMedicas ||
-          atencionesCasos.length > 0 ||
-          observaciones.trim() !== "",
-        eventos_revisados: eventosRevisados || eventosReporte.length > 0,
-        observaciones: observaciones.trim(),
-      });
-      // 3) Flags diarios de reparaciones.
-      await guardarReporteReparacionesDia({
-        centro_id: centro.id,
-        dia: hoy,
-        requiere_trabajos: requiereTrabajos,
-        se_trabajo_hoy: seTrabajoHoy,
-        observaciones: obsReparaciones.trim(),
-      });
-      // 4) Eventos del día: múltiples filas por centro/día.
+      setReparacionesRevisadas(bloqueRevisado);
+    } catch (err) {
+      console.error("[ReporteDiarioForm] error guardando reparaciones:", err);
+      setErrorGuardado(
+        err instanceof Error ? err.message : "No se pudo guardar reparaciones.",
+      );
+    } finally {
+      setGuardandoBloque(null);
+    }
+  }
+
+  async function guardarEventos() {
+    setErrorGuardado(null);
+    setGuardandoBloque("eventos");
+    try {
+      await guardarReporteBase();
       await guardarEventosReporteDia({
         centro_id: centro.id,
         dia: hoy,
         eventos: eventosReporte,
         idsExistentes: idsEventosExistentes,
       });
-      onCerrar();
+      setIdsEventosExistentes(eventosReporte.map((evento) => evento.id));
     } catch (err) {
-      console.error("[ReporteDiarioForm] error guardando reporte:", err);
-      setErrorGuardado(
-        err instanceof Error ? err.message : "No se pudo guardar el reporte del día.",
-      );
+      console.error("[ReporteDiarioForm] error guardando eventos:", err);
+      setErrorGuardado(err instanceof Error ? err.message : "No se pudo guardar eventos.");
     } finally {
-      setGuardando(false);
+      setGuardandoBloque(null);
     }
   }
 
@@ -731,14 +796,8 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
             : "flex-col-reverse sm:ml-auto sm:w-auto sm:flex-row",
         )}
       >
-        {variant === "dialog" && (
-          <Button variant="outline" onClick={onCerrar} disabled={guardando || confirmandoParte}>
-            Cancelar
-          </Button>
-        )}
-        <Button onClick={() => void guardar()} disabled={guardando || confirmandoParte}>
-          {guardando ? <Loader2 className="size-4 animate-spin" /> : null}
-          {parteModificado ? "Guardar reporte" : "Guardar comidas y atención"}
+        <Button variant="outline" onClick={onCerrar} disabled={guardando || confirmandoParte}>
+          Cerrar
         </Button>
       </div>
     </div>
@@ -804,7 +863,7 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
                       {parteHoyConfirmado
                         ? "El registro de hoy ya quedó en el histórico."
                         : parteModificado
-                          ? "Hay cambios respecto al último registro. Guárdalos con el botón del pie del formulario."
+                          ? "Hay cambios respecto al último registro. Guárdalos desde esta pestaña."
                           : "Si la población no cambió, confírmalo sin reescribir las cifras."}
                     </p>
                   </div>
@@ -818,23 +877,39 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
                   </Badge>
                 </div>
 
-                {!parteHoyConfirmado && !parteModificado && (
+                <div className="mt-3 flex flex-wrap gap-2">
                   <Button
                     type="button"
                     variant="default"
                     size="default"
                     className="min-h-10 w-full justify-center bg-teal-600 font-semibold text-white shadow-sm shadow-teal-950/20 hover:bg-teal-500 sm:w-auto"
                     disabled={confirmandoParte || guardando}
-                    onClick={() => void confirmarSinCambios()}
+                    onClick={() => void guardarParte()}
                   >
                     {confirmandoParte ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (
                       <Check className="size-4" />
                     )}
-                    Confirmar sin cambios
+                    {parteModificado
+                      ? "Guardar parte"
+                      : parteHoyConfirmado
+                        ? "Actualizar parte"
+                        : "Confirmar sin cambios"}
                   </Button>
-                )}
+                  {parteHoyConfirmado && !parteModificado && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="default"
+                      className="min-h-10 w-full justify-center sm:w-auto"
+                      disabled={confirmandoParte || guardando}
+                      onClick={() => void desmarcarParte()}
+                    >
+                      Desmarcar revisión
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -992,6 +1067,21 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
                         placeholder="Ej. faltaron 20 raciones…"
                       />
                     </div>
+                    <div className="flex justify-end pt-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={guardando || confirmandoParte}
+                        onClick={() => void guardarComida(j.valor)}
+                      >
+                        {guardandoBloque === j.valor ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Check className="size-3.5" />
+                        )}
+                        Guardar {j.label.toLowerCase()}
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -1000,7 +1090,7 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
             {/* Atención médica del día: casos individuales */}
             <TabsContent
               value="salud"
-              className="mt-0 block min-w-0 flex-none outline-none"
+              className="mt-0 block min-w-0 flex-none space-y-3 outline-none"
             >
               <AtencionesMedicasSalud
                 casos={atencionesCasos}
@@ -1010,10 +1100,24 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
                 observaciones={observaciones}
                 onObservaciones={setObservaciones}
               />
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  disabled={guardando || confirmandoParte}
+                  onClick={() => void guardarSalud()}
+                >
+                  {guardandoBloque === "salud" ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Check className="size-4" />
+                  )}
+                  Guardar salud
+                </Button>
+              </div>
             </TabsContent>
 
             {/* Reparaciones: flags diarios + lista histórica */}
-            <TabsContent value="reparaciones" className="mt-0 block flex-none outline-none">
+            <TabsContent value="reparaciones" className="mt-0 block flex-none space-y-3 outline-none">
               <ReparacionesTab
                 centroId={centro.id}
                 puedeEditar
@@ -1023,13 +1127,28 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
                 onRequiereTrabajos={setRequiereTrabajos}
                 onSeTrabajoHoy={setSeTrabajoHoy}
                 onObservaciones={setObsReparaciones}
-                revisado={Boolean(reporteRepExistente)}
+                revisado={reparacionesRevisadas}
+                onRevisadoChange={setReparacionesRevisadas}
                 deshabilitado={guardando || confirmandoParte}
               />
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  disabled={guardando || confirmandoParte}
+                  onClick={() => void guardarReparaciones()}
+                >
+                  {guardandoBloque === "reparaciones" ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Check className="size-4" />
+                  )}
+                  Guardar reparaciones
+                </Button>
+              </div>
             </TabsContent>
 
             {/* Eventos: positivos/negativos + participantes */}
-            <TabsContent value="eventos" className="mt-0 block flex-none outline-none">
+            <TabsContent value="eventos" className="mt-0 block flex-none space-y-3 outline-none">
               <EventosReporteTab
                 centroId={centro.id}
                 dia={hoy}
@@ -1039,6 +1158,20 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
                 onEventosRevisadosChange={setEventosRevisados}
                 deshabilitado={guardando || confirmandoParte}
               />
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  disabled={guardando || confirmandoParte}
+                  onClick={() => void guardarEventos()}
+                >
+                  {guardandoBloque === "eventos" ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Check className="size-4" />
+                  )}
+                  Guardar eventos
+                </Button>
+              </div>
             </TabsContent>
           </div>
         </Tabs>

@@ -73,6 +73,7 @@ interface Props {
   onSeTrabajoHoy: (v: boolean) => void;
   onObservaciones: (v: string) => void;
   revisado?: boolean;
+  onRevisadoChange?: (v: boolean) => void;
   deshabilitado?: boolean;
 }
 
@@ -568,6 +569,7 @@ export function ReparacionesTab({
   onSeTrabajoHoy,
   onObservaciones,
   revisado,
+  onRevisadoChange,
   deshabilitado,
 }: Props) {
   const reparaciones = useReparacionesCentros({ centroId });
@@ -575,7 +577,7 @@ export function ReparacionesTab({
   const conteos = contarPorEstatus(reparaciones);
   const [mostrandoForm, setMostrandoForm] = useState(false);
   const [editando, setEditando] = useState<Reparacion | null>(null);
-  const [sinTrabajosConfirmado, setSinTrabajosConfirmado] = useState(false);
+  const [sinTrabajosConfirmado, setSinTrabajosConfirmado] = useState(Boolean(revisado));
   const sinTrabajosRevisado =
     !requiereTrabajos && !seTrabajoHoy && (Boolean(revisado) || sinTrabajosConfirmado);
   const reparacionesDiaRevisadas =
@@ -583,19 +585,23 @@ export function ReparacionesTab({
 
   function cambiarRequiereTrabajos(valor: boolean) {
     setSinTrabajosConfirmado(false);
+    onRevisadoChange?.(valor || seTrabajoHoy || observaciones.trim() !== "");
     onRequiereTrabajos(valor);
   }
 
   function cambiarSeTrabajoHoy(valor: boolean) {
     setSinTrabajosConfirmado(false);
+    onRevisadoChange?.(requiereTrabajos || valor || observaciones.trim() !== "");
     onSeTrabajoHoy(valor);
   }
 
   function confirmarSinReparaciones() {
+    const siguiente = !sinTrabajosRevisado;
     onRequiereTrabajos(false);
     onSeTrabajoHoy(false);
     onObservaciones("");
-    setSinTrabajosConfirmado(true);
+    setSinTrabajosConfirmado(siguiente);
+    onRevisadoChange?.(siguiente);
   }
 
   return (
@@ -676,7 +682,7 @@ export function ReparacionesTab({
           >
             <CheckCircle2 className="size-4" />
             {sinTrabajosRevisado
-              ? "Revisado: sin reparaciones"
+              ? "Quitar revisión sin reparaciones"
               : "Confirmar que no requiere reparaciones"}
           </Button>
         )}

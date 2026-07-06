@@ -134,7 +134,13 @@ create policy reportes_reparaciones_dia_update on public.reportes_reparaciones_d
 
 create policy reportes_reparaciones_dia_delete on public.reportes_reparaciones_dia
   for delete to authenticated
-  using ((select public.mi_rol()) in ('admin', 'analista_sae'));
+  using (
+    (select public.mi_rol()) in ('admin', 'analista_sae')
+    or (
+      (select public.mi_rol()) in ('supervisor', 'operador')
+      and centro_id = any ((select public.mis_centros())::text[])
+    )
+  );
 
 alter publication supabase_realtime add table public.reportes_reparaciones_dia;
 
