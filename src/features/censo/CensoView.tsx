@@ -498,8 +498,16 @@ export function CensoView() {
     setMostrarInstrucciones(false);
   }
 
+  const bloquearScrollPagina =
+    !mostrarInstrucciones && paso === 1 && paso1Seccion === "centro";
+
   return (
-    <div className="min-h-[100dvh] bg-muted/40 pb-10">
+    <div
+      className={cn(
+        "min-h-[100dvh] bg-muted/40 pb-10",
+        bloquearScrollPagina && "flex h-[100dvh] flex-col overflow-hidden pb-0",
+      )}
+    >
       {/* Encabezado */}
       <header className="bg-primary px-4 pb-6 pt-5 text-primary-foreground">
         <div className="mx-auto flex w-full max-w-xl items-center gap-3">
@@ -545,12 +553,17 @@ export function CensoView() {
         )}
       </header>
 
-      <main className="mx-auto w-full max-w-xl px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+      <main
+        className={cn(
+          "mx-auto w-full max-w-xl px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))]",
+          bloquearScrollPagina && "flex min-h-0 flex-1 flex-col overflow-hidden pb-4",
+        )}
+      >
         {mostrarInstrucciones && <CensoInstrucciones onContinuar={continuarDesdeInstrucciones} />}
 
         {!mostrarInstrucciones && paso === 1 && paso1Seccion === "centro" && (
-          <Card className="-mt-3 flex min-h-[calc(100dvh-11.5rem)] flex-col shadow-lg">
-            <CardHeader className="pb-2">
+          <Card className="-mt-3 flex min-h-0 flex-1 flex-col overflow-hidden shadow-lg">
+            <CardHeader className="shrink-0 pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <MapPin className="size-4 text-primary" />
                 Seleccione el campamento
@@ -560,7 +573,7 @@ export function CensoView() {
                 lista o búsquelo por escrito.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex min-h-0 flex-1 flex-col pb-4">
+            <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
               <SelectorCentroLista
                 centros={centros}
                 centroId={centroId}
@@ -1402,7 +1415,7 @@ function SelectorCentroLista({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="relative shrink-0">
         <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -1422,11 +1435,12 @@ function SelectorCentroLista({
           Cargando campamentos…
         </div>
       ) : (
-        <ul
-          className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border sm:max-h-96"
-          role="listbox"
-          aria-label="Campamentos disponibles"
-        >
+        <div className="relative mt-3 flex min-h-0 flex-1 flex-col">
+          <ul
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border touch-pan-y [-webkit-overflow-scrolling:touch]"
+            role="listbox"
+            aria-label="Campamentos disponibles"
+          >
           {filtrados.length === 0 ? (
             <li className="px-4 py-10 text-center text-sm text-muted-foreground">
               No se encontró ningún campamento.
@@ -1451,12 +1465,22 @@ function SelectorCentroLista({
               </li>
             ))
           )}
-        </ul>
+          </ul>
+          {filtrados.length > 6 && (
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-10 rounded-b-lg bg-gradient-to-t from-background via-background/80 to-transparent"
+              aria-hidden
+            />
+          )}
+        </div>
       )}
 
-      <p className="mt-3 text-[11px] text-muted-foreground">
+      <p className="mt-3 shrink-0 text-[11px] text-muted-foreground">
         {centros.length} campamento{centros.length === 1 ? "" : "s"} disponible
-        {centros.length === 1 ? "" : "s"}. Toque uno para continuar.
+        {centros.length === 1 ? "" : "s"}.
+        {filtrados.length > 6
+          ? " Deslice la lista para ver más y toque uno para continuar."
+          : " Toque uno para continuar."}
       </p>
     </div>
   );
