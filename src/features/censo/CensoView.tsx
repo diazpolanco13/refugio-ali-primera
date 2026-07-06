@@ -1,4 +1,4 @@
-// Planilla pública de registro rápido de refugiados (sin login).
+// Planilla pública de registro rápido de damnificados (sin login).
 // Paso 1: refugio (con búsqueda) + identificación del funcionario.
 // Paso 2: registro de personas según la planilla física (documento, teléfono,
 //         embarazo/discapacidad/enfermedad condicionales y dirección perdida).
@@ -63,6 +63,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SelectoresGeo } from "@/components/SelectoresGeo";
+import { CEDULA_JEFE_NO_SE } from "@/domain/catalogosHumanitarios";
 import {
   CONDICIONES_VIVIENDA,
   PARENTESCOS_MENOR,
@@ -82,9 +83,19 @@ import {
   type RegistroCensoGuardado,
   type UbicacionCensador,
 } from "@/data/reposCenso";
+import { CensoInstrucciones } from "@/features/censo/CensoInstrucciones";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "censo_funcionario_v1";
+const INSTRUCCIONES_KEY = "censo_instrucciones_v1";
+
+function vioInstruccionesCenso(): boolean {
+  try {
+    return localStorage.getItem(INSTRUCCIONES_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 const TIPOS_DOC: { valor: RegistroCenso["tipo_doc"]; label: string }[] = [
   { valor: "V", label: "V-" },
@@ -127,6 +138,108 @@ function registroVacio(): RegistroCenso {
   };
 }
 
+type IdCampoRegistro =
+  | "primer_nombre"
+  | "primer_apellido"
+  | "edad"
+  | "sexo"
+  | "parentesco_jefe"
+  | "jefe_documento";
+
+type IdCampoFuncionario = "jerarquia" | "nombre" | "institucion" | "telefono";
+
+interface CampoFaltante {
+  id: IdCampoRegistro | IdCampoFuncionario;
+  label: string;
+}
+
+function camposFaltantesRegistro(
+  registro: RegistroCenso,
+  esMenor: boolean,
+  conoceCedulaJefe: boolean,
+): CampoFaltante[] {
+  const faltantes: CampoFaltante[] = [];
+  if (!registro.primer_nombre.trim()) faltantes.push({ id: "primer_nombre", label: "primer nombre" });
+  if (!registro.primer_apellido.trim()) {
+    faltantes.push({ id: "primer_apellido", label: "primer apellido" });
+  }
+  if (registro.edad == null) faltantes.push({ id: "edad", label: "edad" });
+  if (!registro.sexo) faltantes.push({ id: "sexo", label: "sexo" });
+  if (esMenor) {
+    if (!registro.parentesco_jefe.trim()) {
+      faltantes.push({ id: "parentesco_jefe", label: "parentesco con el jefe" });
+    }
+    if (conoceCedulaJefe && !registro.jefe_documento.trim()) {
+      faltantes.push({ id: "jefe_documento", label: "cédula del jefe" });
+    }
+  }
+  return faltantes;
+}
+
+function camposFaltantesFuncionario(funcionario: FuncionarioCenso): CampoFaltante[] {
+  const faltantes: CampoFaltante[] = [];
+  if (!funcionario.jerarquia.trim()) faltantes.push({ id: "jerarquia", label: "jerarquía" });
+  if (!funcionario.nombre.trim()) faltantes.push({ id: "nombre", label: "nombre" });
+  if (!funcionario.institucion.trim()) faltantes.push({ id: "institucion", label: "institución" });
+  if (!funcionario.telefono.trim()) faltantes.push({ id: "telefono", label: "teléfono" });
+  return faltantes;
+}
+
+function esCampoFaltante(id: CampoFaltante["id"], faltantes: CampoFaltante[]): boolean {
+  return faltantes.some((c) => c.id === id);
+}
+
+const claseInputFaltante =
+  "border-amber-500/45 ring-1 ring-amber-500/15 focus-visible:border-amber-500/60 focus-visible:ring-amber-500/25";
+
+const claseGrupoFaltante = "rounded-lg ring-1 ring-amber-500/20 ring-offset-0";
+
+function LabelCampoCenso({
+  htmlFor,
+  resaltar,
+  className,
+  children,
+}: {
+  htmlFor?: string;
+  resaltar?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Label
+      htmlFor={htmlFor}
+      className={cn(
+        resaltar && "text-amber-800 dark:text-amber-300",
+        className,
+      )}
+    >
+      {children}
+      {resaltar && (
+        <span
+          className="ml-1.5 inline-block size-1.5 rounded-full bg-amber-500 align-middle"
+          aria-hidden
+        />
+      )}
+    </Label>
+  );
+}
+
+function AvisoCamposFaltantes({
+  campos,
+  visible,
+}: {
+  campos: CampoFaltante[];
+  visible: boolean;
+}) {
+  if (!visible || campos.length === 0) return null;
+  return (
+    <p className="text-xs leading-snug text-amber-700 dark:text-amber-400" role="status">
+      Faltan {campos.length} campo{campos.length === 1 ? "" : "s"} obligatorio
+      {campos.length === 1 ? "" : "s"}: {campos.map((c) => c.label).join(", ")}.
+    </p>
+  );
+}
+
 interface SesionCenso {
   centroId: string;
   funcionario: FuncionarioCenso;
@@ -147,6 +260,7 @@ function cargarSesionGuardada(): SesionCenso | null {
 export function CensoView() {
   const guardada = useMemo(cargarSesionGuardada, []);
 
+  const [mostrarInstrucciones, setMostrarInstrucciones] = useState(() => !vioInstruccionesCenso());
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
   const [paso1Seccion, setPaso1Seccion] = useState<"centro" | "funcionario">(
     guardada?.centroId ? "funcionario" : "centro",
@@ -168,6 +282,8 @@ export function CensoView() {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [errorGuardar, setErrorGuardar] = useState("");
+  const [resaltarFaltantesPaso1, setResaltarFaltantesPaso1] = useState(false);
+  const [resaltarFaltantesPaso2, setResaltarFaltantesPaso2] = useState(false);
   const [registrados, setRegistrados] = useState(0);
   const [flashExito, setFlashExito] = useState(false);
 
@@ -183,7 +299,7 @@ export function CensoView() {
       })
       .catch((err) => {
         if (cancelado) return;
-        setErrorCentros(err instanceof Error ? err.message : "No se pudo cargar la lista de refugios");
+        setErrorCentros(err instanceof Error ? err.message : "No se pudo cargar la lista de campamentos");
         setCargandoCentros(false);
       });
     return () => {
@@ -201,6 +317,7 @@ export function CensoView() {
     funcionario.telefono.trim() !== "";
 
   const esMenor = registro.edad != null && registro.edad < 18;
+  const conoceCedulaJefe = registro.jefe_documento !== CEDULA_JEFE_NO_SE;
 
   const paso2Completo =
     registro.primer_nombre.trim() !== "" &&
@@ -208,10 +325,54 @@ export function CensoView() {
     registro.edad != null &&
     registro.sexo !== "" &&
     (!esMenor ||
-      (registro.jefe_documento.trim() !== "" && registro.parentesco_jefe.trim() !== ""));
+      (registro.parentesco_jefe.trim() !== "" &&
+        (registro.jefe_documento === CEDULA_JEFE_NO_SE || registro.jefe_documento.trim() !== "")));
+
+  const faltantesPaso1 = useMemo(() => camposFaltantesFuncionario(funcionario), [funcionario]);
+  const faltantesPaso2 = useMemo(
+    () => camposFaltantesRegistro(registro, esMenor, conoceCedulaJefe),
+    [registro, esMenor, conoceCedulaJefe],
+  );
+
+  const formularioPaso1Iniciado = useMemo(
+    () =>
+      funcionario.jerarquia.trim() !== "" ||
+      funcionario.nombre.trim() !== "" ||
+      funcionario.institucion.trim() !== "" ||
+      funcionario.telefono.trim() !== "",
+    [funcionario],
+  );
+
+  const formularioPaso2Iniciado = useMemo(() => {
+    const r = registro;
+    return (
+      r.primer_nombre.trim() !== "" ||
+      r.primer_apellido.trim() !== "" ||
+      r.segundo_nombre.trim() !== "" ||
+      r.segundo_apellido.trim() !== "" ||
+      r.edad != null ||
+      r.sexo !== "" ||
+      r.documento.trim() !== "" ||
+      r.telefono.trim() !== "" ||
+      r.parentesco_jefe.trim() !== "" ||
+      (r.jefe_documento.trim() !== "" && r.jefe_documento !== CEDULA_JEFE_NO_SE) ||
+      r.condicion_vivienda !== "" ||
+      r.estado_federativo !== "" ||
+      r.municipio !== "" ||
+      r.parroquia !== "" ||
+      r.calle.trim() !== "" ||
+      r.casa_edificio.trim() !== ""
+    );
+  }, [registro]);
+
+  const mostrarFaltantesPaso1 =
+    resaltarFaltantesPaso1 || (!paso1Completo && formularioPaso1Iniciado);
+  const mostrarFaltantesPaso2 =
+    resaltarFaltantesPaso2 || (!paso2Completo && formularioPaso2Iniciado);
 
   function continuarAPaso2() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ centroId, funcionario }));
+    setResaltarFaltantesPaso2(false);
     setPaso(2);
   }
 
@@ -223,6 +384,7 @@ export function CensoView() {
     setRegistro(registroDesdeGuardado(fila));
     setEditandoId(fila.id);
     setErrorGuardar("");
+    setResaltarFaltantesPaso2(false);
     setPaso(2);
   }
 
@@ -230,6 +392,7 @@ export function CensoView() {
     setEditandoId(null);
     setRegistro(registroVacio());
     setErrorGuardar("");
+    setResaltarFaltantesPaso2(false);
     if (destino === 3) setPaso(3);
   }
 
@@ -276,7 +439,11 @@ export function CensoView() {
 
   async function guardarRegistro(e: React.FormEvent) {
     e.preventDefault();
-    if (!paso2Completo || guardando) return;
+    if (guardando) return;
+    if (!paso2Completo) {
+      setResaltarFaltantesPaso2(true);
+      return;
+    }
     setErrorGuardar("");
     setGuardando(true);
     try {
@@ -288,6 +455,7 @@ export function CensoView() {
         await actualizarCenso(editandoId, datos);
         setEditandoId(null);
         setRegistro(registroVacio());
+        setResaltarFaltantesPaso2(false);
         setFlashExito(true);
         window.setTimeout(() => setFlashExito(false), 2500);
         setPaso(3);
@@ -321,6 +489,15 @@ export function CensoView() {
     year: "numeric",
   });
 
+  function continuarDesdeInstrucciones() {
+    try {
+      localStorage.setItem(INSTRUCCIONES_KEY, "1");
+    } catch {
+      /* ignorar */
+    }
+    setMostrarInstrucciones(false);
+  }
+
   return (
     <div className="min-h-[100dvh] bg-muted/40 pb-10">
       {/* Encabezado */}
@@ -331,49 +508,52 @@ export function CensoView() {
           </div>
           <div className="min-w-0">
             <h1 className="text-lg font-semibold leading-tight">
-              Planilla de Registro de Refugiados
+              Planilla de Registro de Damnificados
             </h1>
             <p className="text-xs opacity-80">Fecha: {fechaHoy}</p>
           </div>
         </div>
-        {/* Indicador de paso */}
-        <div className="mx-auto mt-4 flex w-full max-w-xl items-center gap-2 text-xs">
-          <PasoChip
-            activo={paso === 1}
-            completado={paso > 1}
-            numero={1}
-            label="Refugio"
-            onClick={() => {
-              setPaso(1);
-              setPaso1Seccion(centroId ? "funcionario" : "centro");
-            }}
-          />
-          <div className="h-px flex-1 bg-primary-foreground/30" />
-          <PasoChip
-            activo={paso === 2}
-            completado={false}
-            numero={2}
-            label="Registro"
-            onClick={paso1Completo ? () => setPaso(2) : undefined}
-          />
-          <div className="h-px flex-1 bg-primary-foreground/30" />
-          <PasoChip
-            activo={paso === 3}
-            completado={false}
-            numero={3}
-            label="Registrados"
-            onClick={centroId ? () => setPaso(3) : undefined}
-          />
-        </div>
+        {!mostrarInstrucciones && (
+          <div className="mx-auto mt-4 flex w-full max-w-xl items-center gap-2 text-xs">
+            <PasoChip
+              activo={paso === 1}
+              completado={paso > 1}
+              numero={1}
+              label="Campamento"
+              onClick={() => {
+                setPaso(1);
+                setPaso1Seccion(centroId ? "funcionario" : "centro");
+              }}
+            />
+            <div className="h-px flex-1 bg-primary-foreground/30" />
+            <PasoChip
+              activo={paso === 2}
+              completado={false}
+              numero={2}
+              label="Registro"
+              onClick={paso1Completo ? () => setPaso(2) : undefined}
+            />
+            <div className="h-px flex-1 bg-primary-foreground/30" />
+            <PasoChip
+              activo={paso === 3}
+              completado={false}
+              numero={3}
+              label="Registrados"
+              onClick={centroId ? () => setPaso(3) : undefined}
+            />
+          </div>
+        )}
       </header>
 
       <main className="mx-auto w-full max-w-xl px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
-        {paso === 1 && paso1Seccion === "centro" && (
+        {mostrarInstrucciones && <CensoInstrucciones onContinuar={continuarDesdeInstrucciones} />}
+
+        {!mostrarInstrucciones && paso === 1 && paso1Seccion === "centro" && (
           <Card className="-mt-3 flex min-h-[calc(100dvh-11.5rem)] flex-col shadow-lg">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <MapPin className="size-4 text-primary" />
-                Seleccione el refugio
+                Seleccione el campamento
               </CardTitle>
               <CardDescription>
                 Elija el campamento transitorio donde realiza el censo. Toque un nombre de la
@@ -393,7 +573,7 @@ export function CensoView() {
           </Card>
         )}
 
-        {paso === 1 && paso1Seccion === "funcionario" && (
+        {!mostrarInstrucciones && paso === 1 && paso1Seccion === "funcionario" && (
           <Card className="-mt-3 shadow-lg">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -410,14 +590,18 @@ export function CensoView() {
                 className="space-y-4"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (paso1Completo) continuarAPaso2();
+                  if (!paso1Completo) {
+                    setResaltarFaltantesPaso1(true);
+                    return;
+                  }
+                  continuarAPaso2();
                 }}
               >
                 <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2.5">
                   <MapPin className="size-4 shrink-0 text-primary" />
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      Refugio
+                      Campamento
                     </p>
                     <p className="truncate text-sm font-medium">{centroNombre}</p>
                   </div>
@@ -438,37 +622,72 @@ export function CensoView() {
                 </p>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="censo-jerarquia">Jerarquía / cargo</Label>
+                  <LabelCampoCenso
+                    htmlFor="censo-jerarquia"
+                    resaltar={mostrarFaltantesPaso1 && esCampoFaltante("jerarquia", faltantesPaso1)}
+                  >
+                    Jerarquía / cargo
+                  </LabelCampoCenso>
                   <Input
                     id="censo-jerarquia"
                     value={funcionario.jerarquia}
                     onChange={(e) => setFuncionario((f) => ({ ...f, jerarquia: e.target.value }))}
                     placeholder="Ej: Sargento Mayor, Coordinador…"
-                    className="h-11"
+                    className={cn(
+                      "h-11",
+                      mostrarFaltantesPaso1 &&
+                        esCampoFaltante("jerarquia", faltantesPaso1) &&
+                        claseInputFaltante,
+                    )}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="censo-nombre-func">Nombre y apellido</Label>
+                  <LabelCampoCenso
+                    htmlFor="censo-nombre-func"
+                    resaltar={mostrarFaltantesPaso1 && esCampoFaltante("nombre", faltantesPaso1)}
+                  >
+                    Nombre y apellido
+                  </LabelCampoCenso>
                   <Input
                     id="censo-nombre-func"
                     value={funcionario.nombre}
                     onChange={(e) => setFuncionario((f) => ({ ...f, nombre: e.target.value }))}
                     placeholder="Nombre completo del funcionario"
-                    className="h-11"
+                    className={cn(
+                      "h-11",
+                      mostrarFaltantesPaso1 &&
+                        esCampoFaltante("nombre", faltantesPaso1) &&
+                        claseInputFaltante,
+                    )}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="censo-institucion">Institución</Label>
+                  <LabelCampoCenso
+                    htmlFor="censo-institucion"
+                    resaltar={mostrarFaltantesPaso1 && esCampoFaltante("institucion", faltantesPaso1)}
+                  >
+                    Institución
+                  </LabelCampoCenso>
                   <Input
                     id="censo-institucion"
                     value={funcionario.institucion}
                     onChange={(e) => setFuncionario((f) => ({ ...f, institucion: e.target.value }))}
                     placeholder="Ej: GNB, Protección Civil, Alcaldía…"
-                    className="h-11"
+                    className={cn(
+                      "h-11",
+                      mostrarFaltantesPaso1 &&
+                        esCampoFaltante("institucion", faltantesPaso1) &&
+                        claseInputFaltante,
+                    )}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="censo-telefono">Teléfono (Telegram)</Label>
+                  <LabelCampoCenso
+                    htmlFor="censo-telefono"
+                    resaltar={mostrarFaltantesPaso1 && esCampoFaltante("telefono", faltantesPaso1)}
+                  >
+                    Teléfono (Telegram)
+                  </LabelCampoCenso>
                   <Input
                     id="censo-telefono"
                     type="tel"
@@ -476,12 +695,17 @@ export function CensoView() {
                     value={funcionario.telefono}
                     onChange={(e) => setFuncionario((f) => ({ ...f, telefono: e.target.value }))}
                     placeholder="0412-0000000"
-                    className="h-11"
+                    className={cn(
+                      "h-11",
+                      mostrarFaltantesPaso1 &&
+                        esCampoFaltante("telefono", faltantesPaso1) &&
+                        claseInputFaltante,
+                    )}
                   />
                 </div>
 
                 <CampoSiNo
-                  label="¿Está usted en el refugio?"
+                  label="¿Está usted en el campamento?"
                   valor={ubicacion.en_refugio}
                   onChange={cambiarEnRefugio}
                 >
@@ -533,22 +757,34 @@ export function CensoView() {
                       </p>
                     )}
                     <p className="text-[11px] text-muted-foreground">
-                      La ubicación valida que el censo se hace desde el refugio. Es importante,
+                      La ubicación valida que el censo se hace desde el campamento. Es importante,
                       pero no obligatoria.
                     </p>
                   </div>
                 </CampoSiNo>
 
-                <Button type="submit" className="h-11 w-full" disabled={!paso1Completo}>
-                  {geoEstado === "ok" ? "Confirmar y continuar al registro" : "Continuar al registro"}
-                  <ArrowRight className="size-4" />
-                </Button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <div className="min-w-0 flex-1">
+                    <AvisoCamposFaltantes
+                      campos={faltantesPaso1}
+                      visible={mostrarFaltantesPaso1}
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="h-11 w-full shrink-0 sm:w-auto sm:min-w-[14rem]"
+                    disabled={!paso1Completo}
+                  >
+                    {geoEstado === "ok" ? "Confirmar y continuar al registro" : "Continuar al registro"}
+                    <ArrowRight className="size-4" />
+                  </Button>
+                </div>
               </form>
             </CardContent>
           </Card>
         )}
 
-        {paso === 2 && (
+        {!mostrarInstrucciones && paso === 2 && (
           <div className="-mt-3 space-y-4">
             {/* Resumen del paso 1 */}
             <Card className="shadow-lg">
@@ -608,7 +844,7 @@ export function CensoView() {
                     ) : (
                       <UserPlus className="size-4 text-primary" />
                     )}
-                    {editandoId ? "Corregir registro" : "Datos del refugiado"}
+                    {editandoId ? "Corregir registro" : "Datos del damnificado"}
                   </span>
                   {registrados > 0 && (
                     <button
@@ -626,13 +862,25 @@ export function CensoView() {
                 <form className="space-y-4" onSubmit={guardarRegistro}>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label htmlFor="censo-pn">Primer nombre</Label>
+                      <LabelCampoCenso
+                        htmlFor="censo-pn"
+                        resaltar={
+                          mostrarFaltantesPaso2 && esCampoFaltante("primer_nombre", faltantesPaso2)
+                        }
+                      >
+                        Primer nombre
+                      </LabelCampoCenso>
                       <Input
                         id="censo-pn"
                         ref={refPrimerNombre}
                         value={registro.primer_nombre}
                         onChange={(e) => cambiarRegistro({ primer_nombre: e.target.value })}
-                        className="h-11"
+                        className={cn(
+                          "h-11",
+                          mostrarFaltantesPaso2 &&
+                            esCampoFaltante("primer_nombre", faltantesPaso2) &&
+                            claseInputFaltante,
+                        )}
                         autoComplete="off"
                       />
                     </div>
@@ -649,12 +897,24 @@ export function CensoView() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="censo-pa">Primer apellido</Label>
+                      <LabelCampoCenso
+                        htmlFor="censo-pa"
+                        resaltar={
+                          mostrarFaltantesPaso2 && esCampoFaltante("primer_apellido", faltantesPaso2)
+                        }
+                      >
+                        Primer apellido
+                      </LabelCampoCenso>
                       <Input
                         id="censo-pa"
                         value={registro.primer_apellido}
                         onChange={(e) => cambiarRegistro({ primer_apellido: e.target.value })}
-                        className="h-11"
+                        className={cn(
+                          "h-11",
+                          mostrarFaltantesPaso2 &&
+                            esCampoFaltante("primer_apellido", faltantesPaso2) &&
+                            claseInputFaltante,
+                        )}
                         autoComplete="off"
                       />
                     </div>
@@ -710,7 +970,12 @@ export function CensoView() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label htmlFor="censo-edad">Edad</Label>
+                      <LabelCampoCenso
+                        htmlFor="censo-edad"
+                        resaltar={mostrarFaltantesPaso2 && esCampoFaltante("edad", faltantesPaso2)}
+                      >
+                        Edad
+                      </LabelCampoCenso>
                       <Input
                         id="censo-edad"
                         type="number"
@@ -723,12 +988,28 @@ export function CensoView() {
                             edad: e.target.value === "" ? null : Math.max(0, Number(e.target.value)),
                           })
                         }
-                        className="h-11"
+                        className={cn(
+                          "h-11",
+                          mostrarFaltantesPaso2 &&
+                            esCampoFaltante("edad", faltantesPaso2) &&
+                            claseInputFaltante,
+                        )}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Sexo</Label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <LabelCampoCenso
+                        resaltar={mostrarFaltantesPaso2 && esCampoFaltante("sexo", faltantesPaso2)}
+                      >
+                        Sexo
+                      </LabelCampoCenso>
+                      <div
+                        className={cn(
+                          "grid grid-cols-2 gap-2",
+                          mostrarFaltantesPaso2 &&
+                            esCampoFaltante("sexo", faltantesPaso2) &&
+                            claseGrupoFaltante,
+                        )}
+                      >
                         {SEXOS.map((s) => (
                           <Button
                             key={s.valor}
@@ -757,49 +1038,31 @@ export function CensoView() {
                       <div>
                         <p className="text-sm font-medium">Menor de edad — jefe de familia</p>
                         <p className="mt-0.5 text-[11px] text-muted-foreground">
-                          Indique la cédula del jefe de familia y el parentesco. El menor quedará
-                          asociado a esa persona.
+                          Indique el parentesco. La cédula del jefe es opcional (marque «No se
+                          conoce» si es huérfano o no la tiene).
                         </p>
                       </div>
                       <div className="space-y-1.5">
-                        <Label>Cédula del jefe de familia</Label>
-                        <div className="flex gap-2">
-                          <div className="flex overflow-hidden rounded-lg border">
-                            {TIPOS_DOC.map((t, i) => (
-                              <button
-                                key={t.valor}
-                                type="button"
-                                className={cn(
-                                  "h-11 px-3 text-sm font-semibold transition-colors",
-                                  i > 0 && "border-l",
-                                  registro.jefe_tipo_doc === t.valor
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-background text-muted-foreground hover:bg-muted",
-                                )}
-                                onClick={() => cambiarRegistro({ jefe_tipo_doc: t.valor })}
-                              >
-                                {t.label}
-                              </button>
-                            ))}
-                          </div>
-                          <Input
-                            aria-label="Cédula del jefe de familia"
-                            inputMode={registro.jefe_tipo_doc === "P" ? "text" : "numeric"}
-                            value={registro.jefe_documento}
-                            onChange={(e) => cambiarRegistro({ jefe_documento: e.target.value })}
-                            placeholder="N.º de cédula del jefe"
-                            className="h-11 flex-1"
-                            autoComplete="off"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Parentesco con el jefe de familia</Label>
+                        <LabelCampoCenso
+                          resaltar={
+                            mostrarFaltantesPaso2 &&
+                            esCampoFaltante("parentesco_jefe", faltantesPaso2)
+                          }
+                        >
+                          Parentesco con el jefe de familia
+                        </LabelCampoCenso>
                         <Select
                           value={registro.parentesco_jefe || undefined}
                           onValueChange={(v) => cambiarRegistro({ parentesco_jefe: v })}
                         >
-                          <SelectTrigger className="h-11 w-full">
+                          <SelectTrigger
+                            className={cn(
+                              "h-11 w-full",
+                              mostrarFaltantesPaso2 &&
+                                esCampoFaltante("parentesco_jefe", faltantesPaso2) &&
+                                claseInputFaltante,
+                            )}
+                          >
                             <SelectValue placeholder="Seleccionar parentesco…" />
                           </SelectTrigger>
                           <SelectContent>
@@ -811,6 +1074,67 @@ export function CensoView() {
                           </SelectContent>
                         </Select>
                       </div>
+                      <CampoSiNo
+                        label="¿Se conoce la cédula del jefe de familia?"
+                        valor={conoceCedulaJefe}
+                        onChange={(conoce) =>
+                          cambiarRegistro({
+                            jefe_documento: conoce ? "" : CEDULA_JEFE_NO_SE,
+                          })
+                        }
+                      >
+                        <div className="space-y-1.5">
+                          <LabelCampoCenso
+                            resaltar={
+                              mostrarFaltantesPaso2 &&
+                              esCampoFaltante("jefe_documento", faltantesPaso2)
+                            }
+                          >
+                            Cédula del jefe de familia
+                          </LabelCampoCenso>
+                          <div
+                            className={cn(
+                              "flex gap-2",
+                              mostrarFaltantesPaso2 &&
+                                esCampoFaltante("jefe_documento", faltantesPaso2) &&
+                                claseGrupoFaltante,
+                            )}
+                          >
+                            <div className="flex overflow-hidden rounded-lg border">
+                              {TIPOS_DOC.map((t, i) => (
+                                <button
+                                  key={t.valor}
+                                  type="button"
+                                  className={cn(
+                                    "h-11 px-3 text-sm font-semibold transition-colors",
+                                    i > 0 && "border-l",
+                                    registro.jefe_tipo_doc === t.valor
+                                      ? "bg-primary text-primary-foreground"
+                                      : "bg-background text-muted-foreground hover:bg-muted",
+                                  )}
+                                  onClick={() => cambiarRegistro({ jefe_tipo_doc: t.valor })}
+                                >
+                                  {t.label}
+                                </button>
+                              ))}
+                            </div>
+                            <Input
+                              aria-label="Cédula del jefe de familia"
+                              inputMode={registro.jefe_tipo_doc === "P" ? "text" : "numeric"}
+                              value={registro.jefe_documento}
+                              onChange={(e) => cambiarRegistro({ jefe_documento: e.target.value })}
+                              placeholder="N.º de cédula del jefe"
+                              className={cn(
+                                "h-11 flex-1",
+                                mostrarFaltantesPaso2 &&
+                                  esCampoFaltante("jefe_documento", faltantesPaso2) &&
+                                  claseInputFaltante,
+                              )}
+                              autoComplete="off"
+                            />
+                          </div>
+                        </div>
+                      </CampoSiNo>
                     </div>
                   )}
 
@@ -945,6 +1269,10 @@ export function CensoView() {
                     onEstadoChange={(v) => cambiarRegistro({ estado_federativo: v })}
                     onMunicipioChange={(v) => cambiarRegistro({ municipio: v })}
                     onParroquiaChange={(v) => cambiarRegistro({ parroquia: v })}
+                    mostrarPais={false}
+                    paisBloqueado
+                    soloEstadosMetropolitanos
+                    permitirNoSe
                   />
 
                   <div className="grid grid-cols-2 gap-3">
@@ -978,28 +1306,36 @@ export function CensoView() {
                     </div>
                   )}
 
-                  <Button
-                    type="submit"
-                    className="h-12 w-full text-base"
-                    disabled={!paso2Completo || guardando}
-                  >
-                    {guardando ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" />
-                        Guardando…
-                      </>
-                    ) : editandoId ? (
-                      <>
-                        <Check className="size-4" />
-                        Guardar cambios
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="size-4" />
-                        Guardar y registrar siguiente
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                    <div className="min-w-0 flex-1">
+                      <AvisoCamposFaltantes
+                        campos={faltantesPaso2}
+                        visible={mostrarFaltantesPaso2}
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      className="h-12 w-full shrink-0 text-base sm:w-auto sm:min-w-[15rem]"
+                      disabled={!paso2Completo || guardando}
+                    >
+                      {guardando ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" />
+                          Guardando…
+                        </>
+                      ) : editandoId ? (
+                        <>
+                          <Check className="size-4" />
+                          Guardar cambios
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="size-4" />
+                          Guardar y registrar siguiente
+                        </>
+                      )}
+                    </Button>
+                  </div>
 
                   {!editandoId && (
                     <Button
@@ -1009,7 +1345,7 @@ export function CensoView() {
                       onClick={() => setPaso(3)}
                     >
                       <BarChart3 className="size-4" />
-                      Ver registrados del refugio
+                      Ver registrados del campamento
                     </Button>
                   )}
                 </form>
@@ -1018,7 +1354,7 @@ export function CensoView() {
           </div>
         )}
 
-        {paso === 3 && (
+        {!mostrarInstrucciones && paso === 3 && (
           <PasoRegistrados
             centroId={centroId}
             centroNombre={centroNombre}
@@ -1073,7 +1409,7 @@ function SelectorCentroLista({
           type="search"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar refugio por nombre…"
+          placeholder="Buscar campamento por nombre…"
           className="h-11 pl-9"
           autoComplete="off"
           enterKeyHint="search"
@@ -1083,17 +1419,17 @@ function SelectorCentroLista({
       {cargando ? (
         <div className="flex flex-1 items-center justify-center py-16 text-sm text-muted-foreground">
           <Loader2 className="mr-2 size-5 animate-spin" />
-          Cargando refugios…
+          Cargando campamentos…
         </div>
       ) : (
         <ul
           className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border sm:max-h-96"
           role="listbox"
-          aria-label="Refugios disponibles"
+          aria-label="Campamentos disponibles"
         >
           {filtrados.length === 0 ? (
             <li className="px-4 py-10 text-center text-sm text-muted-foreground">
-              No se encontró ningún refugio.
+              No se encontró ningún campamento.
             </li>
           ) : (
             filtrados.map((c) => (
@@ -1119,7 +1455,7 @@ function SelectorCentroLista({
       )}
 
       <p className="mt-3 text-[11px] text-muted-foreground">
-        {centros.length} refugio{centros.length === 1 ? "" : "s"} disponible
+        {centros.length} campamento{centros.length === 1 ? "" : "s"} disponible
         {centros.length === 1 ? "" : "s"}. Toque uno para continuar.
       </p>
     </div>
@@ -1323,7 +1659,7 @@ function PasoRegistrados({
         <CardContent className="flex items-center justify-between gap-3 py-3">
           <div className="min-w-0 text-sm">
             <p className="truncate font-medium">{centroNombre}</p>
-            <p className="text-xs text-muted-foreground">Registrados en este refugio</p>
+            <p className="text-xs text-muted-foreground">Registrados en este campamento</p>
           </div>
           <div className="flex shrink-0 gap-2">
             <Button type="button" variant="outline" size="sm" onClick={cargar} disabled={cargando}>
@@ -1417,7 +1753,7 @@ function PasoRegistrados({
             </div>
           ) : filas.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Aún no hay personas registradas en este refugio.
+              Aún no hay personas registradas en este campamento.
             </p>
           ) : filasFiltradas.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
@@ -1462,7 +1798,7 @@ function PasoRegistrados({
         <Card className="shadow-lg">
           <CardContent className="space-y-3 py-4">
             <p className="text-sm text-muted-foreground">
-              Cuando haya registrado a todas las personas del refugio, confirme el cierre del censo.
+              Cuando haya registrado a todas las personas del campamento, confirme el cierre del censo.
               Esto no impide seguir agregando o corrigiendo registros después.
             </p>
             <Button
@@ -1640,15 +1976,26 @@ function FilaTabla({
         <span className="block truncate font-medium" title={nombre}>
           {nombre}
         </span>
-        {fila.parentesco_jefe && fila.jefe_documento && (
+        {fila.parentesco_jefe && (
           <span
             className="block truncate text-[10px] text-muted-foreground"
-            title={`${fila.parentesco_jefe} del jefe de familia ${fila.jefe_documento}${fila.jefe_registro_id ? " (asociado a su registro)" : " (jefe aún no registrado)"}`}
+            title={
+              fila.jefe_documento === CEDULA_JEFE_NO_SE
+                ? `${fila.parentesco_jefe} — cédula del jefe no conocida`
+                : `${fila.parentesco_jefe} del jefe de familia ${fila.jefe_documento}${fila.jefe_registro_id ? " (asociado a su registro)" : fila.jefe_documento ? " (jefe aún no registrado)" : ""}`
+            }
           >
-            {fila.parentesco_jefe} de{" "}
-            {fila.jefe_tipo_doc === "P" ? "PP " : `${fila.jefe_tipo_doc ?? "V"}-`}
-            {fila.jefe_documento}
-            {fila.jefe_registro_id ? " ✓" : ""}
+            {fila.parentesco_jefe}
+            {fila.jefe_documento === CEDULA_JEFE_NO_SE ? (
+              " · cédula no conocida"
+            ) : fila.jefe_documento ? (
+              <>
+                {" de "}
+                {fila.jefe_tipo_doc === "P" ? "PP " : `${fila.jefe_tipo_doc ?? "V"}-`}
+                {fila.jefe_documento}
+                {fila.jefe_registro_id ? " ✓" : ""}
+              </>
+            ) : null}
           </span>
         )}
         {(fila.embarazada || fila.discapacidad || fila.enfermedad) && (

@@ -19,7 +19,7 @@ export const BUCKET_REPARACIONES = "reparaciones-fotos";
 /** Bucket público para fotos iniciales de áreas de infraestructura. */
 export const BUCKET_INFRAESTRUCTURA = "infraestructura-fotos";
 
-/** Bucket privado para fotos de refugiados (URLs firmadas). */
+/** Bucket privado para fotos de damnificados (URLs firmadas). */
 export const BUCKET_REFUGIADOS = "refugiados-fotos";
 
 

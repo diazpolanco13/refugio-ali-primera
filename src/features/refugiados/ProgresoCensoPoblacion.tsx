@@ -68,7 +68,7 @@ export function ProgresoCensoPoblacion({ centro }: Props) {
             )}
           >
             <BarraProgreso
-              etiqueta="Refugiados"
+              etiqueta="Damnificados"
               actual={progreso.registradosRefugiados}
               meta={progreso.metaRefugiados}
               pct={progreso.pctRefugiados}

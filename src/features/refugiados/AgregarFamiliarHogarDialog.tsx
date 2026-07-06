@@ -1,4 +1,4 @@
-// Flujo para agregar una persona nominal al hogar del refugio.
+// Flujo para agregar una persona nominal al hogar del campamento.
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Check, Plus, Search, UserPlus } from "lucide-react";

@@ -37,6 +37,8 @@ const importRefugiadoDetalleRedView = () =>
 const importDotacionesPendientesView = () =>
   import("./features/refugiados/DotacionesPendientesView");
 const importCensoView = () => import("./features/censo/CensoView");
+const importCensoRedView = () => import("./features/censo/CensoRedView");
+const importCensoCentroDetalleView = () => import("./features/censo/CensoCentroDetalleView");
 
 const CentrosView = lazy(() => importCentrosView().then((m) => ({ default: m.CentrosView })));
 const FichaCentroView = lazy(() =>
@@ -83,6 +85,10 @@ const DotacionesPendientesView = lazy(() =>
   importDotacionesPendientesView().then((m) => ({ default: m.DotacionesPendientesView })),
 );
 const CensoView = lazy(() => importCensoView().then((m) => ({ default: m.CensoView })));
+const CensoRedView = lazy(() => importCensoRedView().then((m) => ({ default: m.CensoRedView })));
+const CensoCentroDetalleView = lazy(() =>
+  importCensoCentroDetalleView().then((m) => ({ default: m.CensoCentroDetalleView })),
+);
 
 /**
  * Devuelve el import del chunk que renderizará la ruta actual, para
@@ -90,6 +96,8 @@ const CensoView = lazy(() => importCensoView().then((m) => ({ default: m.CensoVi
  * listadas caen al chunk del mapa (destino del fallback `*`).
  */
 function precargarRutaInicial(pathname: string): Promise<unknown> {
+  if (pathname.startsWith("/centros/censo-rapido/")) return importCensoCentroDetalleView();
+  if (pathname.startsWith("/centros/censo-rapido")) return importCensoRedView();
   if (pathname.startsWith("/censo")) return importCensoView();
   if (pathname.startsWith("/dashboard")) return importDashboardView();
   if (pathname.startsWith("/centros/tablero")) return importCentrosView();
@@ -160,11 +168,16 @@ export function App() {
               element={
                 <EnDesarrollo
                   titulo="Traslados entre campamentos"
-                  descripcion="Registro y seguimiento de movimientos de refugiados entre campamentos de la red."
+                  descripcion="Registro y seguimiento de movimientos de damnificados entre campamentos de la red."
                 />
               }
             />
             <Route path="/centros/reportes" element={<ReportesDiariosRedView />} />
+            <Route
+              path="/centros/censo-rapido/:centroId"
+              element={<CensoCentroDetalleView sesion={sesion} />}
+            />
+            <Route path="/centros/censo-rapido" element={<CensoRedView sesion={sesion} />} />
             <Route path="/centros/refugiados" element={<RefugiadosRedView />} />
             <Route path="/centros/refugiados/:alojamientoId" element={<RefugiadoDetalleRedView />} />
             <Route path="/centros/dotaciones-pendientes" element={<DotacionesPendientesView />} />

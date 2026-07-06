@@ -525,7 +525,7 @@ function TarjetaReporteDia({
               )}
               {parteNumerico && snapshot && (
                 <p className="text-[11px] text-muted-foreground">
-                  {snapshot.total_afectados.toLocaleString("es")} refug. ·{" "}
+                  {snapshot.total_afectados.toLocaleString("es")} damnif. ·{" "}
                   {snapshot.familias.toLocaleString("es")} fam. ·{" "}
                   {snapshot.personal_total.toLocaleString("es")} personal
                 </p>

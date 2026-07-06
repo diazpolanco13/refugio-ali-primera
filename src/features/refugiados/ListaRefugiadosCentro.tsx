@@ -1,4 +1,4 @@
-// Lista nominal de refugiados agrupada por familia en la pestaña Población.
+// Lista nominal de damnificados agrupada por familia en la pestaña Población.
 
 import { useMemo, useState } from "react";
 import { FilterX, Search, UserPlus, Users } from "lucide-react";

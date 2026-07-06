@@ -1,7 +1,7 @@
 // Gráfico de ocupación de UN centro (AreaChart de recharts vía shadcn).
 // Se muestra dentro de `DetalleCentro` en una sección desplegable
 // "Histórico de ocupación". Eje X = fecha (DD-MM), eje Y = total de
-// refugiados. Área con gradiente y tooltip con `ChartTooltip`.
+// damnificados. Área con gradiente y tooltip con `ChartTooltip`.
 
 import { useMemo } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 
 const config: ChartConfig = {
   total: {
-    label: "Refugiados",
+    label: "Damnificados",
     color: "var(--chart-1)",
   },
 };
@@ -61,7 +61,7 @@ export function GraficoOcupacionCentro({ centroId }: Props) {
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
         <span>
-          Último registro: <span className="font-semibold text-foreground">{ultimo.total.toLocaleString("es")}</span> refugiados ·{" "}
+          Último registro: <span className="font-semibold text-foreground">{ultimo.total.toLocaleString("es")}</span> damnificados ·{" "}
           {formatearDia(ultimo.dia)}
         </span>
         {variacion && variacion.total !== 0 && (

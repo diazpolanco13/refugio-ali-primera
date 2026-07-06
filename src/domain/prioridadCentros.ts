@@ -119,7 +119,7 @@ export function prioridadCentro(centro: CentroTransitorio): PrioridadCentro {
     else factores.push(factor("saneamiento", label, "medio"));
   }
 
-  // 4. Población vulnerable (proporción sobre refugiados alojados).
+  // 4. Población vulnerable (proporción sobre damnificados alojados).
   const refugiados = poblacionCentro(centro);
   const vulnerables = totalVulnerables(c.ocupacion);
   if (refugiados > 0 && vulnerables > 0) {

@@ -35,7 +35,7 @@ const COLORES = {
 } as const;
 
 const config: ChartConfig = {
-  refugiados: { label: "Refugiados", color: COLORES.refugiados },
+  refugiados: { label: "Damnificados", color: COLORES.refugiados },
   funcionarios: { label: "Funcionarios", color: COLORES.funcionarios },
   mascotas: { label: "Mascotas", color: COLORES.mascotas },
   atenciones: { label: "Atenciones", color: COLORES.atenciones },

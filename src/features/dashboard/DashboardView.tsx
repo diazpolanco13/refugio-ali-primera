@@ -150,7 +150,7 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
       <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
           <KpiGrande
-            label="Refugiados"
+            label="Damnificados"
             valor={kpis.refugiadosTotal}
             icono={<Users className="size-5" />}
             acento="text-sky-300"
@@ -200,7 +200,7 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
           <KpiGrande
             label="Raciones hoy"
             valor={racionesHoy}
-            sub={`de ${kpis.refugiadosTotal.toLocaleString("es")} refugiados`}
+            sub={`de ${kpis.refugiadosTotal.toLocaleString("es")} damnificados`}
             icono={<Utensils className="size-5" />}
             acento="text-orange-300"
           />

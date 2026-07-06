@@ -469,7 +469,7 @@ export function EventosReporteTab({
 
             {borrador.participantes.length === 0 ? (
               <p className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-                Puedes dejarlo vacío si el evento no involucra refugiados específicos.
+                Puedes dejarlo vacío si el evento no involucra damnificados específicos.
               </p>
             ) : (
               <div className="flex flex-wrap gap-1.5">

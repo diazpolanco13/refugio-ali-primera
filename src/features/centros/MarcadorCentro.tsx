@@ -6,7 +6,7 @@ interface Props {
   logo: string | null;
   color: string;
   seleccionado: boolean;
-  /** Refugiados alojados. */
+  /** Damnificados alojados. */
   refugiados?: number;
   /** Personal operativo total desplegado en el centro (funcionarios + médicos + psicólogos + justicia). */
   personalTotal?: number;
@@ -22,7 +22,7 @@ function fmtCompacto(n: number): string {
 }
 
 /**
- * Marcador HTML: píldora horizontal con logo del cuerpo + refugiados / personal_total.
+ * Marcador HTML: píldora horizontal con logo del cuerpo + damnificados / personal_total.
  * Siempre muestra el contador para que el parte diario se vea incluso en 0/0.
  */
 export function MarcadorCentro({
@@ -49,7 +49,7 @@ export function MarcadorCentro({
   );
 
   const titulo =
-    `${refugiados.toLocaleString("es")} refugiados · ${personalTotal.toLocaleString("es")} personal operativo`;
+    `${refugiados.toLocaleString("es")} damnificados · ${personalTotal.toLocaleString("es")} personal operativo`;
 
   return (
     <div

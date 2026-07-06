@@ -73,7 +73,7 @@ function KpisResumen({ centro }: { centro: CentroTransitorio }) {
 
   const items = [
     {
-      etiqueta: "Refugiados",
+      etiqueta: "Damnificados",
       valor: refugiados,
       anterior: ayer?.total_afectados,
       clase: "text-sky-300",
@@ -131,7 +131,7 @@ function KpisResumen({ centro }: { centro: CentroTransitorio }) {
       )}
       {(analisis.refugiados > 0 || analisis.personal > 0) && (
         <p className="text-center text-[10px] text-muted-foreground">
-          {analisis.refugiados.toLocaleString("es")} refugiados
+          {analisis.refugiados.toLocaleString("es")} damnificados
           {analisis.personal > 0 && (
             <> + {analisis.personal.toLocaleString("es")} personal</>
           )}

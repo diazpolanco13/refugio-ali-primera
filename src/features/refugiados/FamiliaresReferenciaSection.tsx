@@ -74,7 +74,7 @@ export function FamiliaresReferenciaSection({ detalle, puedeEditar }: Props) {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Users className="size-4" />
-            Familiares fuera del refugio / contactos de referencia
+            Familiares fuera del campamento / contactos de referencia
           </CardTitle>
           <CardDescription className="text-xs">
             Personas relacionadas que no están alojadas en este centro. Úsalo solo para contacto o trazabilidad, no como miembros del hogar.

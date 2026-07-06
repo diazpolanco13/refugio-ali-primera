@@ -4,10 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   CATALOGO_PAISES,
+  ESTADOS_CENSO_METROPOLITANA,
+  OPCION_GEO_NO_SE,
   estadosPorPais,
   municipiosPorEstado,
   normalizarPais,
   opcionesConLegacy,
+  opcionesConNoSe,
   parroquiasPorMunicipio,
 } from "@/domain/catalogosHumanitarios";
 import type { CambioNivelGeo } from "@/domain/geografiaResidencia";
@@ -28,6 +31,10 @@ interface Props {
   mostrarPais?: boolean;
   /** País bloqueado (ej. Venezuela por defecto). */
   paisBloqueado?: boolean;
+  /** Solo Caracas, Miranda y La Guaira (planilla de censo). */
+  soloEstadosMetropolitanos?: boolean;
+  /** Antepone «NO SE» en municipio y parroquia. */
+  permitirNoSe?: boolean;
 }
 
 export function SelectoresGeo({
@@ -43,11 +50,28 @@ export function SelectoresGeo({
   disabled,
   mostrarPais = true,
   paisBloqueado = false,
+  soloEstadosMetropolitanos = false,
+  permitirNoSe = false,
 }: Props) {
   const esVenezuela = normalizarPais(pais) === "Venezuela";
-  const estados = opcionesConLegacy(estadosPorPais(pais), estado);
-  const municipios = opcionesConLegacy(municipiosPorEstado(pais, estado), municipio);
-  const parroquias = opcionesConLegacy(parroquiasPorMunicipio(pais, estado, municipio), parroquia);
+  const estadosBase = soloEstadosMetropolitanos
+    ? ESTADOS_CENSO_METROPOLITANA.map((e) => e.valor)
+    : estadosPorPais(pais);
+  const etiquetasEstado = soloEstadosMetropolitanos
+    ? Object.fromEntries(ESTADOS_CENSO_METROPOLITANA.map((e) => [e.valor, e.label]))
+    : undefined;
+  const estados = opcionesConLegacy(estadosBase, estado);
+  const munBase = municipiosPorEstado(pais, estado);
+  const municipios = permitirNoSe
+    ? opcionesConNoSe(munBase, municipio)
+    : opcionesConLegacy(munBase, municipio);
+  const parrBase =
+    municipio === OPCION_GEO_NO_SE
+      ? [OPCION_GEO_NO_SE]
+      : parroquiasPorMunicipio(pais, estado, municipio);
+  const parroquias = permitirNoSe
+    ? opcionesConNoSe(parrBase, parroquia)
+    : opcionesConLegacy(parrBase, parroquia);
 
   function cambiarPais(v: string) {
     onPaisChange(v);
@@ -66,8 +90,8 @@ export function SelectoresGeo({
 
   function cambiarMunicipio(v: string) {
     onMunicipioChange(v);
-    onParroquiaChange("");
-    if (v) onNivelChange?.({ nivel: "municipio", valor: v });
+    onParroquiaChange(v === OPCION_GEO_NO_SE ? OPCION_GEO_NO_SE : "");
+    if (v && v !== OPCION_GEO_NO_SE) onNivelChange?.({ nivel: "municipio", valor: v });
   }
 
   function cambiarParroquia(v: string) {
@@ -132,6 +156,7 @@ export function SelectoresGeo({
         opciones={estados}
         onChange={cambiarEstado}
         disabled={disabled}
+        etiquetas={etiquetasEstado}
       />
       <SelectCatalogo
         label="Municipio"

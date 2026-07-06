@@ -69,7 +69,7 @@ export function TotalesMapaCentros({ centros, className }: Props) {
     >
       <KpiMapa icono={<Home className="size-3.5" />} etiqueta="Camp." valor={centros.length} />
       <KpiMapa icono={<Users2 className="size-3.5" />} etiqueta="Fam." valor={familias} />
-      <KpiMapa icono={<Users className="size-3.5" />} etiqueta="Refug." valor={refugiados} />
+      <KpiMapa icono={<Users className="size-3.5" />} etiqueta="Damnif." valor={refugiados} />
       <KpiMapa icono={<ShieldCheck className="size-3.5" />} etiqueta="Func." valor={personal} />
       <KpiMapa icono={<PawPrint className="size-3.5" />} etiqueta="Masc." valor={mascotas} />
     </div>

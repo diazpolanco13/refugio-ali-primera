@@ -901,7 +901,7 @@ export function CentroForm({
             <div>
               <Label className="text-sm font-semibold">Población afectada</Label>
               <p className="mt-1 text-xs text-muted-foreground">
-                Refugiados:{" "}
+                Damnificados:{" "}
                 <span className="font-semibold text-foreground">{ocupados.toLocaleString("es")}</span>
                 {personalTotal > 0 && (
                   <>
@@ -974,7 +974,7 @@ export function CentroForm({
             <div>
               <Label className="text-sm font-semibold">Personal operativo</Label>
               <p className="mt-1 text-xs text-muted-foreground">
-                Funcionarios, salud y justicia desplegados en el campamento. Se suman a los refugiados
+                Funcionarios, salud y justicia desplegados en el campamento. Se suman a los damnificados
                 para calcular agua, comida y baños.
               </p>
               <div className="mt-3">

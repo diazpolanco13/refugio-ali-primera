@@ -3,6 +3,7 @@
 // La escritura pasa por funciones security definer en Supabase; el rol anon
 // no tiene acceso directo a las tablas.
 
+import type { ResumenCensoCentro } from "@/domain/censoResumen";
 import { supabase } from "./supabaseClient";
 
 export interface CentroCenso {
@@ -277,4 +278,77 @@ export async function obtenerCierreCenso(centroId: string): Promise<CierreCenso 
   if (error) throw new Error(error.message);
   const filas = (data ?? []) as CierreCenso[];
   return filas[0] ?? null;
+}
+
+interface FilaResumenCensoRed {
+  centro_id: string;
+  centro_nombre: string;
+  total_registrados: number;
+  ultimo_registro_en: string | null;
+  cierre_en: string | null;
+  cierre_total: number | null;
+  cierre_funcionario: string | null;
+  hombres: number;
+  mujeres: number;
+  otros_sexo: number;
+  recien_nacidos_h: number;
+  recien_nacidos_m: number;
+  ninos: number;
+  ninas: number;
+  adolescentes_h: number;
+  adolescentes_m: number;
+  adultos_h: number;
+  adultos_m: number;
+  adultos_mayores_h: number;
+  adultos_mayores_m: number;
+  embarazadas: number;
+  discapacidad: number;
+  discapacidad_h: number;
+  discapacidad_m: number;
+  enfermedad: number;
+  vivienda_destruida: number;
+  vivienda_inhabitable: number;
+  vivienda_no_posee: number;
+  sin_condicion_vivienda: number;
+}
+
+function mapearResumenCensoCentro(fila: FilaResumenCensoRed): ResumenCensoCentro {
+  return {
+    centroId: fila.centro_id,
+    centroNombre: fila.centro_nombre,
+    totalRegistrados: Number(fila.total_registrados ?? 0),
+    ultimoRegistroEn: fila.ultimo_registro_en,
+    cierreEn: fila.cierre_en,
+    cierreTotal: fila.cierre_total != null ? Number(fila.cierre_total) : null,
+    cierreFuncionario: fila.cierre_funcionario,
+    hombres: Number(fila.hombres ?? 0),
+    mujeres: Number(fila.mujeres ?? 0),
+    otrosSexo: Number(fila.otros_sexo ?? 0),
+    recienNacidosH: Number(fila.recien_nacidos_h ?? 0),
+    recienNacidosM: Number(fila.recien_nacidos_m ?? 0),
+    ninos: Number(fila.ninos ?? 0),
+    ninas: Number(fila.ninas ?? 0),
+    adolescentesH: Number(fila.adolescentes_h ?? 0),
+    adolescentesM: Number(fila.adolescentes_m ?? 0),
+    adultosH: Number(fila.adultos_h ?? 0),
+    adultosM: Number(fila.adultos_m ?? 0),
+    adultosMayoresH: Number(fila.adultos_mayores_h ?? 0),
+    adultosMayoresM: Number(fila.adultos_mayores_m ?? 0),
+    embarazadas: Number(fila.embarazadas ?? 0),
+    discapacidad: Number(fila.discapacidad ?? 0),
+    discapacidadH: Number(fila.discapacidad_h ?? 0),
+    discapacidadM: Number(fila.discapacidad_m ?? 0),
+    enfermedad: Number(fila.enfermedad ?? 0),
+    viviendaDestruida: Number(fila.vivienda_destruida ?? 0),
+    viviendaInhabitable: Number(fila.vivienda_inhabitable ?? 0),
+    viviendaNoPosee: Number(fila.vivienda_no_posee ?? 0),
+    sinCondicionVivienda: Number(fila.sin_condicion_vivienda ?? 0),
+  };
+}
+
+/** Resumen agregado del censo rápido de toda la red (solo roles autorizados). */
+export async function obtenerResumenCensoRed(): Promise<ResumenCensoCentro[]> {
+  const { data, error } = await supabase.rpc("censo_resumen_red");
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as FilaResumenCensoRed[]).map(mapearResumenCensoCentro);
 }

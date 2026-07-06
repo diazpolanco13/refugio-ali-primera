@@ -1,4 +1,4 @@
-// Dominio del registro nominal de refugiados por campamento.
+// Dominio del registro nominal de damnificados por campamento.
 // Tablas: refugiados, familias_centro, alojamientos_refugiados, residencias_afectadas.
 
 import { normalizarNacionalidad as normalizarNacionalidadCatalogo } from "./catalogosHumanitarios";

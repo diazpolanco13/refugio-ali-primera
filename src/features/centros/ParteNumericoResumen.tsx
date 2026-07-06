@@ -164,7 +164,7 @@ export function ParteNumericoResumen({ snapshot, snapshotAnterior, confirmado = 
 
       <div className="flex flex-wrap gap-1.5">
         <KpiInline
-          etiqueta="Refugiados"
+          etiqueta="Damnificados"
           valor={refugiados}
           anterior={snapshotAnterior?.total_afectados}
           principal

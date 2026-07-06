@@ -72,7 +72,7 @@ function migasCentro(
 
   if (refugiadoId) {
     migas.push({ label: "Población", to: basePoblacion });
-    migas.push({ label: "Detalle refugiado" });
+    migas.push({ label: "Detalle damnificado" });
     return migas;
   }
 
@@ -112,12 +112,26 @@ export function migasPanDeRuta(
       INICIO,
       CAMPAMENTOS,
       { label: "Población (red)", to: "/centros/refugiados" },
-      { label: "Detalle refugiado" },
+      { label: "Detalle damnificado" },
     ];
   }
 
   if (pathname === "/centros/traslados") {
     return [INICIO, CAMPAMENTOS, { label: "Traslados" }];
+  }
+
+  if (pathname === "/centros/censo-rapido") {
+    return [INICIO, CAMPAMENTOS, { label: "Censo rápido (red)" }];
+  }
+
+  const matchCensoCentro = matchPath("/centros/censo-rapido/:centroId", pathname);
+  if (matchCensoCentro?.params.centroId) {
+    return [
+      INICIO,
+      CAMPAMENTOS,
+      { label: "Censo rápido (red)", to: "/centros/censo-rapido" },
+      { label: nombreCentro(centro, matchCensoCentro.params.centroId) },
+    ];
   }
 
   if (pathname === "/centro/nuevo") {
@@ -133,7 +147,7 @@ export function migasPanDeRuta(
     if (pathname === "/incidencias/funcionarios") {
       migas.push({ label: "Bandeja funcionarios" });
     } else if (pathname === "/incidencias/refugiados") {
-      migas.push({ label: "Bandeja refugiados" });
+      migas.push({ label: "Bandeja damnificados" });
     } else if (pathname === "/incidencias/archivadas") {
       migas.push({ label: "Archivadas" });
     } else if (pathname === "/incidencias/analitica") {

@@ -278,7 +278,7 @@ export function SeccionPoblacionCentro({ centro }: SeccionProps) {
     <div className="rounded-xl border border-border bg-card p-3">
       <p className="text-xs font-semibold text-foreground">Población afectada</p>
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <KpiGrande etiqueta="Refugiados" valor={poblacion} clase="text-sky-300" />
+        <KpiGrande etiqueta="Damnificados" valor={poblacion} clase="text-sky-300" />
         <KpiGrande etiqueta="Familias" valor={analisis.familias} />
       </div>
       {c.censo_en_proceso && (
@@ -398,7 +398,7 @@ export function SeccionLogisticaCentro({ centro }: SeccionProps) {
         {analisis.personasLogistica.toLocaleString("es")}
       </p>
       <p className="text-xs text-muted-foreground">
-        {analisis.refugiados.toLocaleString("es")} refugiados
+        {analisis.refugiados.toLocaleString("es")} damnificados
         {analisis.personal > 0 && (
           <> + {analisis.personal.toLocaleString("es")} personal</>
         )}
@@ -431,7 +431,7 @@ export function SeccionCapacidadCentro({ centro }: SeccionProps) {
       <div className="mb-2 flex items-center justify-between">
         <p className="text-xs font-semibold text-foreground">Capacidad vs. ocupación</p>
         <span className="text-[11px] text-muted-foreground">
-          {analisis.refugiados.toLocaleString("es")} refugiados
+          {analisis.refugiados.toLocaleString("es")} damnificados
           {analisis.personal > 0 && (
             <> + {analisis.personal.toLocaleString("es")} personal</>
           )}

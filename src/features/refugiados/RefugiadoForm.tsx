@@ -437,7 +437,7 @@ export function RefugiadoForm({
           <TabsContent value="familia">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Hogar y alojamiento en el refugio</CardTitle>
+                <CardTitle className="text-base">Hogar y alojamiento en el campamento</CardTitle>
                 <CardDescription>
                   Define si la persona pertenece a un hogar del centro y su parentesco con el jefe.
                 </CardDescription>
@@ -511,7 +511,7 @@ export function RefugiadoForm({
                     </Button>
                   ) : (
                     <Button type="button" className="flex-1" disabled={guardando} onClick={() => void guardar()}>
-                      {guardando ? "Guardando…" : "Registrar en el refugio"}
+                      {guardando ? "Guardando…" : "Registrar en el campamento"}
                     </Button>
                   )}
                 </div>
@@ -571,7 +571,7 @@ export function RefugiadoForm({
                     Atrás
                   </Button>
                   <Button type="button" className="flex-1" disabled={guardando} onClick={() => void guardar()}>
-                    {guardando ? "Guardando…" : "Registrar en el refugio"}
+                    {guardando ? "Guardando…" : "Registrar en el campamento"}
                   </Button>
                 </div>
               </CardContent>

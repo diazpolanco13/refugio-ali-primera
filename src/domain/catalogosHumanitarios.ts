@@ -41,6 +41,19 @@ export const CATALOGO_PAISES = [
 
 export type PaisCatalogo = (typeof CATALOGO_PAISES)[number];
 
+/** Valor guardado cuando el operador no conoce municipio o parroquia. */
+export const OPCION_GEO_NO_SE = "NO SE";
+
+/** Valor guardado cuando no se conoce la cédula del jefe de familia de un menor. */
+export const CEDULA_JEFE_NO_SE = "NO SE";
+
+/** Estados de la zona de la emergencia (planilla de censo en campo). */
+export const ESTADOS_CENSO_METROPOLITANA: { valor: string; label: string }[] = [
+  { valor: "Distrito Capital", label: "Caracas" },
+  { valor: "Miranda", label: "Miranda" },
+  { valor: "La Guaira", label: "La Guaira" },
+];
+
 /** Forma de alojamiento dentro del campamento (campo `tipo_alojamiento`). */
 export const CATALOGO_TIPOS_ALOJAMIENTO = [
   { valor: "litera", label: "Litera o cama en salón" },
@@ -232,4 +245,10 @@ export function opcionesConLegacy(opciones: string[], valorActual: string): stri
   const v = valorActual.trim();
   if (!v || opciones.includes(v)) return opciones;
   return [...opciones, v];
+}
+
+/** Antepone «NO SE» al catálogo (censo en campo cuando no conocen la ubicación). */
+export function opcionesConNoSe(opciones: string[], valorActual: string): string[] {
+  const base = opciones.filter((o) => o !== OPCION_GEO_NO_SE);
+  return opcionesConLegacy([OPCION_GEO_NO_SE, ...base], valorActual);
 }

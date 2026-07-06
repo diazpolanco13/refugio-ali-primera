@@ -1,4 +1,4 @@
-// Gráfico de población del campamento: refugiados, funcionarios y mascotas.
+// Gráfico de población del campamento: damnificados, funcionarios y mascotas.
 // Ventana 7 / 15 / 30 días; línea vertical en el día seleccionado del calendario.
 
 import { useMemo, useState, type ReactNode } from "react";
@@ -28,7 +28,7 @@ const COLORES = {
 } as const;
 
 const config: ChartConfig = {
-  refugiados: { label: "Refugiados", color: COLORES.refugiados },
+  refugiados: { label: "Damnificados", color: COLORES.refugiados },
   funcionarios: { label: "Funcionarios", color: COLORES.funcionarios },
   mascotas: { label: "Mascotas", color: COLORES.mascotas },
 };
@@ -85,7 +85,7 @@ export function GraficoPoblacionCentro({
           <CardTitle className="text-xs font-semibold">Evolución de población</CardTitle>
           {ultimo && (
             <p className="text-[10px] text-muted-foreground">
-              Hoy: {ultimo.refugiados.toLocaleString("es")} refug. ·{" "}
+              Hoy: {ultimo.refugiados.toLocaleString("es")} damnif. ·{" "}
               {ultimo.funcionarios.toLocaleString("es")} func. ·{" "}
               {ultimo.mascotas.toLocaleString("es")} masc.
             </p>

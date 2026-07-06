@@ -91,7 +91,7 @@ export function FormularioRequerimientos({
       <div>
         <Label className="text-sm font-semibold">Requerimientos del campamento</Label>
         <p className="mt-1 text-xs text-muted-foreground">
-          Indica qué necesita el refugio y en qué cantidad. Puedes agregar ítems personalizados o
+          Indica qué necesita el campamento y en qué cantidad. Puedes agregar ítems personalizados o
           usar las sugerencias rápidas.
         </p>
       </div>

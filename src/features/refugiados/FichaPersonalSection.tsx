@@ -417,7 +417,7 @@ function CabeceraRefugiado({ detalle, nombreCampamento, puedeEditar }: Props) {
               <Separator />
               <div>
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  Situación en el refugio
+                  Situación en el campamento
                 </p>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
                   <Badge variant="outline" style={{ borderColor: metaEstado.color, color: metaEstado.color }}>

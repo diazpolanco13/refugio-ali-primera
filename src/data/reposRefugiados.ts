@@ -1,4 +1,4 @@
-// Repos de escritura para registro nominal de refugiados.
+// Repos de escritura para registro nominal de damnificados.
 
 import {
   agregarNombresApellidos,
@@ -531,7 +531,7 @@ export async function registrarAlojamiento(datos: {
   return id;
 }
 
-/** Asocia una persona existente al hogar del refugio, reutilizando alojamiento activo si ya existe. */
+/** Asocia una persona existente al hogar del campamento, reutilizando alojamiento activo si ya existe. */
 export async function asociarRefugiadoAFamilia(datos: {
   refugiado_id: string;
   centro_id: string;

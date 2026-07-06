@@ -425,7 +425,7 @@ export function poblacionCentro(c: CentroTransitorio): number {
 }
 
 /**
- * Personal operativo desplegado en el centro (no refugiados). Se suma a la
+ * Personal operativo desplegado en el centro (no damnificados). Se suma a la
  * población afectada para calcular demanda de agua, comida, baños y duchas.
  */
 export interface PersonalCentro {
@@ -489,7 +489,7 @@ export function totalJusticia(p: Partial<PersonalCentro> | null | undefined): nu
 }
 
 /**
- * Headcount para logística (agua, comida, baños): refugiados + personal
+ * Headcount para logística (agua, comida, baños): damnificados + personal
  * operativo desplegado en el centro.
  */
 export function personasLogistica(c: CentroTransitorio): number {

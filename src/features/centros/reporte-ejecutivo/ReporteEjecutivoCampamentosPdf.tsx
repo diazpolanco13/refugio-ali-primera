@@ -531,7 +531,7 @@ export function ReporteEjecutivoCampamentosPdf({
         <View style={styles.kpiRow}>
           <Kpi label="Campamentos" value={reporte.kpis.centrosTotal} sub={`${reporte.kpis.centrosConDatos} con datos`} />
           <Kpi label="Familias" value={reporte.kpis.familiasTotal} />
-          <Kpi label="Refugiados" value={reporte.kpis.refugiadosTotal} />
+          <Kpi label="Damnificados" value={reporte.kpis.refugiadosTotal} />
           <Kpi label="Personal operativo" value={reporte.kpis.personalTotal} />
           <Kpi label="Mascotas" value={reporte.kpis.mascotasTotal} last />
         </View>
@@ -632,7 +632,7 @@ export function ReporteEjecutivoCampamentosPdf({
                       </Text>
                     </View>
                     <Text style={styles.topMeta}>
-                      {ETIQUETA_NIVEL[item.nivel]} - {n(item.refugiados)} refug. -{" "}
+                      {ETIQUETA_NIVEL[item.nivel]} - {n(item.refugiados)} damnif. -{" "}
                       {n(item.familias)} familias
                     </Text>
                     {item.factores.length > 0 ? (
@@ -652,7 +652,7 @@ export function ReporteEjecutivoCampamentosPdf({
                 <View key={grupo.grupo} style={styles.row}>
                   <Text style={styles.rowLabel}>{grupo.grupo}</Text>
                   <Text style={styles.rowValue}>
-                    {n(grupo.refugiados)} refug. - {grupo.campamentos} camp.
+                    {n(grupo.refugiados)} damnif. - {grupo.campamentos} camp.
                   </Text>
                 </View>
               ))}

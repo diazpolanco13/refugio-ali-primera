@@ -1,7 +1,7 @@
 // Gráfico de ocupación AGREGADA de la red de Centros Transitorios
 // (AreaChart de recharts vía shadcn). Se muestra en `DashboardView` como
 // "Histórico de ocupación de la red". Eje X = fecha (DD-MM), eje Y = total
-// agregado de refugiados. Área con gradiente y tooltip con `ChartTooltip`.
+// agregado de damnificados. Área con gradiente y tooltip con `ChartTooltip`.
 //
 // Incluye un toggle para alternar entre:
 //  - Vista total de la red (un área).
@@ -53,7 +53,7 @@ function desenredarCentros(filas: FilaCentroBlob[]): CentroTransitorio[] {
 
 const configRed: ChartConfig = {
   total: {
-    label: "Refugiados en la red",
+    label: "Damnificados en la red",
     color: "var(--chart-1)",
   },
 };
@@ -119,7 +119,7 @@ export function GraficoOcupacionRed() {
             <span className="font-semibold text-foreground">
               {ultimo.total.toLocaleString("es")}
             </span>{" "}
-            refugiados · {formatearDia(ultimo.dia)}
+            damnificados · {formatearDia(ultimo.dia)}
           </span>
           {variacion && variacion.total !== 0 && (
             <Badge

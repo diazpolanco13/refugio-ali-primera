@@ -74,7 +74,7 @@ export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle 
       icono: <Home className="size-3.5 shrink-0 text-primary" />,
     },
     {
-      etiqueta: "Refugiados",
+      etiqueta: "Damnificados",
       valor: refugiados,
       icono: <Users className="size-3.5 shrink-0 text-primary" />,
     },

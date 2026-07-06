@@ -1,5 +1,5 @@
 // Pestaña Población: gráfico + calendario plegable, tarjetas numéricas y
-// espacio reservado para la lista nominal de refugiados.
+// espacio reservado para la lista nominal de damnificados.
 
 import { useMemo, useState } from "react";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";

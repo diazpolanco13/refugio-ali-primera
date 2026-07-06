@@ -57,12 +57,12 @@ export function FamiliaresSection({
           <div>
             <CardTitle className="flex items-center gap-2 text-sm">
               <Users className="size-4" />
-              Hogar en el refugio
+              Hogar en el campamento
             </CardTitle>
             <CardDescription className="text-xs">
               {familiaId
                 ? `${tituloFamilia} · ${miembros.length} miembro(s) actualmente alojado(s)`
-                : "Esta persona aún no está asociada a un hogar del refugio."}
+                : "Esta persona aún no está asociada a un hogar del campamento."}
             </CardDescription>
           </div>
           {puedeAgregar && (

@@ -20,6 +20,8 @@ interface Props {
   placeholder?: string;
   descripcion?: string;
   permitirLegacy?: boolean;
+  /** Etiquetas distintas al valor guardado (p. ej. Caracas → Distrito Capital). */
+  etiquetas?: Record<string, string>;
   className?: string;
 }
 
@@ -33,10 +35,12 @@ export function SelectCatalogo({
   placeholder = "Seleccionar…",
   descripcion,
   permitirLegacy = true,
+  etiquetas,
   className,
 }: Props) {
   const lista = permitirLegacy ? opcionesConLegacy([...opciones], value) : [...opciones];
   const selectValue = value.trim() || "none";
+  const etiqueta = (op: string) => etiquetas?.[op] ?? op;
 
   return (
     <div className={className}>
@@ -50,13 +54,15 @@ export function SelectCatalogo({
         disabled={disabled}
       >
         <SelectTrigger id={id} className="mt-1 h-9">
-          <SelectValue placeholder={placeholder} />
+          <SelectValue placeholder={placeholder}>
+            {selectValue !== "none" ? etiqueta(value) : undefined}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="none">{placeholder}</SelectItem>
           {lista.map((op) => (
             <SelectItem key={op} value={op}>
-              {op}
+              {etiqueta(op)}
             </SelectItem>
           ))}
         </SelectContent>

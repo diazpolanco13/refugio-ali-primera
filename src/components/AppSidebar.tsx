@@ -16,6 +16,7 @@ import {
 import type { Sesion } from "@/data/authSupabase";
 import {
   puedeGestionarUsuarios,
+  puedeVerCensoRapidoRed,
   puedeVerLogs,
 } from "@/domain/permisos";
 import { useIncidencias } from "@/data/useIncidencias";
@@ -108,6 +109,7 @@ function NavContenido({ sesion }: Props) {
   const location = useLocation();
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
+  const veCensoRed = puedeVerCensoRapidoRed(sesion.user.rol);
   const incidencias = useIncidencias({ estado: "abierta" });
   const abiertas = incidenciasAbiertas(incidencias).length;
   const urgentes = incidencias.filter((i) => i.etiqueta === "urgente").length;
@@ -161,6 +163,14 @@ function NavContenido({ sesion }: Props) {
               label="Reportes diarios (red)"
               activo={rutaActiva(pathname, "/centros/reportes")}
             />
+            {veCensoRed && (
+              <ItemMenu
+                to="/centros/censo-rapido"
+                icono={ClipboardList}
+                label="Censo rápido (red)"
+                activo={rutaActiva(pathname, "/centros/censo-rapido")}
+              />
+            )}
             <ItemMenu
               to="/centros/refugiados"
               icono={Users}
@@ -184,7 +194,7 @@ function NavContenido({ sesion }: Props) {
               badge={abiertas}
               badgeClassName={cn(urgentes > 0 && "bg-red-500/20 text-red-400")}
             />
-            <ItemEnDesarrollo icono={UserRound} label="Bandeja refugiados" />
+            <ItemEnDesarrollo icono={UserRound} label="Bandeja damnificados" />
             <ItemMenu
               to="/incidencias/archivadas"
               icono={Archive}

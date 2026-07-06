@@ -915,7 +915,7 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
               <div>
                 <Label className="text-sm font-semibold">Población afectada</Label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Refugiados:{" "}
+                  Damnificados:{" "}
                   <span className="font-semibold text-foreground">
                     {refugiados.toLocaleString("es")}
                   </span>

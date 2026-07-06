@@ -9,7 +9,7 @@ export function mount(): void {
   const root = document.getElementById("root");
   if (!root) return;
 
-  document.title = "Registro de refugiados";
+  document.title = "Registro de damnificados";
 
   createRoot(root).render(
     <StrictMode>

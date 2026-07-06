@@ -1,5 +1,5 @@
 // Hook Realtime: alojamientos de un campamento + join client-side con
-// refugiados y familias_centro.
+// damnificados y familias_centro.
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient";

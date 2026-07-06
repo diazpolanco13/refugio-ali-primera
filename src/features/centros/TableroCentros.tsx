@@ -403,7 +403,7 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
 
   const ordenes: { valor: Orden; label: string }[] = [
     { valor: "prioridad", label: "Nivel de atención" },
-    { valor: "ocupados", label: "Refugiados" },
+    { valor: "ocupados", label: "Damnificados" },
     { valor: "nombre", label: "Alfabético" },
   ];
 
@@ -512,7 +512,7 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
             <KpiRed
               icono={<Users className="size-3.5 text-sky-300" />}
               valor={totales.refugiados}
-              etiqueta="Refugiados"
+              etiqueta="Damnificados"
             />
             <KpiRed
               icono={<UserCog className="size-3.5 text-violet-300" />}
@@ -718,7 +718,7 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
               {orden === "prioridad"
                 ? "Ordenados por nivel de atención"
                 : orden === "ocupados"
-                  ? "Ordenados por población refugiada"
+                  ? "Ordenados por población damnificada"
                   : "Orden alfabético"}
             </p>
           </div>
@@ -1028,7 +1028,7 @@ function TarjetaCentro({
 
         {/* Población (inline compacto) */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <Stat icono={<Users className="size-3.5 text-sky-300" />} valor={analisis.refugiados} etiqueta="refug." />
+          <Stat icono={<Users className="size-3.5 text-sky-300" />} valor={analisis.refugiados} etiqueta="damnif." />
           <Stat icono={<UserCog className="size-3.5 text-violet-300" />} valor={analisis.personal} etiqueta="func." />
           <Stat icono={<PawPrint className="size-3.5 text-amber-300" />} valor={mascotas} etiqueta="masc." />
           <Stat icono={<Users2 className="size-3.5 text-foreground" />} valor={logistica} etiqueta="total" resaltar />

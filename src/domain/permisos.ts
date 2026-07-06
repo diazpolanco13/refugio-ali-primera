@@ -3,13 +3,13 @@ import type { Rol, Usuario } from "../data/authSupabase";
 /**
  * Metadatos y matriz de permisos de cada rol (ver docs/sistema-usuarios.md).
  *
- * | Rol          | Usuarios | Ver centros | Escribir     | Incidencias                    | Logs |
- * |--------------|----------|-------------|--------------|--------------------------------|------|
- * | admin        | Sí       | Todos       | Todos        | Abrir/resolver en todos        | Sí   |
- * | analista_sae | No       | Todos       | Todos        | Abrir/resolver en todos        | No   |
- * | autoridad    | No       | Todos       | No           | No                             | Sí   |
- * | supervisor   | No       | Asignados   | Asignados    | Abrir/resolver en asignados    | No   |
- * | operador     | No       | Asignados   | Asignados    | Abrir; resolver solo las suyas | No   |
+ * | Rol          | Usuarios | Ver centros | Escribir     | Incidencias                    | Logs | Censo red |
+ * |--------------|----------|-------------|--------------|--------------------------------|------|-----------|
+ * | admin        | Sí       | Todos       | Todos        | Abrir/resolver en todos        | Sí   | Sí        |
+ * | analista_sae | No       | Todos       | Todos        | Abrir/resolver en todos        | No   | Sí        |
+ * | autoridad    | No       | Todos       | No           | No                             | Sí   | Sí        |
+ * | supervisor   | No       | Asignados   | Asignados    | Abrir/resolver en asignados    | No   | No        |
+ * | operador     | No       | Asignados   | Asignados    | Abrir; resolver solo las suyas | No   | No        |
  *
  * La RLS de Supabase aplica esta misma matriz en el servidor (migración
  * `sistema_usuarios_5_roles`); estos helpers solo controlan la UI.
@@ -111,6 +111,11 @@ export function puedeGestionarUsuarios(rol: Rol): boolean {
 
 export function puedeVerLogs(rol: Rol): boolean {
   return permisosDeRol(rol).puedeVerLogs;
+}
+
+/** Vista interna /centros/censo-rapido (resumen agregado del censo en terreno). */
+export function puedeVerCensoRapidoRed(rol: Rol): boolean {
+  return rol === "admin" || rol === "analista_sae" || rol === "autoridad";
 }
 
 export function puedeCrearCentros(rol: Rol): boolean {

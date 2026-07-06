@@ -55,7 +55,7 @@ export function DotacionesPendientesView() {
   const [talla, setTalla] = useState("");
   const [soloNinos, setSoloNinos] = useState(false);
 
-  // Cargar beneficios de todos los refugiados visibles
+  // Cargar beneficios de todos los damnificados visibles
   useEffect(() => {
     if (cargandoRed || alojamientos.length === 0) return;
     setCargandoBen(true);
