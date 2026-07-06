@@ -9,9 +9,11 @@ import {
   CheckCircle2,
   ClipboardList,
   Loader2,
+  Pencil,
   RefreshCw,
   Search,
   ShieldCheck,
+  Trash2,
   Users,
 } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
@@ -19,12 +21,24 @@ import { useCensoCentroRegistros } from "@/data/useCensoCentroRegistros";
 import { useCensoRedResumen } from "@/data/useCensoRedResumen";
 import {
   CONDICIONES_VIVIENDA,
+  eliminarCenso,
   type RegistroCensoGuardado,
 } from "@/data/reposCenso";
 import { CEDULA_JEFE_NO_SE } from "@/domain/catalogosHumanitarios";
 import { aVulnerables, estadoCensoCentro } from "@/domain/censoResumen";
-import { puedeVerCensoRapidoRed } from "@/domain/permisos";
+import { puedeEditarCensoRapidoRed, puedeVerCensoRapidoRed } from "@/domain/permisos";
+import { CensoEditarRegistroSheet } from "@/features/censo/CensoEditarRegistroSheet";
 import { DemografiaResumen } from "@/features/tablero/DemografiaResumen";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -139,12 +153,18 @@ function TarjetaStat({
   );
 }
 
-function FilaTablaLectura({
+function FilaTabla({
   fila,
   numero,
+  puedeEditar,
+  onEditar,
+  onEliminar,
 }: {
   fila: RegistroCensoGuardado;
   numero: number;
+  puedeEditar: boolean;
+  onEditar: () => void;
+  onEliminar: () => void;
 }) {
   const nombre = [fila.primer_nombre, fila.segundo_nombre, fila.primer_apellido, fila.segundo_apellido]
     .filter(Boolean)
@@ -234,6 +254,32 @@ function FilaTablaLectura({
         {ABREV_VIVIENDA[fila.condicion_vivienda] ?? "—"}
       </TableCell>
       <TableCell className="px-2 py-1.5 text-right text-muted-foreground">{hora}</TableCell>
+      {puedeEditar && (
+        <TableCell className="px-1 py-1.5">
+          <div className="flex items-center justify-center gap-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              title="Corregir registro"
+              onClick={onEditar}
+            >
+              <Pencil className="size-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 text-destructive hover:text-destructive"
+              title="Eliminar registro"
+              onClick={onEliminar}
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
+        </TableCell>
+      )}
     </TableRow>
   );
 }
@@ -242,9 +288,33 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
   const { centroId } = useParams<{ centroId: string }>();
   const navigate = useNavigate();
   const tieneAcceso = puedeVerCensoRapidoRed(sesion.user.rol);
-  const { resumenes } = useCensoRedResumen();
+  const puedeEditar = puedeEditarCensoRapidoRed(sesion.user.rol);
+  const { resumenes, refrescar: refrescarResumen } = useCensoRedResumen();
   const { registros, cargando, error, refrescar } = useCensoCentroRegistros(centroId);
   const [busqueda, setBusqueda] = useState("");
+  const [editando, setEditando] = useState<RegistroCensoGuardado | null>(null);
+  const [eliminarTarget, setEliminarTarget] = useState<RegistroCensoGuardado | null>(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [errorEliminar, setErrorEliminar] = useState("");
+
+  async function refrescarTodo() {
+    await Promise.all([refrescar(), refrescarResumen()]);
+  }
+
+  async function confirmarEliminar() {
+    if (!eliminarTarget) return;
+    setEliminando(true);
+    setErrorEliminar("");
+    try {
+      await eliminarCenso(eliminarTarget.id);
+      setEliminarTarget(null);
+      await refrescarTodo();
+    } catch (err) {
+      setErrorEliminar(err instanceof Error ? err.message : "No se pudo eliminar el registro");
+    } finally {
+      setEliminando(false);
+    }
+  }
 
   const resumen = useMemo(
     () => (centroId ? resumenes.find((r) => r.centroId === centroId) : undefined),
@@ -294,7 +364,7 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
                 Volver
               </Link>
             </Button>
-            <Button size="sm" variant="outline" onClick={() => void refrescar()} disabled={cargando}>
+            <Button size="sm" variant="outline" onClick={() => void refrescarTodo()} disabled={cargando}>
               <RefreshCw className={cn("size-4", cargando && "animate-spin")} />
               Actualizar
             </Button>
@@ -413,7 +483,7 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
               <CardDescription>
                 {cargando
                   ? "Cargando…"
-                  : `${registros.length} registro${registros.length === 1 ? "" : "s"} · busque por nombre, cédula o teléfono`}
+                  : `${registros.length} registro${registros.length === 1 ? "" : "s"} · busque por nombre, cédula o teléfono${puedeEditar ? " · use los iconos para corregir o eliminar" : ""}`}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 p-4 pt-0">
@@ -458,14 +528,23 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
                         <TableHead className="h-8 px-2">Parroquia</TableHead>
                         <TableHead className="h-8 px-2 text-center">Viv.</TableHead>
                         <TableHead className="h-8 px-2 text-right">Hora</TableHead>
+                        {puedeEditar && (
+                          <TableHead className="h-8 w-16 px-1 text-center">Acc.</TableHead>
+                        )}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filasFiltradas.map((f, i) => (
-                        <FilaTablaLectura
+                        <FilaTabla
                           key={f.id}
                           fila={f}
                           numero={filasFiltradas.length - i}
+                          puedeEditar={puedeEditar}
+                          onEditar={() => setEditando(f)}
+                          onEliminar={() => {
+                            setErrorEliminar("");
+                            setEliminarTarget(f);
+                          }}
                         />
                       ))}
                     </TableBody>
@@ -474,6 +553,63 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
               )}
             </CardContent>
           </Card>
+
+          <CensoEditarRegistroSheet
+            fila={editando}
+            onOpenChange={(open) => {
+              if (!open) setEditando(null);
+            }}
+            onGuardado={() => void refrescarTodo()}
+          />
+
+          <AlertDialog
+            open={eliminarTarget != null}
+            onOpenChange={(abierto) => {
+              if (!abierto) {
+                setEliminarTarget(null);
+                setErrorEliminar("");
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar este registro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {eliminarTarget
+                    ? `Se borrará permanentemente a ${[
+                        eliminarTarget.primer_nombre,
+                        eliminarTarget.primer_apellido,
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}. Esta acción no se puede deshacer.`
+                    : ""}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              {errorEliminar && (
+                <p className="text-sm text-destructive">{errorEliminar}</p>
+              )}
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={eliminando}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  disabled={eliminando}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    void confirmarEliminar();
+                  }}
+                >
+                  {eliminando ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Eliminando…
+                    </>
+                  ) : (
+                    "Eliminar"
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
     </VistaPagina>

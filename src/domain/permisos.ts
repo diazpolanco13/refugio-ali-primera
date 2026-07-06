@@ -118,6 +118,11 @@ export function puedeVerCensoRapidoRed(rol: Rol): boolean {
   return rol === "admin" || rol === "analista_sae" || rol === "autoridad";
 }
 
+/** Editar o eliminar registros del censo rápido (RLS: admin y analista SAE). */
+export function puedeEditarCensoRapidoRed(rol: Rol): boolean {
+  return rol === "admin" || rol === "analista_sae";
+}
+
 export function puedeCrearCentros(rol: Rol): boolean {
   return permisosDeRol(rol).puedeCrearCentros;
 }

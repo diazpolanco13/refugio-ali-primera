@@ -112,6 +112,12 @@ export interface RegistroCensoGuardado {
   casa_edificio: string;
 }
 
+/** Fila devuelta por censo_listado_red (registro + campamento). */
+export interface RegistroCensoRed extends RegistroCensoGuardado {
+  centro_id: string;
+  centro_nombre: string;
+}
+
 /** Último cierre declarado del censo de un refugio. */
 export interface CierreCenso {
   creado_en: string;
@@ -351,4 +357,13 @@ export async function obtenerResumenCensoRed(): Promise<ResumenCensoCentro[]> {
   const { data, error } = await supabase.rpc("censo_resumen_red");
   if (error) throw new Error(error.message);
   return ((data ?? []) as FilaResumenCensoRed[]).map(mapearResumenCensoCentro);
+}
+
+type FilaListadoCensoRed = RegistroCensoRed;
+
+/** Listado de todas las personas del censo rápido en la red (solo roles autorizados). */
+export async function obtenerListadoCensoRed(): Promise<RegistroCensoRed[]> {
+  const { data, error } = await supabase.rpc("censo_listado_red");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as FilaListadoCensoRed[];
 }

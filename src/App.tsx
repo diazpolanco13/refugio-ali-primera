@@ -38,6 +38,7 @@ const importDotacionesPendientesView = () =>
   import("./features/refugiados/DotacionesPendientesView");
 const importCensoView = () => import("./features/censo/CensoView");
 const importCensoRedView = () => import("./features/censo/CensoRedView");
+const importCensoRedListadoView = () => import("./features/censo/CensoRedListadoView");
 const importCensoCentroDetalleView = () => import("./features/censo/CensoCentroDetalleView");
 
 const CentrosView = lazy(() => importCentrosView().then((m) => ({ default: m.CentrosView })));
@@ -86,6 +87,9 @@ const DotacionesPendientesView = lazy(() =>
 );
 const CensoView = lazy(() => importCensoView().then((m) => ({ default: m.CensoView })));
 const CensoRedView = lazy(() => importCensoRedView().then((m) => ({ default: m.CensoRedView })));
+const CensoRedListadoView = lazy(() =>
+  importCensoRedListadoView().then((m) => ({ default: m.CensoRedListadoView })),
+);
 const CensoCentroDetalleView = lazy(() =>
   importCensoCentroDetalleView().then((m) => ({ default: m.CensoCentroDetalleView })),
 );
@@ -96,6 +100,7 @@ const CensoCentroDetalleView = lazy(() =>
  * listadas caen al chunk del mapa (destino del fallback `*`).
  */
 function precargarRutaInicial(pathname: string): Promise<unknown> {
+  if (pathname.startsWith("/centros/censo-rapido/personas")) return importCensoRedListadoView();
   if (pathname.startsWith("/centros/censo-rapido/")) return importCensoCentroDetalleView();
   if (pathname.startsWith("/centros/censo-rapido")) return importCensoRedView();
   if (pathname.startsWith("/censo")) return importCensoView();
@@ -173,6 +178,10 @@ export function App() {
               }
             />
             <Route path="/centros/reportes" element={<ReportesDiariosRedView />} />
+            <Route
+              path="/centros/censo-rapido/personas"
+              element={<CensoRedListadoView sesion={sesion} />}
+            />
             <Route
               path="/centros/censo-rapido/:centroId"
               element={<CensoCentroDetalleView sesion={sesion} />}

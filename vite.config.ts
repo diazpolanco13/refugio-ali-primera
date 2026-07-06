@@ -16,7 +16,7 @@ export default defineConfig({
     // Pre-empaqueta las deps pesadas de import dinámico al arrancar el server:
     // si Vite las descubre a mitad de sesión fuerza una re-optimización con
     // recarga completa de la página (era parte del cuelgue de arranque).
-    include: ["jspdf", "qrcode"],
+    include: ["jspdf", "qrcode", "xlsx"],
   },
   plugins: [
     react(),

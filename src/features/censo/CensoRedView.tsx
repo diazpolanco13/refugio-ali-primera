@@ -34,6 +34,7 @@ import {
 import { VistaPagina } from "@/components/VistaPagina";
 import { cn } from "@/lib/utils";
 import { TarjetaCensoResumen } from "./TarjetaCensoResumen";
+import { CensoRedTabs } from "./CensoRedTabs";
 
 type FiltroEstado = "todos" | EstadoCensoCentro;
 type OrdenCenso = "nombre" | "registrados" | "actividad";
@@ -165,6 +166,8 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
         </div>
       ) : (
         <div className="space-y-4">
+          <CensoRedTabs />
+
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <KpiRed valor={kpis.activas} etiqueta="Escuelas con censo activo" icono={ClipboardList} />
             <KpiRed valor={kpis.totalPersonas} etiqueta="Personas registradas (red)" icono={Users} />

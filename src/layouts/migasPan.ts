@@ -124,8 +124,17 @@ export function migasPanDeRuta(
     return [INICIO, CAMPAMENTOS, { label: "Censo rápido (red)" }];
   }
 
+  if (pathname === "/centros/censo-rapido/personas") {
+    return [
+      INICIO,
+      CAMPAMENTOS,
+      { label: "Censo rápido (red)", to: "/centros/censo-rapido" },
+      { label: "Listado general" },
+    ];
+  }
+
   const matchCensoCentro = matchPath("/centros/censo-rapido/:centroId", pathname);
-  if (matchCensoCentro?.params.centroId) {
+  if (matchCensoCentro?.params.centroId && matchCensoCentro.params.centroId !== "personas") {
     return [
       INICIO,
       CAMPAMENTOS,

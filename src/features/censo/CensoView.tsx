@@ -84,6 +84,7 @@ import {
   type UbicacionCensador,
 } from "@/data/reposCenso";
 import { CensoInstrucciones } from "@/features/censo/CensoInstrucciones";
+import { GrupoOpcionesSegmentadas } from "@/features/censo/censoFormularioShared";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "censo_funcionario_v1";
@@ -1253,24 +1254,12 @@ export function CensoView() {
 
                   <div className="space-y-1.5">
                     <Label>Condición de la vivienda</Label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {CONDICIONES_VIVIENDA.map((c) => (
-                        <Button
-                          key={c.valor}
-                          type="button"
-                          variant={registro.condicion_vivienda === c.valor ? "default" : "outline"}
-                          className="h-11 px-2 text-sm"
-                          onClick={() =>
-                            cambiarRegistro({
-                              condicion_vivienda:
-                                registro.condicion_vivienda === c.valor ? "" : c.valor,
-                            })
-                          }
-                        >
-                          {c.label}
-                        </Button>
-                      ))}
-                    </div>
+                    <GrupoOpcionesSegmentadas
+                      opciones={CONDICIONES_VIVIENDA}
+                      valor={registro.condicion_vivienda}
+                      onChange={(v) => cambiarRegistro({ condicion_vivienda: v })}
+                      columnas={3}
+                    />
                   </div>
 
                   <SelectoresGeo
