@@ -200,7 +200,7 @@ export function CentrosView() {
               onAbrirPanel={() => setPanelCentrosAbierto(true)}
             />
 
-            <div className="map-controls-overlay pointer-events-none absolute inset-x-3 bottom-8 z-10 md:bottom-auto md:left-[23rem] md:right-24 md:top-3">
+            <div className="map-controls-overlay pointer-events-none absolute inset-x-3 bottom-8 z-10 md:bottom-auto md:left-1/2 md:top-3 md:w-[calc(100%-29rem)] md:-translate-x-1/2">
               <TotalesMapaCentros centros={centros} />
             </div>
 

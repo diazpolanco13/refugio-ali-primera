@@ -86,7 +86,7 @@ export function BuscadorCompacto({
 
       {abierto && (
         <div
-          className="absolute left-[3.25rem] top-0 z-30 flex max-h-[min(20rem,70dvh)] w-[min(18rem,calc(86vw-3.25rem))] flex-col overflow-hidden rounded-xl border border-border bg-background/95 shadow-xl backdrop-blur-sm"
+          className="absolute left-[3.25rem] top-0 z-50 flex max-h-[min(20rem,70dvh)] w-[min(18rem,calc(86vw-3.25rem))] flex-col overflow-hidden rounded-xl border border-border bg-background/95 shadow-xl backdrop-blur-sm"
           role="dialog"
           aria-label="Búsqueda de campamentos"
         >
