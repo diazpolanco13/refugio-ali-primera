@@ -16,6 +16,7 @@ import { useReportesCentros } from "@/data/useReportesCentros";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { Sesion } from "@/data/authSupabase";
 import { puedeCrearCentros, puedeEditarCentro } from "@/domain/permisos";
+import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
 import {
   estadoReporteDia,
   META_ESTADO_REPORTE,
@@ -87,9 +88,14 @@ export function FichaCentroView({ sesion }: Props) {
       clientFilter: (c) => !c.deleted,
     },
   );
-  const centros = useMemo(
+  const centrosBase = useMemo(
     () => [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
     [filasCentros],
+  );
+  const snapshotsOcupacion = useOcupacionesCentros();
+  const centros = useMemo(
+    () => aplicarPartesActualesACentros(centrosBase, snapshotsOcupacion),
+    [centrosBase, snapshotsOcupacion],
   );
 
   const centro = useMemo(
@@ -103,10 +109,13 @@ export function FichaCentroView({ sesion }: Props) {
     centroId: centro?.id,
     dia: hoyClave,
   });
-  const snapshotsHoy = useOcupacionesCentros({
-    centroId: centro?.id,
-    desde: hoyClave,
-  });
+  const snapshotsHoy = useMemo(
+    () =>
+      snapshotsOcupacion.filter(
+        (snapshot) => snapshot.centro_id === centro?.id && snapshot.dia >= hoyClave,
+      ),
+    [snapshotsOcupacion, centro?.id, hoyClave],
+  );
   const hoyEstado = useMemo(() => {
     if (!centro) return "pendiente" as const;
     const reporte = reporteDelDia(reportesHoy, centro.id, hoyClave);

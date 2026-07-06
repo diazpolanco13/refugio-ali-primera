@@ -465,6 +465,17 @@ async function leerCentro(id: string): Promise<CentroTransitorio | undefined> {
   return (data?.data as CentroTransitorio | undefined) ?? undefined;
 }
 
+async function upsertCentroVivo(centro: CentroTransitorio): Promise<void> {
+  const [lng, lat] = centro.geom?.coordinates ?? [null, null];
+  const { error } = await supabase.rpc("upsert_centro", {
+    p_id: centro.id,
+    p_data: centro,
+    p_lng: lng,
+    p_lat: lat,
+  });
+  if (error) throw new Error(`[reposSupabase] upsert_centro: ${error.message}`);
+}
+
 /**
  * Guarda/actualiza el estado de un centro (crea la fila si no existe: sirve
  * tanto para editar como para registrar centros nuevos). Usa el RPC
@@ -482,14 +493,7 @@ export async function guardarCentro(
     updated_at: Date.now(),
     updated_by: usuarioActual(),
   };
-  const [lng, lat] = centro.geom?.coordinates ?? [null, null];
-  const { error } = await supabase.rpc("upsert_centro", {
-    p_id: centro.id,
-    p_data: centro,
-    p_lng: lng,
-    p_lat: lat,
-  });
-  if (error) throw new Error(`[reposSupabase] upsert_centro: ${error.message}`);
+  await upsertCentroVivo(centro);
 
   registrarHistorial(previo ? "editar_centro" : "crear_centro", "centro", centro.id, {
     nombre: centro.nombre,
@@ -516,6 +520,7 @@ export async function confirmarParteNumericoDia(
   const ts = Date.now();
   const diaSnap = dia ?? claveDia(ts);
   const centro = normalizarCentro({ ...datos, updated_at: ts, updated_by: usuarioActual() });
+  await upsertCentroVivo(centro);
   await upsertSnapshotOcupacion(centro, diaSnap, ts);
 }
 

@@ -1,7 +1,8 @@
 import { LogoCuerpo } from "@/components/LogoCuerpo";
-import { MapPin, Navigation, ShieldCheck, Users } from "lucide-react";
+import { Home, MapPin, Navigation, PawPrint, ShieldCheck, Users } from "lucide-react";
 import {
   metaCuerpoDe,
+  normalizarCentro,
   poblacionCentro,
   totalPersonalOperativo,
   ubicacionCentro,
@@ -57,12 +58,37 @@ export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle 
   const meta = metaCuerpoDe(centro.cuerpo);
   const analisis = analisisCentro(centro);
   const alertas = alertasCentro(centro);
-  const refugiados = poblacionCentro(centro);
-  const funcionarios = totalPersonalOperativo(centro.personal);
+  const centroNormalizado = normalizarCentro(centro);
+  const refugiados = poblacionCentro(centroNormalizado);
+  const familias = centroNormalizado.familias_ocupadas;
+  const funcionarios = totalPersonalOperativo(centroNormalizado.personal);
+  const mascotas = centroNormalizado.ocupacion.mascotas;
   const colorSemaforo = COLOR_SEMAFORO[analisis.semaforo];
   const tieneCoord = !!centro.geom;
   const url = urlNavegacion(centro);
   const ubicacion = ubicacionCentro(centro);
+  const kpis = [
+    {
+      etiqueta: "Familias",
+      valor: familias,
+      icono: <Home className="size-3.5 shrink-0 text-primary" />,
+    },
+    {
+      etiqueta: "Refugiados",
+      valor: refugiados,
+      icono: <Users className="size-3.5 shrink-0 text-primary" />,
+    },
+    {
+      etiqueta: "Funcionarios",
+      valor: funcionarios,
+      icono: <ShieldCheck className="size-3.5 shrink-0 text-primary" />,
+    },
+    {
+      etiqueta: "Mascotas",
+      valor: mascotas,
+      icono: <PawPrint className="size-3.5 shrink-0 text-primary" />,
+    },
+  ];
 
   return (
     <div className={cn("min-w-[240px] max-w-[300px] space-y-2 text-left", className)}>
@@ -104,25 +130,21 @@ export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle 
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 border-t border-border pt-2">
-        <div className="flex items-center gap-1.5">
-          <Users className="size-4 shrink-0 text-primary" />
-          <div className="leading-tight">
-            <p className="text-sm font-semibold tabular-nums text-foreground">
-              {refugiados.toLocaleString("es")}
-            </p>
-            <p className="text-[10px] text-muted-foreground">Refugiados</p>
+      <div className="grid grid-cols-2 gap-1.5 border-t border-border pt-2">
+        {kpis.map((kpi) => (
+          <div
+            key={kpi.etiqueta}
+            className="flex min-w-0 items-center gap-1.5 rounded-lg border border-border/70 bg-muted/25 px-2 py-1.5"
+          >
+            {kpi.icono}
+            <div className="min-w-0 leading-tight">
+              <p className="text-sm font-semibold tabular-nums text-foreground">
+                {kpi.valor.toLocaleString("es")}
+              </p>
+              <p className="truncate text-[10px] text-muted-foreground">{kpi.etiqueta}</p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <ShieldCheck className="size-4 shrink-0 text-primary" />
-          <div className="leading-tight">
-            <p className="text-sm font-semibold tabular-nums text-foreground">
-              {funcionarios.toLocaleString("es")}
-            </p>
-            <p className="text-[10px] text-muted-foreground">Funcionarios</p>
-          </div>
-        </div>
+        ))}
       </div>
 
       <div className="flex items-center justify-between gap-2 text-[11px]">

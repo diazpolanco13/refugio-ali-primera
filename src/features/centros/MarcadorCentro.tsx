@@ -22,8 +22,8 @@ function fmtCompacto(n: number): string {
 }
 
 /**
- * Marcador HTML: píldora horizontal con logo del cuerpo + refugiados / personal_total,
- * o solo el círculo del cuerpo si no hay datos de población ni personal.
+ * Marcador HTML: píldora horizontal con logo del cuerpo + refugiados / personal_total.
+ * Siempre muestra el contador para que el parte diario se vea incluso en 0/0.
  */
 export function MarcadorCentro({
   icono,
@@ -35,26 +35,20 @@ export function MarcadorCentro({
   semaforoColor,
   onClick,
 }: Props) {
-  const conContador = refugiados > 0 || personalTotal > 0;
-
   const iconoCuerpo = (
     <span
-      className={cn(
-        "flex shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white",
-        conContador ? "size-7" : "size-8",
-      )}
+      className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white"
       style={{ borderColor: color }}
     >
       {logo ? (
         <LogoCuerpo src={logo} priority="high" />
       ) : (
-        <span className={cn("leading-none", conContador ? "text-sm" : "text-base")}>{icono}</span>
+        <span className="text-sm leading-none">{icono}</span>
       )}
     </span>
   );
 
   const titulo =
-    conContador &&
     `${refugiados.toLocaleString("es")} refugiados · ${personalTotal.toLocaleString("es")} personal operativo`;
 
   return (
@@ -63,32 +57,26 @@ export function MarcadorCentro({
         "relative cursor-pointer select-none transition-transform",
         seleccionado && "scale-110",
       )}
-      title={titulo || undefined}
+      title={titulo}
       onClick={(ev) => {
         ev.stopPropagation();
         onClick();
       }}
     >
-      {conContador ? (
-        <div
-          className={cn(
-            "flex items-center gap-1 rounded-full border-2 bg-background/95 py-0.5 pl-0.5 pr-2 shadow-lg",
-            seleccionado && "ring-2 ring-white/90",
-          )}
-          style={{ borderColor: color }}
-        >
-          {iconoCuerpo}
-          <span className="whitespace-nowrap text-[11px] font-bold tabular-nums leading-none text-white">
-            {fmtCompacto(refugiados)}
-            <span className="mx-0.5 font-normal text-white/55">/</span>
-            {fmtCompacto(personalTotal)}
-          </span>
-        </div>
-      ) : (
-        <div className={cn("rounded-full shadow-lg", seleccionado && "ring-2 ring-white")}>
-          {iconoCuerpo}
-        </div>
-      )}
+      <div
+        className={cn(
+          "flex items-center gap-1 rounded-full border-2 bg-background/95 py-0.5 pl-0.5 pr-2 shadow-lg",
+          seleccionado && "ring-2 ring-white/90",
+        )}
+        style={{ borderColor: color }}
+      >
+        {iconoCuerpo}
+        <span className="whitespace-nowrap text-[11px] font-bold tabular-nums leading-none text-white">
+          {fmtCompacto(refugiados)}
+          <span className="mx-0.5 font-normal text-white/55">/</span>
+          {fmtCompacto(personalTotal)}
+        </span>
+      </div>
 
       {semaforoColor && (
         <span

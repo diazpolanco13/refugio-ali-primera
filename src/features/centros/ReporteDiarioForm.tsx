@@ -607,7 +607,8 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
     setErrorGuardado(null);
     setGuardando(true);
     try {
-      // 1) Parte numérico → solo si hubo cambios respecto al último registro.
+      // 1) Parte numérico → si cambió, guarda el centro; si no cambió,
+      // confirma el parte vigente para que el cierre del día alimente el mapa.
       if (parteModificado) {
         await guardarCentro({
           ...centro,
@@ -616,6 +617,17 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
           total_afectados: totalAfectados,
           familias_ocupadas: familias,
         });
+      } else {
+        await confirmarParteNumericoDia(
+          {
+            ...centro,
+            ocupacion,
+            personal,
+            total_afectados: totalAfectados,
+            familias_ocupadas: familias,
+          },
+          hoy,
+        );
       }
       // 2) Comidas + atención médica → reportes_centros (upsert del día).
       await guardarReporteDiario({

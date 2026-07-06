@@ -60,6 +60,11 @@ import {
   guardarVistaTableroCentros,
   type VistaTableroCentros,
 } from "@/data/preferenciasTablero";
+import {
+  contarCentrosAsignadosAnalista,
+  etiquetaAnalistaSae,
+  useAnalistasSae,
+} from "@/data/useAnalistasSae";
 import { AccionesContacto } from "@/components/AccionesContacto";
 import { VistaEncabezado } from "@/components/VistaEncabezado";
 import { Badge } from "@/components/ui/badge";
@@ -251,9 +256,11 @@ function KpiRed({
  * coloreada por gravedad. El clic abre la ficha completa del centro.
  */
 export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Props) {
+  const analistasSae = useAnalistasSae();
   const [orden, setOrden] = useState<Orden>("prioridad");
   const [filtroNivel, setFiltroNivel] = useState<NivelPrioridad | null>(null);
   const [filtroCuerpo, setFiltroCuerpo] = useState<ClaveCuerpo | "todos">("todos");
+  const [filtroAnalista, setFiltroAnalista] = useState<"todos" | string>("todos");
   const [busqueda, setBusqueda] = useState("");
   const [vista, setVista] = useState<VistaTableroCentros>(() => cargarVistaTableroCentros());
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
@@ -281,10 +288,37 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
     }));
   }, [base]);
 
+  const idsCentrosActivos = useMemo(
+    () => new Set(centros.map((c) => c.id)),
+    [centros],
+  );
+
+  const analistasPresentes = useMemo(
+    () =>
+      analistasSae.map((analista) => ({
+        analista,
+        cantidad: contarCentrosAsignadosAnalista(analista, idsCentrosActivos),
+      })),
+    [analistasSae, idsCentrosActivos],
+  );
+
+  const centrosDelAnalistaSeleccionado = useMemo(() => {
+    if (filtroAnalista === "todos") return null;
+    const analista = analistasSae.find((a) => a.user_id === filtroAnalista);
+    if (!analista) return new Set<string>();
+    return new Set(analista.centros_asignados);
+  }, [analistasSae, filtroAnalista]);
+
   const enContexto = useMemo(() => {
     const q = normalizarTexto(busqueda.trim());
     return base.filter(({ centro }) => {
       if (filtroCuerpo !== "todos" && normalizarCuerpo(centro.cuerpo) !== filtroCuerpo) {
+        return false;
+      }
+      if (
+        centrosDelAnalistaSeleccionado &&
+        !centrosDelAnalistaSeleccionado.has(centro.id)
+      ) {
         return false;
       }
       if (q) {
@@ -293,7 +327,7 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
       }
       return true;
     });
-  }, [base, filtroCuerpo, busqueda]);
+  }, [base, filtroCuerpo, busqueda, centrosDelAnalistaSeleccionado]);
 
   const conteo = useMemo(() => {
     const m: Record<NivelPrioridad, number> = {
@@ -376,16 +410,38 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
   const hayFiltros =
     filtroNivel !== null ||
     filtroCuerpo !== "todos" ||
+    filtroAnalista !== "todos" ||
     orden !== "prioridad" ||
     busqueda.trim() !== "";
 
   function limpiarFiltros() {
     setFiltroNivel(null);
     setFiltroCuerpo("todos");
+    setFiltroAnalista("todos");
     setOrden("prioridad");
     setBusqueda("");
     setFiltrosAbiertos(false);
   }
+
+  const selectorAnalistaSae =
+    analistasPresentes.length > 0 ? (
+      <Select
+        value={filtroAnalista}
+        onValueChange={(v) => setFiltroAnalista(v)}
+      >
+        <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
+          <SelectValue placeholder="Analista SAE" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todos los analistas SAE</SelectItem>
+          {analistasPresentes.map(({ analista, cantidad }) => (
+            <SelectItem key={analista.user_id} value={analista.user_id}>
+              {etiquetaAnalistaSae(analista)} ({cantidad})
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    ) : null;
 
   const selectoresFiltro = (
     <>
@@ -405,6 +461,8 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
           ))}
         </SelectContent>
       </Select>
+
+      {selectorAnalistaSae}
 
       <Select value={orden} onValueChange={(v) => setOrden(v as Orden)}>
         <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
@@ -540,7 +598,7 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
               )}
             </div>
             <CollapsibleContent className="mt-2 space-y-2">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <Select
                   value={filtroCuerpo}
                   onValueChange={(v) => setFiltroCuerpo(v as ClaveCuerpo | "todos")}
@@ -557,6 +615,7 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
                     ))}
                   </SelectContent>
                 </Select>
+                {selectorAnalistaSae}
                 <Select
                   value={orden}
                   onValueChange={(v) => setOrden(v as Orden)}
@@ -607,7 +666,7 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
                 <ToggleVistaTablero vista={vista} onChange={cambiarVista} />
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {selectoresFiltro}
             </div>
           </div>

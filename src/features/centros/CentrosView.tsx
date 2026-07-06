@@ -5,7 +5,9 @@ import { preloadLogosCuerpos } from "@/data/preloadLogosCuerpos";
 import { cargarBaseMapaCentros, guardarBaseMapaCentros } from "@/data/preferenciasMapa";
 import type { BaseMapa } from "@/map/estiloMapa";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
+import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
+import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
 import {
   CATALOGO_CUERPOS,
   normalizarCuerpo,
@@ -22,6 +24,7 @@ import { CentroForm } from "./CentroForm";
 import { TableroCentros } from "./TableroCentros";
 import { PanelCentros, calcularEstadosFilas } from "./PanelCentros";
 import { ControlesMapaFlotantes } from "./ControlesMapaFlotantes";
+import { TotalesMapaCentros } from "./TotalesMapaCentros";
 
 interface OutletContext {
   sesion: Sesion;
@@ -69,9 +72,14 @@ export function CentrosView() {
       clientFilter: (c) => !c.deleted,
     },
   );
-  const centros = useMemo(
+  const snapshotsOcupacion = useOcupacionesCentros();
+  const centrosBase = useMemo(
     () => [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
     [filasCentros],
+  );
+  const centros = useMemo(
+    () => aplicarPartesActualesACentros(centrosBase, snapshotsOcupacion),
+    [centrosBase, snapshotsOcupacion],
   );
 
   const estadosFilas = useMemo(() => calcularEstadosFilas(centros), [centros]);
@@ -191,6 +199,10 @@ export function CentrosView() {
               panelAbierto={panelCentrosAbierto}
               onAbrirPanel={() => setPanelCentrosAbierto(true)}
             />
+
+            <div className="map-controls-overlay pointer-events-none absolute inset-x-3 bottom-8 z-10 md:bottom-auto md:left-[23rem] md:right-24 md:top-3">
+              <TotalesMapaCentros centros={centros} />
+            </div>
 
             <PanelCentros
               centros={centros}
