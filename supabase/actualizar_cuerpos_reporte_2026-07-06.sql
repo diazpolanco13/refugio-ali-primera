@@ -1,0 +1,83 @@
+-- Actualiza cuerpo y seguridad.organismo desde campamentos_damnificados_2026-07-06.json
+-- Los logos en mapa/UI se resuelven vía normalizarCuerpo(cuerpo) + CATALOGO_CUERPOS.
+
+UPDATE centros c
+SET
+  updated_at = (extract(epoch from now()) * 1000)::bigint,
+  updated_by = 'admin',
+  data = jsonb_set(
+    jsonb_set(
+      c.data,
+      '{cuerpo}',
+      to_jsonb(m.cuerpo::text),
+      true
+    ),
+    '{seguridad}',
+    COALESCE(c.data->'seguridad', '{}'::jsonb) || jsonb_build_object('organismo', m.org_json),
+    true
+  )
+FROM (VALUES
+  ('centro-09', 'SEBIN', 'SEBIN'),
+  ('centro-10', 'SEBIN', 'SEBIN'),
+  ('centro-37', 'Poli Baruta', 'POLI BARUTA'),
+  ('centro-36', 'Guardia Nacional Bolivariana', 'GNB'),
+  ('centro-34', 'PoliCaracas', 'POLI CARACAS'),
+  ('centro-53', 'Min Educación', 'BTS SANTA TERESA'),
+  ('centro-05', 'Guardia Nacional Bolivariana', 'GNB'),
+  ('centro-04', 'Guardia Nacional Bolivariana', 'GNB'),
+  ('centro-03', 'Guardia Nacional Bolivariana', 'GNB'),
+  ('centro-51', 'Guardia Nacional Bolivariana', 'GNB'),
+  ('centro-52', 'Guardia Nacional Bolivariana', 'GNB'),
+  ('centro-54', 'Guardia Nacional Bolivariana', 'GNB'),
+  ('centro-30', 'Poli Baruta', 'POLI BARUTA'),
+  ('centro-28', 'Poli Baruta', 'POLI BARUTA'),
+  ('centro-26', 'PNB', 'PNB'),
+  ('centro-29', 'Poli Baruta', 'POLI BARUTA'),
+  ('centro-27', 'PNB', 'PNB'),
+  ('centro-55', 'Poli Sucre', 'POLI SUCRE'),
+  ('centro-11', 'SEBIN', 'SEBIN'),
+  ('centro-02', 'Guardia Nacional Bolivariana', 'GNB'),
+  ('centro-01', 'Guardia Nacional Bolivariana', 'GNB'),
+  ('centro-25', 'PNB', 'PNB'),
+  ('centro-24', 'PNB', 'PNB'),
+  ('centro-23', 'PNB', 'PNB'),
+  ('centro-56', 'PNB', 'PNB'),
+  ('centro-57', 'Guardia Nacional Bolivariana', 'GNB'),
+  ('centro-58', 'Alcaldía de Caracas', 'NO HAY'),
+  ('centro-16', 'CICPC', 'CICPC'),
+  ('centro-17', 'CICPC', 'CICPC'),
+  ('centro-18', 'CICPC', 'CICPC'),
+  ('centro-19', 'CICPC', 'CICPC'),
+  ('centro-59', 'Guardia Nacional Bolivariana', 'GNB'),
+  ('centro-21', 'PNB', 'PNB'),
+  ('centro-20', 'PNB', 'PNB'),
+  ('centro-60', 'Milicia', 'MILICIA'),
+  ('centro-46', 'Poli Miranda', 'POLI MIRANDA'),
+  ('centro-48', 'Poli Miranda', 'POLI MIRANDA'),
+  ('centro-49', 'Poli Miranda', 'POLI MIRANDA'),
+  ('centro-61', 'PoliCaracas', 'POLI CARACAS'),
+  ('centro-31', 'Poli Baruta', 'PALI BARUTA'),
+  ('centro-32', 'PoliCaracas', 'POLI CARACAS'),
+  ('centro-33', 'PoliCaracas', 'POLI CARACAS'),
+  ('centro-62', 'PSUV', 'NO HAY'),
+  ('centro-63', 'Guardia Nacional Bolivariana', 'GNB'),
+  ('centro-06', 'Guardia Nacional Bolivariana', 'GNB'),
+  ('centro-08', 'Guardia Nacional Bolivariana', 'GNB'),
+  ('centro-50', 'PNB', 'PNB'),
+  ('centro-12', 'SEBIN', 'SEBIN'),
+  ('centro-41', 'Poli El Hatillo', 'POLI HATILLO'),
+  ('centro-38', 'Poli Baruta', 'POLI BARUTA'),
+  ('centro-40', 'PoliChacao', 'POLI CHACAO'),
+  ('centro-39', 'Poli Baruta', 'POLI BARUTA'),
+  ('centro-64', 'PNB', 'PNB'),
+  ('centro-14', 'CICPC', 'CICPC'),
+  ('centro-13', 'DGCIM', 'DGCIM'),
+  ('centro-45', 'Poli Sucre', 'POLI SUCRE'),
+  ('centro-43', 'Poli Sucre', 'POLI SUCRE'),
+  ('centro-44', 'Poli Sucre', 'POLI SUCRE'),
+  ('centro-42', 'Poli Sucre', 'POLI SUCRE'),
+  ('centro-65', 'PoliCaracas', 'POLI CARACAS'),
+  ('centro-66', 'Guardia del Pueblo', 'GUARDIA DEL PUEBLO')
+) AS m(centro_id, cuerpo, org_json)
+WHERE c.id = m.centro_id
+  AND c.deleted = false;

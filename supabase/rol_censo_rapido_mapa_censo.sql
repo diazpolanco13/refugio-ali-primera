@@ -1,13 +1,43 @@
--- Resumen agregado del censo rápido por escuela/refugio (vista interna autenticada).
---
--- ✅ APLICADA (migración `censo_resumen_red`, 06-jul-2026, vía MCP
--- `apply_migration`). Este archivo queda como referencia versionada del SQL
--- en producción.
---
--- RPC `censo_resumen_red()`: agrega censo_registros por centro activo, incluye
--- el último cierre declarado en censo_cierres y restringe la lectura a
--- admin, analista_sae, autoridad y censo_rapido vía mi_rol().
+-- ✅ APLICADA (migración `rol_censo_rapido_mapa_censo`, 06-jul-2026, vía MCP
+-- `apply_migration`). Complementa a `rol_censo_rapido.sql`.
 
+-- ---- reportes_centros: sin censo_rapido -----------------------------------
+drop policy if exists reportes_centros_select on public.reportes_centros;
+create policy reportes_centros_select on public.reportes_centros
+  for select to authenticated
+  using (
+    (select public.mi_rol()) in ('admin', 'analista_sae', 'autoridad')
+    or centro_id = any ((select public.mis_centros())::text[])
+  );
+
+-- ---- reportes_reparaciones_dia: sin censo_rapido ---------------------------
+drop policy if exists reportes_reparaciones_dia_select on public.reportes_reparaciones_dia;
+create policy reportes_reparaciones_dia_select on public.reportes_reparaciones_dia
+  for select to authenticated
+  using (
+    (select public.mi_rol()) in ('admin', 'analista_sae', 'autoridad')
+    or centro_id = any ((select public.mis_centros())::text[])
+  );
+
+do $$
+begin
+  if exists (
+    select 1 from pg_tables
+    where schemaname = 'public' and tablename = 'eventos_reportes'
+  ) then
+    execute 'drop policy if exists eventos_reportes_select on public.eventos_reportes';
+    execute $pol$
+      create policy eventos_reportes_select on public.eventos_reportes
+        for select to authenticated
+        using (
+          (select public.mi_rol()) in ('admin', 'analista_sae', 'autoridad')
+          or centro_id = any ((select public.mis_centros())::text[])
+        )
+    $pol$;
+  end if;
+end $$;
+
+-- ---- RPC censo_resumen_red: incluye censo_rapido ---------------------------
 create or replace function public.censo_resumen_red()
 returns table (
   centro_id text,
@@ -123,5 +153,84 @@ begin
 end;
 $$;
 
-revoke all on function public.censo_resumen_red() from public;
-grant execute on function public.censo_resumen_red() to authenticated;
+-- ---- RPC censo_listado_red: incluye censo_rapido ----------------------------
+create or replace function public.censo_listado_red()
+returns table (
+  id uuid,
+  centro_id text,
+  centro_nombre text,
+  creado_en timestamptz,
+  primer_nombre text,
+  segundo_nombre text,
+  primer_apellido text,
+  segundo_apellido text,
+  edad int,
+  tipo_doc text,
+  documento text,
+  sexo text,
+  telefono text,
+  embarazada boolean,
+  embarazo_semanas int,
+  discapacidad boolean,
+  discapacidad_detalle text,
+  enfermedad boolean,
+  enfermedad_detalle text,
+  jefe_tipo_doc text,
+  jefe_documento text,
+  parentesco_jefe text,
+  jefe_registro_id uuid,
+  pais text,
+  condicion_vivienda text,
+  estado_federativo text,
+  municipio text,
+  parroquia text,
+  calle text,
+  casa_edificio text
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if (select public.mi_rol()) not in ('admin', 'analista_sae', 'autoridad', 'censo_rapido') then
+    raise exception 'Acceso denegado';
+  end if;
+
+  return query
+  select
+    r.id,
+    r.centro_id,
+    coalesce(nullif(trim(c.data->>'nombre'), ''), c.id),
+    r.creado_en,
+    r.primer_nombre,
+    r.segundo_nombre,
+    r.primer_apellido,
+    r.segundo_apellido,
+    r.edad,
+    r.tipo_doc,
+    r.documento,
+    r.sexo,
+    r.telefono,
+    r.embarazada,
+    r.embarazo_semanas,
+    r.discapacidad,
+    r.discapacidad_detalle,
+    r.enfermedad,
+    r.enfermedad_detalle,
+    r.jefe_tipo_doc,
+    r.jefe_documento,
+    r.parentesco_jefe,
+    r.jefe_registro_id,
+    r.pais,
+    r.condicion_vivienda,
+    r.estado_federativo,
+    r.municipio,
+    r.parroquia,
+    r.calle,
+    r.casa_edificio
+  from public.censo_registros r
+  inner join public.centros c on c.id = r.centro_id and not c.deleted
+  order by r.creado_en desc;
+end;
+$$;

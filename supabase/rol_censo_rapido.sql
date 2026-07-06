@@ -1,11 +1,11 @@
--- Rol `censo_rapido` — lectura del mapa y reportes diarios de toda la red
+-- Rol `censo_rapido` — lectura del mapa y censo rápido de toda la red
 -- (xzwifkckkakldnzkdeby).
 --
 -- ✅ APLICADA (migración `rol_censo_rapido`, 06-jul-2026, vía MCP
 -- `apply_migration`). Este archivo queda como referencia versionada del SQL
 -- en producción.
 --
--- Alcance UI: /centros/mapa y /centros/reportes (sin edición).
+-- Alcance UI: /centros/mapa y /centros/censo-rapido (sin edición).
 -- Alcance RLS: SELECT en tablas operativas necesarias para esas vistas
 -- (mismo patrón de lectura total que `autoridad`, sin logs ni refugiados).
 

@@ -10,7 +10,7 @@ import type { Rol, Usuario } from "../data/authSupabase";
  * | autoridad    | No       | Todos       | No           | No                             | Sí   | Sí        |
  * | supervisor   | No       | Asignados   | Asignados    | Abrir/resolver en asignados    | No   | No        |
  * | operador     | No       | Asignados   | Asignados    | Abrir; resolver solo las suyas | No   | No        |
- * | censo_rapido | No       | Todos       | No           | No                             | No   | No        |
+ * | censo_rapido | No       | Todos       | No           | No                             | No   | Sí        |
  *
  * La RLS de Supabase aplica esta misma matriz en el servidor (migración
  * `sistema_usuarios_5_roles`); estos helpers solo controlan la UI.
@@ -105,7 +105,7 @@ export const INFO_ROLES: Record<Rol, InfoRol> = {
     rol: "censo_rapido",
     etiqueta: "Censo Rápido",
     descripcion:
-      "Consulta el mapa de campamentos y los reportes diarios de toda la red; sin edición",
+      "Consulta el mapa de campamentos y el censo rápido de toda la red; sin edición",
     alcanceTotal: true,
     puedeEscribir: false,
     escrituraTotal: false,
@@ -135,7 +135,12 @@ export function puedeVerLogs(rol: Rol): boolean {
 
 /** Vista interna /centros/censo-rapido (resumen agregado del censo en terreno). */
 export function puedeVerCensoRapidoRed(rol: Rol): boolean {
-  return rol === "admin" || rol === "analista_sae" || rol === "autoridad";
+  return (
+    rol === "admin" ||
+    rol === "analista_sae" ||
+    rol === "autoridad" ||
+    rol === "censo_rapido"
+  );
 }
 
 /** Editar o eliminar registros del censo rápido (RLS: admin y analista SAE). */
@@ -187,7 +192,7 @@ export function puedeEliminarIncidencia(usuario: Usuario): boolean {
   return usuario.rol === "admin" || usuario.rol === "analista_sae";
 }
 
-/** Rol restringido a mapa + reportes diarios (sin resto del menú). */
+/** Rol restringido a mapa + censo rápido (sin resto del menú). */
 export function esRolCensoRapido(rol: Rol): boolean {
   return rol === "censo_rapido";
 }
@@ -198,6 +203,6 @@ export function rutaPermitidaParaRol(pathname: string, rol: Rol): boolean {
   return (
     pathname === "/" ||
     pathname === "/centros/mapa" ||
-    pathname.startsWith("/centros/reportes")
+    pathname.startsWith("/centros/censo-rapido")
   );
 }

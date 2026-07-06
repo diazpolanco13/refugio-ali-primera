@@ -1,5 +1,5 @@
 import { LogoCuerpo } from "@/components/LogoCuerpo";
-import { Home, MapPin, Navigation, PawPrint, ShieldCheck, Users } from "lucide-react";
+import { Camera, Home, Navigation, PawPrint, ShieldCheck, Users } from "lucide-react";
 import {
   metaCuerpoDe,
   normalizarCentro,
@@ -67,6 +67,7 @@ export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle 
   const tieneCoord = !!centro.geom;
   const url = urlNavegacion(centro);
   const ubicacion = ubicacionCentro(centro);
+  const fotoUrl = centroNormalizado.foto_url;
   const kpis = [
     {
       etiqueta: "Familias",
@@ -92,42 +93,54 @@ export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle 
 
   return (
     <div className={cn("min-w-[240px] max-w-[300px] space-y-2 text-left", className)}>
-      <div className="space-y-1">
-        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          Centro N.° {centro.nro} · {centro.grupo}
-        </p>
-        <p className="font-semibold leading-snug text-foreground">{centro.nombre}</p>
-      </div>
-
-      <div
-        className="inline-flex items-center gap-2 rounded-full border py-0.5 pl-0.5 pr-2.5"
-        style={{ borderColor: meta.color }}
-      >
-        <span
-          className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white"
-          aria-hidden
+      <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-stretch gap-2.5">
+        <div
+          className="relative h-full min-h-[4.5rem] overflow-hidden rounded-lg border border-border bg-muted/20"
+          title={fotoUrl ? "Foto del campamento" : "Sin foto del campamento"}
         >
-          {meta.logo ? (
-            <LogoCuerpo src={meta.logo} priority="high" />
+          {fotoUrl ? (
+            <img
+              src={fotoUrl}
+              alt=""
+              className="absolute inset-0 size-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
           ) : (
-            <span className="text-sm leading-none">{meta.icono}</span>
+            <div className="flex h-full min-h-[4.5rem] items-center justify-center">
+              <Camera className="size-7 text-muted-foreground/45" strokeWidth={1.5} />
+            </div>
           )}
-        </span>
-        <span className="text-xs font-semibold text-foreground">{meta.label}</span>
-      </div>
+        </div>
 
-      <div className="space-y-0.5 text-xs text-muted-foreground">
-        {ubicacion && (
-          <p className="flex items-center gap-1">
-            <MapPin className="size-3 shrink-0" />
-            <span>{ubicacion}</span>
+        <div className="flex min-h-[4.5rem] min-w-0 flex-col justify-between gap-1.5 self-stretch py-0.5">
+          <span
+            className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-white"
+            style={{ borderColor: meta.color }}
+            title={meta.label}
+            aria-label={meta.label}
+          >
+            {meta.logo ? (
+              <LogoCuerpo src={meta.logo} priority="high" />
+            ) : (
+              <span className="text-sm leading-none">{meta.icono}</span>
+            )}
+          </span>
+
+          <p className="text-sm font-semibold leading-snug break-words text-foreground">
+            {centro.nombre}
           </p>
-        )}
-        {centro.direccion ? (
-          <p className="pl-4 leading-snug">{centro.direccion}</p>
-        ) : !ubicacion ? (
-          <p className="pl-4 italic text-muted-foreground/70">Dirección no registrada</p>
-        ) : null}
+
+          {ubicacion ? (
+            <p className="shrink-0 text-[10px] leading-snug break-words text-muted-foreground">
+              {ubicacion}
+            </p>
+          ) : (
+            <p className="shrink-0 text-[10px] italic leading-snug text-muted-foreground/70">
+              Ubicación no registrada
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-1.5 border-t border-border pt-2">

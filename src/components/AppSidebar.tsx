@@ -131,10 +131,10 @@ function NavContenido({ sesion }: Props) {
               activo={pathname === "/" || rutaActiva(pathname, "/centros/mapa")}
             />
             <ItemMenu
-              to="/centros/reportes"
+              to="/centros/censo-rapido"
               icono={ClipboardList}
-              label="Reportes diarios (red)"
-              activo={rutaActiva(pathname, "/centros/reportes")}
+              label="Censo rápido (red)"
+              activo={rutaActiva(pathname, "/centros/censo-rapido")}
             />
           </SidebarMenu>
         </SidebarGroupContent>

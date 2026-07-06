@@ -1,7 +1,7 @@
 -- Listado general del censo rápido (toda la red) — vista interna autenticada.
 --
 -- RPC `censo_listado_red()`: devuelve todos los registros de censo_registros
--- con nombre del campamento; acceso restringido a admin, analista_sae y autoridad.
+-- con nombre del campamento; acceso restringido a admin, analista_sae, autoridad y censo_rapido.
 
 create or replace function public.censo_listado_red()
 returns table (
@@ -42,7 +42,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if (select public.mi_rol()) not in ('admin', 'analista_sae', 'autoridad') then
+  if (select public.mi_rol()) not in ('admin', 'analista_sae', 'autoridad', 'censo_rapido') then
     raise exception 'Acceso denegado';
   end if;
 

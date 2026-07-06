@@ -1,8 +1,7 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   BedDouble,
   Building2,
-  Camera,
   ClipboardList,
   Droplets,
   HeartPulse,
@@ -56,6 +55,7 @@ import {
 import { FormularioRequerimientos } from "@/features/centros/RequerimientosCentro";
 import { InfraestructuraCentro } from "@/features/centros/InfraestructuraCentro";
 import { AccionesContacto } from "@/components/AccionesContacto";
+import { ZonaSubidaImagen } from "@/components/ZonaSubidaImagen";
 import { VistaEncabezado } from "@/components/VistaEncabezado";
 import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
 import { Badge } from "@/components/ui/badge";
@@ -208,7 +208,6 @@ export function CentroForm({
   const [guardando, setGuardando] = useState(false);
   const [eliminando, setEliminando] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
-  const inputFotoRef = useRef<HTMLInputElement>(null);
 
   const ocupados = poblacionCentro({
     ...centro,
@@ -276,10 +275,7 @@ export function CentroForm({
     );
   }
 
-  async function onFotoSeleccionada(ev: React.ChangeEvent<HTMLInputElement>) {
-    const file = ev.target.files?.[0];
-    ev.target.value = "";
-    if (!file) return;
+  async function subirFoto(file: File) {
     setErrorFoto(null);
     setSubiendoFoto(true);
     try {
@@ -785,52 +781,33 @@ export function CentroForm({
 
             <div>
               <Label>Foto del campamento</Label>
-              <div className="mt-1.5 overflow-hidden rounded-xl border border-border bg-muted/20">
-                {fotoUrl ? (
-                  <img src={fotoUrl} alt="Foto del campamento" className="h-40 w-full object-cover" />
-                ) : (
-                  <div className="flex h-28 items-center justify-center text-xs text-muted-foreground">
-                    Sin foto
+              <div className="mt-1.5">
+                {soloLectura ? (
+                  <div className="overflow-hidden rounded-xl border border-border bg-muted/20">
+                    {fotoUrl ? (
+                      <img
+                        src={fotoUrl}
+                        alt="Foto del campamento"
+                        className="h-40 w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-28 items-center justify-center text-xs text-muted-foreground">
+                        Sin foto
+                      </div>
+                    )}
                   </div>
+                ) : (
+                  <ZonaSubidaImagen
+                    fotoUrl={fotoUrl || undefined}
+                    subiendo={subiendoFoto}
+                    deshabilitado={!hayStorage}
+                    alt="Foto del campamento"
+                    textoVacio="Sin foto"
+                    onArchivo={subirFoto}
+                    onQuitar={() => setFotoUrl("")}
+                  />
                 )}
               </div>
-              {!soloLectura && (
-                <div className="mt-2 flex items-center gap-2">
-                  <input
-                    ref={inputFotoRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={onFotoSeleccionada}
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={!hayStorage || subiendoFoto}
-                    onClick={() => inputFotoRef.current?.click()}
-                    title={hayStorage ? "Subir foto" : "Configura Supabase para subir fotos"}
-                  >
-                    {subiendoFoto ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Camera className="size-4" />
-                    )}
-                    {fotoUrl ? "Cambiar foto" : "Subir foto"}
-                  </Button>
-                  {fotoUrl && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive"
-                      onClick={() => setFotoUrl("")}
-                    >
-                      Quitar
-                    </Button>
-                  )}
-                </div>
-              )}
               {!hayStorage && !soloLectura && (
                 <p className="mt-1 text-[11px] text-amber-400">
                   Subida de fotos desactivada: falta configurar Supabase (ver .env.example).

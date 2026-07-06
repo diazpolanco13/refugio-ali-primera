@@ -1,0 +1,1418 @@
+{
+  "metadata": {
+    "titulo": "REPORTE DIARIO SOBRE CAMPAMENTOS TRANSITORIOS EN LA GRAN CARACAS",
+    "fecha": "2026-07-06",
+    "hora_aproximada": "06:14",
+    "total_campamentos": 61,
+    "fuente": "PDF: 061400JUN26 CAMPAMENTOS DE DAMNIFICADOS.pdf (actualizado a JUL26)",
+    "nota_para_ia": "JSON normalizado para procesamiento por IA. Campos clave extraídos y estructurados. 'trabajos_pendientes' y 'observaciones' mantienen texto original limpio para parsing posterior. Capacidad extraída cuando disponible entre paréntesis. Parroquia/zona inferida del nombre del campamento.",
+    "esquema": {
+      "id": "integer - identificador secuencial 1-61",
+      "campamento": "string - nombre completo del campamento incluyendo ubicación",
+      "capacidad": "integer or null - número de damnificados reportado o null si 00 o no especificado",
+      "parroquia_zona": "string - parroquia o zona inferida (ej: PETARE, BARUTA, EL VALLE)",
+      "ente_encargado": "string - institución responsable y contacto si disponible",
+      "org_seguridad": "string - organización de seguridad asignada (SEBIN, GNB, PNB, POLI XXX, CICPC, etc.)",
+      "superv_sebin": "string - supervisor SEBIN (rango y nombre, ej: C/M GUZMÁN BORNIA)",
+      "trabajos_en_proceso": "boolean - true si 'SI', false si 'NO'",
+      "trabajos_pendientes": "array of strings - lista de trabajos pendientes extraídos de bullets o texto",
+      "captahuellas": "object - {disponible: boolean or null, nota: string}",
+      "juez_de_paz": "object - {disponible: boolean or null, nota: string}",
+      "notas_adicionales": "string - cualquier observación extra no capturada en los campos anteriores"
+    }
+  },
+  "campamentos": [
+    {
+      "id": 1,
+      "campamento": "ETI LEONARDO INFANTE (PETARE)",
+      "capacidad": 274,
+      "parroquia_zona": "PETARE",
+      "ente_encargado": "MINISTERIO DE MINAS, Ana Mediomundo, 0426-3636969.",
+      "org_seguridad": "SEBIN",
+      "superv_sebin": "C/M GUZMÁN BORNIA",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ABASTECIMIENTO DE AGUA POTABLE",
+        "ARREGLO ELECTRICIDAD"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": "Falta internet. En coordinación"
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 2,
+      "campamento": "UEN MARIANO PICON SALAS (PETARE)",
+      "capacidad": 317,
+      "parroquia_zona": "PETARE",
+      "ente_encargado": "MINISTERIO DE MINAS",
+      "org_seguridad": "SEBIN",
+      "superv_sebin": "C/M GUZMÁN BORNIA",
+      "trabajos_en_proceso": false,
+      "trabajos_pendientes": [
+        "NO REQUIERE ADECUACIÓN"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": "Unidad operativa"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 3,
+      "campamento": "U.E.N JOSEFA IRASQUIN LOPEZ (EL CAFETAL - BARUTA)",
+      "capacidad": null,
+      "parroquia_zona": "EL CAFETAL - BARUTA",
+      "ente_encargado": "VICE MINISTRO DE ENERGIA ELECTRICA, Carlos González, 0414-1583931.",
+      "org_seguridad": "POLI BARUTA",
+      "superv_sebin": "C/J HÉCTOR GODOY",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "REMODELACION DE BAÑOS",
+        "ADECUACION DE AREAS COMUNES"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 4,
+      "campamento": "CEN SIMONCITO \"MAMA ROSA\" (URB. LA LIMONERA - BARUTA)",
+      "capacidad": 72,
+      "parroquia_zona": "URB. LA LIMONERA - BARUTA",
+      "ente_encargado": "CANCILLERÍA, Ana Teresa Linares Pacheco, 04264014043.",
+      "org_seguridad": "GNB",
+      "superv_sebin": "C/J HÉCTOR GODOY",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "REPARACION DE FILTRACIONES",
+        "REPARACION DE BAÑOS Y COLOCAR DUCHAS",
+        "REPARACION DE TANQUES DE AGUA",
+        "REPARACION DEL AREA DE COCINA Y DOTACION",
+        "REPARACION DEL AREA DEL CONSULTORIO MEDICO Y DOTACION",
+        "INSTALACION Y DIVISIÓN DE CUBICULOS"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 5,
+      "campamento": "UE JUAN ANTONIO PEREZ BONALDE (CATIA - PQUIA. SUCRE)",
+      "capacidad": 203,
+      "parroquia_zona": "CATIA - PQUIA. SUCRE",
+      "ente_encargado": "MINCI",
+      "org_seguridad": "POLI CARACAS",
+      "superv_sebin": "C/J HÉCTOR GODOY",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "REHABILITACIÓN DE HABITACIONES"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 6,
+      "campamento": "GBM EL VALLE (GIMNASIO VERTICAL)",
+      "capacidad": null,
+      "parroquia_zona": "EL VALLE",
+      "ente_encargado": "GUARDIA DEL PUEBLO, Wadimir Parra, 0426-7117765",
+      "org_seguridad": "BTS SANTA TERESA",
+      "superv_sebin": "C/J HÉCTOR GODOY",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "SISTEMA ELÉCTRICO",
+        "LABORES DE PINTURA",
+        "REMODELACIÓN DE COCINA"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 7,
+      "campamento": "UEN DOCTOR GUILLERMO DELGADO PALACIOS (PQUIA. EL VALLE)",
+      "capacidad": null,
+      "parroquia_zona": "PQUIA. EL VALLE",
+      "ente_encargado": "CANTV, Capitán Edgar Camaute 0414-3695140",
+      "org_seguridad": "GNB",
+      "superv_sebin": "C/G RONNY GALDONAS",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ADECUAR LAS INSTALACIONES DEL COMEDOR Y LAS DUCHAS"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": "Falta internet"
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 8,
+      "campamento": "LICEO JOSE AVALOS (PQUIA. EL VALLE)",
+      "capacidad": null,
+      "parroquia_zona": "PQUIA. EL VALLE",
+      "ente_encargado": "BANCO CENTRAL DE VENEZUELA, Diputado Jesús Farias",
+      "org_seguridad": "GNB",
+      "superv_sebin": "C/G RONNY GALDONAS",
+      "trabajos_en_proceso": false,
+      "trabajos_pendientes": [
+        "OPERATIVO"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 9,
+      "campamento": "GRAN COLOMBIA 1 (PQUIA. SANTA ROSALÍA)",
+      "capacidad": 212,
+      "parroquia_zona": "PQUIA. SANTA ROSALÍA",
+      "ente_encargado": "BANCO DIGITAL DE LOS TRABAJADORES",
+      "org_seguridad": "GNB",
+      "superv_sebin": "C/G RONNY GALDONAS",
+      "trabajos_en_proceso": false,
+      "trabajos_pendientes": [
+        "NINGUNO"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": "presentan error, espera de técnicos"
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 10,
+      "campamento": "GRAN COLOMBIA 2 (PQUIA. SANTA ROSALÍA)",
+      "capacidad": 84,
+      "parroquia_zona": "PQUIA. SANTA ROSALÍA",
+      "ente_encargado": "MPP PUEBLOS INDÍGENAS",
+      "org_seguridad": "GNB",
+      "superv_sebin": "C/G RONNY GALDONAS",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "Reparaciones en los baños y mejoras eléctricas",
+        "Falta la dotación de tanques de agua"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 11,
+      "campamento": "GRAN COLOMBIA 3 (PQUIA. SANTA ROSALÍA)",
+      "capacidad": 478,
+      "parroquia_zona": "PQUIA. SANTA ROSALÍA",
+      "ente_encargado": "BANCO DIGITAL DE LOS TRABAJADORES",
+      "org_seguridad": "GNB",
+      "superv_sebin": "C/G RONNY GALDONAS",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "REPARACIÓN DE CAÑERÍAS OBSTRUIDAS"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 12,
+      "campamento": "GRAN COLOMBIA 4 (PQUIA. SANTA ROSALÍA)",
+      "capacidad": 45,
+      "parroquia_zona": "PQUIA. SANTA ROSALÍA",
+      "ente_encargado": "MINISTERIO JUVENTUD",
+      "org_seguridad": "GNB",
+      "superv_sebin": "C/G RONNY GALDONAS",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "MANTENIMIENTO Y PODA DE VEGETACIÓN"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 13,
+      "campamento": "UEE ADOLFO NAVAS CORONADO (LAS MINAS DE BARUTA)",
+      "capacidad": null,
+      "parroquia_zona": "LAS MINAS DE BARUTA",
+      "ente_encargado": "CANTV",
+      "org_seguridad": "POLI BARUTA",
+      "superv_sebin": "C/G PÉREZ LÓPEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "TERMINAR DE INSTALAR LAS DUCHAS",
+        "INSTALAR EL TANQUE DE 5000L",
+        "LIMPIEZA DE LAS AREAS"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 14,
+      "campamento": "UNIDAD EDUCATIVA TITO SALAS (BARUTA)",
+      "capacidad": null,
+      "parroquia_zona": "BARUTA",
+      "ente_encargado": "MINISTERIO DE FINANZAS",
+      "org_seguridad": "POLI BARUTA",
+      "superv_sebin": "C/J PÉREZ LÓPEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ADECUACIÓN DE COCINA Y DUCHAS"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 15,
+      "campamento": "UEN LUIS HURTADO HIGUERA (EL JUNQUITO)",
+      "capacidad": 273,
+      "parroquia_zona": "EL JUNQUITO",
+      "ente_encargado": "MINISTERIO DE LA COMUNA, José Luis Unda 04265238480",
+      "org_seguridad": "PNB",
+      "superv_sebin": "C/J PÉREZ LÓPEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ACONDICIONAMIENTO DE LAS AREAS DONDE INSTALARAN LAS DUCHAS",
+        "REPRACIÓN DE AREAS DE COCINA Y COMEDOR REALIZANDO UN AVANCE POSITIVO"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 16,
+      "campamento": "UEN SOROCAIMA (BARUTA)",
+      "capacidad": null,
+      "parroquia_zona": "BARUTA",
+      "ente_encargado": "BAER BOLIVARIANO DE AEROPUERTO, Jhonatan Rincón, 0424-1882547.",
+      "org_seguridad": "POLI BARUTA",
+      "superv_sebin": "C/J PÉREZ LÓPEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ALUMBRADO ENTRADA PRINCIPAL DEL CAMPAMENTO",
+        "REMODELAR TODAS LAS AREAS DEL CAMPAMENTO",
+        "REMODELACIÓN DE LA CANCHA DE DEPORTE",
+        "REPARACIÓN DEL SISTEMA ALCANTARILLADO DEL PATIO DE RECESO (AGUAS NEGRAS)"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 17,
+      "campamento": "UEN EDUARDO CREMA (EL PARAÍSO)",
+      "capacidad": 111,
+      "parroquia_zona": "EL PARAÍSO",
+      "ente_encargado": "MIN. DE CIENCIA Y TECNOLOGÍA, María Quintero 0424-1842634",
+      "org_seguridad": "PNB",
+      "superv_sebin": "C/J PÉREZ LÓPEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "SE REALIZA ADECUACIÓN Y ACONDICIONAMIENTO DE LAS AREAS DONDE INSTALARAN LAS DUCHAS",
+        "SE ACONDICIONA Y REPARA LAS AREAS DE COCINA Y COMEDOR REALIZANDO UN AVANCE POSITIVO"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 18,
+      "campamento": "COLISEO LA URBINA (PETARE)",
+      "capacidad": 117,
+      "parroquia_zona": "PETARE",
+      "ente_encargado": "ALCALDIA SUCRE",
+      "org_seguridad": "POLI SUCRE",
+      "superv_sebin": "C/J PÉREZ LÓPEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [],
+      "captahuellas": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": "RESTRUCCION EN BAÑOS Y COCINAS (del screenshot)"
+    },
+    {
+      "id": 19,
+      "campamento": "UE. JESUS ENRIQUE LOZADA (PQUIA. EL RECREO)",
+      "capacidad": null,
+      "parroquia_zona": "PQUIA. EL RECREO",
+      "ente_encargado": "MINISTERIO DE COMERCIO EXTERIOR, Ángel Blanco 0424-1465948.",
+      "org_seguridad": "SEBIN",
+      "superv_sebin": "C/G ROZO",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [],
+      "captahuellas": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": "INSTALACIÓN DE DUCHAS (del screenshot)"
+    },
+    {
+      "id": 20,
+      "campamento": "UN. FRANCISCO PIMENTEL (PQUIA. SANTA TERESA)",
+      "capacidad": 605,
+      "parroquia_zona": "PQUIA. SANTA TERESA",
+      "ente_encargado": "SENIAT, Norlan Ramos 0412-9046707.",
+      "org_seguridad": "GNB",
+      "superv_sebin": "C/G ROZO",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ACONDICIONAMIENTO DE DUCHAS Y VESTUARIOS"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 21,
+      "campamento": "U.E.N. PEDRO EMILIO COLL (PQUIA. COCHE)",
+      "capacidad": 378,
+      "parroquia_zona": "PQUIA. COCHE",
+      "ente_encargado": "METRO DE CARACAS, Luisa Dayana Martínez, 0412-5930036",
+      "org_seguridad": "GNB",
+      "superv_sebin": "C/G ROZO",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "SANEAMIENTO Y LIMPIEZA DE LOS DESAGÜES Y DESTAPADO DEL SISTEMA DE AGUAS RESIDUALES"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 22,
+      "campamento": "UEN PEDRO PONTES (PQUIA. LA VEGA)",
+      "capacidad": null,
+      "parroquia_zona": "PQUIA. LA VEGA",
+      "ente_encargado": "CONTRALORIA GENERAL DE LA REPUBLICA, Manuel Rincón, 0414-2792671.",
+      "org_seguridad": "PNB",
+      "superv_sebin": "C/M CARDOZO",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "REMODELACIÓN DE LA COCINA",
+        "INSTALACIÓN DE TUBERÍAS DE GAS",
+        "REMODELACIÓN DEL COMEDOR",
+        "SUSTITUCIÓN, REPARACIÓN Y MANTENIMIENTO PREVENTIVO/CORRECTIVO DEL SISTEMA DE AGUA DE LLUVIA",
+        "REMODELACIÓN DEL ÁREA DE SECADO",
+        "REPARACIÓN Y ADECUACIÓN DE LA CANCHA DEPORTIVA PARA MEJORAR SUS INSTALACIONES",
+        "INSTALACIÓN DE 5 TANQUE DE AGUA 5.500LITROS",
+        "IMPERMEABILIZACIÓN DE TECHOS"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 23,
+      "campamento": "UE. JOSE IGNACIO PAZ CASTILLO (PQUIA. LA PASTORA)",
+      "capacidad": 122,
+      "parroquia_zona": "PQUIA. LA PASTORA",
+      "ente_encargado": "MOVILNET",
+      "org_seguridad": "PNB",
+      "superv_sebin": "C/M CARDOZO",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "IMPERMEABILIZACIÓN DE TECHOS",
+        "ACONDICIONAMIENTO Y PINTURA DE 6 AULAS",
+        "ACONDICIONAMIENTO GENERAL DEL COMEDOR Y LA COCINA"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 24,
+      "campamento": "LICEO AGUSTIN AVELEDO (LA PASTORA)",
+      "capacidad": null,
+      "parroquia_zona": "LA PASTORA",
+      "ente_encargado": "PEQUIVEN, Román Maniglia",
+      "org_seguridad": "PNB",
+      "superv_sebin": "C/M YOHANA CARDOZO",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "INSTALACIÓN DE MOTORES CAVACUARTOS",
+        "ACONDICIONAMIENTO DE ESPACIOS PARA EL ALBERGUE DE FAMILIAS"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 25,
+      "campamento": "CIUDADELA CATIA 2 (CATIA - PQUIA. SUCRE)",
+      "capacidad": 174,
+      "parroquia_zona": "CATIA - PQUIA. SUCRE",
+      "ente_encargado": "ALCALDÍA DE CARACAS",
+      "org_seguridad": "PNB",
+      "superv_sebin": "C/M YOHANA CARDOZO",
+      "trabajos_en_proceso": false,
+      "trabajos_pendientes": [
+        "OPERATIVO"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 26,
+      "campamento": "GIMNASIO VERTICAL - SANTA TERESA (QUINTA CRESPO)",
+      "capacidad": null,
+      "parroquia_zona": "QUINTA CRESPO - SANTA TERESA",
+      "ente_encargado": "MINISTERIO DEL PODER POPULAR DE INTERIOR, JUSTICIA Y PAZ",
+      "org_seguridad": "GNB",
+      "superv_sebin": "C/M ELIS FERNANDEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "REPARACIÓN DEL ELEVADOR INTERNO",
+        "REPARACIÓN DEL SURTIDOR DE AGUA POTABLE",
+        "INSTALACIÓN DE UNA SEGUNDA FARMACIA EN EL PISO 2"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 27,
+      "campamento": "SAN PEDRO CLAVER (23 DE ENERO)",
+      "capacidad": null,
+      "parroquia_zona": "23 DE ENERO",
+      "ente_encargado": "ALCALDÍA DE CARACAS",
+      "org_seguridad": "NO HAY",
+      "superv_sebin": "C/M ELIS FERNANDEZ",
+      "trabajos_en_proceso": false,
+      "trabajos_pendientes": [
+        "OPERATIVO"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 28,
+      "campamento": "UBN JUAN LANDAETA (PQUIA. SUCRE)",
+      "capacidad": null,
+      "parroquia_zona": "PQUIA. SUCRE",
+      "ente_encargado": "BANCO DE VENEZUELA",
+      "org_seguridad": "CICPC",
+      "superv_sebin": "C/G RAMÓN YÉPEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ADECUACIÓN DE LAS INSTALACIONES SANITARIAS DE LOS BAÑOS",
+        "REMODELACIÓN DE LA COCINA",
+        "CERRAMIENTO EXTERNO DE LOS ESPACIOS DESTINADOS AL ALBERGUE",
+        "INSTALACIÓN DE LA TABIQUERÍA INTERNA PARA LA SEPARACIÓN DE LAS ÁREAS DE PERMANENCIA DE LOS REFUGIADOS"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 29,
+      "campamento": "COMPLEJO EDUCATIVO JPSE GERVASIO ARTIGAS (PROPATRIA - PQUIA. SUCRE)",
+      "capacidad": 543,
+      "parroquia_zona": "PROPATRIA - PQUIA. SUCRE",
+      "ente_encargado": "BANCO DEL TESORO, Francisco Padrón 0412-9639421",
+      "org_seguridad": "CICPC",
+      "superv_sebin": "C/G RAMÓN YÉPEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "INSTALACIÓN Y ADECUACIÓN DE LA COCINA Y LA LAVANDERIA"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 30,
+      "campamento": "LICEO BOLIVARIANO JUAN LOVERA (PQUIA. MACARAO)",
+      "capacidad": 71,
+      "parroquia_zona": "PQUIA. MACARAO",
+      "ente_encargado": "MINISTERIO DE PLANIFICACIÓN",
+      "org_seguridad": "CICPC",
+      "superv_sebin": "C/G RAMÓN YÉPEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ACONDICIONAMIENTO DE DUCHAS Y CANCHAS"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 31,
+      "campamento": "UNIDAD EDUCATIVA NACIONAL CLAUDIO FELICIANO (PQUIA. MACARAO)",
+      "capacidad": 1,
+      "parroquia_zona": "PQUIA. MACARAO",
+      "ente_encargado": "MOVILNET",
+      "org_seguridad": "CICPC",
+      "superv_sebin": "C/G RAMÓN YÉPEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ACTIVAR EL ÁREA DE LA COCINA",
+        "REQUIEREN MATERIALES PARA CULMINAR OBRAS DE PINTURA, ILUMINACIÓN, FRISADO"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 32,
+      "campamento": "GIMNASIO VERTICAL PINTO SALINAS (PINTO SALINAS)",
+      "capacidad": 1,
+      "parroquia_zona": "PINTO SALINAS",
+      "ente_encargado": "ALCALDÍA DE CARACAS, Racso Montes",
+      "org_seguridad": "GNB",
+      "superv_sebin": "C/G SHIRLEY",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "CULMINACIÓN DE ILUMINARIAS",
+        "REPARACIÓN DE ASCENSOR"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 33,
+      "campamento": "UEN VICENTE GIL (SAN BERNARDINO)",
+      "capacidad": 1,
+      "parroquia_zona": "SAN BERNARDINO",
+      "ente_encargado": "SAREN, Milagros Salinas 0426-0550754",
+      "org_seguridad": "PNB",
+      "superv_sebin": "C/G NOVO",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ACONDICIONAMIENTO DE BAÑOS Y DUCHAS"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 34,
+      "campamento": "UE LUIS PADRINO (POQUIA. SAN JUAN)",
+      "capacidad": 216,
+      "parroquia_zona": "POQUIA. SAN JUAN",
+      "ente_encargado": "MINISTERIO SERVICIO PENITENCIARIO, Filén González 0424-7816132",
+      "org_seguridad": "PNB",
+      "superv_sebin": "C/G NOVO",
+      "trabajos_en_proceso": false,
+      "trabajos_pendientes": [
+        "OPERATIVO"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 35,
+      "campamento": "UEN ZOE XIQUES SILVA (SAN MARTÍN)",
+      "capacidad": 443,
+      "parroquia_zona": "SAN MARTÍN",
+      "ente_encargado": "MINISTERIO DE EDUCACIÓN",
+      "org_seguridad": "MILICIA",
+      "superv_sebin": "C/G NOVO",
+      "trabajos_en_proceso": false,
+      "trabajos_pendientes": [
+        "OPERATIVO"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 36,
+      "campamento": "CEN ANA MARÍA CAMPOS (FILAS DE MARICHE)",
+      "capacidad": 1,
+      "parroquia_zona": "FILAS DE MARICHE",
+      "ente_encargado": "ALCALDÍA MUNICIPIO SUCRE",
+      "org_seguridad": "POLI MIRANDA",
+      "superv_sebin": "C/G JOSÉ MARTÍNEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ARMADO DE LITERAS",
+        "ADECUACIÓN DE LAS DUCHAS Y LAVANDERÍA"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 37,
+      "campamento": "UNIDAD EDUC. ESTADAL FRANCISCO IZNARDI (LA DOLORITA - PETARE)",
+      "capacidad": 1,
+      "parroquia_zona": "LA DOLORITA - PETARE",
+      "ente_encargado": "SUDEBAN",
+      "org_seguridad": "POLI MIRANDA",
+      "superv_sebin": "C/G JOSÉ MARTÍNEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "INSTALACIÓN DE TUBERÍAS DE AGUA"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 38,
+      "campamento": "UEN DR. JOSÉ DE JESÚS AROCHA (PETARE)",
+      "capacidad": 1,
+      "parroquia_zona": "PETARE",
+      "ente_encargado": "MINISTERIO DE ENERGÍA ELÉCTRICA",
+      "org_seguridad": "POLI MIRANDA",
+      "superv_sebin": "C/G JOSÉ MARTÍNEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "INSTALACIÓN DE LAVADORAS",
+        "DIVISIÓN DE AULAS"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 39,
+      "campamento": "ESTACIONAMIENTO HOTEL AVILA",
+      "capacidad": 182,
+      "parroquia_zona": "HOTEL AVILA",
+      "ente_encargado": "ALCALDÍA DE CARACAS",
+      "org_seguridad": "POLI CARACAS",
+      "superv_sebin": "C/G JOSÉ MARTÍNEZ",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "INSTALACIÓN DE PUNTO DE ELECTRICIDAD Y AGUAPOTABLE"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 40,
+      "campamento": "UE ALEJO FORTIQUE (BARUTA)",
+      "capacidad": 1,
+      "parroquia_zona": "BARUTA",
+      "ente_encargado": "MINISTERIO SERVICIO PENITENCIARIO, Javier Duarte, 0412-0216626",
+      "org_seguridad": "PALI BARUTA",
+      "superv_sebin": "C/G CARLOS ORTEGA",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "REACTIVACIÓN DE BAÑOS",
+        "REACTIVACIÓN DEL ÁREA DE COCINA"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 41,
+      "campamento": "ANDRÉS BELLO (LA CANDELARIA)",
+      "capacidad": 101,
+      "parroquia_zona": "LA CANDELARIA",
+      "ente_encargado": "MINISTERIO DE AGRICULTURA Y TIERRAS",
+      "org_seguridad": "POLI CARACAS",
+      "superv_sebin": "C/G CARLOS ORTEGA",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ADECUACION DE DUCHAS"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 42,
+      "campamento": "UENB CARLOS DELGADO CHALBAUD (PQUIA. COCHE)",
+      "capacidad": 373,
+      "parroquia_zona": "PQUIA. COCHE",
+      "ente_encargado": "INH JULIO LEÓN HEREDIA, Vargin González, 0414-1243722",
+      "org_seguridad": "POLI CARACAS",
+      "superv_sebin": "C/G CARLOS ORTEGA",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "CONTINÚAN TRABAJOS DE PLOMERÍA EN BAÑOS",
+        "PINTURA DE LA INFRAESTRUCTURA"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 43,
+      "campamento": "PSUV CARACAS",
+      "capacidad": 36,
+      "parroquia_zona": "CARACAS",
+      "ente_encargado": "PSUV",
+      "org_seguridad": "NO HAY",
+      "superv_sebin": "C/G CARLOS ORTEGA",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "REMODELACION DE BAÑOS"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 44,
+      "campamento": "CMAPP EL JUNQUITO (EL JUNQUITO)",
+      "capacidad": null,
+      "parroquia_zona": "EL JUNQUITO",
+      "ente_encargado": "ALCALDIA DE CARACAS, Anyelo Avendaño 0412605991",
+      "org_seguridad": "GNB",
+      "superv_sebin": "C/G CARLOS ORTEGA",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "REPARACION DE BAÑOS"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 45,
+      "campamento": "UNIDAD EDUCATIVA NACIONAL MAESTRA JUDITH LIENDO (PQUIA. EL VALLE)",
+      "capacidad": null,
+      "parroquia_zona": "PQUIA. EL VALLE",
+      "ente_encargado": "MINISTERIO DE PESCA Y ACUICULTURA, José Luis Rebolledo Monjes, 0426-5740423/ 0422-0180832",
+      "org_seguridad": "GNB",
+      "superv_sebin": "C/G LUIS MARRÓN",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "CONTINÚAN CON LA CONSTRUCCIÓN DE LA COCINA"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 46,
+      "campamento": "LICEO LEOPOLDO AGUERREVERE (PQUIA. SAN PEDRO)",
+      "capacidad": 205,
+      "parroquia_zona": "PQUIA. SAN PEDRO",
+      "ente_encargado": "PROCURADURÍA GENERAL DE LA REPÚBLICA, Gladys Griselda Rodríguez Boyert, 04241510728",
+      "org_seguridad": "GNB",
+      "superv_sebin": "C/G LUIS MARRÓN",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "CONTINÚA REALIZANDO LABORES"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 47,
+      "campamento": "ESCUELA INTERNACIONAL DE LIDERAZGO ANTONIO JOSE DE SUCRE (PQUIA. FILAS DE MARICHE)",
+      "capacidad": 136,
+      "parroquia_zona": "PQUIA. FILAS DE MARICHE",
+      "ente_encargado": "MINISTERIO DE EDUCACIÓN Y COMUNAS, Kenedy Morales 0424-2796932",
+      "org_seguridad": "PNB",
+      "superv_sebin": "C/G BRITO",
+      "trabajos_en_proceso": false,
+      "trabajos_pendientes": [
+        "OPERATIVO"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 48,
+      "campamento": "ESCUELA NACIONAL DE ARTES ESCÉNICAS CÉSAR RENGIFO (PQUIA. LA PASTORA)",
+      "capacidad": 27,
+      "parroquia_zona": "PQUIA. LA PASTORA",
+      "ente_encargado": "MINISTERIO DE CULTURA, Vice-ministro Miqueas Figueroa, 0412-2944519.",
+      "org_seguridad": "SEBIN",
+      "superv_sebin": "C/M CARLOS GAMBOA",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "CONSTRUCCIÓN DE COCINA Y COMEDOR",
+        "REPARACIÓN DE BAÑOS",
+        "INSTALACIÓN PARA AGUA POTABLE",
+        "REPARACIÓN DE FILTRACIONES EN EL TECHO",
+        "PINTURA EN TODAS LAS ÁREAS"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 49,
+      "campamento": "UNIDAD EDUCATIVA NACIONAL CONOPOIMA (PQUIA. EL HATILLO)",
+      "capacidad": null,
+      "parroquia_zona": "PQUIA. EL HATILLO",
+      "ente_encargado": "SUPERINTENDENCIA DE LA ACTIVIDAD ASEGURADORA (SUDEASEG), María Belly 0412-9203517.",
+      "org_seguridad": "POLI HATILLO",
+      "superv_sebin": "C/G CARLOS CONTRERAS",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "CULMINAR LOS BAÑOS",
+        "ADECUACIÓN DE LA LAVANDERÍA",
+        "ACONDICIONAR LA COCINA",
+        "FALTAN 2 AULAS POR PINTAR"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 50,
+      "campamento": "UEN LINO DE CLEMENTE (PQUIA. BARUTA)",
+      "capacidad": null,
+      "parroquia_zona": "PQUIA. BARUTA",
+      "ente_encargado": "INSTITUTO VENEZOLANO DE LOS SEGUROS SOCIALES (IVSS) José Contreras 0424-1875291",
+      "org_seguridad": "POLI BARUTA",
+      "superv_sebin": "C/G CARLOS CONTRERAS",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "HABILITAR UN ESPACIO PARA EL PERSONAL MÉDICO QUE PERNOCTARA EN EL CENTRO"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 51,
+      "campamento": "UEN EL LIBERTADOR (CHACAO)",
+      "capacidad": null,
+      "parroquia_zona": "CHACAO",
+      "ente_encargado": "MINISTERIO DE HÁBITAT Y VIVIENDA, Crismer Laucho, 04144668829",
+      "org_seguridad": "POLI CHACAO",
+      "superv_sebin": "C/G CARLOS CONTRERAS",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "CULMINAR LABORES DE PINTURA",
+        "INSTALAR LAS TUBERÍAS PARA LAS DUCHAS"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 52,
+      "campamento": "UEN JESÚS MARIA ALFARO ZAMORA (EL CAFETAL)",
+      "capacidad": null,
+      "parroquia_zona": "EL CAFETAL",
+      "ente_encargado": "INFA, Abraixil Uzcategui, 0422-6336871",
+      "org_seguridad": "POLI BARUTA",
+      "superv_sebin": "C/G CARLOS CONTRERAS",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ADECUACIÓN DE DUCHAS BAÑOS DAMAS Y CABALLEROS",
+        "REPARACIÓN DE GOTERAS DE ALGUNOS SALONES",
+        "FALTA PINTAR UNOS SALONES"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 53,
+      "campamento": "UNES DEL JUNQUITO (EL JUNQUITO)",
+      "capacidad": null,
+      "parroquia_zona": "EL JUNQUITO",
+      "ente_encargado": "NO ASIGNADO",
+      "org_seguridad": "PNB",
+      "superv_sebin": "C/G MAIKENFER",
+      "trabajos_en_proceso": false,
+      "trabajos_pendientes": [
+        "NO UTILIZADA COMO CAMPAMENTO TRANSITORIO"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 54,
+      "campamento": "LICEO MIGUEL ANTONIO CARO (PARQUE ALÍ PRIMERA - PQUIA. SUCRE)",
+      "capacidad": null,
+      "parroquia_zona": "PARQUE ALÍ PRIMERA - PQUIA. SUCRE",
+      "ente_encargado": "MINISTERIO DE OBRAS PÚBLICAS Y PDVSA, C/G Hernán Noguera",
+      "org_seguridad": "CICPC",
+      "superv_sebin": "C/M AGUANA",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "CULMINAR REMODELACION DE AULAS, BAÑOS COMEDORES, COCINAS"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 55,
+      "campamento": "U.E. ARMANDO ZULOAGA BLANCO (PQUIA. SAN JOSÉ)",
+      "capacidad": null,
+      "parroquia_zona": "PQUIA. SAN JOSÉ",
+      "ente_encargado": "BOLIPUERTOS",
+      "org_seguridad": "DGCIM",
+      "superv_sebin": "C/M AGUANA",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ADECUACIÓN DE HABITACIONES"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 56,
+      "campamento": "UEN GENERALÍSIMO FRANCISCO DE MIRANDA (FILAS DE MARICHE)",
+      "capacidad": null,
+      "parroquia_zona": "FILAS DE MARICHE",
+      "ente_encargado": "SUNDEE",
+      "org_seguridad": "POLI SUCRE",
+      "superv_sebin": "C/G YIMMY BETANCOURT",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ADECUACIÓN DE LOS ESPACIOS"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": true,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 57,
+      "campamento": "UEN RAFAEL NAPOLEON BAUTE (PETARE)",
+      "capacidad": null,
+      "parroquia_zona": "PETARE",
+      "ente_encargado": "DESARROLLO SOCIAL DEL MUNICIPIO SUCRE, Abraham Aparicio, 0426-7130132",
+      "org_seguridad": "POLI SUCRE",
+      "superv_sebin": "C/G YIMMY BETANCOURT",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "REPARACIÓN DE FRISO CAÍDO EN PAREDES Y GRIETAS",
+        "ADECUACIÓN DE BAÑOS",
+        "PINTURA GENERAL",
+        "COLOCACIÓN DE BOMBA DE AGUA DE MAYOR POTENCIA PARA SURTIR LOS TANQUES"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 58,
+      "campamento": "CEN NEGRO PRIMERO CAUCAGUITA (CAUCAGUITA - PETARE)",
+      "capacidad": null,
+      "parroquia_zona": "CAUCAGUITA - PETARE",
+      "ente_encargado": "MINISTERIO DE OBRAS PÚBLICAS",
+      "org_seguridad": "POLI SUCRE",
+      "superv_sebin": "C/G YIMMY BETANCOURT",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "ADECUACIÓN ESPACIO DE LAVANDERÍA"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 59,
+      "campamento": "CEN LUIS BELTRAN PRIETO FIGUERA (PQUIA. LEONCIO MARTÍNEZ)",
+      "capacidad": null,
+      "parroquia_zona": "PQUIA. LEONCIO MARTÍNEZ",
+      "ente_encargado": "FONDEN",
+      "org_seguridad": "POLI SUCRE",
+      "superv_sebin": "C/G YIMMY BETANCOURT",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "CONSTRUCCIÓN DE 20 DUCHAS PARA MASCULINOS",
+        "HABILITAR EL ÁREA DEL COMEDOR",
+        "CONSTRUCCIÓN DE (03) MINI PARQUES INFANTILES"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": "En coordinación"
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 60,
+      "campamento": "COMPLEJO GUAYANA ESEQUIBA",
+      "capacidad": 272,
+      "parroquia_zona": "CARACAS",
+      "ente_encargado": "ALCALDÍA DE CARACAS",
+      "org_seguridad": "POLI CARACAS",
+      "superv_sebin": "C/G YIMMY BETANCOURT",
+      "trabajos_en_proceso": false,
+      "trabajos_pendientes": [
+        "OPERATIVO"
+      ],
+      "captahuellas": {
+        "disponible": true,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    },
+    {
+      "id": 61,
+      "campamento": "GBM CARICUAO (GIMNASIO VERTICAL) (UD4 - CARICUAO)",
+      "capacidad": null,
+      "parroquia_zona": "UD4 - CARICUAO",
+      "ente_encargado": "SIN DESIGNACIÓN",
+      "org_seguridad": "SIN DESIGNACIÓN",
+      "superv_sebin": "C/G NOGUERA",
+      "trabajos_en_proceso": true,
+      "trabajos_pendientes": [
+        "INSTALACIÓN DE LITERAS",
+        "NO SE LE HA ASIGNADO JEFE DE SEGURIDAD"
+      ],
+      "captahuellas": {
+        "disponible": false,
+        "nota": ""
+      },
+      "juez_de_paz": {
+        "disponible": false,
+        "nota": ""
+      },
+      "notas_adicionales": ""
+    }
+  ]
+}

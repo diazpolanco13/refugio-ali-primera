@@ -1,5 +1,5 @@
 // Datos de referencia de los Centros Transitorios de Caracas (Fase 4).
-// 51 centros: la UEN Gran Colombia se divide en 3 edificios (centro-03/51/52).
+// 50 centros en catálogo estático: la UEN Gran Colombia se divide en 3 edificios (centro-03/51/52).
 // Generado a partir de la planilla proporcionada por el equipo de campo
 // (nombre, cuerpo de seguridad asignado, parroquia y coordenadas).
 // El centro-10 incluye un levantamiento demo precargado (reporte 03/07/2026).
@@ -222,18 +222,6 @@ export const CENTROS_TRANSITORIOS: CentroTransitorio[] = [
     notas: "",
   },
   {
-    id: "centro-15",
-    nro: 15,
-    nombre: "ETI Rafael Vega",
-    grupo: "Área Metropolitana",
-    cuerpo: "CICPC",
-    parroquia: "Parroquia Sucre",
-    direccion: "ETI Rafael Vega, Sucre, Catia, Caracas",
-    mapsUrl: "https://maps.app.goo.gl/jPQUKKNaiYn8YvH96",
-    geom: { type: "Point", coordinates: [-66.9610755, 10.507184] },
-    notas: "",
-  },
-  {
     id: "centro-16",
     nro: 16,
     nombre: "Liceo Juan Landaeta",
@@ -332,7 +320,7 @@ export const CENTROS_TRANSITORIOS: CentroTransitorio[] = [
   {
     id: "centro-25",
     nro: 25,
-    nombre: "UEN Pedro Pontes",
+    nombre: "UEN Pedro Fontes",
     grupo: "Área Metropolitana",
     cuerpo: "PNB",
     parroquia: "Parroquia La Vega",

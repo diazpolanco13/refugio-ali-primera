@@ -27,6 +27,11 @@ export type ClaveCuerpo =
   | "poli_hatillo"
   | "poli_sucre"
   | "poli_miranda"
+  | "psuv"
+  | "min_educacion"
+  | "alcaldia_ccs"
+  | "milicia"
+  | "gbp"
   | "sin_asignar";
 
 export interface MetaCuerpo {
@@ -56,6 +61,35 @@ export const CATALOGO_CUERPOS: MetaCuerpo[] = [
   { clave: "poli_hatillo", label: "Poli El Hatillo", icono: "🛵", color: "#db2777", logo: "/logos-cuerpos/poli_hatillo.webp" },
   { clave: "poli_sucre", label: "Poli Sucre", icono: "🚦", color: "#ea580c", logo: "/logos-cuerpos/poli_sucre.webp" },
   { clave: "poli_miranda", label: "Poli Miranda", icono: "🏍️", color: "#65a30d", logo: "/logos-cuerpos/poli_miranda.webp" },
+  { clave: "psuv", label: "PSUV", icono: "🌹", color: "#dc2626", logo: "/logos-cuerpos/psuv.webp" },
+  {
+    clave: "min_educacion",
+    label: "Min Educación",
+    icono: "📚",
+    color: "#2563eb",
+    logo: "/logos-cuerpos/min_educacion.webp",
+  },
+  {
+    clave: "alcaldia_ccs",
+    label: "Alcaldía de Caracas",
+    icono: "🏛️",
+    color: "#ca8a04",
+    logo: "/logos-cuerpos/alcaldia_ccs.webp",
+  },
+  {
+    clave: "milicia",
+    label: "Milicia",
+    icono: "⚔️",
+    color: "#15803d",
+    logo: "/logos-cuerpos/milicia.webp",
+  },
+  {
+    clave: "gbp",
+    label: "Guardia del Pueblo",
+    icono: "🛡️",
+    color: "#b91c1c",
+    logo: "/logos-cuerpos/gbp.webp",
+  },
   { clave: "sin_asignar", label: "Sin asignar", icono: "❔", color: "#64748b", logo: null },
 ];
 
@@ -86,6 +120,20 @@ export function normalizarCuerpo(raw: string | undefined | null): ClaveCuerpo {
     polielhatillo: "poli_hatillo",
     polisucre: "poli_sucre",
     polimiranda: "poli_miranda",
+    psuv: "psuv",
+    mineducacion: "min_educacion",
+    ministeriodeducacion: "min_educacion",
+    btssantateresa: "min_educacion",
+    bts: "min_educacion",
+    alcaldiadecaracas: "alcaldia_ccs",
+    alcaldiadeccs: "alcaldia_ccs",
+    alcaldiaccs: "alcaldia_ccs",
+    milicia: "milicia",
+    miliciabolivariana: "milicia",
+    gbp: "gbp",
+    guardiadelpueblo: "gbp",
+    guardiabolivarianadelpueblo: "gbp",
+    sinasignar: "sin_asignar",
   };
   return mapa[limpio] ?? "sin_asignar";
 }
