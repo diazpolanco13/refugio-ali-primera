@@ -113,11 +113,13 @@ export function App() {
   const [arrancando, setArrancando] = useState(true);
 
   useEffect(() => {
-    // No soltar el splash hasta que la sesión esté restaurada Y el chunk de la
-    // ruta inicial esté descargado: así ni el login ni el fallback de Suspense
-    // destellan al arrancar. La precarga nunca bloquea el arranque si falla
-    // (p. ej. red intermitente): Suspense la reintenta al renderizar.
-    const sesionLista = initAuth();
+    const esCenso =
+      window.location.pathname === "/censo" ||
+      window.location.pathname.startsWith("/censo/");
+
+    // La planilla pública no necesita restaurar sesión: evita una ida a Supabase
+    // Auth antes de pintar. (En /censo el bootstrap ligero ni siquiera monta App.)
+    const sesionLista = esCenso ? Promise.resolve() : initAuth();
     const chunkListo = precargarRutaInicial(window.location.pathname).catch(() => undefined);
     void Promise.allSettled([sesionLista, chunkListo]).then(() => setArrancando(false));
   }, []);
