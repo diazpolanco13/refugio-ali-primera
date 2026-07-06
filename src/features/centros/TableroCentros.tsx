@@ -10,6 +10,7 @@ import {
   LayoutGrid,
   List,
   ListFilter,
+  Home,
   PawPrint,
   Plus,
   Search,
@@ -119,65 +120,6 @@ function normalizarTexto(s: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
-}
-
-function porcentajeEntero(valor: number, total: number): string {
-  if (total <= 0) return "0%";
-  return `${Math.round((valor / total) * 100)}%`;
-}
-
-function TarjetaNivelPrioridad({
-  nivel,
-  cantidad,
-  total,
-  activo,
-  onClick,
-}: {
-  nivel: NivelPrioridad;
-  cantidad: number;
-  total: number;
-  activo: boolean;
-  onClick: () => void;
-}) {
-  const color = COLOR_NIVEL[nivel];
-  const porcentaje = total > 0 ? Math.round((cantidad / total) * 100) : 0;
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "group min-w-0 rounded-lg border bg-background/80 p-2 text-left transition-all sm:rounded-xl sm:p-3 sm:hover:-translate-y-0.5 sm:hover:bg-muted/20",
-        activo ? "border-primary/60 ring-2 ring-primary/15" : "border-border/70",
-      )}
-      style={{ borderColor: activo ? `${color}99` : undefined }}
-    >
-      <div className="flex items-center justify-between gap-1 sm:gap-2">
-        <span className="inline-flex min-w-0 items-center gap-1 text-[10px] font-medium text-muted-foreground sm:gap-1.5 sm:text-xs">
-          <span
-            className="size-1.5 shrink-0 rounded-full sm:size-2"
-            style={{ background: color }}
-          />
-          <span className="truncate leading-tight">{ETIQUETA_NIVEL[nivel]}</span>
-        </span>
-        <span className="shrink-0 rounded-full bg-muted/60 px-1 py-0.5 text-[9px] font-medium tabular-nums text-muted-foreground sm:px-1.5 sm:text-[10px]">
-          {porcentajeEntero(cantidad, total)}
-        </span>
-      </div>
-      <div className="mt-1 flex items-end gap-1 sm:mt-2 sm:gap-1.5">
-        <span className="text-lg font-semibold leading-none tabular-nums text-foreground sm:text-2xl">
-          {cantidad}
-        </span>
-        <span className="pb-0.5 text-[10px] text-muted-foreground sm:text-[11px]">ctros</span>
-      </div>
-      <div className="mt-2 hidden h-1.5 overflow-hidden rounded-full bg-muted sm:block">
-        <div
-          className="h-full rounded-full transition-all"
-          style={{ width: `${porcentaje}%`, background: color }}
-        />
-      </div>
-    </button>
-  );
 }
 
 function BuscadorCampamento({
@@ -367,6 +309,7 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
 
   const totales = useMemo(() => {
     let refugiados = 0;
+    let familias = 0;
     let funcionarios = 0;
     let mascotas = 0;
     let camas = 0;
@@ -377,6 +320,7 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
       const a = prioridad.analisis;
       const c = normalizarCentro(centro);
       refugiados += a.refugiados;
+      familias += c.familias_ocupadas;
       funcionarios += a.personal;
       mascotas += c.ocupacion.mascotas;
       camas += c.capacidad.camas_instaladas;
@@ -388,6 +332,7 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
     const agua = demandaAguaDia(total);
     return {
       refugiados,
+      familias,
       funcionarios,
       mascotas,
       total,
@@ -495,7 +440,17 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
           ) : undefined
         }
         debajo={
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 lg:grid-cols-5">
+            <KpiRed
+              icono={<LayoutGrid className="size-3.5 text-emerald-300" />}
+              valor={centros.length}
+              etiqueta="Campamentos"
+            />
+            <KpiRed
+              icono={<Home className="size-3.5 text-orange-300" />}
+              valor={totales.familias}
+              etiqueta="Familias"
+            />
             <KpiRed
               icono={<Users className="size-3.5 text-sky-300" />}
               valor={totales.refugiados}
@@ -511,6 +466,22 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
               valor={totales.mascotas}
               etiqueta="Mascotas"
             />
+          </div>
+        }
+      />
+
+      <div className="border-b border-border bg-muted/10 px-3 py-2.5 sm:px-4 sm:py-3 lg:px-6">
+        <div className="space-y-2 sm:space-y-3">
+          <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-[minmax(0,1fr)_auto] md:hidden">
+            <BuscadorCampamento
+              valor={busqueda}
+              onChange={setBusqueda}
+              inputRef={inputBusquedaRef}
+            />
+            <ToggleVistaTablero vista={vista} onChange={cambiarVista} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3 sm:gap-2">
             <KpiRed
               icono={<Droplets className="size-3.5 text-cyan-300" />}
               valor={totales.aguaPotableDia}
@@ -532,32 +503,6 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
               unidad="/día"
               detalle={`${COMIDAS_POR_PERSONA_DIA} raciones/pers.`}
             />
-          </div>
-        }
-      />
-
-      <div className="border-b border-border bg-muted/10 px-3 py-2.5 sm:px-4 sm:py-3 lg:px-6">
-        <div className="space-y-2 sm:space-y-3">
-          <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-[minmax(0,1fr)_auto] md:hidden">
-            <BuscadorCampamento
-              valor={busqueda}
-              onChange={setBusqueda}
-              inputRef={inputBusquedaRef}
-            />
-            <ToggleVistaTablero vista={vista} onChange={cambiarVista} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 xl:grid-cols-5">
-            {ORDEN_NIVELES.map((nivel) => (
-              <TarjetaNivelPrioridad
-                key={nivel}
-                nivel={nivel}
-                cantidad={conteo[nivel]}
-                total={enContexto.length}
-                activo={filtroNivel === nivel}
-                onClick={() => setFiltroNivel(filtroNivel === nivel ? null : nivel)}
-              />
-            ))}
           </div>
 
           <Collapsible open={filtrosAbiertos} onOpenChange={setFiltrosAbiertos} className="md:hidden">
@@ -762,6 +707,49 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
 }
 
 /**
+ * Píldoras de población al final de cada fila en la vista lista.
+ */
+function PillsPoblacionLista({
+  familias,
+  refugiados,
+  funcionarios,
+  mascotas,
+  compact = false,
+}: {
+  familias: number;
+  refugiados: number;
+  funcionarios: number;
+  mascotas: number;
+  compact?: boolean;
+}) {
+  const base = compact
+    ? "inline-flex h-6 items-center gap-0.5 rounded-md border px-1.5 text-[10px] tabular-nums"
+    : "inline-flex h-7 items-center gap-1 rounded-lg border px-2 text-xs tabular-nums";
+  const icon = compact ? "size-2.5" : "size-3";
+
+  return (
+    <>
+      <span className={`${base} border-orange-400/25 bg-orange-400/10 text-orange-100`}>
+        <Home className={`${icon} text-orange-300`} />
+        <span className="font-semibold">{n(familias)}</span>
+      </span>
+      <span className={`${base} border-sky-400/25 bg-sky-400/10 text-sky-100`}>
+        <Users className={`${icon} text-sky-300`} />
+        <span className="font-semibold">{n(refugiados)}</span>
+      </span>
+      <span className={`${base} border-violet-400/25 bg-violet-400/10 text-violet-100`}>
+        <UserCog className={`${icon} text-violet-300`} />
+        <span className="font-semibold">{n(funcionarios)}</span>
+      </span>
+      <span className={`${base} border-amber-400/25 bg-amber-400/10 text-amber-100`}>
+        <PawPrint className={`${icon} text-amber-300`} />
+        <span className="font-semibold">{n(mascotas)}</span>
+      </span>
+    </>
+  );
+}
+
+/**
  * Fila compacta de un campamento (vista lista), al estilo de reportes diarios.
  */
 function FilaCentroTablero({
@@ -772,12 +760,10 @@ function FilaCentroTablero({
   onSeleccionar: () => void;
 }) {
   const { centro, prioridad } = fila;
+  const c = normalizarCentro(centro);
   const meta = metaCuerpoDe(centro.cuerpo);
   const analisis = prioridad.analisis;
   const colorNivel = COLOR_NIVEL[prioridad.nivel];
-  const colorSemaforo =
-    analisis.semaforo === "sin_datos" ? null : COLOR_SEMAFORO[analisis.semaforo];
-  const logistica = analisis.personasLogistica;
 
   return (
     <button
@@ -808,11 +794,14 @@ function FilaCentroTablero({
           {meta.label}
           {centro.parroquia ? ` · ${centro.parroquia.replace(/^Parroquia\s/i, "")}` : ""}
         </p>
-        <div className="mt-1 flex flex-wrap items-center gap-1.5 sm:hidden">
-          <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-sky-300">
-            <Users className="size-2.5" />
-            {n(analisis.refugiados)}
-          </span>
+        <div className="mt-1 flex flex-wrap items-center gap-1 sm:hidden">
+          <PillsPoblacionLista
+            compact
+            familias={c.familias_ocupadas}
+            refugiados={analisis.refugiados}
+            funcionarios={analisis.personal}
+            mascotas={c.ocupacion.mascotas}
+          />
           <Badge
             variant="outline"
             className="h-5 px-1.5 text-[10px]"
@@ -822,33 +811,13 @@ function FilaCentroTablero({
           </Badge>
         </div>
       </div>
-      <div className="hidden min-w-0 shrink-0 items-center gap-2 sm:flex sm:justify-end">
-        <span className="inline-flex h-7 items-center gap-1 rounded-lg border border-sky-400/25 bg-sky-400/10 px-2 text-xs tabular-nums text-sky-100">
-          <Users className="size-3 text-sky-300" />
-          <span className="font-semibold">{n(analisis.refugiados)}</span>
-        </span>
-        <span className="inline-flex h-7 items-center gap-1 rounded-lg border border-violet-400/25 bg-violet-400/10 px-2 text-xs tabular-nums text-violet-100">
-          <UserCog className="size-3 text-violet-300" />
-          <span className="font-semibold">{n(analisis.personal)}</span>
-        </span>
-        {colorSemaforo && analisis.porcentajeOcupacion != null && (
-          <span
-            className="inline-flex h-7 items-center rounded-lg border px-2 text-xs font-semibold tabular-nums"
-            style={{
-              borderColor: `${colorSemaforo}44`,
-              background: `${colorSemaforo}15`,
-              color: colorSemaforo,
-            }}
-          >
-            {Math.min(999, analisis.porcentajeOcupacion)}%
-          </span>
-        )}
-        {logistica > 0 && (
-          <span className="inline-flex h-7 items-center gap-1 rounded-lg border border-amber-400/25 bg-amber-400/10 px-2 text-xs tabular-nums text-amber-100">
-            <Utensils className="size-3 text-amber-300" />
-            <span className="font-semibold">{n(logistica * COMIDAS_POR_PERSONA_DIA)}</span>
-          </span>
-        )}
+      <div className="hidden min-w-0 shrink-0 items-center gap-1.5 sm:flex sm:justify-end">
+        <PillsPoblacionLista
+          familias={c.familias_ocupadas}
+          refugiados={analisis.refugiados}
+          funcionarios={analisis.personal}
+          mascotas={c.ocupacion.mascotas}
+        />
         <Badge
           variant="outline"
           className="h-7"
