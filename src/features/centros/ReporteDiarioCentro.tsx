@@ -4,6 +4,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import {
   CalendarDays,
+  CalendarPlus,
   CircleCheck,
   CircleDashed,
   ClipboardCheck,
@@ -20,6 +21,7 @@ import { claveDia } from "@/data/reposSupabase";
 import { useReportesCentros } from "@/data/useReportesCentros";
 import { useReportesReparacionesDia } from "@/data/useReportesReparacionesDia";
 import { useReparacionesCentros } from "@/data/useReparacionesCentros";
+import { useEventosReportes } from "@/data/useEventosReportes";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import {
   centroRequiereReparaciones,
@@ -35,6 +37,7 @@ import {
   contadoresReportesPorPeriodo,
   contarAtenciones,
   estadosReportePorDia,
+  eventosRevisados,
   jornadasReportadas,
   normalizarComidas,
   parsearDiaReporte,
@@ -48,6 +51,12 @@ import {
   type JornadaReporte,
   type ReporteDiario,
 } from "@/domain/reporteDiario";
+import {
+  META_TIPO_EVENTO_REPORTE,
+  eventosDelDia,
+  textoParticipantesEvento,
+  type EventoReporte,
+} from "@/domain/eventosReportes";
 import type { SnapshotOcupacion } from "@/domain/serieOcupacionCentros";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { Badge } from "@/components/ui/badge";
@@ -192,6 +201,7 @@ function TarjetaReporteDia({
   dia,
   reporte,
   reporteRep,
+  eventosDia,
   snapshot,
   snapshots,
   reparaciones,
@@ -205,6 +215,7 @@ function TarjetaReporteDia({
   dia: string;
   reporte: ReporteDiario | undefined;
   reporteRep?: ReporteReparacionesDia;
+  eventosDia: EventoReporte[];
   snapshot?: SnapshotOcupacion;
   snapshots?: SnapshotOcupacion[];
   reparaciones?: Reparacion[];
@@ -222,6 +233,7 @@ function TarjetaReporteDia({
   const atenciones = contarAtenciones(casosAtencion, reporte?.atenciones_medicas);
   const obsSalud = reporte?.observaciones?.trim();
   const saludLista = saludReportada(reporte);
+  const eventosOk = eventosRevisados(reporte, eventosDia.length);
   const pendientesRep = reparaciones ? reparacionesPendientes(reparaciones) : [];
   const snapshotAnterior = snapshots ? ultimoSnapshotAntes(snapshots, dia) : undefined;
   const hayAlgo =
@@ -229,6 +241,7 @@ function TarjetaReporteDia({
     jornadas.length > 0 ||
     saludLista ||
     Boolean(reporteRep) ||
+    eventosOk ||
     (esHoy && pendientesRep.length > 0);
 
   return (
@@ -419,6 +432,57 @@ function TarjetaReporteDia({
                   <p className="text-[11px] text-muted-foreground">Sin registro de reparaciones.</p>
                 )}
               </BloqueReporte>
+
+              {/* Eventos */}
+              <BloqueReporte
+                icono={<CalendarPlus className="size-3.5 text-emerald-400" />}
+                titulo="Eventos"
+                listo={eventosOk}
+              >
+                {eventosDia.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {eventosDia.map((evento) => {
+                      const meta = META_TIPO_EVENTO_REPORTE[evento.tipo];
+                      const hora = horaCorta(evento.ts);
+                      return (
+                        <div key={evento.id} className="rounded-lg border border-border/60 px-2 py-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge
+                              variant="outline"
+                              className="px-1.5 py-0 text-[9px]"
+                              style={{ borderColor: `${meta.color}66`, color: meta.color }}
+                            >
+                              {meta.label}
+                            </Badge>
+                            <span className="min-w-0 truncate text-[11px] font-medium text-foreground">
+                              {evento.titulo}
+                            </span>
+                            {hora && (
+                              <span className="text-[10px] tabular-nums text-muted-foreground">
+                                {hora}
+                              </span>
+                            )}
+                          </div>
+                          {evento.descripcion && (
+                            <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+                              {evento.descripcion}
+                            </p>
+                          )}
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            {textoParticipantesEvento(evento)}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : eventosOk ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    Bloque revisado: sin eventos registrados.
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">Sin revisión de eventos.</p>
+                )}
+              </BloqueReporte>
             </div>
           ) : (
             /* Vista compacta (historial / tarjeta pequeña) */
@@ -432,6 +496,9 @@ function TarjetaReporteDia({
                     listo={jornadas.includes(j.valor as JornadaReporte)}
                   />
                 ))}
+                <ChipReporte etiqueta="Salud" listo={saludLista} />
+                <ChipReporte etiqueta="Reparaciones" listo={Boolean(reporteRep)} />
+                <ChipReporte etiqueta="Eventos" listo={eventosOk} />
               </div>
               {(raciones > 0 || atenciones > 0) && (
                 <div className="flex flex-wrap gap-4 text-xs">
@@ -492,6 +559,7 @@ function ReporteExpandido({ centro, puedeEditar, onAbrirReporte }: Props) {
 
   const reportes = useReportesCentros({ centroId: centro.id, desde });
   const reportesRep = useReportesReparacionesDia({ centroId: centro.id, desde });
+  const eventos = useEventosReportes({ centroId: centro.id, desde });
   const reparaciones = useReparacionesCentros({ centroId: centro.id });
   const pendientesRep = reparacionesPendientes(reparaciones);
   const snapshots = useOcupacionesCentros({ centroId: centro.id, desde });
@@ -500,9 +568,18 @@ function ReporteExpandido({ centro, puedeEditar, onAbrirReporte }: Props) {
     () => new Set(snapshots.map((s) => s.dia)),
     [snapshots],
   );
+  const diasConReparaciones = useMemo(
+    () => new Set(reportesRep.map((r) => r.dia)),
+    [reportesRep],
+  );
+  const eventosPorDia = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const evento of eventos) m.set(evento.dia, (m.get(evento.dia) ?? 0) + 1);
+    return m;
+  }, [eventos]);
   const estadosPorDia = useMemo(
-    () => estadosReportePorDia(reportes, diasConParte),
-    [reportes, diasConParte],
+    () => estadosReportePorDia(reportes, diasConParte, { diasConReparaciones, eventosPorDia }),
+    [reportes, diasConParte, diasConReparaciones, eventosPorDia],
   );
   const marcasPorDia = useMemo(() => {
     const m = new Map<string, string>();
@@ -520,8 +597,12 @@ function ReporteExpandido({ centro, puedeEditar, onAbrirReporte }: Props) {
     [],
   );
   const contadores = useMemo(
-    () => contadoresReportesPorPeriodo(reportes, diasConParte, hoyClave),
-    [reportes, diasConParte, hoyClave],
+    () =>
+      contadoresReportesPorPeriodo(reportes, diasConParte, hoyClave, {
+        diasConReparaciones,
+        eventosPorDia,
+      }),
+    [reportes, diasConParte, diasConReparaciones, eventosPorDia, hoyClave],
   );
 
   const [filtro, setFiltro] = useState<FiltroLista>("hoy");
@@ -759,9 +840,10 @@ function ReporteExpandido({ centro, puedeEditar, onAbrirReporte }: Props) {
                   dia={dia}
                   reporte={reportes.find((r) => r.dia === dia)}
                   reporteRep={reporteReparacionesDelDia(reportesRep, centro.id, dia)}
-                    snapshot={snapshots.find((s) => s.dia === dia)}
-                    snapshots={snapshots}
-                    reparaciones={reparaciones}
+                  eventosDia={eventosDelDia(eventos, centro.id, dia)}
+                  snapshot={snapshots.find((s) => s.dia === dia)}
+                  snapshots={snapshots}
+                  reparaciones={reparaciones}
                   parteNumerico={diasConParte.has(dia)}
                   estado={estadosPorDia.get(dia) ?? "pendiente"}
                   grande
@@ -796,6 +878,7 @@ function ReporteCompacto({ centro, puedeEditar, onAbrirReporte }: Props) {
 
   const reportes = useReportesCentros({ centroId: centro.id, dia: hoy });
   const reportesRep = useReportesReparacionesDia({ centroId: centro.id, dia: hoy });
+  const eventos = useEventosReportes({ centroId: centro.id, dia: hoy });
   const reparaciones = useReparacionesCentros({ centroId: centro.id });
   const reporteRep = reporteReparacionesDelDia(reportesRep, centro.id, hoy);
   const pendientesRep = reparacionesPendientes(reparaciones);
@@ -806,12 +889,22 @@ function ReporteCompacto({ centro, puedeEditar, onAbrirReporte }: Props) {
   const atenciones = contarAtenciones(casosAtencion, reporte?.atenciones_medicas);
   const obsSalud = reporte?.observaciones?.trim();
   const saludLista = saludReportada(reporte);
+  const eventosOk = eventosRevisados(reporte, eventos.length);
 
   const snapshotsHoy = useOcupacionesCentros({ centroId: centro.id, desde: hoy });
   const parteHoy = snapshotsHoy.some((s) => s.dia === hoy);
 
-  const completo = reporteCompleto(reporte) && parteHoy;
-  const nadaReportado = !parteHoy && jornadas.length === 0 && !saludLista && !reporteRep;
+  const completo = reporteCompleto(reporte, {
+    parteNumerico: parteHoy,
+    reparacionesRevisadas: Boolean(reporteRep),
+    eventosRevisados: eventosOk,
+  });
+  const nadaReportado =
+    !parteHoy &&
+    jornadas.length === 0 &&
+    !saludLista &&
+    !reporteRep &&
+    !eventosOk;
 
   return (
     <div className="rounded-xl border border-border bg-card p-3">
@@ -849,6 +942,8 @@ function ReporteCompacto({ centro, puedeEditar, onAbrirReporte }: Props) {
           />
         ))}
         <ChipReporte etiqueta="Salud" listo={saludLista} />
+        <ChipReporte etiqueta="Reparaciones" listo={Boolean(reporteRep)} />
+        <ChipReporte etiqueta="Eventos" listo={eventosOk} />
       </div>
 
       {nadaReportado ? (
@@ -875,6 +970,24 @@ function ReporteCompacto({ centro, puedeEditar, onAbrirReporte }: Props) {
               {saludLista && atenciones === 0 ? "Sin atenciones confirmado" : "Atenciones médicas"}
             </div>
           </div>
+          <div className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
+            <div className="flex items-center justify-center gap-1 text-lg font-bold tabular-nums leading-none text-foreground">
+              <Wrench className="size-3.5 text-amber-400" />
+              {reporteRep ? 1 : 0}
+            </div>
+            <div className="mt-0.5 text-[10px] leading-tight text-muted-foreground">
+              Reparaciones revisadas
+            </div>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
+            <div className="flex items-center justify-center gap-1 text-lg font-bold tabular-nums leading-none text-foreground">
+              <CalendarPlus className="size-3.5 text-emerald-400" />
+              {eventos.length}
+            </div>
+            <div className="mt-0.5 text-[10px] leading-tight text-muted-foreground">
+              {eventosOk && eventos.length === 0 ? "Sin eventos confirmado" : "Eventos"}
+            </div>
+          </div>
         </div>
       )}
 
@@ -894,6 +1007,13 @@ function ReporteCompacto({ centro, puedeEditar, onAbrirReporte }: Props) {
           <Wrench className="mr-1 inline size-3 text-amber-400" />
           Reparaciones: requiere trabajos {reporteRep.requiere_trabajos ? "sí" : "no"}
           {reporteRep.se_trabajo_hoy ? ", se trabajó hoy" : ""}
+        </p>
+      )}
+      {eventos.length > 0 && (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          <CalendarPlus className="mr-1 inline size-3 text-emerald-400" />
+          {eventos.length} evento{eventos.length === 1 ? "" : "s"} registrado
+          {eventos.length === 1 ? "" : "s"}
         </p>
       )}
 

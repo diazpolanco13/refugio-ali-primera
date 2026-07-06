@@ -11,6 +11,7 @@
 //   `reportes_centros`.
 // - Reparaciones: flags diarios + lista histórica de trabajos. Flags en
 //   `reportes_reparaciones_dia`; ítems en `reparaciones_centros`.
+// - Eventos: múltiples novedades positivas/negativas del día en `eventos_reportes`.
 //
 // Si ya existe un reporte del día, el formulario carga sobre lo ya reportado
 // (clave lógica `centro_id, dia`: la última edición del día gana).
@@ -19,6 +20,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   CheckCircle2,
+  CalendarPlus,
   ClipboardCheck,
   Clock,
   Loader2,
@@ -39,9 +41,12 @@ import {
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { guardarReporteDiario } from "@/data/reposReportes";
 import { guardarReporteReparacionesDia } from "@/data/reposReparaciones";
+import { guardarEventosReporteDia } from "@/data/reposEventosReportes";
 import { useReportesCentros } from "@/data/useReportesCentros";
 import { useReportesReparacionesDia } from "@/data/useReportesReparacionesDia";
+import { useEventosReportes } from "@/data/useEventosReportes";
 import { reporteReparacionesDelDia } from "@/domain/reparaciones";
+import type { EventoReporte } from "@/domain/eventosReportes";
 import {
   CATALOGO_GRUPOS_EDAD_ATENCION,
   CATALOGO_JORNADAS_REPORTE,
@@ -90,6 +95,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ReparacionesTab } from "./ReparacionesTab";
+import { EventosReporteTab } from "./EventosReporteTab";
 
 interface Props {
   centro: CentroTransitorio;
@@ -164,6 +170,7 @@ function AtencionesMedicasSalud({
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const total = casos.length;
   const statsEdad = useMemo(() => estadisticasEdadAtenciones(casos), [casos]);
+  const saludCompleta = sinAtenciones || total > 0;
 
   function resetBorrador() {
     setBorrador(CASO_VACIO);
@@ -208,40 +215,34 @@ function AtencionesMedicasSalud({
 
   return (
     <div className="min-w-0 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">Atenciones médicas</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Registra cada caso atendido hoy. El total se calcula automáticamente.
-          </p>
+      <div
+        className={cn(
+          "rounded-lg border px-3 py-3",
+          saludCompleta
+            ? "border-emerald-500/35 bg-emerald-500/5"
+            : "border-teal-500/35 bg-teal-500/5",
+        )}
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <Stethoscope className="size-4 text-teal-400" />
+              Salud del día
+            </p>
+            <p className="mt-1 text-xs leading-snug text-muted-foreground">
+              Registra cada caso atendido hoy o confirma que salud revisó el día
+              sin atenciones médicas.
+            </p>
+          </div>
+          <Badge variant="outline" className="w-fit shrink-0 gap-1 tabular-nums">
+            {saludCompleta ? <Check className="size-3 text-emerald-400" /> : null}
+            {total} {total === 1 ? "atención" : "atenciones"}
+            {sinAtenciones && total === 0 ? " · revisado" : ""}
+          </Badge>
         </div>
-        <Badge variant="secondary" className="shrink-0 tabular-nums">
-          {total} {total === 1 ? "atención" : "atenciones"}
-          {sinAtenciones && total === 0 ? " · confirmado" : ""}
-        </Badge>
-      </div>
 
-      {casos.length === 0 && (
-        <div
-          className={cn(
-            "rounded-xl border px-3 py-3.5 shadow-sm transition-colors",
-            sinAtenciones
-              ? "border-emerald-500/50 bg-emerald-500/10"
-              : "border-teal-500/45 bg-teal-500/10",
-          )}
-        >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-foreground">
-                {sinAtenciones
-                  ? "Salud confirmada sin atenciones"
-                  : "¿No hubo casos médicos hoy?"}
-              </p>
-              <p className="mt-1 text-xs leading-snug text-muted-foreground">
-                Marca esta opción cuando el equipo de salud revisó el día y no hubo casos
-                que registrar.
-              </p>
-            </div>
+        {casos.length === 0 && (
+          <div className="mt-3">
             <Button
               type="button"
               size="default"
@@ -261,8 +262,8 @@ function AtencionesMedicasSalud({
               {sinAtenciones ? "Confirmado: cero atenciones" : "Confirmar cero atenciones"}
             </Button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {casos.length > 0 && (
         <ul className="space-y-2">
@@ -460,7 +461,7 @@ function AtencionesMedicasSalud({
   );
 }
 
-/** Estilo de pestañas del reporte: grid 4 cols; icono solo en móvil, texto truncado en sm+. */
+/** Estilo de pestañas del reporte: icono solo en móvil, texto truncado en sm+. */
 const clasePestanaReporte = cn(
   "relative flex h-full min-h-0 min-w-0 w-full flex-row items-center justify-center gap-0.5 overflow-hidden rounded-none px-0 py-0",
   "!border-x-transparent !border-t-transparent !border-b-2 !border-b-transparent !bg-transparent !shadow-none",
@@ -501,6 +502,11 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
   const [requiereTrabajos, setRequiereTrabajos] = useState(false);
   const [seTrabajoHoy, setSeTrabajoHoy] = useState(false);
   const [obsReparaciones, setObsReparaciones] = useState("");
+
+  // Eventos (múltiples filas en `eventos_reportes` + flag de revisión en el reporte base).
+  const [eventosReporte, setEventosReporte] = useState<EventoReporte[]>([]);
+  const [eventosRevisados, setEventosRevisados] = useState(false);
+  const [idsEventosExistentes, setIdsEventosExistentes] = useState<string[]>([]);
 
   const [guardando, setGuardando] = useState(false);
   const [confirmandoParte, setConfirmandoParte] = useState(false);
@@ -547,6 +553,7 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
         contarAtenciones(casos, reporteExistente.atenciones_medicas) === 0,
     );
     setObservaciones(reporteExistente.observaciones);
+    setEventosRevisados(reporteExistente.eventos_revisados);
     setPrecargado(true);
   }, [precargado, reporteExistente]);
 
@@ -560,6 +567,16 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
     setObsReparaciones(reporteRepExistente.observaciones);
     setPrecargadoRep(true);
   }, [precargadoRep, reporteRepExistente]);
+
+  const eventosExistentes = useEventosReportes({ centroId: centro.id, dia: hoy });
+  const [precargadoEventos, setPrecargadoEventos] = useState(false);
+  useEffect(() => {
+    if (precargadoEventos || eventosExistentes.length === 0) return;
+    setEventosReporte(eventosExistentes);
+    setIdsEventosExistentes(eventosExistentes.map((evento) => evento.id));
+    setEventosRevisados(true);
+    setPrecargadoEventos(true);
+  }, [eventosExistentes, precargadoEventos]);
 
   const refugiados = poblacionCentro({
     ...centro,
@@ -659,6 +676,7 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
           sinAtencionesMedicas ||
           atencionesCasos.length > 0 ||
           observaciones.trim() !== "",
+        eventos_revisados: eventosRevisados || eventosReporte.length > 0,
         observaciones: observaciones.trim(),
       });
       // 3) Flags diarios de reparaciones.
@@ -668,6 +686,13 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
         requiere_trabajos: requiereTrabajos,
         se_trabajo_hoy: seTrabajoHoy,
         observaciones: obsReparaciones.trim(),
+      });
+      // 4) Eventos del día: múltiples filas por centro/día.
+      await guardarEventosReporteDia({
+        centro_id: centro.id,
+        dia: hoy,
+        eventos: eventosReporte,
+        idsExistentes: idsEventosExistentes,
       });
       onCerrar();
     } catch (err) {
@@ -725,7 +750,7 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
           <div className="relative z-30 shrink-0 overflow-hidden border-b border-border/80 bg-background">
             <TabsList
               variant="line"
-              className="grid !h-11 w-full min-w-0 grid-cols-4 gap-0 overflow-hidden rounded-none bg-background p-0 sm:!h-[50px]"
+              className="grid !h-11 w-full min-w-0 grid-cols-5 gap-0 overflow-hidden rounded-none bg-background p-0 sm:!h-[50px]"
             >
               <TabsTrigger value="parte" title="Parte numérico" className={clasePestanaReporte}>
                 <Users />
@@ -743,6 +768,10 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
                 <Wrench />
                 <span className="hidden min-w-0 truncate sm:inline">Rep.</span>
               </TabsTrigger>
+              <TabsTrigger value="eventos" title="Eventos" className={clasePestanaReporte}>
+                <CalendarPlus />
+                <span className="hidden min-w-0 truncate sm:inline">Eventos</span>
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -751,7 +780,7 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
             <TabsContent value="parte" className="mt-0 block flex-none space-y-5 outline-none">
               <div
                 className={cn(
-                  "rounded-lg border px-4 py-3.5",
+                  "rounded-lg border px-3 py-3",
                   parteHoyConfirmado
                     ? "border-emerald-500/35 bg-emerald-500/5"
                     : parteModificado
@@ -759,59 +788,53 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
                       : "border-teal-500/35 bg-teal-500/5",
                 )}
               >
-                <div className="flex flex-wrap items-start gap-3">
-                  <div
-                    className={cn(
-                      "flex size-9 shrink-0 items-center justify-center rounded-lg",
-                      parteHoyConfirmado
-                        ? "bg-emerald-500/15 text-emerald-400"
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 space-y-1">
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                      {parteHoyConfirmado ? (
+                        <CheckCircle2 className="size-4 text-emerald-400" />
+                      ) : (
+                        <ClipboardCheck className="size-4 text-teal-400" />
+                      )}
+                      {parteHoyConfirmado
+                        ? "Parte numérico confirmado hoy"
+                        : "Parte numérico de hoy"}
+                    </p>
+                    <p className="text-xs leading-snug text-muted-foreground">
+                      {parteHoyConfirmado
+                        ? "El registro de hoy ya quedó en el histórico."
                         : parteModificado
-                          ? "bg-amber-500/15 text-amber-400"
-                          : "bg-teal-500/15 text-teal-400",
-                    )}
-                  >
-                    {parteHoyConfirmado ? (
-                      <CheckCircle2 className="size-4" />
-                    ) : (
-                      <ClipboardCheck className="size-4" />
-                    )}
+                          ? "Hay cambios respecto al último registro. Guárdalos con el botón del pie del formulario."
+                          : "Si la población no cambió, confírmalo sin reescribir las cifras."}
+                    </p>
                   </div>
-
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-foreground">
-                        {parteHoyConfirmado
-                          ? "Parte numérico confirmado hoy"
-                          : "Parte numérico de hoy"}
-                      </p>
-                      <p className="text-xs leading-snug text-muted-foreground">
-                        {parteHoyConfirmado
-                          ? "El registro de hoy ya quedó en el histórico."
-                          : parteModificado
-                            ? "Hay cambios respecto al último registro. Guárdalos con el botón del pie del formulario."
-                            : "Si la población no cambió, confírmalo sin reescribir las cifras."}
-                      </p>
-                    </div>
-
-                    {!parteHoyConfirmado && !parteModificado && (
-                      <Button
-                        type="button"
-                        variant="default"
-                        size="sm"
-                        className="bg-teal-600 hover:bg-teal-500"
-                        disabled={confirmandoParte || guardando}
-                        onClick={() => void confirmarSinCambios()}
-                      >
-                        {confirmandoParte ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <Check className="size-4" />
-                        )}
-                        Confirmar sin cambios
-                      </Button>
-                    )}
-                  </div>
+                  <Badge variant="outline" className="w-fit shrink-0 gap-1 tabular-nums">
+                    {parteHoyConfirmado ? <Check className="size-3 text-emerald-400" /> : null}
+                    {parteHoyConfirmado
+                      ? "Revisado"
+                      : parteModificado
+                        ? "Con cambios"
+                        : "Pendiente"}
+                  </Badge>
                 </div>
+
+                {!parteHoyConfirmado && !parteModificado && (
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="default"
+                    className="min-h-10 w-full justify-center bg-teal-600 font-semibold text-white shadow-sm shadow-teal-950/20 hover:bg-teal-500 sm:w-auto"
+                    disabled={confirmandoParte || guardando}
+                    onClick={() => void confirmarSinCambios()}
+                  >
+                    {confirmandoParte ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Check className="size-4" />
+                    )}
+                    Confirmar sin cambios
+                  </Button>
+                )}
               </div>
 
               <div>
@@ -1000,6 +1023,20 @@ export function ReporteDiarioForm({ centro, variant = "dialog", onCerrar }: Prop
                 onRequiereTrabajos={setRequiereTrabajos}
                 onSeTrabajoHoy={setSeTrabajoHoy}
                 onObservaciones={setObsReparaciones}
+                revisado={Boolean(reporteRepExistente)}
+                deshabilitado={guardando || confirmandoParte}
+              />
+            </TabsContent>
+
+            {/* Eventos: positivos/negativos + participantes */}
+            <TabsContent value="eventos" className="mt-0 block flex-none outline-none">
+              <EventosReporteTab
+                centroId={centro.id}
+                dia={hoy}
+                eventos={eventosReporte}
+                eventosRevisados={eventosRevisados}
+                onEventosChange={setEventosReporte}
+                onEventosRevisadosChange={setEventosRevisados}
                 deshabilitado={guardando || confirmandoParte}
               />
             </TabsContent>

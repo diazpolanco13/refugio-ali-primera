@@ -6,6 +6,7 @@ import {
   ArrowDownAZ,
   ArrowUpAZ,
   CalendarDays,
+  CalendarPlus,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -17,25 +18,34 @@ import {
   Search,
   Stethoscope,
   UtensilsCrossed,
+  Users,
+  Wrench,
   X,
 } from "lucide-react";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { useReportesCentros } from "@/data/useReportesCentros";
+import { useReportesReparacionesDia } from "@/data/useReportesReparacionesDia";
+import { useEventosReportes } from "@/data/useEventosReportes";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { claveDia } from "@/data/reposSupabase";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
-import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import { metaCuerpoDe, type CentroTransitorio } from "@/domain/centrosTransitorios";
 import {
   META_ESTADO_REPORTE,
+  alimentacionReportada,
   estadoReporteDia,
+  eventosRevisados,
   racionesDelDia,
   reporteDelDia,
+  saludReportada,
   ultimosDiasReporte,
   type EstadoReporteDia,
   type ReporteDiario,
 } from "@/domain/reporteDiario";
+import { reporteReparacionesDelDia } from "@/domain/reparaciones";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LogoCuerpo } from "@/components/LogoCuerpo";
 import {
   Collapsible,
   CollapsibleContent,
@@ -119,6 +129,7 @@ function ordenarFilas<
     estado: EstadoReporteDia;
     raciones: number;
     atenciones: number;
+    eventos: number;
   },
 >(filas: T[], orden: OrdenReportes): T[] {
   const copia = [...filas];
@@ -355,6 +366,36 @@ function BuscadorNombreCampamento({
   );
 }
 
+function IndicadorBloqueReporte({
+  titulo,
+  icono,
+  valor,
+  listo,
+  className,
+}: {
+  titulo: string;
+  icono: React.ReactNode;
+  valor: React.ReactNode;
+  listo: boolean;
+  className?: string;
+}) {
+  return (
+    <span
+      title={titulo}
+      className={cn(
+        "inline-flex h-7 items-center gap-1 rounded-lg border px-2 text-xs tabular-nums",
+        listo
+          ? "border-teal-400/25 bg-teal-400/10 text-teal-100"
+          : "border-border/60 bg-muted/20 text-muted-foreground",
+        className,
+      )}
+    >
+      {icono}
+      <span className="font-semibold">{valor}</span>
+    </span>
+  );
+}
+
 /** Tablero global de reportes diarios por campamento. */
 export function ReportesDiariosRedView() {
   const hoyClave = useMemo(() => claveDia(Date.now()), []);
@@ -374,6 +415,8 @@ export function ReportesDiariosRedView() {
   );
 
   const reportes = useReportesCentros({ desde });
+  const reportesRep = useReportesReparacionesDia({ desde });
+  const eventos = useEventosReportes({ desde });
   const snapshots = useOcupacionesCentros({ desde });
 
   const reportesPorCentroDia = useMemo(() => {
@@ -391,10 +434,29 @@ export function ReportesDiariosRedView() {
     return m;
   }, [snapshots]);
 
+  const reportesRepPorCentroDia = useMemo(() => {
+    const m = new Map<string, boolean>();
+    for (const r of reportesRep) m.set(`${r.centro_id}:${r.dia}`, true);
+    return m;
+  }, [reportesRep]);
+
+  const eventosPorCentroDia = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of eventos) {
+      const key = `${e.centro_id}:${e.dia}`;
+      m.set(key, (m.get(key) ?? 0) + 1);
+    }
+    return m;
+  }, [eventos]);
+
   function estadoCentroDia(centroId: string, dia: string): EstadoReporteDia {
     const reporte = reportesPorCentroDia.get(`${centroId}:${dia}`);
     const tieneParte = diasConPartePorCentro.get(centroId)?.has(dia) ?? false;
-    return estadoReporteDia(reporte, tieneParte);
+    const key = `${centroId}:${dia}`;
+    return estadoReporteDia(reporte, tieneParte, {
+      reparacionesRevisadas: reportesRepPorCentroDia.has(key),
+      eventosRevisados: eventosRevisados(reporte, eventosPorCentroDia.get(key) ?? 0),
+    });
   }
 
   const [dia, setDia] = useState<string | null>(hoyClave);
@@ -423,11 +485,21 @@ export function ReportesDiariosRedView() {
       .map((centro) => {
         const estado = estadoCentroDia(centro.id, diaActivo);
         const reporte = reporteDelDia(reportes, centro.id, diaActivo);
+        const key = `${centro.id}:${diaActivo}`;
+        const reporteRep = reporteReparacionesDelDia(reportesRep, centro.id, diaActivo);
+        const parte = diasConPartePorCentro.get(centro.id)?.has(diaActivo) ?? false;
+        const eventosCount = eventosPorCentroDia.get(key) ?? 0;
         return {
           centro,
           estado,
+          parte,
+          alimentacion: alimentacionReportada(reporte),
+          salud: saludReportada(reporte),
+          reparaciones: Boolean(reporteRep),
+          eventosRevisados: eventosRevisados(reporte, eventosCount),
           raciones: racionesDelDia(reporte),
           atenciones: reporte?.atenciones_medicas ?? 0,
+          eventos: eventosCount,
         };
       })
       .filter((f) => estadoFiltro === "todos" || f.estado === estadoFiltro)
@@ -445,7 +517,10 @@ export function ReportesDiariosRedView() {
     grupoFiltro,
     orden,
     reportes,
+    reportesRep,
     reportesPorCentroDia,
+    reportesRepPorCentroDia,
+    eventosPorCentroDia,
     diasConPartePorCentro,
     terminoBusqueda,
   ]);
@@ -461,7 +536,7 @@ export function ReportesDiariosRedView() {
       m[estadoCentroDia(c.id, hoyClave)]++;
     }
     return m;
-  }, [centros, hoyClave, reportes, snapshots]);
+  }, [centros, hoyClave, reportes, reportesRep, eventos, snapshots]);
 
   const conteosDiaActivo = useMemo(() => {
     const m: Record<EstadoReporteDia, number> = {
@@ -474,7 +549,7 @@ export function ReportesDiariosRedView() {
       m[estadoCentroDia(c.id, diaActivo)]++;
     }
     return m;
-  }, [centros, diaActivo, reportes, snapshots]);
+  }, [centros, diaActivo, reportes, reportesRep, eventos, snapshots]);
 
   const marcasPorDia = useMemo(() => {
     const m = new Map<string, string>();
@@ -484,7 +559,7 @@ export function ReportesDiariosRedView() {
       if (color) m.set(d, color);
     }
     return m;
-  }, [centros, hoyClave, reportes, snapshots]);
+  }, [centros, hoyClave, reportes, reportesRep, eventos, snapshots]);
 
   const leyendaCalendario = useMemo(
     () =>
@@ -501,6 +576,14 @@ export function ReportesDiariosRedView() {
   );
   const atencionesDia = useMemo(
     () => filas.reduce((acc, f) => acc + f.atenciones, 0),
+    [filas],
+  );
+  const eventosDia = useMemo(
+    () => filas.reduce((acc, f) => acc + f.eventos, 0),
+    [filas],
+  );
+  const reparacionesRevisadasDia = useMemo(
+    () => filas.filter((f) => f.reparaciones).length,
     [filas],
   );
   const reportadosDia = centros.length - conteosDiaActivo.pendiente;
@@ -608,6 +691,14 @@ export function ReportesDiariosRedView() {
             <Badge variant="outline" className="hidden gap-1 tabular-nums sm:inline-flex">
               <Stethoscope className="size-3 text-rose-400" />
               {atencionesDia} atenciones
+            </Badge>
+            <Badge variant="outline" className="hidden gap-1 tabular-nums lg:inline-flex">
+              <Wrench className="size-3 text-amber-400" />
+              {reparacionesRevisadasDia} rep.
+            </Badge>
+            <Badge variant="outline" className="hidden gap-1 tabular-nums lg:inline-flex">
+              <CalendarPlus className="size-3 text-emerald-400" />
+              {eventosDia} eventos
             </Badge>
           </>
         }
@@ -830,48 +921,66 @@ export function ReportesDiariosRedView() {
               </p>
             ) : (
               <ul className="space-y-1.5 sm:space-y-2">
-                {filas.map(({ centro, estado, raciones, atenciones }) => (
+                {filas.map(
+                  ({
+                    centro,
+                    estado,
+                    parte,
+                    alimentacion,
+                    salud,
+                    reparaciones,
+                    eventosRevisados: eventosOk,
+                    raciones,
+                    atenciones,
+                    eventos,
+                  }) => {
+                    const meta = metaCuerpoDe(centro.cuerpo);
+                    return (
                   <li key={centro.id}>
                     <Link
                       to={`/centro/${centro.id}`}
                       className="group flex items-center gap-2 rounded-lg border border-border/60 bg-background/65 px-2.5 py-2 transition-all active:bg-muted/30 sm:gap-3 sm:rounded-xl sm:px-3 sm:py-3 sm:hover:-translate-y-0.5 sm:hover:border-border sm:hover:bg-muted/25 sm:hover:shadow-sm"
                     >
                       <div
-                        className="flex size-8 shrink-0 flex-col items-center justify-center rounded-lg border bg-muted/30 sm:size-10 sm:rounded-xl"
-                        style={{ borderColor: `${META_ESTADO_REPORTE[estado].color}55` }}
+                        className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-white text-base sm:size-10 sm:rounded-xl"
+                        title={`N.° ${centro.nro ?? "—"} · ${meta.label}`}
+                        style={{ borderColor: `${meta.color}66` }}
                       >
-                        <span className="text-[8px] font-medium leading-none text-muted-foreground sm:text-[9px]">
-                          N.°
-                        </span>
-                        <span className="text-xs font-semibold leading-none tabular-nums text-foreground sm:text-sm">
-                          {centro.nro}
-                        </span>
+                        {meta.logo ? (
+                          <LogoCuerpo src={meta.logo} priority="low" />
+                        ) : (
+                          <span className="leading-none">{meta.icono}</span>
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-foreground">
                           {centro.nombre}
                         </p>
                         <p className="truncate text-[11px] text-muted-foreground sm:text-xs">
-                          {centro.grupo}
+                          N.° {centro.nro ?? "—"} · {centro.grupo}
                           {centro.parroquia ? ` · ${centro.parroquia}` : ""}
                         </p>
                         <div className="mt-1 flex items-center gap-1.5 sm:hidden">
-                          {(raciones > 0 || atenciones > 0) && (
-                            <>
-                              {raciones > 0 && (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-teal-300">
-                                  <UtensilsCrossed className="size-2.5" />
-                                  {raciones.toLocaleString("es")}
-                                </span>
-                              )}
-                              {atenciones > 0 && (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-rose-300">
-                                  <Stethoscope className="size-2.5" />
-                                  {atenciones}
-                                </span>
-                              )}
-                            </>
-                          )}
+                          <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-sky-300">
+                            <Users className="size-2.5" />
+                            {parte ? 1 : 0}
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-teal-300">
+                            <UtensilsCrossed className="size-2.5" />
+                            {raciones.toLocaleString("es")}
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-rose-300">
+                            <Stethoscope className="size-2.5" />
+                            {atenciones}
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-amber-300">
+                            <Wrench className="size-2.5" />
+                            {reparaciones ? 1 : 0}
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-emerald-300">
+                            <CalendarPlus className="size-2.5" />
+                            {eventos}
+                          </span>
                           <Badge
                             variant="outline"
                             className="h-5 px-1.5 text-[10px]"
@@ -885,30 +994,40 @@ export function ReportesDiariosRedView() {
                         </div>
                       </div>
                       <div className="hidden min-w-0 shrink-0 items-center gap-2 sm:flex sm:justify-end">
-                        <span
-                          className={cn(
-                            "inline-flex h-7 items-center gap-1 rounded-lg border px-2 text-xs tabular-nums",
-                            raciones > 0
-                              ? "border-teal-400/25 bg-teal-400/10 text-teal-100"
-                              : "border-border/60 bg-muted/20 text-muted-foreground",
-                          )}
-                        >
-                          <UtensilsCrossed className="size-3 text-teal-400" />
-                          <span className="font-semibold">
-                            {raciones.toLocaleString("es")}
-                          </span>
-                        </span>
-                        <span
-                          className={cn(
-                            "inline-flex h-7 items-center gap-1 rounded-lg border px-2 text-xs tabular-nums",
-                            atenciones > 0
-                              ? "border-rose-400/25 bg-rose-400/10 text-rose-100"
-                              : "border-border/60 bg-muted/20 text-muted-foreground",
-                          )}
-                        >
-                          <Stethoscope className="size-3 text-rose-400" />
-                          <span className="font-semibold">{atenciones}</span>
-                        </span>
+                        <IndicadorBloqueReporte
+                          titulo="Parte numérico"
+                          icono={<Users className="size-3 text-sky-400" />}
+                          valor={parte ? 1 : 0}
+                          listo={parte}
+                          className={parte ? "border-sky-400/25 bg-sky-400/10 text-sky-100" : ""}
+                        />
+                        <IndicadorBloqueReporte
+                          titulo="Alimentación"
+                          icono={<UtensilsCrossed className="size-3 text-teal-400" />}
+                          valor={raciones.toLocaleString("es")}
+                          listo={alimentacion}
+                        />
+                        <IndicadorBloqueReporte
+                          titulo="Salud"
+                          icono={<Stethoscope className="size-3 text-rose-400" />}
+                          valor={atenciones}
+                          listo={salud}
+                          className={salud ? "border-rose-400/25 bg-rose-400/10 text-rose-100" : ""}
+                        />
+                        <IndicadorBloqueReporte
+                          titulo="Reparaciones"
+                          icono={<Wrench className="size-3 text-amber-400" />}
+                          valor={reparaciones ? 1 : 0}
+                          listo={reparaciones}
+                          className={reparaciones ? "border-amber-400/25 bg-amber-400/10 text-amber-100" : ""}
+                        />
+                        <IndicadorBloqueReporte
+                          titulo="Eventos"
+                          icono={<CalendarPlus className="size-3 text-emerald-400" />}
+                          valor={eventos}
+                          listo={eventosOk}
+                          className={eventosOk ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-100" : ""}
+                        />
                         <Badge
                           variant="outline"
                           className="h-7"
@@ -923,7 +1042,9 @@ export function ReportesDiariosRedView() {
                       <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                     </Link>
                   </li>
-                ))}
+                    );
+                  },
+                )}
               </ul>
             )}
           </div>

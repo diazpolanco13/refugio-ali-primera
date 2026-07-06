@@ -13,12 +13,15 @@ import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { claveDia } from "@/data/reposSupabase";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { useReportesCentros } from "@/data/useReportesCentros";
+import { useReportesReparacionesDia } from "@/data/useReportesReparacionesDia";
+import { useEventosReportes } from "@/data/useEventosReportes";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { Sesion } from "@/data/authSupabase";
 import { puedeCrearCentros, puedeEditarCentro } from "@/domain/permisos";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
 import {
   estadoReporteDia,
+  eventosRevisados,
   META_ESTADO_REPORTE,
   reporteDelDia,
 } from "@/domain/reporteDiario";
@@ -109,6 +112,14 @@ export function FichaCentroView({ sesion }: Props) {
     centroId: centro?.id,
     dia: hoyClave,
   });
+  const reportesRepHoy = useReportesReparacionesDia({
+    centroId: centro?.id,
+    dia: hoyClave,
+  });
+  const eventosHoy = useEventosReportes({
+    centroId: centro?.id,
+    dia: hoyClave,
+  });
   const snapshotsHoy = useMemo(
     () =>
       snapshotsOcupacion.filter(
@@ -120,8 +131,11 @@ export function FichaCentroView({ sesion }: Props) {
     if (!centro) return "pendiente" as const;
     const reporte = reporteDelDia(reportesHoy, centro.id, hoyClave);
     const parte = snapshotsHoy.some((s) => s.dia === hoyClave);
-    return estadoReporteDia(reporte, parte);
-  }, [centro, reportesHoy, snapshotsHoy, hoyClave]);
+    return estadoReporteDia(reporte, parte, {
+      reparacionesRevisadas: reportesRepHoy.length > 0,
+      eventosRevisados: eventosRevisados(reporte, eventosHoy.length),
+    });
+  }, [centro, reportesHoy, reportesRepHoy, eventosHoy, snapshotsHoy, hoyClave]);
 
   function cambiarSeccion(vista: SeccionFicha) {
     setSearchParams(vista === "resumen" ? {} : { vista }, { replace: true });

@@ -4,6 +4,8 @@
 import { useRef, useState } from "react";
 import {
   Camera,
+  Check,
+  CheckCircle2,
   Hammer,
   ImagePlus,
   Loader2,
@@ -70,6 +72,7 @@ interface Props {
   onRequiereTrabajos: (v: boolean) => void;
   onSeTrabajoHoy: (v: boolean) => void;
   onObservaciones: (v: string) => void;
+  revisado?: boolean;
   deshabilitado?: boolean;
 }
 
@@ -564,6 +567,7 @@ export function ReparacionesTab({
   onRequiereTrabajos,
   onSeTrabajoHoy,
   onObservaciones,
+  revisado,
   deshabilitado,
 }: Props) {
   const reparaciones = useReparacionesCentros({ centroId });
@@ -571,6 +575,28 @@ export function ReparacionesTab({
   const conteos = contarPorEstatus(reparaciones);
   const [mostrandoForm, setMostrandoForm] = useState(false);
   const [editando, setEditando] = useState<Reparacion | null>(null);
+  const [sinTrabajosConfirmado, setSinTrabajosConfirmado] = useState(false);
+  const sinTrabajosRevisado =
+    !requiereTrabajos && !seTrabajoHoy && (Boolean(revisado) || sinTrabajosConfirmado);
+  const reparacionesDiaRevisadas =
+    requiereTrabajos || seTrabajoHoy || observaciones.trim() !== "" || sinTrabajosRevisado;
+
+  function cambiarRequiereTrabajos(valor: boolean) {
+    setSinTrabajosConfirmado(false);
+    onRequiereTrabajos(valor);
+  }
+
+  function cambiarSeTrabajoHoy(valor: boolean) {
+    setSinTrabajosConfirmado(false);
+    onSeTrabajoHoy(valor);
+  }
+
+  function confirmarSinReparaciones() {
+    onRequiereTrabajos(false);
+    onSeTrabajoHoy(false);
+    onObservaciones("");
+    setSinTrabajosConfirmado(true);
+  }
 
   return (
     <div className="space-y-4">
@@ -608,11 +634,59 @@ export function ReparacionesTab({
         </div>
       )}
 
+      <div
+        className={cn(
+          "rounded-lg border px-3 py-3",
+          reparacionesDiaRevisadas
+            ? "border-emerald-500/35 bg-emerald-500/5"
+            : "border-teal-500/35 bg-teal-500/5",
+        )}
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <Hammer className="size-4 text-teal-400" />
+              Reparaciones del día
+            </p>
+            <p className="mt-1 text-xs leading-snug text-muted-foreground">
+              Revisa si el campamento requiere trabajos y si hoy se avanzó en
+              solucionarlos.
+            </p>
+          </div>
+          <Badge variant="outline" className="w-fit shrink-0 gap-1 tabular-nums">
+            {reparacionesDiaRevisadas ? <Check className="size-3 text-emerald-400" /> : null}
+            {requiereTrabajos ? "Requiere trabajos" : "Sin trabajos"}
+            {sinTrabajosRevisado ? " · revisado" : ""}
+          </Badge>
+        </div>
+
+        {!requiereTrabajos && !seTrabajoHoy && (
+          <Button
+            type="button"
+            size="default"
+            variant={sinTrabajosRevisado ? "secondary" : "default"}
+            className={cn(
+              "mt-3 min-h-10 w-full justify-center font-semibold shadow-sm sm:w-auto",
+              !sinTrabajosRevisado &&
+                "bg-teal-600 text-white shadow-teal-950/20 hover:bg-teal-500",
+              sinTrabajosRevisado && "border border-emerald-500/40 text-emerald-400",
+            )}
+            disabled={deshabilitado || !puedeEditar}
+            onClick={confirmarSinReparaciones}
+          >
+            <CheckCircle2 className="size-4" />
+            {sinTrabajosRevisado
+              ? "Revisado: sin reparaciones"
+              : "Confirmar que no requiere reparaciones"}
+          </Button>
+        )}
+      </div>
+
       <Card size="sm">
         <CardHeader className="px-3 py-2">
           <CardTitle className="flex items-center gap-1.5 text-xs">
             <Hammer className="size-3.5 text-amber-400" />
-            Reporte de hoy
+            Detalle de reparaciones
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 px-3 pb-3">
@@ -623,7 +697,7 @@ export function ReparacionesTab({
             <div className="mt-1.5">
               <SelectorSiNo
                 valor={requiereTrabajos}
-                onChange={onRequiereTrabajos}
+                onChange={cambiarRequiereTrabajos}
                 deshabilitado={deshabilitado || !puedeEditar}
               />
             </div>
@@ -635,7 +709,7 @@ export function ReparacionesTab({
             <div className="mt-1.5">
               <SelectorSiNo
                 valor={seTrabajoHoy}
-                onChange={onSeTrabajoHoy}
+                onChange={cambiarSeTrabajoHoy}
                 deshabilitado={deshabilitado || !puedeEditar}
               />
             </div>

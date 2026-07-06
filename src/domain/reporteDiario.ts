@@ -201,6 +201,8 @@ export interface ReporteDiario {
   atenciones_medicas_detalle: AtencionMedicaCaso[];
   /** Indica que Salud fue revisada aunque el total sea 0 atenciones. */
   salud_reportada: boolean;
+  /** Indica que el bloque Eventos fue revisado aunque no haya eventos registrados. */
+  eventos_revisados: boolean;
   /** Notas generales del día (legacy; distinto de los casos individuales). */
   observaciones: string;
   updated_at: number;
@@ -251,6 +253,7 @@ export function normalizarReporte(
   const comidasRaw = raw.comidas as
     | (Partial<Record<JornadaReporte, Partial<ComidaJornada>>> & {
         _salud_reportada?: unknown;
+        _eventos_revisados?: unknown;
       })
     | undefined
     | null;
@@ -268,6 +271,9 @@ export function normalizarReporte(
     detalle.length > 0 ||
     almacenado > 0 ||
     observaciones.trim() !== "";
+  const eventosRevisados =
+    (raw as { eventos_revisados?: unknown }).eventos_revisados === true ||
+    comidasRaw?._eventos_revisados === true;
   return {
     id: raw.id,
     centro_id: raw.centro_id,
@@ -276,6 +282,7 @@ export function normalizarReporte(
     atenciones_medicas_detalle: detalle,
     atenciones_medicas: Math.max(almacenado, detalle.length),
     salud_reportada: saludReportada,
+    eventos_revisados: eventosRevisados,
     observaciones,
     updated_at: raw.updated_at ?? 0,
     updated_by: raw.updated_by ?? "",
@@ -306,9 +313,38 @@ export function saludReportada(reporte: ReporteDiario | undefined | null): boole
   );
 }
 
-/** ¿El reporte del día está completo (las tres comidas + Salud reportada)? */
-export function reporteCompleto(reporte: ReporteDiario | undefined | null): boolean {
-  return jornadasReportadas(reporte).length === JORNADAS_REPORTE.length && saludReportada(reporte);
+/** ¿El bloque Alimentación quedó reportado completo? */
+export function alimentacionReportada(reporte: ReporteDiario | undefined | null): boolean {
+  return jornadasReportadas(reporte).length === JORNADAS_REPORTE.length;
+}
+
+/** ¿El bloque Eventos fue revisado aunque no haya eventos registrados? */
+export function eventosRevisados(
+  reporte: ReporteDiario | undefined | null,
+  totalEventos = 0,
+): boolean {
+  return Boolean(reporte?.eventos_revisados || totalEventos > 0);
+}
+
+export interface BloquesReporteDia {
+  parteNumerico: boolean;
+  reparacionesRevisadas: boolean;
+  eventosRevisados: boolean;
+}
+
+/** ¿El reporte del día está completo? Si se pasan bloques, exige los cinco. */
+export function reporteCompleto(
+  reporte: ReporteDiario | undefined | null,
+  bloques?: Partial<BloquesReporteDia>,
+): boolean {
+  const base = alimentacionReportada(reporte) && saludReportada(reporte);
+  if (!bloques) return base;
+  return (
+    base &&
+    bloques.parteNumerico === true &&
+    bloques.reparacionesRevisadas === true &&
+    bloques.eventosRevisados === true
+  );
 }
 
 /** Total de raciones reportadas en el día (suma de las tres jornadas). */
@@ -350,14 +386,23 @@ export const META_ESTADO_REPORTE: Record<
 export function estadoReporteDia(
   reporte: ReporteDiario | undefined | null,
   parteNumerico: boolean,
+  bloques: Partial<Pick<BloquesReporteDia, "reparacionesRevisadas" | "eventosRevisados">> = {},
 ): EstadoReporteDia {
   const jornadas = jornadasReportadas(reporte).length;
   const saludOk = saludReportada(reporte);
-  const reporteOperativoOk = reporteCompleto(reporte);
-  if (reporteOperativoOk && parteNumerico) return "completo";
-  if (reporteOperativoOk || saludOk || (parteNumerico && jornadas > 0)) return "parcial";
+  const alimentacionOk = jornadas === JORNADAS_REPORTE.length;
+  const reparacionesOk = bloques.reparacionesRevisadas === true;
+  const eventosOk = bloques.eventosRevisados === true;
+  const completos = [
+    parteNumerico,
+    alimentacionOk,
+    saludOk,
+    reparacionesOk,
+    eventosOk,
+  ].filter(Boolean).length;
+  if (completos === 5) return "completo";
+  if (completos > 1 || saludOk || jornadas > 0 || reparacionesOk || eventosOk) return "parcial";
   if (parteNumerico) return "solo_parte";
-  if (jornadas > 0) return "parcial";
   return "pendiente";
 }
 
@@ -365,14 +410,26 @@ export function estadoReporteDia(
 export function estadosReportePorDia(
   reportes: ReporteDiario[],
   diasConParte: Set<string>,
+  opts: {
+    diasConReparaciones?: Set<string>;
+    eventosPorDia?: Map<string, number>;
+  } = {},
 ): Map<string, EstadoReporteDia> {
   const map = new Map<string, EstadoReporteDia>();
   const dias = new Set<string>();
   for (const r of reportes) dias.add(r.dia);
   for (const d of diasConParte) dias.add(d);
+  for (const d of opts.diasConReparaciones ?? []) dias.add(d);
+  for (const d of opts.eventosPorDia?.keys() ?? []) dias.add(d);
   for (const dia of dias) {
     const reporte = reportes.find((r) => r.dia === dia);
-    map.set(dia, estadoReporteDia(reporte, diasConParte.has(dia)));
+    map.set(
+      dia,
+      estadoReporteDia(reporte, diasConParte.has(dia), {
+        reparacionesRevisadas: opts.diasConReparaciones?.has(dia) ?? false,
+        eventosRevisados: eventosRevisados(reporte, opts.eventosPorDia?.get(dia) ?? 0),
+      }),
+    );
   }
   return map;
 }
@@ -382,6 +439,10 @@ export function contadoresReportesPorPeriodo(
   reportes: ReporteDiario[],
   diasConParte: Set<string>,
   hoyClave: string,
+  opts: {
+    diasConReparaciones?: Set<string>;
+    eventosPorDia?: Map<string, number>;
+  } = {},
 ): {
   hoyEstado: EstadoReporteDia;
   hoyRaciones: number;
@@ -402,7 +463,10 @@ export function contadoresReportesPorPeriodo(
   const mesLabel = mesLabelRaw.charAt(0).toUpperCase() + mesLabelRaw.slice(1);
 
   const reporteHoy = reportes.find((r) => r.dia === hoyClave);
-  const hoyEstado = estadoReporteDia(reporteHoy, diasConParte.has(hoyClave));
+  const hoyEstado = estadoReporteDia(reporteHoy, diasConParte.has(hoyClave), {
+    reparacionesRevisadas: opts.diasConReparaciones?.has(hoyClave) ?? false,
+    eventosRevisados: eventosRevisados(reporteHoy, opts.eventosPorDia?.get(hoyClave) ?? 0),
+  });
 
   let semanaDiasActivos = 0;
   let mesDiasActivos = 0;
@@ -410,7 +474,7 @@ export function contadoresReportesPorPeriodo(
   let mesRaciones = 0;
   let mesAtenciones = 0;
 
-  const estados = estadosReportePorDia(reportes, diasConParte);
+  const estados = estadosReportePorDia(reportes, diasConParte, opts);
   for (const [dia, estado] of estados) {
     const p = parsearDiaReporte(dia);
     if (p.anio !== hy || p.mes !== hm) continue;

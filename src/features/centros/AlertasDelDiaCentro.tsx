@@ -5,12 +5,15 @@ import { useMemo } from "react";
 import { ClipboardCheck, Droplets, Siren } from "lucide-react";
 import { claveDia } from "@/data/reposSupabase";
 import { useReportesCentros } from "@/data/useReportesCentros";
+import { useReportesReparacionesDia } from "@/data/useReportesReparacionesDia";
+import { useEventosReportes } from "@/data/useEventosReportes";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { useIncidencias } from "@/data/useIncidencias";
 import { analisisCentro, COLOR_ESTADO_AGUA } from "@/domain/capacidadCentros";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import {
   estadoReporteDia,
+  eventosRevisados,
   jornadasReportadas,
   META_ESTADO_REPORTE,
   reporteDelDia,
@@ -94,22 +97,37 @@ export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
   }, [hoy]);
 
   const reportes = useReportesCentros({ centroId: centro.id, desde });
+  const reportesRep = useReportesReparacionesDia({ centroId: centro.id, desde });
+  const eventos = useEventosReportes({ centroId: centro.id, desde });
   const snapshots = useOcupacionesCentros({ centroId: centro.id, desde });
   const incidencias = useIncidencias({ centroId: centro.id, desde });
 
   const reporteHoy = reporteDelDia(reportes, centro.id, hoy);
   const snapshotHoy = snapshots.find((s) => s.dia === hoy);
   const parteNumerico = Boolean(snapshotHoy);
-  const estadoReporte = estadoReporteDia(reporteHoy, parteNumerico);
+  const repHoy = reportesRep.some((r) => r.dia === hoy);
+  const eventosHoy = eventos.filter((e) => e.dia === hoy).length;
+  const estadoReporte = estadoReporteDia(reporteHoy, parteNumerico, {
+    reparacionesRevisadas: repHoy,
+    eventosRevisados: eventosRevisados(reporteHoy, eventosHoy),
+  });
   const metaReporte = META_ESTADO_REPORTE[estadoReporte];
   const reporteAlerta = estadoReporte !== "completo";
 
   const jornadas = jornadasReportadas(reporteHoy).length;
+  const eventosOk = eventosRevisados(reporteHoy, eventosHoy);
   let detalleReporte = metaReporte.label;
   if (estadoReporte === "parcial") {
-    detalleReporte = `${jornadas}/3 comidas${parteNumerico ? " · parte numérico" : ""}`;
+    detalleReporte = [
+      `${jornadas}/3 comidas`,
+      parteNumerico ? "parte" : null,
+      repHoy ? "rep." : null,
+      eventosOk ? "eventos" : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
   } else if (estadoReporte === "solo_parte") {
-    detalleReporte = "Parte numérico sin comidas";
+    detalleReporte = "Solo parte numérico";
   } else if (estadoReporte === "pendiente") {
     detalleReporte = "Sin reporte hoy";
   }

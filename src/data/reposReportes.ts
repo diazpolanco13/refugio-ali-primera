@@ -45,9 +45,14 @@ export async function guardarReporteDiario(
     datos.salud_reportada ||
     contarAtenciones(detalle, totalAtenciones) > 0 ||
     observaciones.trim() !== "";
-  const comidas: ComidasDia & { _salud_reportada?: boolean } = {
+  const eventosRevisados = datos.eventos_revisados === true;
+  const comidas: ComidasDia & {
+    _salud_reportada?: boolean;
+    _eventos_revisados?: boolean;
+  } = {
     ...normalizarComidas(datos.comidas),
     _salud_reportada: saludReportada,
+    _eventos_revisados: eventosRevisados,
   };
   const fila = {
     centro_id: datos.centro_id,
@@ -56,6 +61,7 @@ export async function guardarReporteDiario(
     atenciones_medicas_detalle: detalle,
     atenciones_medicas: totalAtenciones,
     salud_reportada: saludReportada,
+    eventos_revisados: eventosRevisados,
     observaciones,
     updated_at: now,
     updated_by: usuarioActual(),
@@ -64,16 +70,19 @@ export async function guardarReporteDiario(
     .from("reportes_centros")
     .upsert(fila, { onConflict: "centro_id,dia" });
   if (error) {
-    // Compatibilidad temporal: algunos despliegues aún no tienen la columna
-    // `salud_reportada`; el mismo estado viaja respaldado en `comidas`.
+    // Compatibilidad temporal: algunos despliegues aún no tienen columnas nuevas;
+    // los mismos flags viajan respaldados en `comidas`.
     if (
-      error.message.includes("salud_reportada") &&
+      (error.message.includes("salud_reportada") ||
+        error.message.includes("eventos_revisados")) &&
       (error.message.includes("schema cache") || error.message.includes("column"))
     ) {
-      const filaSinColumna: Omit<typeof fila, "salud_reportada"> & {
+      const filaSinColumna: Omit<typeof fila, "salud_reportada" | "eventos_revisados"> & {
         salud_reportada?: never;
+        eventos_revisados?: never;
       } = { ...fila };
       delete filaSinColumna.salud_reportada;
+      delete filaSinColumna.eventos_revisados;
       const { error: fallbackError } = await supabase
         .from("reportes_centros")
         .upsert(filaSinColumna, { onConflict: "centro_id,dia" });
