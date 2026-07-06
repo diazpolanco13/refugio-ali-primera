@@ -210,6 +210,61 @@ function formatearDiaSelector(dia: string): string {
     .replace(/\./g, "");
 }
 
+function TarjetaTotalIndicadorReporte({
+  titulo,
+  icono,
+  valor,
+  completados,
+  total,
+  color,
+}: {
+  titulo: string;
+  icono: React.ReactNode;
+  valor: React.ReactNode;
+  completados: number;
+  total: number;
+  color: string;
+}) {
+  const porcentaje = total > 0 ? Math.round((completados / total) * 100) : 0;
+  const faltan = Math.max(0, total - completados);
+
+  return (
+    <div className="min-w-0 rounded-lg border border-border/70 bg-background/80 p-2 sm:rounded-xl sm:p-3">
+      <div className="flex items-center justify-between gap-1 sm:gap-2">
+        <span className="inline-flex min-w-0 items-center gap-1 text-[10px] font-medium text-muted-foreground sm:gap-1.5 sm:text-xs">
+          {icono}
+          <span className="truncate leading-tight">{titulo}</span>
+        </span>
+        <span
+          className="shrink-0 rounded-full px-1 py-0.5 text-[9px] font-medium tabular-nums sm:px-1.5 sm:text-[10px]"
+          style={{ background: `${color}22`, color }}
+        >
+          {porcentajeEntero(completados, total)}
+        </span>
+      </div>
+      <div className="mt-1 sm:mt-2">
+        <span className="text-lg font-semibold leading-none tabular-nums text-foreground sm:text-2xl">
+          {valor}
+        </span>
+      </div>
+      <p className="mt-1 text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
+        {completados.toLocaleString("es")} de {total.toLocaleString("es")} campamentos
+        {faltan > 0 ? (
+          <span className="text-muted-foreground/80"> · faltan {faltan.toLocaleString("es")}</span>
+        ) : (
+          <span style={{ color }}> · completo</span>
+        )}
+      </p>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${porcentaje}%`, background: color }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function TarjetaEstadoReporte({
   estado,
   cantidad,
@@ -580,22 +635,61 @@ export function ReportesDiariosRedView() {
     [],
   );
 
-  const racionesDia = useMemo(
-    () => filas.reduce((acc, f) => acc + f.raciones, 0),
-    [filas],
-  );
-  const atencionesDia = useMemo(
-    () => filas.reduce((acc, f) => acc + f.atenciones, 0),
-    [filas],
-  );
-  const eventosDia = useMemo(
-    () => filas.reduce((acc, f) => acc + f.eventos, 0),
-    [filas],
-  );
-  const reparacionesRevisadasDia = useMemo(
-    () => filas.filter((f) => f.reparaciones).length,
-    [filas],
-  );
+  const totalesIndicadoresDia = useMemo(() => {
+    let partes = 0;
+    let alimentacionOk = 0;
+    let saludOk = 0;
+    let reparacionesOk = 0;
+    let eventosOk = 0;
+    let raciones = 0;
+    let atenciones = 0;
+    let eventos = 0;
+    let refugiados = 0;
+
+    for (const centro of centros) {
+      const key = `${centro.id}:${diaActivo}`;
+      const reporte = reporteDelDia(reportes, centro.id, diaActivo);
+      const tieneParte = diasConPartePorCentro.get(centro.id)?.has(diaActivo) ?? false;
+      const eventosCount = eventosPorCentroDia.get(key) ?? 0;
+      const reporteRep = reporteReparacionesDelDia(reportesRep, centro.id, diaActivo);
+
+      if (tieneParte) {
+        partes++;
+        const snap = snapshots.find(
+          (s) => s.centro_id === centro.id && s.dia === diaActivo,
+        );
+        refugiados += snap?.total_afectados ?? 0;
+      }
+      if (alimentacionReportada(reporte)) alimentacionOk++;
+      if (saludReportada(reporte)) saludOk++;
+      if (Boolean(reporteRep)) reparacionesOk++;
+      if (eventosRevisados(reporte, eventosCount)) eventosOk++;
+      raciones += racionesDelDia(reporte);
+      atenciones += reporte?.atenciones_medicas ?? 0;
+      eventos += eventosCount;
+    }
+
+    return {
+      partes,
+      alimentacionOk,
+      saludOk,
+      reparacionesOk,
+      eventosOk,
+      raciones,
+      atenciones,
+      eventos,
+      refugiados,
+    };
+  }, [
+    centros,
+    diaActivo,
+    reportes,
+    reportesRep,
+    snapshots,
+    diasConPartePorCentro,
+    eventosPorCentroDia,
+  ]);
+
   const reportadosDia = centros.length - conteosDiaActivo.pendiente;
   const porcentajeCierreDia = porcentajeEntero(reportadosDia, centros.length);
 
@@ -721,19 +815,19 @@ export function ReportesDiariosRedView() {
             </Badge>
             <Badge variant="outline" className="hidden gap-1 tabular-nums sm:inline-flex">
               <UtensilsCrossed className="size-3 text-teal-400" />
-              {racionesDia.toLocaleString("es")} raciones
+              {totalesIndicadoresDia.raciones.toLocaleString("es")} raciones
             </Badge>
             <Badge variant="outline" className="hidden gap-1 tabular-nums sm:inline-flex">
               <Stethoscope className="size-3 text-rose-400" />
-              {atencionesDia} atenciones
+              {totalesIndicadoresDia.atenciones} atenciones
             </Badge>
             <Badge variant="outline" className="hidden gap-1 tabular-nums lg:inline-flex">
               <Wrench className="size-3 text-amber-400" />
-              {reparacionesRevisadasDia} rep.
+              {totalesIndicadoresDia.reparacionesOk} rep.
             </Badge>
             <Badge variant="outline" className="hidden gap-1 tabular-nums lg:inline-flex">
               <CalendarPlus className="size-3 text-emerald-400" />
-              {eventosDia} eventos
+              {totalesIndicadoresDia.eventos} eventos
             </Badge>
             <BotonReporteEjecutivo reporte={reporteEjecutivo} />
           </>
@@ -754,6 +848,49 @@ export function ReportesDiariosRedView() {
                     onSeleccionarDia={setDia}
                     marcasPorDia={marcasPorDia}
                     leyenda={leyendaCalendario}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5 sm:gap-2 lg:grid-cols-3 xl:grid-cols-5">
+                  <TarjetaTotalIndicadorReporte
+                    titulo="Parte numérico"
+                    icono={<Users className="size-3 shrink-0 text-sky-400" />}
+                    valor={totalesIndicadoresDia.refugiados.toLocaleString("es")}
+                    completados={totalesIndicadoresDia.partes}
+                    total={centros.length}
+                    color="#38bdf8"
+                  />
+                  <TarjetaTotalIndicadorReporte
+                    titulo="Alimentación"
+                    icono={<UtensilsCrossed className="size-3 shrink-0 text-teal-400" />}
+                    valor={totalesIndicadoresDia.raciones.toLocaleString("es")}
+                    completados={totalesIndicadoresDia.alimentacionOk}
+                    total={centros.length}
+                    color="#2dd4bf"
+                  />
+                  <TarjetaTotalIndicadorReporte
+                    titulo="Salud"
+                    icono={<Stethoscope className="size-3 shrink-0 text-rose-400" />}
+                    valor={totalesIndicadoresDia.atenciones.toLocaleString("es")}
+                    completados={totalesIndicadoresDia.saludOk}
+                    total={centros.length}
+                    color="#fb7185"
+                  />
+                  <TarjetaTotalIndicadorReporte
+                    titulo="Reparaciones"
+                    icono={<Wrench className="size-3 shrink-0 text-amber-400" />}
+                    valor={totalesIndicadoresDia.reparacionesOk.toLocaleString("es")}
+                    completados={totalesIndicadoresDia.reparacionesOk}
+                    total={centros.length}
+                    color="#fbbf24"
+                  />
+                  <TarjetaTotalIndicadorReporte
+                    titulo="Eventos"
+                    icono={<CalendarPlus className="size-3 shrink-0 text-emerald-400" />}
+                    valor={totalesIndicadoresDia.eventos.toLocaleString("es")}
+                    completados={totalesIndicadoresDia.eventosOk}
+                    total={centros.length}
+                    color="#34d399"
                   />
                 </div>
 
