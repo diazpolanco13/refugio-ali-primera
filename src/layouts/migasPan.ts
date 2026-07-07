@@ -26,16 +26,10 @@ function migasDetalleCentro(
   const nombre = nombreCentro(centro, id);
   const vista = searchParams.get("vista");
   const reportar = searchParams.get("reportar") === "1";
-  const editar = searchParams.get("editar") === "1";
   const registrar = searchParams.get("registrar") === "1";
   const refugiadoId = searchParams.get("refugiado");
   const basePoblacion = `${baseCentro}?vista=poblacion`;
   const migas: MigaPan[] = [...encabezado, { label: nombre, to: baseCentro }];
-
-  if (editar) {
-    migas.push({ label: "Editar campamento" });
-    return migas;
-  }
 
   if (reportar) {
     migas.push({ label: "Reporte del día" });

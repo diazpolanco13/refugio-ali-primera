@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ClipboardCheck, LayoutGrid, Pencil, SearchX, UserPlus } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, LayoutGrid, SearchX, UserPlus } from "lucide-react";
 import { useAlojamientosCentro } from "@/data/useAlojamientosCentro";
 import { RefugiadoForm } from "@/features/refugiados/RefugiadoForm";
 import { FichaRefugiadoView } from "@/features/refugiados/FichaRefugiadoView";
@@ -18,7 +18,7 @@ import { useReportesReparacionesDia } from "@/data/useReportesReparacionesDia";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { Sesion } from "@/data/authSupabase";
-import { puedeCrearCentros, puedeEditarCentro } from "@/domain/permisos";
+import { puedeEditarCentro } from "@/domain/permisos";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
 import {
   estadoReporteDia,
@@ -35,11 +35,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BadgesEstadoCentro,
   SeccionCapacidadCentro,
-  SeccionCoordinacionCentro,
   SeccionRequerimientosCentro,
-  SeccionResponsablesCentro,
-  SeccionSeguridadCentro,
 } from "./DetalleCentro";
+import { CoordinacionCentroPanel } from "./CoordinacionCentroPanel";
 import { PoblacionCentroPanel } from "./PoblacionCentroPanel";
 import { ResumenCentroPanel } from "./ResumenCentroPanel";
 import { SeccionReporteDiarioCentro } from "./ReporteDiarioCentro";
@@ -51,7 +49,6 @@ import {
   type SeccionFichaCentro,
 } from "./seccionesFichaCentro";
 import { cn } from "@/lib/utils";
-import { CentroForm } from "./CentroForm";
 import { ReporteDiarioForm } from "./ReporteDiarioForm";
 
 interface Props {
@@ -70,7 +67,6 @@ export function FichaCentroView({ sesion }: Props) {
     ? seccionParam
     : "resumen";
   const modoReporte = searchParams.get("reportar") === "1";
-  const modoEditar = searchParams.get("editar") === "1";
   const modoRegistrar = searchParams.get("registrar") === "1";
   const refugiadoId = searchParams.get("refugiado");
 
@@ -134,26 +130,12 @@ export function FichaCentroView({ sesion }: Props) {
     setSearchParams(vista === "resumen" ? {} : { vista }, { replace: true });
   }
 
-  function paramsFicha(extra?: Record<string, string>) {
-    const base: Record<string, string> = {};
-    if (seccionActiva !== "resumen") base.vista = seccionActiva;
-    return { ...base, ...extra };
-  }
-
   function abrirReporte() {
     setSearchParams({ vista: "reporte", reportar: "1" }, { replace: true });
   }
 
   function cerrarReporte() {
     setSearchParams({ vista: "reporte" }, { replace: true });
-  }
-
-  function abrirEditar() {
-    setSearchParams(paramsFicha({ editar: "1" }), { replace: true });
-  }
-
-  function cerrarEditar() {
-    setSearchParams(paramsFicha(), { replace: true });
   }
 
   function volverPoblacion() {
@@ -172,14 +154,22 @@ export function FichaCentroView({ sesion }: Props) {
     [centros],
   );
 
+  // Limpiar ?editar=1 de URLs antiguas (edición ahora es in-place por pestaña).
+  useEffect(() => {
+    if (searchParams.get("editar") === "1") {
+      const next = new URLSearchParams(searchParams);
+      next.delete("editar");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   // Si no puede editar, no mantener modos de edición en la URL.
   useEffect(() => {
     if (centro && !puedeEditar) {
       if (modoReporte) cerrarReporte();
-      if (modoEditar) cerrarEditar();
       if (modoRegistrar) volverPoblacion();
     }
-  }, [modoReporte, modoEditar, modoRegistrar, centro, puedeEditar]);
+  }, [modoReporte, modoRegistrar, centro, puedeEditar]);
 
   if (!centro) {
     return (
@@ -254,43 +244,6 @@ export function FichaCentroView({ sesion }: Props) {
           nombresCentros={nombresCentros}
           onCancelar={volverPoblacion}
           onRegistrado={abrirFichaRefugiado}
-        />
-      </MarcoVista>
-    );
-  }
-
-  if (modoEditar && puedeEditar) {
-    return (
-      <MarcoVista
-        ancho={ANCHO_VISTA_PRINCIPAL}
-        rellenarAltura
-        className="overflow-hidden"
-        marcoClassName="flex min-h-0 flex-col text-foreground"
-      >
-        <VistaEncabezado
-          icono={Pencil}
-          acento="sky"
-          titulo="Editar campamento"
-          descripcion={titulo}
-          acciones={
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 shrink-0 gap-1.5 px-2"
-              onClick={cerrarEditar}
-            >
-              <ArrowLeft className="size-3.5" />
-              <span className="hidden sm:inline">Volver a la ficha</span>
-              <span className="sm:hidden">Volver</span>
-            </Button>
-          }
-          debajo={<BadgesEstadoCentro centro={centro} />}
-        />
-        <CentroForm
-          centro={centro}
-          variant="integrado"
-          puedeEliminar={puedeCrearCentros(sesion.user.rol)}
-          onCerrar={cerrarEditar}
         />
       </MarcoVista>
     );
@@ -376,17 +329,6 @@ export function FichaCentroView({ sesion }: Props) {
                 <span className="sm:hidden">Reporte</span>
               </Button>
             )}
-            {puedeEditar && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 shrink-0 gap-1.5 px-2"
-                onClick={abrirEditar}
-              >
-                <Pencil className="size-3.5" />
-                <span className="hidden sm:inline">Editar ficha</span>
-              </Button>
-            )}
           </>
         }
         debajo={
@@ -441,10 +383,8 @@ export function FichaCentroView({ sesion }: Props) {
               />
             </TabsContent>
 
-            <TabsContent value="coordinacion" className="mt-0 space-y-4">
-              <SeccionCoordinacionCentro centro={centro} />
-              <SeccionSeguridadCentro centro={centro} />
-              <SeccionResponsablesCentro centro={centro} />
+            <TabsContent value="coordinacion" className="mt-0">
+              <CoordinacionCentroPanel centro={centro} puedeEditar={puedeEditar} />
             </TabsContent>
 
             <TabsContent value="poblacion" className="mt-0">

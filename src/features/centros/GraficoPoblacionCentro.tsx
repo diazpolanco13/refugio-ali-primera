@@ -1,4 +1,4 @@
-// Gráfico de población del campamento: damnificados, funcionarios y mascotas.
+// Gráfico de población del campamento: damnificados, familias y mascotas.
 // Ventana 7 / 15 / 30 días; línea vertical en el día seleccionado del calendario.
 
 import { useMemo, useState, type ReactNode } from "react";
@@ -23,13 +23,13 @@ import { formatearDiaCalendario } from "./CalendarioSelectorDia";
 
 const COLORES = {
   refugiados: "#38bdf8",
-  funcionarios: "#a78bfa",
+  familias: "#fb923c",
   mascotas: "#fbbf24",
 } as const;
 
 const config: ChartConfig = {
   refugiados: { label: "Damnificados", color: COLORES.refugiados },
-  funcionarios: { label: "Funcionarios", color: COLORES.funcionarios },
+  familias: { label: "Familias", color: COLORES.familias },
   mascotas: { label: "Mascotas", color: COLORES.mascotas },
 };
 
@@ -37,7 +37,7 @@ const VENTANAS: VentanaSeriePoblacion[] = [7, 15, 30];
 
 const SERIES = [
   { key: "refugiados" as const, ancho: 2, dash: undefined },
-  { key: "funcionarios" as const, ancho: 2, dash: undefined },
+  { key: "familias" as const, ancho: 2, dash: undefined },
   { key: "mascotas" as const, ancho: 1.5, dash: "4 3" },
 ];
 
@@ -72,7 +72,7 @@ export function GraficoPoblacionCentro({
   const diaEnSerie = diaMarcado != null && serie.some((p) => p.dia === diaMarcado);
 
   const tieneDatos = useMemo(
-    () => serie.some((p) => p.refugiados > 0 || p.funcionarios > 0 || p.mascotas > 0),
+    () => serie.some((p) => p.refugiados > 0 || p.familias > 0 || p.mascotas > 0),
     [serie],
   );
 
@@ -86,7 +86,7 @@ export function GraficoPoblacionCentro({
           {ultimo && (
             <p className="text-[10px] text-muted-foreground">
               Hoy: {ultimo.refugiados.toLocaleString("es")} damnif. ·{" "}
-              {ultimo.funcionarios.toLocaleString("es")} func. ·{" "}
+              {ultimo.familias.toLocaleString("es")} fam. ·{" "}
               {ultimo.mascotas.toLocaleString("es")} masc.
             </p>
           )}

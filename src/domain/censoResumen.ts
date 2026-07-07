@@ -33,6 +33,69 @@ export interface ResumenCensoCentro {
   viviendaInhabitable: number;
   viviendaNoPosee: number;
   sinCondicionVivienda: number;
+  /** Último parte numérico (ocupaciones_centros.total_afectados). */
+  parteTotal: number | null;
+  parteFamilias: number | null;
+  parteDia: string | null;
+  /** Registros sin cédula/documento. */
+  sinCedula: number;
+  /** Cargados vía importación de planilla (no formulario en terreno). */
+  importadosPlanilla: number;
+  /** Sin edad consignada. */
+  sinEdad: number;
+}
+
+export type EstadoContrasteCenso =
+  | "sin_parte"
+  | "sin_censo"
+  | "en_progreso"
+  | "cuadra"
+  | "excede_parte";
+
+/** Contraste censo vs último parte numérico de la revista diaria. */
+export function estadoContrasteCenso(resumen: ResumenCensoCentro): EstadoContrasteCenso {
+  const meta = resumen.parteTotal ?? 0;
+  const actual = resumen.totalRegistrados;
+  if (meta <= 0) return "sin_parte";
+  if (actual <= 0) return "sin_censo";
+  if (actual > meta) return "excede_parte";
+  if (actual === meta) return "cuadra";
+  return "en_progreso";
+}
+
+/** Avance del censo rápido vs el último parte numérico del campamento. */
+export function progresoCensoVsParte(resumen: ResumenCensoCentro): {
+  meta: number;
+  actual: number;
+  pctParte: number;
+  pctCenso: number;
+  faltan: number;
+  excedente: number;
+  tieneParte: boolean;
+  contraste: EstadoContrasteCenso;
+} {
+  const meta = resumen.parteTotal ?? 0;
+  const actual = resumen.totalRegistrados;
+  const tieneParte = meta > 0;
+  const contraste = estadoContrasteCenso(resumen);
+  const escala = Math.max(meta, actual, 1);
+  return {
+    meta,
+    actual,
+    pctParte: tieneParte ? Math.round((meta / escala) * 100) : 0,
+    pctCenso: tieneParte ? Math.round((actual / escala) * 100) : 0,
+    faltan: meta > actual ? meta - actual : 0,
+    excedente: actual > meta ? actual - meta : 0,
+    tieneParte,
+    contraste,
+  };
+}
+
+/** Porcentaje de registros con cédula (0–100). */
+export function pctConCedula(resumen: ResumenCensoCentro): number {
+  if (resumen.totalRegistrados <= 0) return 0;
+  const conCedula = resumen.totalRegistrados - resumen.sinCedula;
+  return Math.round((conCedula / resumen.totalRegistrados) * 100);
 }
 
 /** Estado del levantamiento según registros y último cierre declarado. */

@@ -920,8 +920,9 @@ function TarjetaCentro({
   const comidasDia = logistica * COMIDAS_POR_PERSONA_DIA;
   const mascotas = c.ocupacion.mascotas;
 
-  const responsables = c.responsables.filter(
-    (r) => r.nombre.trim() && tieneTelefonoContacto(r.telefono),
+  const responsables = c.responsables_coordinacion.filter(
+    (r) =>
+      r.nombre.trim() && r.telefonos.some((t) => tieneTelefonoContacto(t)),
   );
 
   return (
@@ -1082,23 +1083,26 @@ function TarjetaCentro({
         {/* Responsables con contacto (Telegram/WhatsApp/llamar) */}
         {responsables.length > 0 && (
           <div className="mt-auto space-y-1 border-t border-border pt-2">
-            {responsables.slice(0, 2).map((r) => (
+            {responsables.slice(0, 2).map((r) => {
+              const telefono = r.telefonos.find((t) => tieneTelefonoContacto(t)) ?? "";
+              return (
               <div key={r.id} className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <span className="truncate text-[11px] font-medium text-foreground">
                     {r.nombre}
                   </span>
-                  {r.funcion && (
+                  {r.ente && (
                     <span className="ml-1 truncate text-[10px] text-muted-foreground">
-                      · {r.funcion}
+                      · {r.ente}
                     </span>
                   )}
                 </div>
                 <div onClick={(e) => e.stopPropagation()}>
-                  <AccionesContacto telefono={r.telefono} />
+                  <AccionesContacto telefono={telefono} />
                 </div>
               </div>
-            ))}
+            );
+            })}
             {responsables.length > 2 && (
               <p className="text-[10px] text-muted-foreground">
                 +{responsables.length - 2} responsable(s) más

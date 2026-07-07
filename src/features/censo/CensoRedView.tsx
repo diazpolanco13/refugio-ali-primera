@@ -1,7 +1,7 @@
 // Vista interna autenticada: resumen del censo rápido por escuela/campamento.
 // Acceso restringido a admin, analista SAE y autoridad (UI + RPC censo_resumen_red).
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   ClipboardList,
@@ -13,10 +13,18 @@ import {
   Users,
 } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
+import {
+  cargarFiltrosCensoRed,
+  FILTROS_CENSO_RED_DEFAULT,
+  filtrosCensoRedDistintosDeDefault,
+  guardarFiltrosCensoRed,
+  type FiltroEstadoCensoRed,
+  type OrdenCensoRed,
+} from "@/data/preferenciasCensoRed";
 import { useCensoRedResumen } from "@/data/useCensoRedResumen";
 import {
   estadoCensoCentro,
-  type EstadoCensoCentro,
+  estadoContrasteCenso,
   type ResumenCensoCentro,
 } from "@/domain/censoResumen";
 import { puedeVerCensoRapidoRed } from "@/domain/permisos";
@@ -36,8 +44,8 @@ import { cn } from "@/lib/utils";
 import { TarjetaCensoResumen } from "./TarjetaCensoResumen";
 import { CensoRedTabs } from "./CensoRedTabs";
 
-type FiltroEstado = "todos" | EstadoCensoCentro;
-type OrdenCenso = "nombre" | "registrados" | "actividad";
+type FiltroEstado = FiltroEstadoCensoRed;
+type OrdenCenso = OrdenCensoRed;
 
 const OPCIONES_ESTADO: { valor: FiltroEstado; label: string }[] = [
   { valor: "todos", label: "Todos los estados" },
@@ -50,6 +58,7 @@ const OPCIONES_ORDEN: { valor: OrdenCenso; label: string }[] = [
   { valor: "nombre", label: "Nombre A → Z" },
   { valor: "registrados", label: "Más registrados" },
   { valor: "actividad", label: "Actividad reciente" },
+  { valor: "discrepancia", label: "Discrepancias primero" },
 ];
 
 function normalizarBusqueda(texto: string): string {
@@ -91,9 +100,22 @@ function KpiRed({
   );
 }
 
+function deltaParte(r: ResumenCensoCentro): number {
+  const parte = r.parteTotal ?? 0;
+  if (parte <= 0) return 0;
+  return Math.abs(r.totalRegistrados - parte);
+}
+
 function ordenarResumenes(items: ResumenCensoCentro[], orden: OrdenCenso): ResumenCensoCentro[] {
   const copia = [...items];
   switch (orden) {
+    case "discrepancia":
+      return copia.sort((a, b) => {
+        const ca = estadoContrasteCenso(a) === "excede_parte" ? 2 : estadoContrasteCenso(a) === "en_progreso" ? 1 : 0;
+        const cb = estadoContrasteCenso(b) === "excede_parte" ? 2 : estadoContrasteCenso(b) === "en_progreso" ? 1 : 0;
+        if (ca !== cb) return cb - ca;
+        return deltaParte(b) - deltaParte(a) || b.totalRegistrados - a.totalRegistrados;
+      });
     case "registrados":
       return copia.sort((a, b) => b.totalRegistrados - a.totalRegistrados || a.centroNombre.localeCompare(b.centroNombre, "es"));
     case "actividad":
@@ -111,9 +133,14 @@ function ordenarResumenes(items: ResumenCensoCentro[], orden: OrdenCenso): Resum
 export function CensoRedView({ sesion }: { sesion: Sesion }) {
   const tieneAcceso = puedeVerCensoRapidoRed(sesion.user.rol);
   const { resumenes, cargando, error, refrescar } = useCensoRedResumen();
-  const [busqueda, setBusqueda] = useState("");
-  const [estado, setEstado] = useState<FiltroEstado>("todos");
-  const [orden, setOrden] = useState<OrdenCenso>("nombre");
+  const filtrosIniciales = useMemo(() => cargarFiltrosCensoRed(), []);
+  const [busqueda, setBusqueda] = useState(filtrosIniciales.busqueda);
+  const [estado, setEstado] = useState<FiltroEstado>(filtrosIniciales.estado);
+  const [orden, setOrden] = useState<OrdenCenso>(filtrosIniciales.orden);
+
+  useEffect(() => {
+    guardarFiltrosCensoRed({ busqueda, estado, orden });
+  }, [busqueda, estado, orden]);
 
   const kpis = useMemo(() => {
     const activas = resumenes.filter((r) => r.totalRegistrados > 0).length;
@@ -121,11 +148,6 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
     const conCierre = resumenes.filter((r) => r.cierreEn).length;
     return { activas, totalPersonas, conCierre };
   }, [resumenes]);
-
-  const maxRegistradosRed = useMemo(
-    () => Math.max(0, ...resumenes.map((r) => r.totalRegistrados)),
-    [resumenes],
-  );
 
   const visibles = useMemo(() => {
     const q = normalizarBusqueda(busqueda);
@@ -137,7 +159,7 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
     return ordenarResumenes(filtrados, orden);
   }, [busqueda, estado, orden, resumenes]);
 
-  const hayFiltros = busqueda.trim() !== "" || estado !== "todos" || orden !== "nombre";
+  const hayFiltros = filtrosCensoRedDistintosDeDefault({ busqueda, estado, orden });
 
   return (
     <VistaPagina
@@ -222,9 +244,9 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
                 variant="ghost"
                 className="h-8 gap-1.5 text-xs text-muted-foreground"
                 onClick={() => {
-                  setBusqueda("");
-                  setEstado("todos");
-                  setOrden("nombre");
+                  setBusqueda(FILTROS_CENSO_RED_DEFAULT.busqueda);
+                  setEstado(FILTROS_CENSO_RED_DEFAULT.estado);
+                  setOrden(FILTROS_CENSO_RED_DEFAULT.orden);
                 }}
               >
                 <FilterX className="size-3.5" />
@@ -258,11 +280,7 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {visibles.map((resumen) => (
-                <TarjetaCensoResumen
-                  key={resumen.centroId}
-                  resumen={resumen}
-                  maxRegistradosRed={maxRegistradosRed}
-                />
+                <TarjetaCensoResumen key={resumen.centroId} resumen={resumen} />
               ))}
             </div>
           )}

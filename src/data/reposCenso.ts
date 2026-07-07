@@ -316,6 +316,12 @@ interface FilaResumenCensoRed {
   vivienda_inhabitable: number;
   vivienda_no_posee: number;
   sin_condicion_vivienda: number;
+  parte_total: number | null;
+  parte_familias: number | null;
+  parte_dia: string | null;
+  sin_cedula: number;
+  importados_planilla: number;
+  sin_edad: number;
 }
 
 function mapearResumenCensoCentro(fila: FilaResumenCensoRed): ResumenCensoCentro {
@@ -349,6 +355,12 @@ function mapearResumenCensoCentro(fila: FilaResumenCensoRed): ResumenCensoCentro
     viviendaInhabitable: Number(fila.vivienda_inhabitable ?? 0),
     viviendaNoPosee: Number(fila.vivienda_no_posee ?? 0),
     sinCondicionVivienda: Number(fila.sin_condicion_vivienda ?? 0),
+    parteTotal: fila.parte_total != null ? Number(fila.parte_total) : null,
+    parteFamilias: fila.parte_familias != null ? Number(fila.parte_familias) : null,
+    parteDia: fila.parte_dia,
+    sinCedula: Number(fila.sin_cedula ?? 0),
+    importadosPlanilla: Number(fila.importados_planilla ?? 0),
+    sinEdad: Number(fila.sin_edad ?? 0),
   };
 }
 

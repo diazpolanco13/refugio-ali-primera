@@ -1,12 +1,6 @@
--- Resumen agregado del censo rápido por escuela/refugio (vista interna autenticada).
---
--- ✅ APLICADA v2 (07-jul-2026): incluye último parte numérico por campamento.
--- Ver también `censo_resumen_red_v2_parte.sql`.
---
--- RPC `censo_resumen_red()`: agrega censo_registros por centro activo, incluye
--- el último cierre declarado en censo_cierres, el último snapshot de
--- ocupaciones_centros (parte_total, parte_familias, parte_dia) y restringe la
--- lectura a admin, analista_sae, autoridad y censo_rapido vía mi_rol().
+-- censo_resumen_red v3: métricas de calidad del censo (cédula, importación, edad)
+
+drop function if exists public.censo_resumen_red();
 
 create or replace function public.censo_resumen_red()
 returns table (
@@ -38,7 +32,13 @@ returns table (
   vivienda_destruida bigint,
   vivienda_inhabitable bigint,
   vivienda_no_posee bigint,
-  sin_condicion_vivienda bigint
+  sin_condicion_vivienda bigint,
+  parte_total int,
+  parte_familias int,
+  parte_dia date,
+  sin_cedula bigint,
+  importados_planilla bigint,
+  sin_edad bigint
 )
 language plpgsql
 stable
@@ -80,7 +80,13 @@ begin
     coalesce(agg.vivienda_destruida, 0::bigint),
     coalesce(agg.vivienda_inhabitable, 0::bigint),
     coalesce(agg.vivienda_no_posee, 0::bigint),
-    coalesce(agg.sin_condicion_vivienda, 0::bigint)
+    coalesce(agg.sin_condicion_vivienda, 0::bigint),
+    parte.total_afectados,
+    parte.familias,
+    parte.dia,
+    coalesce(agg.sin_cedula, 0::bigint),
+    coalesce(agg.importados_planilla, 0::bigint),
+    coalesce(agg.sin_edad, 0::bigint)
   from public.centros c
   left join lateral (
     select
@@ -107,7 +113,10 @@ begin
       count(*) filter (where r.condicion_vivienda = 'destruida')::bigint as vivienda_destruida,
       count(*) filter (where r.condicion_vivienda = 'inhabitable')::bigint as vivienda_inhabitable,
       count(*) filter (where r.condicion_vivienda = 'no_posee')::bigint as vivienda_no_posee,
-      count(*) filter (where coalesce(r.condicion_vivienda, '') = '')::bigint as sin_condicion_vivienda
+      count(*) filter (where coalesce(r.condicion_vivienda, '') = '')::bigint as sin_condicion_vivienda,
+      count(*) filter (where coalesce(r.documento_norm, '') = '')::bigint as sin_cedula,
+      count(*) filter (where r.funcionario_nombre = 'Importación planilla')::bigint as importados_planilla,
+      count(*) filter (where r.edad is null)::bigint as sin_edad
     from public.censo_registros r
     where r.centro_id = c.id
   ) agg on true
@@ -118,6 +127,13 @@ begin
     order by cc.creado_en desc
     limit 1
   ) ci on true
+  left join lateral (
+    select o.total_afectados, o.familias, o.dia
+    from public.ocupaciones_centros o
+    where o.centro_id = c.id
+    order by o.dia desc, o.updated_at desc
+    limit 1
+  ) parte on true
   where not c.deleted
   order by 2;
 end;

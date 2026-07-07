@@ -44,7 +44,7 @@ export interface PuntoSeriePorGrupo {
 export interface PuntoSeriePoblacion {
   dia: string;
   refugiados: number;
-  funcionarios: number;
+  familias: number;
   mascotas: number;
 }
 
@@ -190,8 +190,8 @@ export function ultimosDiasSerie(cantidad: VentanaSeriePoblacion, hoyClave: stri
 }
 
 /**
- * Serie diaria de población (refugiados, funcionarios, mascotas) con
- * carry-forward, para la ventana de N días.
+ * Serie diaria de población (damnificados, familias y mascotas) con carry-forward,
+ * para la ventana de N días. El personal operativo vive en Coordinación.
  */
 export function seriePoblacionCentroVentana(
   centroId: string,
@@ -209,7 +209,7 @@ export function seriePoblacionCentroVentana(
     return {
       dia,
       refugiados: ult?.total_afectados ?? 0,
-      funcionarios: ult?.personal_total ?? 0,
+      familias: ult?.familias ?? 0,
       mascotas: vuln.mascotas,
     };
   });

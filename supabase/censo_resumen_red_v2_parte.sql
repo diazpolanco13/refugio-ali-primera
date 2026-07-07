@@ -1,12 +1,5 @@
--- Resumen agregado del censo rápido por escuela/refugio (vista interna autenticada).
---
--- ✅ APLICADA v2 (07-jul-2026): incluye último parte numérico por campamento.
--- Ver también `censo_resumen_red_v2_parte.sql`.
---
--- RPC `censo_resumen_red()`: agrega censo_registros por centro activo, incluye
--- el último cierre declarado en censo_cierres, el último snapshot de
--- ocupaciones_centros (parte_total, parte_familias, parte_dia) y restringe la
--- lectura a admin, analista_sae, autoridad y censo_rapido vía mi_rol().
+-- censo_resumen_red v2: incluye último parte numérico (ocupaciones_centros) por campamento
+-- para contrastar censo rápido vs reporte diario.
 
 create or replace function public.censo_resumen_red()
 returns table (
@@ -38,7 +31,10 @@ returns table (
   vivienda_destruida bigint,
   vivienda_inhabitable bigint,
   vivienda_no_posee bigint,
-  sin_condicion_vivienda bigint
+  sin_condicion_vivienda bigint,
+  parte_total int,
+  parte_familias int,
+  parte_dia date
 )
 language plpgsql
 stable
@@ -80,7 +76,10 @@ begin
     coalesce(agg.vivienda_destruida, 0::bigint),
     coalesce(agg.vivienda_inhabitable, 0::bigint),
     coalesce(agg.vivienda_no_posee, 0::bigint),
-    coalesce(agg.sin_condicion_vivienda, 0::bigint)
+    coalesce(agg.sin_condicion_vivienda, 0::bigint),
+    parte.total_afectados,
+    parte.familias,
+    parte.dia
   from public.centros c
   left join lateral (
     select
@@ -118,6 +117,13 @@ begin
     order by cc.creado_en desc
     limit 1
   ) ci on true
+  left join lateral (
+    select o.total_afectados, o.familias, o.dia
+    from public.ocupaciones_centros o
+    where o.centro_id = c.id
+    order by o.dia desc, o.updated_at desc
+    limit 1
+  ) parte on true
   where not c.deleted
   order by 2;
 end;
