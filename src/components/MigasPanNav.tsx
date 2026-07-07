@@ -4,6 +4,8 @@ import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { migasPanDeRuta, type MigaPan } from "@/layouts/migasPan";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,18 +15,26 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 
-function MigasPanLista({ migas }: { migas: MigaPan[] }) {
+function MigasPanLista({ migas, compacto }: { migas: MigaPan[]; compacto?: boolean }) {
   if (migas.length === 0) return null;
+
+  const migasVisibles =
+    compacto && migas.length > 2 ? migas.slice(-2) : migas;
 
   return (
     <Breadcrumb>
       <BreadcrumbList className="flex-nowrap text-xs sm:text-sm">
-        {migas.map((miga, i) => {
-          const esUltima = i === migas.length - 1;
+        {migasVisibles.map((miga, i) => {
+          const esUltima = i === migasVisibles.length - 1;
           return (
             <Fragment key={`${miga.label}-${i}`}>
               {i > 0 && <BreadcrumbSeparator />}
-              <BreadcrumbItem className="min-w-0 max-w-[9rem] sm:max-w-[14rem]">
+              <BreadcrumbItem
+                className={cn(
+                  "min-w-0",
+                  compacto ? "max-w-[7rem] sm:max-w-[14rem]" : "max-w-[9rem] sm:max-w-[14rem]",
+                )}
+              >
                 {esUltima || !miga.to ? (
                   <BreadcrumbPage className="truncate font-medium">
                     {miga.label}
@@ -49,6 +59,8 @@ function MigasPanLista({ migas }: { migas: MigaPan[] }) {
 export function MigasPanNav() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const esMovil = useIsMobile();
+  const modoReporte = searchParams.get("reportar") === "1";
 
   const matchCentro = matchPath("/centro/:id", location.pathname);
   const matchReportesCentro = matchPath("/centros/reportes/:centroId", location.pathname);
@@ -78,5 +90,5 @@ export function MigasPanNav() {
     [location.pathname, searchParams, centro],
   );
 
-  return <MigasPanLista migas={migas} />;
+  return <MigasPanLista migas={migas} compacto={esMovil && modoReporte} />;
 }

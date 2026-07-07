@@ -152,12 +152,13 @@ interface SeccionProps {
   centro: CentroTransitorio;
 }
 
-/** Badges de estado del centro + semáforo de ocupación (cabeceras). */
+/** Badges de estado del centro; cupo solo si hay datos de capacidad registrados. */
 export function BadgesEstadoCentro({ centro }: SeccionProps) {
   const c = normalizarCentro(centro);
   const analisis = analisisCentro(centro);
   const estadoInfo = ESTADOS_CENTRO.find((e) => e.valor === c.estado);
   const colorSemaforo = COLOR_SEMAFORO[analisis.semaforo];
+  const mostrarCupo = analisis.semaforo !== "sin_datos";
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {estadoInfo && (
@@ -169,13 +170,15 @@ export function BadgesEstadoCentro({ centro }: SeccionProps) {
           {estadoInfo.label}
         </Badge>
       )}
-      <Badge
-        variant="outline"
-        className="text-[10px]"
-        style={{ borderColor: `${colorSemaforo}66`, color: colorSemaforo }}
-      >
-        {ETIQUETA_SEMAFORO[analisis.semaforo]}
-      </Badge>
+      {mostrarCupo && (
+        <Badge
+          variant="outline"
+          className="text-[10px]"
+          style={{ borderColor: `${colorSemaforo}66`, color: colorSemaforo }}
+        >
+          {ETIQUETA_SEMAFORO[analisis.semaforo]}
+        </Badge>
+      )}
     </div>
   );
 }

@@ -423,7 +423,12 @@ function parteNumericoCambio(
   );
 }
 
-function filaSnapshotOcupacion(centro: CentroTransitorio, dia: string, ts: number) {
+function filaSnapshotOcupacion(
+  centro: CentroTransitorio,
+  dia: string,
+  ts: number,
+  opts: { omitirPersonal?: boolean; incidenciasSalud?: number } = {},
+) {
   const norm = normalizarCentro(centro);
   return {
     centro_id: centro.id,
@@ -431,7 +436,10 @@ function filaSnapshotOcupacion(centro: CentroTransitorio, dia: string, ts: numbe
     ts,
     total_afectados: norm.total_afectados,
     familias: norm.familias_ocupadas,
-    personal_total: totalPersonalOperativo(normalizarPersonal(norm.personal)),
+    personal_total: opts.omitirPersonal
+      ? 0
+      : totalPersonalOperativo(normalizarPersonal(norm.personal)),
+    incidencias_salud: opts.incidenciasSalud ?? 0,
     ocupacion: normalizarVulnerables(norm.ocupacion),
     updated_at: ts,
     updated_by: usuarioActual(),
@@ -442,10 +450,11 @@ async function upsertSnapshotOcupacion(
   centro: CentroTransitorio,
   dia: string,
   ts: number,
+  opts: { omitirPersonal?: boolean; incidenciasSalud?: number } = {},
 ): Promise<void> {
   const { error } = await supabase
     .from("ocupaciones_centros")
-    .upsert(filaSnapshotOcupacion(centro, dia, ts), { onConflict: "centro_id,dia" });
+    .upsert(filaSnapshotOcupacion(centro, dia, ts, opts), { onConflict: "centro_id,dia" });
   if (error) {
     throw new Error(`[reposSupabase] upsert ocupaciones_centros: ${error.message}`);
   }
@@ -516,12 +525,18 @@ export async function guardarCentro(
 export async function confirmarParteNumericoDia(
   datos: Omit<CentroTransitorio, "updated_at" | "updated_by">,
   dia?: string,
+  opts: { incidenciasSalud?: number; omitirPersonal?: boolean; soloSnapshot?: boolean } = {},
 ): Promise<void> {
   const ts = Date.now();
   const diaSnap = dia ?? claveDia(ts);
   const centro = normalizarCentro({ ...datos, updated_at: ts, updated_by: usuarioActual() });
-  await upsertCentroVivo(centro);
-  await upsertSnapshotOcupacion(centro, diaSnap, ts);
+  if (!opts.soloSnapshot) {
+    await upsertCentroVivo(centro);
+  }
+  await upsertSnapshotOcupacion(centro, diaSnap, ts, {
+    omitirPersonal: opts.omitirPersonal,
+    incidenciasSalud: opts.incidenciasSalud,
+  });
 }
 
 /** Quita solo el snapshot del parte numérico de un día; no modifica el centro. */

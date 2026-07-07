@@ -203,6 +203,10 @@ export interface ReporteDiario {
   salud_reportada: boolean;
   /** Indica que el bloque Eventos fue revisado aunque no haya eventos registrados. */
   eventos_revisados: boolean;
+  /** Bloque Trabajos revisado hoy. */
+  trabajos_revisados: boolean;
+  /** Bloque Requerimientos revisado hoy. */
+  requerimientos_revisados: boolean;
   /** Notas generales del día (legacy; distinto de los casos individuales). */
   observaciones: string;
   updated_at: number;
@@ -274,6 +278,9 @@ export function normalizarReporte(
   const eventosRevisados =
     (raw as { eventos_revisados?: unknown }).eventos_revisados === true ||
     comidasRaw?._eventos_revisados === true;
+  const trabajosRevisados = (raw as { trabajos_revisados?: unknown }).trabajos_revisados === true;
+  const requerimientosRevisados =
+    (raw as { requerimientos_revisados?: unknown }).requerimientos_revisados === true;
   return {
     id: raw.id,
     centro_id: raw.centro_id,
@@ -283,6 +290,8 @@ export function normalizarReporte(
     atenciones_medicas: Math.max(almacenado, detalle.length),
     salud_reportada: saludReportada,
     eventos_revisados: eventosRevisados,
+    trabajos_revisados: trabajosRevisados,
+    requerimientos_revisados: requerimientosRevisados,
     observaciones,
     updated_at: raw.updated_at ?? 0,
     updated_by: raw.updated_by ?? "",
@@ -328,21 +337,23 @@ export function eventosRevisados(
 
 export interface BloquesReporteDia {
   parteNumerico: boolean;
-  reparacionesRevisadas: boolean;
+  controlRevisado: boolean;
+  trabajosRevisados: boolean;
+  requerimientosRevisados: boolean;
   eventosRevisados: boolean;
 }
 
 /** ¿El reporte del día está completo? Si se pasan bloques, exige los cinco. */
 export function reporteCompleto(
-  reporte: ReporteDiario | undefined | null,
+  _reporte: ReporteDiario | undefined | null,
   bloques?: Partial<BloquesReporteDia>,
 ): boolean {
-  const base = alimentacionReportada(reporte) && saludReportada(reporte);
-  if (!bloques) return base;
+  if (!bloques) return false;
   return (
-    base &&
     bloques.parteNumerico === true &&
-    bloques.reparacionesRevisadas === true &&
+    bloques.controlRevisado === true &&
+    bloques.trabajosRevisados === true &&
+    bloques.requerimientosRevisados === true &&
     bloques.eventosRevisados === true
   );
 }
@@ -382,26 +393,26 @@ export const META_ESTADO_REPORTE: Record<
   pendiente: { label: "Sin reporte", color: "#64748b" },
 };
 
-/** Evalúa qué tan completo está el reporte de un día. */
+/** Evalúa qué tan completo está el reporte de un día (5 bloques Telegram). */
 export function estadoReporteDia(
   reporte: ReporteDiario | undefined | null,
   parteNumerico: boolean,
-  bloques: Partial<Pick<BloquesReporteDia, "reparacionesRevisadas" | "eventosRevisados">> = {},
+  bloques: Partial<
+    Pick<
+      BloquesReporteDia,
+      "controlRevisado" | "trabajosRevisados" | "requerimientosRevisados" | "eventosRevisados"
+    >
+  > = {},
 ): EstadoReporteDia {
-  const jornadas = jornadasReportadas(reporte).length;
-  const saludOk = saludReportada(reporte);
-  const alimentacionOk = jornadas === JORNADAS_REPORTE.length;
-  const reparacionesOk = bloques.reparacionesRevisadas === true;
-  const eventosOk = bloques.eventosRevisados === true;
   const completos = [
     parteNumerico,
-    alimentacionOk,
-    saludOk,
-    reparacionesOk,
-    eventosOk,
+    bloques.controlRevisado === true,
+    bloques.trabajosRevisados === true || reporte?.trabajos_revisados === true,
+    bloques.requerimientosRevisados === true || reporte?.requerimientos_revisados === true,
+    bloques.eventosRevisados === true,
   ].filter(Boolean).length;
   if (completos === 5) return "completo";
-  if (completos > 1 || saludOk || jornadas > 0 || reparacionesOk || eventosOk) return "parcial";
+  if (completos > 1) return "parcial";
   if (parteNumerico) return "solo_parte";
   return "pendiente";
 }
@@ -411,7 +422,9 @@ export function estadosReportePorDia(
   reportes: ReporteDiario[],
   diasConParte: Set<string>,
   opts: {
-    diasConReparaciones?: Set<string>;
+    diasConControl?: Set<string>;
+    diasConTrabajos?: Set<string>;
+    diasConRequerimientos?: Set<string>;
     eventosPorDia?: Map<string, number>;
   } = {},
 ): Map<string, EstadoReporteDia> {
@@ -419,14 +432,20 @@ export function estadosReportePorDia(
   const dias = new Set<string>();
   for (const r of reportes) dias.add(r.dia);
   for (const d of diasConParte) dias.add(d);
-  for (const d of opts.diasConReparaciones ?? []) dias.add(d);
+  for (const d of opts.diasConControl ?? []) dias.add(d);
+  for (const d of opts.diasConTrabajos ?? []) dias.add(d);
+  for (const d of opts.diasConRequerimientos ?? []) dias.add(d);
   for (const d of opts.eventosPorDia?.keys() ?? []) dias.add(d);
   for (const dia of dias) {
     const reporte = reportes.find((r) => r.dia === dia);
     map.set(
       dia,
       estadoReporteDia(reporte, diasConParte.has(dia), {
-        reparacionesRevisadas: opts.diasConReparaciones?.has(dia) ?? false,
+        controlRevisado: opts.diasConControl?.has(dia) ?? false,
+        trabajosRevisados:
+          opts.diasConTrabajos?.has(dia) ?? reporte?.trabajos_revisados ?? false,
+        requerimientosRevisados:
+          opts.diasConRequerimientos?.has(dia) ?? reporte?.requerimientos_revisados ?? false,
         eventosRevisados: eventosRevisados(reporte, opts.eventosPorDia?.get(dia) ?? 0),
       }),
     );
@@ -440,20 +459,19 @@ export function contadoresReportesPorPeriodo(
   diasConParte: Set<string>,
   hoyClave: string,
   opts: {
-    diasConReparaciones?: Set<string>;
+    diasConControl?: Set<string>;
+    diasConTrabajos?: Set<string>;
+    diasConRequerimientos?: Set<string>;
     eventosPorDia?: Map<string, number>;
   } = {},
 ): {
   hoyEstado: EstadoReporteDia;
-  hoyRaciones: number;
-  hoyAtenciones: number;
+  hoyIncidenciasSalud: number;
   semanaDelMes: number;
   semanaDiasActivos: number;
   mesDiasActivos: number;
   mesDiasCompletos: number;
   mesLabel: string;
-  mesRaciones: number;
-  mesAtenciones: number;
 } {
   const { anio: hy, mes: hm, dia: hd } = parsearDiaReporte(hoyClave);
   const semanaDelMes = Math.ceil(hd / 7);
@@ -464,15 +482,17 @@ export function contadoresReportesPorPeriodo(
 
   const reporteHoy = reportes.find((r) => r.dia === hoyClave);
   const hoyEstado = estadoReporteDia(reporteHoy, diasConParte.has(hoyClave), {
-    reparacionesRevisadas: opts.diasConReparaciones?.has(hoyClave) ?? false,
+    controlRevisado: opts.diasConControl?.has(hoyClave) ?? false,
+    trabajosRevisados:
+      opts.diasConTrabajos?.has(hoyClave) ?? reporteHoy?.trabajos_revisados ?? false,
+    requerimientosRevisados:
+      opts.diasConRequerimientos?.has(hoyClave) ?? reporteHoy?.requerimientos_revisados ?? false,
     eventosRevisados: eventosRevisados(reporteHoy, opts.eventosPorDia?.get(hoyClave) ?? 0),
   });
 
   let semanaDiasActivos = 0;
   let mesDiasActivos = 0;
   let mesDiasCompletos = 0;
-  let mesRaciones = 0;
-  let mesAtenciones = 0;
 
   const estados = estadosReportePorDia(reportes, diasConParte, opts);
   for (const [dia, estado] of estados) {
@@ -483,42 +503,27 @@ export function contadoresReportesPorPeriodo(
     if (p.dia >= semInicio && p.dia <= semFin && estado !== "pendiente") semanaDiasActivos++;
   }
 
-  for (const r of reportes) {
-    const p = parsearDiaReporte(r.dia);
-    if (p.anio === hy && p.mes === hm) {
-      mesRaciones += racionesDelDia(r);
-      mesAtenciones += r.atenciones_medicas;
-    }
-  }
-
   return {
     hoyEstado,
-    hoyRaciones: racionesDelDia(reporteHoy),
-    hoyAtenciones: reporteHoy?.atenciones_medicas ?? 0,
+    hoyIncidenciasSalud: 0,
     semanaDelMes,
     semanaDiasActivos,
     mesDiasActivos,
     mesDiasCompletos,
     mesLabel,
-    mesRaciones,
-    mesAtenciones,
   };
 }
 
 /** Ventana temporal del gráfico de reportes (días). */
 export type VentanaReporte = 7 | 15 | 30;
 
-/** Punto diario para el gráfico de reportes del campamento. */
+/** Punto diario para el gráfico de reportes del campamento (modelo Telegram). */
 export interface PuntoSerieReporte {
   dia: string;
   refugiados: number;
-  funcionarios: number;
+  familias: number;
   mascotas: number;
-  atenciones: number;
-  desayuno: number;
-  almuerzo: number;
-  cena: number;
-  comidasTotal: number;
+  incidenciasSalud: number;
 }
 
 function claveDiaLocal(anio: number, mes: number, dia: number): string {
@@ -554,37 +559,27 @@ function ultimoSnapshotHasta(
 }
 
 /**
- * Serie diaria para el gráfico de reportes: población (carry-forward desde
- * `ocupaciones_centros`) + comidas/atenciones (día exacto en `reportes_centros`).
+ * Serie diaria para el gráfico de reportes: parte numérico Telegram desde
+ * `ocupaciones_centros` (carry-forward por día).
  */
 export function serieReporteCentro(
   centroId: string,
   snapshots: SnapshotOcupacion[],
-  reportes: ReporteDiario[],
   ventana: VentanaReporte,
   hoyClave: string,
 ): PuntoSerieReporte[] {
   const delCentro = snapshots.filter((s) => s.centro_id === centroId);
-  const reportesMap = new Map(
-    reportes.filter((r) => r.centro_id === centroId).map((r) => [r.dia, r]),
-  );
   const dias = ultimosDiasReporte(ventana, hoyClave);
 
   return dias.map((dia) => {
     const snap = ultimoSnapshotHasta(delCentro, dia);
     const vuln = normalizarVulnerables(snap?.ocupacion);
-    const reporte = reportesMap.get(dia);
-    const comidas = normalizarComidas(reporte?.comidas);
     return {
       dia,
       refugiados: snap?.total_afectados ?? 0,
-      funcionarios: snap?.personal_total ?? 0,
+      familias: snap?.familias ?? 0,
       mascotas: vuln.mascotas,
-      atenciones: reporte?.atenciones_medicas ?? 0,
-      desayuno: comidas.desayuno.raciones,
-      almuerzo: comidas.almuerzo.raciones,
-      cena: comidas.cena.raciones,
-      comidasTotal: racionesDelDia(reporte),
+      incidenciasSalud: snap?.incidencias_salud ?? 0,
     };
   });
 }

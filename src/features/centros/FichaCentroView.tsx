@@ -4,7 +4,7 @@
 // El reporte diario y la edición del campamento se abren integrados en el mismo marco.
 // Vive dentro del AppShell global, con sidebar y TopBar compartidos.
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ClipboardCheck, LayoutGrid, SearchX, UserPlus } from "lucide-react";
 import { useAlojamientosCentro } from "@/data/useAlojamientosCentro";
@@ -14,22 +14,25 @@ import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { claveDia } from "@/data/reposSupabase";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { useReportesCentros } from "@/data/useReportesCentros";
-import { useReportesReparacionesDia } from "@/data/useReportesReparacionesDia";
+import { useReportesControlDia } from "@/data/useReportesControlDia";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { Sesion } from "@/data/authSupabase";
 import { puedeEditarCentro } from "@/domain/permisos";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
+import { controlReportado, reporteControlDelDia } from "@/domain/controlReporte";
 import {
   estadoReporteDia,
   eventosRevisados,
+  estadosReportePorDia,
   META_ESTADO_REPORTE,
   reporteDelDia,
+  ultimosDiasReporte,
+  type EstadoReporteDia,
 } from "@/domain/reporteDiario";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
 import { VistaEncabezado } from "@/components/VistaEncabezado";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -40,7 +43,7 @@ import {
 import { CoordinacionCentroPanel } from "./CoordinacionCentroPanel";
 import { PoblacionCentroPanel } from "./PoblacionCentroPanel";
 import { ResumenCentroPanel } from "./ResumenCentroPanel";
-import { SeccionReporteDiarioCentro } from "./ReporteDiarioCentro";
+import { SeccionReporteDiarioCentro, BadgeEstadoReporte } from "./ReporteDiarioCentro";
 import { SeccionIncidenciasCentro } from "./IncidenciasCentro";
 import { SeccionInfraestructuraCentro } from "./InfraestructuraCentro";
 import {
@@ -50,9 +53,15 @@ import {
 } from "./seccionesFichaCentro";
 import { cn } from "@/lib/utils";
 import { ReporteDiarioForm } from "./ReporteDiarioForm";
+import { VisorFechaReporte } from "./VisorFechaReporte";
 
 interface Props {
   sesion: Sesion;
+}
+
+function diaDesdeParam(param: string | null, hoy: string): string {
+  if (param && /^\d{4}-\d{2}-\d{2}$/.test(param) && param <= hoy) return param;
+  return hoy;
 }
 
 /** Ficha completa de un campamento transitorio. */
@@ -71,6 +80,9 @@ export function FichaCentroView({ sesion }: Props) {
   const refugiadoId = searchParams.get("refugiado");
 
   const hoyClave = useMemo(() => claveDia(Date.now()), []);
+  const [diaReporte, setDiaReporte] = useState(() =>
+    diaDesdeParam(searchParams.get("dia"), hoyClave),
+  );
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
   const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(
@@ -101,7 +113,7 @@ export function FichaCentroView({ sesion }: Props) {
     centroId: centro?.id,
     dia: hoyClave,
   });
-  const reportesRepHoy = useReportesReparacionesDia({
+  const controlesHoy = useReportesControlDia({
     centroId: centro?.id,
     dia: hoyClave,
   });
@@ -120,18 +132,107 @@ export function FichaCentroView({ sesion }: Props) {
     if (!centro) return "pendiente" as const;
     const reporte = reporteDelDia(reportesHoy, centro.id, hoyClave);
     const parte = snapshotsHoy.some((s) => s.dia === hoyClave);
+    const control = reporteControlDelDia(controlesHoy, centro.id, hoyClave);
     return estadoReporteDia(reporte, parte, {
-      reparacionesRevisadas: reportesRepHoy.length > 0,
+      controlRevisado: controlReportado(control),
+      trabajosRevisados: reporte?.trabajos_revisados ?? false,
+      requerimientosRevisados: reporte?.requerimientos_revisados ?? false,
       eventosRevisados: eventosRevisados(reporte, eventosHoy.length),
     });
-  }, [centro, reportesHoy, reportesRepHoy, eventosHoy, snapshotsHoy, hoyClave]);
+  }, [centro, reportesHoy, controlesHoy, eventosHoy, snapshotsHoy, hoyClave]);
+
+  const desdeMarcas = useMemo(() => ultimosDiasReporte(30, hoyClave)[0], [hoyClave]);
+  const reportesMarcas = useReportesCentros({ centroId: centro?.id, desde: desdeMarcas });
+  const controlesMarcas = useReportesControlDia({ centroId: centro?.id, desde: desdeMarcas });
+  const eventosMarcas = useEventosReportes({ centroId: centro?.id, desde: desdeMarcas });
+  const snapshotsMarcas = useOcupacionesCentros({ centroId: centro?.id, desde: desdeMarcas });
+
+  const marcasPorDia = useMemo(() => {
+    const diasConParte = new Set(snapshotsMarcas.map((s) => s.dia));
+    const diasConControl = new Set(
+      controlesMarcas.filter((c) => c.revisado).map((c) => c.dia),
+    );
+    const diasConTrabajos = new Set(
+      reportesMarcas.filter((r) => r.trabajos_revisados).map((r) => r.dia),
+    );
+    const diasConRequerimientos = new Set(
+      reportesMarcas.filter((r) => r.requerimientos_revisados).map((r) => r.dia),
+    );
+    const eventosPorDia = new Map<string, number>();
+    for (const evento of eventosMarcas) {
+      eventosPorDia.set(evento.dia, (eventosPorDia.get(evento.dia) ?? 0) + 1);
+    }
+    const estados = estadosReportePorDia(reportesMarcas, diasConParte, {
+      diasConControl,
+      diasConTrabajos,
+      diasConRequerimientos,
+      eventosPorDia,
+    });
+    const m = new Map<string, string>();
+    for (const [dia, estado] of estados) {
+      if (estado !== "pendiente") m.set(dia, META_ESTADO_REPORTE[estado].color);
+    }
+    return m;
+  }, [reportesMarcas, snapshotsMarcas, controlesMarcas, eventosMarcas]);
+
+  const leyendaCalendario = useMemo(
+    () =>
+      (Object.keys(META_ESTADO_REPORTE) as EstadoReporteDia[]).map((e) => ({
+        color: META_ESTADO_REPORTE[e].color,
+        label: META_ESTADO_REPORTE[e].label,
+      })),
+    [],
+  );
+
+  const reportesDiaReporte = useReportesCentros({ centroId: centro?.id, dia: diaReporte });
+  const controlesDiaReporte = useReportesControlDia({ centroId: centro?.id, dia: diaReporte });
+  const eventosDiaReporte = useEventosReportes({ centroId: centro?.id, dia: diaReporte });
+  const snapshotsDiaReporte = useMemo(
+    () => snapshotsMarcas.filter((s) => s.dia === diaReporte),
+    [snapshotsMarcas, diaReporte],
+  );
+  const estadoDiaReporte = useMemo(() => {
+    if (!centro) return "pendiente" as const;
+    const reporte = reporteDelDia(reportesDiaReporte, centro.id, diaReporte);
+    const parte = snapshotsDiaReporte.some((s) => s.dia === diaReporte);
+    const control = reporteControlDelDia(controlesDiaReporte, centro.id, diaReporte);
+    return estadoReporteDia(reporte, parte, {
+      controlRevisado: controlReportado(control),
+      trabajosRevisados: reporte?.trabajos_revisados ?? false,
+      requerimientosRevisados: reporte?.requerimientos_revisados ?? false,
+      eventosRevisados: eventosRevisados(reporte, eventosDiaReporte.length),
+    });
+  }, [
+    centro,
+    reportesDiaReporte,
+    controlesDiaReporte,
+    eventosDiaReporte,
+    snapshotsDiaReporte,
+    diaReporte,
+  ]);
+
+  function cambiarDiaReporte(nuevoDia: string) {
+    const clamped = nuevoDia > hoyClave ? hoyClave : nuevoDia;
+    setDiaReporte(clamped);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (clamped === hoyClave) next.delete("dia");
+        else next.set("dia", clamped);
+        return next;
+      },
+      { replace: true },
+    );
+  }
 
   function cambiarSeccion(vista: SeccionFichaCentro) {
     setSearchParams(vista === "resumen" ? {} : { vista }, { replace: true });
   }
 
   function abrirReporte() {
-    setSearchParams({ vista: "reporte", reportar: "1" }, { replace: true });
+    const next = new URLSearchParams({ vista: "reporte", reportar: "1" });
+    if (diaReporte !== hoyClave) next.set("dia", diaReporte);
+    setSearchParams(next, { replace: true });
   }
 
   function cerrarReporte() {
@@ -153,6 +254,12 @@ export function FichaCentroView({ sesion }: Props) {
     () => new Map(centros.map((c) => [c.id, c.nombre || c.id])),
     [centros],
   );
+
+  // Sincronizar día del reporte con ?dia= en pestaña Reporte o modo formulario.
+  useEffect(() => {
+    if (seccionActiva !== "reporte" && !modoReporte) return;
+    setDiaReporte(diaDesdeParam(searchParams.get("dia"), hoyClave));
+  }, [seccionActiva, modoReporte, searchParams, hoyClave]);
 
   // Limpiar ?editar=1 de URLs antiguas (edición ahora es in-place por pestaña).
   useEffect(() => {
@@ -193,13 +300,11 @@ export function FichaCentroView({ sesion }: Props) {
   }
 
   const titulo = `${centro.nro != null ? `N.° ${centro.nro} · ` : ""}${centro.nombre}`;
-  const fechaHoy = new Date(`${hoyClave}T12:00:00`).toLocaleDateString("es-VE", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
   const etiquetaBotonReporte =
     hoyEstado === "pendiente" ? "Reportar hoy" : "Editar reporte de hoy";
+  const esReporteTab = seccionActiva === "reporte";
+  const esHoyReporte = diaReporte === hoyClave;
+  const parteDiaReporte = snapshotsDiaReporte.length > 0;
 
   if (refugiadoId && centro) {
     return (
@@ -254,47 +359,44 @@ export function FichaCentroView({ sesion }: Props) {
       <MarcoVista
         ancho={ANCHO_VISTA_PRINCIPAL}
         rellenarAltura
-        className="overflow-hidden"
+        className="overflow-hidden p-2 sm:p-4 lg:p-6"
         marcoClassName="flex min-h-0 flex-col text-foreground"
       >
-        <VistaEncabezado
-          icono={ClipboardCheck}
-          acento="teal"
-          titulo="Reporte del día"
-          descripcion={`${titulo} · ${fechaHoy}`}
-          acciones={
+        <header className="shrink-0 border-b border-border/70 px-3 pb-3 pt-3 sm:px-4 lg:px-6">
+          <div className="flex items-start gap-2">
             <Button
               variant="outline"
               size="sm"
               className="h-8 shrink-0 gap-1.5 px-2"
               onClick={cerrarReporte}
+              aria-label="Volver a la ficha"
             >
               <ArrowLeft className="size-3.5" />
               <span className="hidden sm:inline">Volver a la ficha</span>
               <span className="sm:hidden">Volver</span>
             </Button>
-          }
-          debajo={
-            hoyEstado !== "completo" ? (
-              <Badge
-                variant="outline"
-                className="border-amber-500/50 text-amber-500"
-              >
-                {META_ESTADO_REPORTE[hoyEstado].label}
-              </Badge>
-            ) : (
-              <Badge
-                variant="outline"
-                className="border-emerald-500/50 text-emerald-400"
-              >
-                Reporte completo
-              </Badge>
-            )
-          }
-        />
+            <div className="min-w-0 flex-1 pt-0.5">
+              <h1 className="truncate text-sm font-semibold sm:text-base">Reporte del día</h1>
+              <p className="truncate text-xs text-muted-foreground">{titulo}</p>
+            </div>
+          </div>
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <VisorFechaReporte
+              dia={diaReporte}
+              onDiaChange={cambiarDiaReporte}
+              hoyClave={hoyClave}
+              marcasPorDia={marcasPorDia}
+              leyenda={leyendaCalendario}
+              compacto
+            />
+            <BadgeEstadoReporte estado={estadoDiaReporte} destacado />
+          </div>
+        </header>
         <ReporteDiarioForm
+          key={diaReporte}
           centro={centro}
           variant="integrado"
+          diaReporte={diaReporte}
           onCerrar={cerrarReporte}
         />
       </MarcoVista>
@@ -314,32 +416,71 @@ export function FichaCentroView({ sesion }: Props) {
         titulo={titulo}
         descripcion={centro.parroquia || "Ficha del campamento en la red"}
         acciones={
-          <>
-            <div className="hidden shrink-0 sm:block">
-              <BadgesEstadoCentro centro={centro} />
-            </div>
-            {puedeEditar && (
-              <Button
-                size="sm"
-                className="h-9 shrink-0 gap-1.5 bg-teal-600 px-3 hover:bg-teal-500"
-                onClick={abrirReporte}
-              >
-                <ClipboardCheck className="size-4" />
-                <span className="hidden sm:inline">{etiquetaBotonReporte}</span>
-                <span className="sm:hidden">Reporte</span>
-              </Button>
-            )}
-          </>
+          esReporteTab ? (
+            <>
+              <div className="hidden sm:block">
+                <VisorFechaReporte
+                  dia={diaReporte}
+                  onDiaChange={cambiarDiaReporte}
+                  hoyClave={hoyClave}
+                  marcasPorDia={marcasPorDia}
+                  leyenda={leyendaCalendario}
+                  compacto
+                />
+              </div>
+              <BadgeEstadoReporte estado={estadoDiaReporte} destacado />
+              {puedeEditar && esHoyReporte && (
+                <Button
+                  size="sm"
+                  className="h-9 shrink-0 gap-1.5 bg-teal-600 px-3 hover:bg-teal-500"
+                  onClick={abrirReporte}
+                >
+                  <ClipboardCheck className="size-4" />
+                  <span className="hidden sm:inline">
+                    {estadoDiaReporte === "pendiente" && !parteDiaReporte
+                      ? "Reportar hoy"
+                      : "Editar reporte"}
+                  </span>
+                  <span className="sm:hidden">Reporte</span>
+                </Button>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="hidden shrink-0 sm:block">
+                <BadgesEstadoCentro centro={centro} />
+              </div>
+              {puedeEditar && hoyEstado !== "completo" && (
+                <Button
+                  size="sm"
+                  className="h-9 shrink-0 gap-1.5 bg-teal-600 px-3 hover:bg-teal-500"
+                  onClick={abrirReporte}
+                >
+                  <ClipboardCheck className="size-4" />
+                  <span className="hidden sm:inline">{etiquetaBotonReporte}</span>
+                  <span className="sm:hidden">Reporte</span>
+                </Button>
+              )}
+            </>
+          )
         }
         debajo={
-          <div className="flex flex-wrap items-center gap-2 sm:hidden">
-            <BadgesEstadoCentro centro={centro} />
-            {puedeEditar && hoyEstado !== "completo" && (
-              <Badge variant="outline" className="border-amber-500/50 text-amber-500">
-                Reporte: {META_ESTADO_REPORTE[hoyEstado].label}
-              </Badge>
-            )}
-          </div>
+          esReporteTab ? (
+            <div className="flex flex-wrap items-center gap-2 sm:hidden">
+              <VisorFechaReporte
+                dia={diaReporte}
+                onDiaChange={cambiarDiaReporte}
+                hoyClave={hoyClave}
+                marcasPorDia={marcasPorDia}
+                leyenda={leyendaCalendario}
+                compacto
+              />
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2 sm:hidden">
+              <BadgesEstadoCentro centro={centro} />
+            </div>
+          )
         }
       />
 
@@ -404,6 +545,9 @@ export function FichaCentroView({ sesion }: Props) {
                 puedeEditar={puedeEditar}
                 variant="expandido"
                 onAbrirReporte={puedeEditar ? abrirReporte : undefined}
+                diaSeleccionado={diaReporte}
+                onDiaChange={cambiarDiaReporte}
+                ocultarCabecera
               />
             </TabsContent>
 

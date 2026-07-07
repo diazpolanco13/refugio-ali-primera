@@ -215,33 +215,36 @@ function agruparPorCuerpo(centros: CentroTransitorio[]): CuerpoEjecutivo[] {
 
 function resumenDiario({
   reportes,
-  reportesReparaciones,
+  snapshots,
   eventos,
   incidencias,
   dia,
-}: Pick<EntradaReporteEjecutivoCampamentos, "reportes" | "reportesReparaciones" | "eventos" | "incidencias" | "dia">): ResumenDiarioEjecutivo {
+}: Pick<
+  EntradaReporteEjecutivoCampamentos,
+  "reportes" | "snapshots" | "eventos" | "incidencias" | "dia"
+>): ResumenDiarioEjecutivo {
   const reportesDia = reportes.filter((r) => r.dia === dia);
   const eventosDia = (eventos ?? []).filter((e) => e.dia === dia);
-  const reportesRepDia = (reportesReparaciones ?? []).filter((r) => r.dia === dia);
   const incidenciasDia = (incidencias ?? []).filter((i) => i.dia === dia);
   const campamentosConTrabajo = new Set(
-    reportesRepDia.filter((r) => r.se_trabajo_hoy).map((r) => r.centro_id),
+    reportesDia.filter((r) => r.trabajos_revisados).map((r) => r.centro_id),
   );
-  const campamentosConComida = new Set(
-    reportesDia
-      .filter((r) => racionesDelDia(r) > 0)
-      .map((r) => r.centro_id),
-  );
+  const incidenciasSaludSnapshots = snapshots
+    .filter((s) => s.dia === dia)
+    .reduce((acc, s) => acc + (s.incidencias_salud ?? 0), 0);
 
   return {
     eventosPositivos: eventosDia.filter((e) => e.tipo === "positivo").length,
     eventosNegativos: eventosDia.filter((e) => e.tipo === "negativo").length,
-    incidenciasSalud: incidenciasDia.filter((i) => i.categorias.includes("salud")).length,
+    incidenciasSalud: Math.max(
+      incidenciasSaludSnapshots,
+      incidenciasDia.filter((i) => i.categorias.includes("salud")).length,
+    ),
     atencionesSalud: reportesDia.reduce((acc, r) => acc + r.atenciones_medicas, 0),
-    trabajosRealizados: reportesRepDia.filter((r) => r.se_trabajo_hoy).length,
+    trabajosRealizados: reportesDia.filter((r) => r.trabajos_revisados).length,
     campamentosConTrabajo: campamentosConTrabajo.size,
-    campamentosConComida: campamentosConComida.size,
-    reportesConAlimentacion: campamentosConComida.size,
+    campamentosConComida: 0,
+    reportesConAlimentacion: 0,
   };
 }
 
@@ -249,7 +252,6 @@ export function construirReporteEjecutivoCampamentos({
   centros,
   snapshots,
   reportes,
-  reportesReparaciones = [],
   eventos = [],
   incidencias = [],
   dia,
@@ -288,7 +290,7 @@ export function construirReporteEjecutivoCampamentos({
     },
     resumenDia: resumenDiario({
       reportes,
-      reportesReparaciones,
+      snapshots,
       eventos,
       incidencias,
       dia,

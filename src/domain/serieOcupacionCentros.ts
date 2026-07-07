@@ -22,6 +22,8 @@ export interface SnapshotOcupacion {
   total_afectados: number;
   familias: number;
   personal_total: number;
+  /** Contador manual de incidencias de salud del día (parte Telegram). */
+  incidencias_salud: number;
   ocupacion: Vulnerables;
 }
 

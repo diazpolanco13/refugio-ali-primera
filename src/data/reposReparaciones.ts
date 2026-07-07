@@ -1,24 +1,27 @@
-// Repos de escritura para reparaciones por centro (`reparaciones_centros`,
-// `reportes_reparaciones_dia`) y subida de fotos al bucket Storage.
+// Repos de escritura para trabajos por centro (`reparaciones_centros`) y
+// subida de fotos al bucket Storage.
 
 import {
   normalizarEstatus,
   normalizarFotos,
-  type EstatusReparacion,
+  normalizarTrabajo,
+  type EstatusTrabajo,
   type FotoReparacion,
-  type ReporteReparacionesDia,
+  type TrabajoCentro,
 } from "../domain/reparaciones";
 import { supabase } from "./supabaseClient";
 import { claveDia, usuarioActual } from "./reposSupabase";
 import { registrarHistorial } from "./historial";
 import { BUCKET_REPARACIONES, subirFotoReparacion } from "./supabase";
 
-// ---- Reporte diario de reparaciones (flags) ----
-
-/** Guarda/actualiza los flags diarios de reparaciones (upsert centro_id,dia). */
+/** @deprecated Legacy flags diarios */
 export async function guardarReporteReparacionesDia(
-  datos: Omit<ReporteReparacionesDia, "id" | "updated_at" | "updated_by"> & {
+  datos: {
+    centro_id: string;
     dia?: string;
+    requiere_trabajos: boolean;
+    se_trabajo_hoy: boolean;
+    observaciones: string;
   },
 ): Promise<void> {
   const now = Date.now();
@@ -43,7 +46,6 @@ export async function guardarReporteReparacionesDia(
   });
 }
 
-/** Quita la revisión diaria de reparaciones; no borra los trabajos históricos. */
 export async function eliminarReporteReparacionesDia(datos: {
   centro_id: string;
   dia: string;
@@ -56,35 +58,33 @@ export async function eliminarReporteReparacionesDia(datos: {
   if (error) {
     throw new Error(`[reposReparaciones] delete reportes_reparaciones_dia: ${error.message}`);
   }
-  registrarHistorial("desmarcar_reporte_reparaciones", "reporte", `${datos.centro_id}/${datos.dia}`, {
-    centro_id: datos.centro_id,
-    dia: datos.dia,
-  });
 }
 
-// ---- Ítems de reparación persistentes ----
-
-/** Crea un ítem de reparación nuevo. Devuelve el id generado. */
-export async function crearReparacion(datos: {
+export async function crearTrabajo(datos: {
   centro_id: string;
   titulo: string;
+  finalidad?: string;
   descripcion?: string;
-  estatus?: EstatusReparacion;
+  estatus?: EstatusTrabajo;
   fotos?: FotoReparacion[];
   area_infraestructura_id?: string | null;
+  reportada_dia?: string;
 }): Promise<string> {
   const ts = Date.now();
+  const estatus = normalizarEstatus(datos.estatus);
   const fila = {
     centro_id: datos.centro_id,
     titulo: datos.titulo.trim(),
+    finalidad: (datos.finalidad ?? "").trim(),
     descripcion: (datos.descripcion ?? "").trim(),
-    estatus: normalizarEstatus(datos.estatus),
+    estatus,
     fotos: normalizarFotos(datos.fotos),
+    reportada_dia: datos.reportada_dia ?? claveDia(ts),
     creada_ts: ts,
     creada_por: usuarioActual(),
     updated_at: ts,
     updated_by: usuarioActual(),
-    resuelta_ts: datos.estatus === "reparado" ? ts : null,
+    resuelta_ts: estatus === "completado" ? ts : null,
     area_infraestructura_id: datos.area_infraestructura_id ?? null,
   };
   const { data, error } = await supabase
@@ -96,20 +96,23 @@ export async function crearReparacion(datos: {
     throw new Error(`[reposReparaciones] insert reparaciones_centros: ${error.message}`);
   }
   const id = (data as { id: string }).id;
-  registrarHistorial("crear_reparacion", "reparacion", id, {
+  registrarHistorial("crear_trabajo", "trabajo", id, {
     centro_id: fila.centro_id,
     titulo: fila.titulo,
   });
   return id;
 }
 
-/** Actualiza campos editables de una reparación. */
-export async function actualizarReparacion(
+/** @deprecated Usar crearTrabajo */
+export const crearReparacion = crearTrabajo;
+
+export async function actualizarTrabajo(
   id: string,
   cambios: Partial<{
     titulo: string;
+    finalidad: string;
     descripcion: string;
-    estatus: EstatusReparacion;
+    estatus: EstatusTrabajo;
     fotos: FotoReparacion[];
     area_infraestructura_id: string | null;
   }>,
@@ -120,10 +123,11 @@ export async function actualizarReparacion(
     updated_by: usuarioActual(),
   };
   if (cambios.titulo !== undefined) fila.titulo = cambios.titulo.trim();
+  if (cambios.finalidad !== undefined) fila.finalidad = cambios.finalidad.trim();
   if (cambios.descripcion !== undefined) fila.descripcion = cambios.descripcion.trim();
   if (cambios.estatus !== undefined) {
     fila.estatus = normalizarEstatus(cambios.estatus);
-    fila.resuelta_ts = cambios.estatus === "reparado" ? now : null;
+    fila.resuelta_ts = cambios.estatus === "completado" ? now : null;
   }
   if (cambios.fotos !== undefined) fila.fotos = normalizarFotos(cambios.fotos);
   if (cambios.area_infraestructura_id !== undefined) {
@@ -134,10 +138,29 @@ export async function actualizarReparacion(
   if (error) {
     throw new Error(`[reposReparaciones] update reparaciones_centros: ${error.message}`);
   }
-  registrarHistorial("actualizar_reparacion", "reparacion", id, cambios);
+  registrarHistorial("actualizar_trabajo", "trabajo", id, cambios);
 }
 
-/** Sube una foto al bucket y devuelve el objeto FotoReparacion listo para guardar. */
+/** @deprecated Usar actualizarTrabajo */
+export const actualizarReparacion = actualizarTrabajo;
+
+export async function archivarTrabajo(id: string): Promise<void> {
+  const now = Date.now();
+  const { error } = await supabase
+    .from("reparaciones_centros")
+    .update({
+      estatus: "archivado",
+      archivada_ts: now,
+      updated_at: now,
+      updated_by: usuarioActual(),
+    })
+    .eq("id", id);
+  if (error) {
+    throw new Error(`[reposReparaciones] archivar: ${error.message}`);
+  }
+  registrarHistorial("archivar_trabajo", "trabajo", id);
+}
+
 export async function agregarFotoReparacion(
   centroId: string,
   reparacionId: string,
@@ -148,13 +171,16 @@ export async function agregarFotoReparacion(
   return { url, tipo, ts: Date.now() };
 }
 
-/** Elimina una reparación (solo admin/analista_sae por RLS). */
-export async function eliminarReparacion(id: string): Promise<void> {
+export async function eliminarTrabajo(id: string): Promise<void> {
   const { error } = await supabase.from("reparaciones_centros").delete().eq("id", id);
   if (error) {
     throw new Error(`[reposReparaciones] delete reparaciones_centros: ${error.message}`);
   }
-  registrarHistorial("eliminar_reparacion", "reparacion", id);
+  registrarHistorial("eliminar_trabajo", "trabajo", id);
 }
 
-export { BUCKET_REPARACIONES };
+/** @deprecated Usar eliminarTrabajo */
+export const eliminarReparacion = eliminarTrabajo;
+
+export { BUCKET_REPARACIONES, normalizarTrabajo };
+export type { TrabajoCentro };

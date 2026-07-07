@@ -4,21 +4,25 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import {
-  normalizarReparacion,
-  type EstatusReparacion,
-  type Reparacion,
+  normalizarTrabajo,
+  type EstatusTrabajo,
+  type TrabajoCentro,
 } from "../domain/reparaciones";
+
+/** @deprecated Usar TrabajoCentro */
+export type { TrabajoCentro as Reparacion, EstatusTrabajo as EstatusReparacion };
 
 interface Opciones {
   centroId?: string;
-  estatus?: EstatusReparacion;
+  estatus?: EstatusTrabajo;
+  soloActivos?: boolean;
 }
 
-type FilaReparacion = Partial<Reparacion> & { id: string; centro_id: string };
+type FilaReparacion = Partial<TrabajoCentro> & { id: string; centro_id: string };
 
-export function useReparacionesCentros(opts: Opciones = {}): Reparacion[] {
-  const { centroId, estatus } = opts;
-  const [reparaciones, setReparaciones] = useState<Reparacion[]>([]);
+export function useReparacionesCentros(opts: Opciones = {}): TrabajoCentro[] {
+  const { centroId, estatus, soloActivos = false } = opts;
+  const [reparaciones, setReparaciones] = useState<TrabajoCentro[]>([]);
 
   useEffect(() => {
     let cancelado = false;
@@ -28,13 +32,14 @@ export function useReparacionesCentros(opts: Opciones = {}): Reparacion[] {
       let q = supabase.from("reparaciones_centros").select("*");
       if (centroId) q = q.eq("centro_id", centroId);
       if (estatus) q = q.eq("estatus", estatus);
+      if (soloActivos) q = q.neq("estatus", "archivado");
       const { data, error } = await q.order("creada_ts", { ascending: false });
       if (cancelado) return;
       if (error) {
         console.warn("[useReparacionesCentros] error en select:", error.message);
         return;
       }
-      setReparaciones(((data ?? []) as FilaReparacion[]).map(normalizarReparacion));
+      setReparaciones(((data ?? []) as FilaReparacion[]).map(normalizarTrabajo));
     })();
 
     const channel = supabase
@@ -46,7 +51,11 @@ export function useReparacionesCentros(opts: Opciones = {}): Reparacion[] {
           if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
             const cruda = payload.new as unknown as FilaReparacion;
             if (centroId && cruda.centro_id !== centroId) return;
-            const fila = normalizarReparacion(cruda);
+            const fila = normalizarTrabajo(cruda);
+            if (soloActivos && fila.estatus === "archivado") {
+              setReparaciones((prev) => prev.filter((r) => r.id !== fila.id));
+              return;
+            }
             if (estatus && fila.estatus !== estatus) {
               setReparaciones((prev) => prev.filter((r) => r.id !== fila.id));
               return;
@@ -72,7 +81,7 @@ export function useReparacionesCentros(opts: Opciones = {}): Reparacion[] {
       cancelado = true;
       void supabase.removeChannel(channel);
     };
-  }, [centroId, estatus]);
+  }, [centroId, estatus, soloActivos]);
 
   return reparaciones;
 }

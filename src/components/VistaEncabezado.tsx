@@ -61,6 +61,8 @@ interface Props {
   acento?: AcentoVista;
   acciones?: ReactNode;
   debajo?: ReactNode;
+  /** Encabezado denso en móvil: una fila, sin subtítulo, badge en línea. */
+  compacto?: boolean;
   className?: string;
 }
 
@@ -72,6 +74,7 @@ export function VistaEncabezado({
   acento = "primary",
   acciones,
   debajo,
+  compacto = false,
   className,
 }: Props) {
   const est = ESTILOS_ACENTO[acento];
@@ -79,33 +82,52 @@ export function VistaEncabezado({
   return (
     <header
       className={cn(
-        "shrink-0 border-b border-border/70 px-4 pb-4 pt-4 lg:px-6",
+        "shrink-0 border-b border-border/70 px-4 lg:px-6",
+        compacto ? "py-2 sm:pb-4 sm:pt-4" : "pb-4 pt-4",
         className,
       )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <CardTitle className="flex flex-wrap items-center gap-2 text-base lg:text-lg">
+      <div
+        className={cn(
+          "flex items-center justify-between gap-2",
+          compacto ? "sm:items-start sm:gap-3" : "flex-wrap items-start gap-3",
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:block sm:flex-none">
+          <CardTitle
+            className={cn(
+              "flex min-w-0 items-center gap-2",
+              compacto ? "text-sm sm:text-base lg:text-lg" : "flex-wrap text-base lg:text-lg",
+            )}
+          >
             <span
               className={cn(
-                "flex size-8 shrink-0 items-center justify-center rounded-lg border",
+                "flex shrink-0 items-center justify-center rounded-lg border",
+                compacto ? "size-7 sm:size-8" : "size-8",
                 est.borde,
                 est.fondo,
               )}
             >
-              <Icono className={cn("size-4", est.icono)} />
+              <Icono className={cn(compacto ? "size-3.5 sm:size-4" : "size-4", est.icono)} />
             </span>
-            <span className="min-w-0">{titulo}</span>
+            <span className="min-w-0 truncate">{titulo}</span>
+            {compacto && debajo ? (
+              <span className="shrink-0 sm:hidden">{debajo}</span>
+            ) : null}
           </CardTitle>
           {descripcion ? (
-            <CardDescription className="mt-1">{descripcion}</CardDescription>
+            <CardDescription className={cn("mt-1", compacto && "hidden sm:block")}>
+              {descripcion}
+            </CardDescription>
           ) : null}
         </div>
         {acciones ? (
-          <div className="flex flex-wrap items-center gap-1.5">{acciones}</div>
+          <div className="flex shrink-0 items-center gap-1.5">{acciones}</div>
         ) : null}
       </div>
-      {debajo ? <div className="mt-3">{debajo}</div> : null}
+      {debajo ? (
+        <div className={cn(compacto ? "mt-3 hidden sm:block" : "mt-3")}>{debajo}</div>
+      ) : null}
     </header>
   );
 }

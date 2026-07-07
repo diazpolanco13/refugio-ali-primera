@@ -16,15 +16,16 @@ import {
   FilterX,
   ListFilter,
   Search,
+  ShieldCheck,
+  Package,
   Stethoscope,
-  UtensilsCrossed,
   Users,
   Wrench,
   X,
 } from "lucide-react";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { useReportesCentros } from "@/data/useReportesCentros";
-import { useReportesReparacionesDia } from "@/data/useReportesReparacionesDia";
+import { useReportesControlDia } from "@/data/useReportesControlDia";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { useIncidencias } from "@/data/useIncidencias";
@@ -33,19 +34,15 @@ import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import { metaCuerpoDe, type CentroTransitorio } from "@/domain/centrosTransitorios";
 import {
   META_ESTADO_REPORTE,
-  alimentacionReportada,
   estadoReporteDia,
   eventosRevisados,
-  racionesDelDia,
   reporteDelDia,
-  saludReportada,
   ultimosDiasReporte,
   type EstadoReporteDia,
   type ReporteDiario,
 } from "@/domain/reporteDiario";
 import { construirReporteEjecutivoCampamentos } from "@/domain/reporteEjecutivoCampamentos";
 import type { Sesion } from "@/data/authSupabase";
-import { reporteReparacionesDelDia } from "@/domain/reparaciones";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LogoCuerpo } from "@/components/LogoCuerpo";
@@ -135,8 +132,7 @@ function ordenarFilas<
   T extends {
     centro: CentroTransitorio;
     estado: EstadoReporteDia;
-    raciones: number;
-    atenciones: number;
+    incidenciasSalud: number;
     eventos: number;
   },
 >(filas: T[], orden: OrdenReportes): T[] {
@@ -163,14 +159,14 @@ function ordenarFilas<
     case "raciones":
       return copia.sort(
         (a, b) =>
-          b.raciones - a.raciones ||
+          b.incidenciasSalud - a.incidenciasSalud ||
           ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado] ||
           (a.centro.nro ?? 0) - (b.centro.nro ?? 0),
       );
     case "atenciones":
       return copia.sort(
         (a, b) =>
-          b.atenciones - a.atenciones ||
+          b.eventos - a.eventos ||
           ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado] ||
           (a.centro.nro ?? 0) - (b.centro.nro ?? 0),
       );
@@ -479,7 +475,7 @@ export function ReportesDiariosRedView() {
   );
 
   const reportes = useReportesCentros({ desde });
-  const reportesRep = useReportesReparacionesDia({ desde });
+  const controles = useReportesControlDia({ desde });
   const eventos = useEventosReportes({ desde });
   const incidencias = useIncidencias({ desde });
   const snapshots = useOcupacionesCentros({ desde });
@@ -499,11 +495,29 @@ export function ReportesDiariosRedView() {
     return m;
   }, [snapshots]);
 
+  const controlesPorCentroDia = useMemo(() => {
+    const m = new Map<string, boolean>();
+    for (const c of controles) {
+      if (c.revisado) m.set(`${c.centro_id}:${c.dia}`, true);
+    }
+    return m;
+  }, [controles]);
+
   const reportesRepPorCentroDia = useMemo(() => {
     const m = new Map<string, boolean>();
-    for (const r of reportesRep) m.set(`${r.centro_id}:${r.dia}`, true);
+    for (const r of reportes) {
+      if (r.trabajos_revisados) m.set(`${r.centro_id}:${r.dia}`, true);
+    }
     return m;
-  }, [reportesRep]);
+  }, [reportes]);
+
+  const requerimientosPorCentroDia = useMemo(() => {
+    const m = new Map<string, boolean>();
+    for (const r of reportes) {
+      if (r.requerimientos_revisados) m.set(`${r.centro_id}:${r.dia}`, true);
+    }
+    return m;
+  }, [reportes]);
 
   const eventosPorCentroDia = useMemo(() => {
     const m = new Map<string, number>();
@@ -519,7 +533,11 @@ export function ReportesDiariosRedView() {
     const tieneParte = diasConPartePorCentro.get(centroId)?.has(dia) ?? false;
     const key = `${centroId}:${dia}`;
     return estadoReporteDia(reporte, tieneParte, {
-      reparacionesRevisadas: reportesRepPorCentroDia.has(key),
+      controlRevisado: controlesPorCentroDia.has(key),
+      trabajosRevisados:
+        reportesRepPorCentroDia.has(key) || reporte?.trabajos_revisados === true,
+      requerimientosRevisados:
+        requerimientosPorCentroDia.has(key) || reporte?.requerimientos_revisados === true,
       eventosRevisados: eventosRevisados(reporte, eventosPorCentroDia.get(key) ?? 0),
     });
   }
@@ -551,20 +569,21 @@ export function ReportesDiariosRedView() {
         const estado = estadoCentroDia(centro.id, diaActivo);
         const reporte = reporteDelDia(reportes, centro.id, diaActivo);
         const key = `${centro.id}:${diaActivo}`;
-        const reporteRep = reporteReparacionesDelDia(reportesRep, centro.id, diaActivo);
-        const parte = diasConPartePorCentro.get(centro.id)?.has(diaActivo) ?? false;
+        const controlOk = controlesPorCentroDia.has(key);
         const eventosCount = eventosPorCentroDia.get(key) ?? 0;
+        const snap = snapshots.find((s) => s.centro_id === centro.id && s.dia === diaActivo);
+        const parte = diasConPartePorCentro.get(centro.id)?.has(diaActivo) ?? false;
         return {
           centro,
           estado,
           parte,
-          alimentacion: alimentacionReportada(reporte),
-          salud: saludReportada(reporte),
-          reparacionesRevisadas: Boolean(reporteRep),
-          reparacionesTrabajadas: reporteRep?.se_trabajo_hoy === true,
+          controlRevisado: controlOk,
+          trabajosRevisados:
+            reportesRepPorCentroDia.has(key) || reporte?.trabajos_revisados === true,
+          requerimientosRevisados:
+            requerimientosPorCentroDia.has(key) || reporte?.requerimientos_revisados === true,
           eventosRevisados: eventosRevisados(reporte, eventosCount),
-          raciones: racionesDelDia(reporte),
-          atenciones: reporte?.atenciones_medicas ?? 0,
+          incidenciasSalud: snap?.incidencias_salud ?? 0,
           eventos: eventosCount,
         };
       })
@@ -583,11 +602,14 @@ export function ReportesDiariosRedView() {
     grupoFiltro,
     orden,
     reportes,
-    reportesRep,
+    controles,
+    controlesPorCentroDia,
     reportesPorCentroDia,
     reportesRepPorCentroDia,
+    requerimientosPorCentroDia,
     eventosPorCentroDia,
     diasConPartePorCentro,
+    snapshots,
     terminoBusqueda,
   ]);
 
@@ -602,7 +624,7 @@ export function ReportesDiariosRedView() {
       m[estadoCentroDia(c.id, hoyClave)]++;
     }
     return m;
-  }, [centros, hoyClave, reportes, reportesRep, eventos, snapshots]);
+  }, [centros, hoyClave, reportes, controles, eventos, snapshots]);
 
   const conteosDiaActivo = useMemo(() => {
     const m: Record<EstadoReporteDia, number> = {
@@ -615,7 +637,7 @@ export function ReportesDiariosRedView() {
       m[estadoCentroDia(c.id, diaActivo)]++;
     }
     return m;
-  }, [centros, diaActivo, reportes, reportesRep, eventos, snapshots]);
+  }, [centros, diaActivo, reportes, controles, eventos, snapshots]);
 
   const marcasPorDia = useMemo(() => {
     const m = new Map<string, string>();
@@ -625,7 +647,7 @@ export function ReportesDiariosRedView() {
       if (color) m.set(d, color);
     }
     return m;
-  }, [centros, hoyClave, reportes, reportesRep, eventos, snapshots]);
+  }, [centros, hoyClave, reportes, controles, eventos, snapshots]);
 
   const leyendaCalendario = useMemo(
     () =>
@@ -638,13 +660,11 @@ export function ReportesDiariosRedView() {
 
   const totalesIndicadoresDia = useMemo(() => {
     let partes = 0;
-    let alimentacionOk = 0;
-    let saludOk = 0;
-    let reparacionesOk = 0;
-    let reparacionesTrabajadas = 0;
+    let controlOk = 0;
+    let trabajosOk = 0;
+    let requerimientosOk = 0;
     let eventosOk = 0;
-    let raciones = 0;
-    let atenciones = 0;
+    let incidenciasSalud = 0;
     let eventos = 0;
     let refugiados = 0;
 
@@ -653,7 +673,6 @@ export function ReportesDiariosRedView() {
       const reporte = reporteDelDia(reportes, centro.id, diaActivo);
       const tieneParte = diasConPartePorCentro.get(centro.id)?.has(diaActivo) ?? false;
       const eventosCount = eventosPorCentroDia.get(key) ?? 0;
-      const reporteRep = reporteReparacionesDelDia(reportesRep, centro.id, diaActivo);
 
       if (tieneParte) {
         partes++;
@@ -661,26 +680,24 @@ export function ReportesDiariosRedView() {
           (s) => s.centro_id === centro.id && s.dia === diaActivo,
         );
         refugiados += snap?.total_afectados ?? 0;
+        incidenciasSalud += snap?.incidencias_salud ?? 0;
       }
-      if (alimentacionReportada(reporte)) alimentacionOk++;
-      if (saludReportada(reporte)) saludOk++;
-      if (Boolean(reporteRep)) reparacionesOk++;
-      if (reporteRep?.se_trabajo_hoy === true) reparacionesTrabajadas++;
+      if (controlesPorCentroDia.has(key)) controlOk++;
+      if (reportesRepPorCentroDia.has(key) || reporte?.trabajos_revisados) trabajosOk++;
+      if (requerimientosPorCentroDia.has(key) || reporte?.requerimientos_revisados) {
+        requerimientosOk++;
+      }
       if (eventosRevisados(reporte, eventosCount)) eventosOk++;
-      raciones += racionesDelDia(reporte);
-      atenciones += reporte?.atenciones_medicas ?? 0;
       eventos += eventosCount;
     }
 
     return {
       partes,
-      alimentacionOk,
-      saludOk,
-      reparacionesOk,
-      reparacionesTrabajadas,
+      controlOk,
+      trabajosOk,
+      requerimientosOk,
       eventosOk,
-      raciones,
-      atenciones,
+      incidenciasSalud,
       eventos,
       refugiados,
     };
@@ -688,7 +705,9 @@ export function ReportesDiariosRedView() {
     centros,
     diaActivo,
     reportes,
-    reportesRep,
+    controlesPorCentroDia,
+    reportesRepPorCentroDia,
+    requerimientosPorCentroDia,
     snapshots,
     diasConPartePorCentro,
     eventosPorCentroDia,
@@ -710,7 +729,6 @@ export function ReportesDiariosRedView() {
         centros,
         snapshots,
         reportes,
-        reportesReparaciones: reportesRep,
         eventos,
         incidencias,
         dia: diaActivo,
@@ -720,7 +738,6 @@ export function ReportesDiariosRedView() {
       centros,
       snapshots,
       reportes,
-      reportesRep,
       eventos,
       incidencias,
       diaActivo,
@@ -818,16 +835,16 @@ export function ReportesDiariosRedView() {
               {porcentajeCierreDia} reportado
             </Badge>
             <Badge variant="outline" className="hidden gap-1 tabular-nums sm:inline-flex">
-              <UtensilsCrossed className="size-3 text-teal-400" />
-              {totalesIndicadoresDia.raciones.toLocaleString("es")} raciones
-            </Badge>
-            <Badge variant="outline" className="hidden gap-1 tabular-nums sm:inline-flex">
               <Stethoscope className="size-3 text-rose-400" />
-              {totalesIndicadoresDia.atenciones} atenciones
+              {totalesIndicadoresDia.incidenciasSalud} incid. salud
+            </Badge>
+            <Badge variant="outline" className="hidden gap-1 tabular-nums lg:inline-flex">
+              <ShieldCheck className="size-3 text-violet-400" />
+              {totalesIndicadoresDia.controlOk} control
             </Badge>
             <Badge variant="outline" className="hidden gap-1 tabular-nums lg:inline-flex">
               <Wrench className="size-3 text-amber-400" />
-              {totalesIndicadoresDia.reparacionesTrabajadas} trab.
+              {totalesIndicadoresDia.trabajosOk} trabajos
             </Badge>
             <Badge variant="outline" className="hidden gap-1 tabular-nums lg:inline-flex">
               <CalendarPlus className="size-3 text-emerald-400" />
@@ -865,31 +882,31 @@ export function ReportesDiariosRedView() {
                     color="#38bdf8"
                   />
                   <TarjetaTotalIndicadorReporte
-                    titulo="Alimentación"
-                    icono={<UtensilsCrossed className="size-3 shrink-0 text-teal-400" />}
-                    valor={totalesIndicadoresDia.raciones.toLocaleString("es")}
-                    completados={totalesIndicadoresDia.alimentacionOk}
+                    titulo="Control"
+                    icono={<ShieldCheck className="size-3 shrink-0 text-violet-400" />}
+                    valor={totalesIndicadoresDia.controlOk.toLocaleString("es")}
+                    completados={totalesIndicadoresDia.controlOk}
                     total={centros.length}
-                    color="#2dd4bf"
+                    color="#a78bfa"
                   />
                   <TarjetaTotalIndicadorReporte
-                    titulo="Salud"
-                    icono={<Stethoscope className="size-3 shrink-0 text-rose-400" />}
-                    valor={totalesIndicadoresDia.atenciones.toLocaleString("es")}
-                    completados={totalesIndicadoresDia.saludOk}
-                    total={centros.length}
-                    color="#fb7185"
-                  />
-                  <TarjetaTotalIndicadorReporte
-                    titulo="Trabajos de reparación"
+                    titulo="Trabajos"
                     icono={<Wrench className="size-3 shrink-0 text-amber-400" />}
-                    valor={totalesIndicadoresDia.reparacionesTrabajadas.toLocaleString("es")}
-                    completados={totalesIndicadoresDia.reparacionesTrabajadas}
+                    valor={totalesIndicadoresDia.trabajosOk.toLocaleString("es")}
+                    completados={totalesIndicadoresDia.trabajosOk}
                     total={centros.length}
                     color="#fbbf24"
                   />
                   <TarjetaTotalIndicadorReporte
-                    titulo="Eventos"
+                    titulo="Requerimientos"
+                    icono={<Package className="size-3 shrink-0 text-orange-400" />}
+                    valor={totalesIndicadoresDia.requerimientosOk.toLocaleString("es")}
+                    completados={totalesIndicadoresDia.requerimientosOk}
+                    total={centros.length}
+                    color="#fb923c"
+                  />
+                  <TarjetaTotalIndicadorReporte
+                    titulo="Novedades"
                     icono={<CalendarPlus className="size-3 shrink-0 text-emerald-400" />}
                     valor={totalesIndicadoresDia.eventos.toLocaleString("es")}
                     completados={totalesIndicadoresDia.eventosOk}
@@ -1103,13 +1120,11 @@ export function ReportesDiariosRedView() {
                     centro,
                     estado,
                     parte,
-                    alimentacion,
-                    salud,
-                    reparacionesRevisadas,
-                    reparacionesTrabajadas,
+                    controlRevisado,
+                    trabajosRevisados,
+                    requerimientosRevisados,
                     eventosRevisados: eventosOk,
-                    raciones,
-                    atenciones,
+                    incidenciasSalud,
                     eventos,
                   }) => {
                     const meta = metaCuerpoDe(centro.cuerpo);
@@ -1143,17 +1158,17 @@ export function ReportesDiariosRedView() {
                             <Users className="size-2.5" />
                             {parte ? 1 : 0}
                           </span>
-                          <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-teal-300">
-                            <UtensilsCrossed className="size-2.5" />
-                            {raciones.toLocaleString("es")}
-                          </span>
                           <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-rose-300">
                             <Stethoscope className="size-2.5" />
-                            {atenciones}
+                            {incidenciasSalud}
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-violet-300">
+                            <ShieldCheck className="size-2.5" />
+                            {controlRevisado ? 1 : 0}
                           </span>
                           <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-amber-300">
                             <Wrench className="size-2.5" />
-                            {reparacionesTrabajadas ? 1 : 0}
+                            {trabajosRevisados ? 1 : 0}
                           </span>
                           <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-emerald-300">
                             <CalendarPlus className="size-2.5" />
@@ -1180,37 +1195,32 @@ export function ReportesDiariosRedView() {
                           className={parte ? "border-sky-400/25 bg-sky-400/10 text-sky-100" : ""}
                         />
                         <IndicadorBloqueReporte
-                          titulo="Alimentación"
-                          icono={<UtensilsCrossed className="size-3 text-teal-400" />}
-                          valor={raciones.toLocaleString("es")}
-                          listo={alimentacion}
+                          titulo="Control"
+                          icono={<ShieldCheck className="size-3 text-sky-400" />}
+                          valor={controlRevisado ? 1 : 0}
+                          listo={controlRevisado}
                         />
                         <IndicadorBloqueReporte
-                          titulo="Salud"
+                          titulo="Incid. salud"
                           icono={<Stethoscope className="size-3 text-rose-400" />}
-                          valor={atenciones}
-                          listo={salud}
-                          className={salud ? "border-rose-400/25 bg-rose-400/10 text-rose-100" : ""}
+                          valor={incidenciasSalud}
+                          listo={parte}
+                          className={parte ? "border-rose-400/25 bg-rose-400/10 text-rose-100" : ""}
                         />
                         <IndicadorBloqueReporte
-                          titulo={
-                            reparacionesRevisadas
-                              ? "Reparaciones revisadas"
-                              : "Reparaciones pendientes de revisar"
-                          }
+                          titulo="Trabajos"
                           icono={<Wrench className="size-3 text-amber-400" />}
-                          valor={reparacionesTrabajadas ? 1 : 0}
-                          listo={reparacionesRevisadas}
-                          className={
-                            reparacionesTrabajadas
-                              ? "border-amber-400/25 bg-amber-400/10 text-amber-100"
-                              : reparacionesRevisadas
-                                ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-100"
-                                : ""
-                          }
+                          valor={trabajosRevisados ? 1 : 0}
+                          listo={trabajosRevisados}
                         />
                         <IndicadorBloqueReporte
-                          titulo="Eventos"
+                          titulo="Requerimientos"
+                          icono={<Package className="size-3 text-violet-400" />}
+                          valor={requerimientosRevisados ? 1 : 0}
+                          listo={requerimientosRevisados}
+                        />
+                        <IndicadorBloqueReporte
+                          titulo="Novedades"
                           icono={<CalendarPlus className="size-3 text-emerald-400" />}
                           valor={eventos}
                           listo={eventosOk}

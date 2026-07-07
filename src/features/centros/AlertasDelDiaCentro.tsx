@@ -5,16 +5,16 @@ import { useMemo } from "react";
 import { ClipboardCheck, Droplets, Siren } from "lucide-react";
 import { claveDia } from "@/data/reposSupabase";
 import { useReportesCentros } from "@/data/useReportesCentros";
-import { useReportesReparacionesDia } from "@/data/useReportesReparacionesDia";
+import { useReportesControlDia } from "@/data/useReportesControlDia";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { useIncidencias } from "@/data/useIncidencias";
 import { analisisCentro, COLOR_ESTADO_AGUA } from "@/domain/capacidadCentros";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import { controlReportado, reporteControlDelDia } from "@/domain/controlReporte";
 import {
   estadoReporteDia,
   eventosRevisados,
-  jornadasReportadas,
   META_ESTADO_REPORTE,
   reporteDelDia,
 } from "@/domain/reporteDiario";
@@ -97,7 +97,7 @@ export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
   }, [hoy]);
 
   const reportes = useReportesCentros({ centroId: centro.id, desde });
-  const reportesRep = useReportesReparacionesDia({ centroId: centro.id, desde });
+  const controles = useReportesControlDia({ centroId: centro.id, desde });
   const eventos = useEventosReportes({ centroId: centro.id, desde });
   const snapshots = useOcupacionesCentros({ centroId: centro.id, desde });
   const incidencias = useIncidencias({ centroId: centro.id, desde });
@@ -105,24 +105,25 @@ export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
   const reporteHoy = reporteDelDia(reportes, centro.id, hoy);
   const snapshotHoy = snapshots.find((s) => s.dia === hoy);
   const parteNumerico = Boolean(snapshotHoy);
-  const repHoy = reportesRep.some((r) => r.dia === hoy);
+  const controlHoy = reporteControlDelDia(controles, centro.id, hoy);
   const eventosHoy = eventos.filter((e) => e.dia === hoy).length;
   const estadoReporte = estadoReporteDia(reporteHoy, parteNumerico, {
-    reparacionesRevisadas: repHoy,
+    controlRevisado: controlReportado(controlHoy),
+    trabajosRevisados: reporteHoy?.trabajos_revisados ?? false,
+    requerimientosRevisados: reporteHoy?.requerimientos_revisados ?? false,
     eventosRevisados: eventosRevisados(reporteHoy, eventosHoy),
   });
   const metaReporte = META_ESTADO_REPORTE[estadoReporte];
   const reporteAlerta = estadoReporte !== "completo";
 
-  const jornadas = jornadasReportadas(reporteHoy).length;
-  const eventosOk = eventosRevisados(reporteHoy, eventosHoy);
   let detalleReporte = metaReporte.label;
   if (estadoReporte === "parcial") {
     detalleReporte = [
-      `${jornadas}/3 comidas`,
       parteNumerico ? "parte" : null,
-      repHoy ? "rep." : null,
-      eventosOk ? "eventos" : null,
+      controlReportado(controlHoy) ? "control" : null,
+      reporteHoy?.trabajos_revisados ? "trabajos" : null,
+      reporteHoy?.requerimientos_revisados ? "req." : null,
+      eventosRevisados(reporteHoy, eventosHoy) ? "novedades" : null,
     ]
       .filter(Boolean)
       .join(" · ");

@@ -1,8 +1,6 @@
 -- Eventos del reporte diario por campamento (xzwifkckkakldnzkdeby).
 --
--- PENDIENTE DE APLICAR. Este archivo deja versionado el SQL para crear la
--- tabla `eventos_reportes` y agregar el flag `eventos_revisados` al reporte
--- diario. No fue aplicado contra Supabase remoto en esta intervención.
+-- ✅ APLICADA (migración `eventos_reportes`, 07-jul-2026, vía MCP `apply_migration`).
 --
 -- RLS: mismo patrón que reportes_centros / reportes_reparaciones_dia
 -- (helpers mi_rol(), mis_centros()). La tabla queda en Realtime.

@@ -46,6 +46,8 @@ export async function guardarReporteDiario(
     contarAtenciones(detalle, totalAtenciones) > 0 ||
     observaciones.trim() !== "";
   const eventosRevisados = datos.eventos_revisados === true;
+  const trabajosRevisados = datos.trabajos_revisados === true;
+  const requerimientosRevisados = datos.requerimientos_revisados === true;
   const comidas: ComidasDia & {
     _salud_reportada?: boolean;
     _eventos_revisados?: boolean;
@@ -62,6 +64,8 @@ export async function guardarReporteDiario(
     atenciones_medicas: totalAtenciones,
     salud_reportada: saludReportada,
     eventos_revisados: eventosRevisados,
+    trabajos_revisados: trabajosRevisados,
+    requerimientos_revisados: requerimientosRevisados,
     observaciones,
     updated_at: now,
     updated_by: usuarioActual(),
@@ -74,12 +78,16 @@ export async function guardarReporteDiario(
     // los mismos flags viajan respaldados en `comidas`.
     if (
       (error.message.includes("salud_reportada") ||
-        error.message.includes("eventos_revisados")) &&
+        error.message.includes("eventos_revisados") ||
+        error.message.includes("trabajos_revisados") ||
+        error.message.includes("requerimientos_revisados")) &&
       (error.message.includes("schema cache") || error.message.includes("column"))
     ) {
       const {
         salud_reportada: _saludReportada,
         eventos_revisados: _eventosRevisados,
+        trabajos_revisados: _trabajosRevisados,
+        requerimientos_revisados: _requerimientosRevisados,
         ...filaSinColumna
       } = fila;
       const { error: fallbackError } = await supabase

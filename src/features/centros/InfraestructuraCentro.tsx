@@ -150,7 +150,7 @@ function HistorialReparacionesArea({ reparaciones }: { reparaciones: Reparacion[
       {reparaciones.map((r) => {
         const meta = META_ESTATUS[r.estatus];
         const dias =
-          r.estatus === "reparado" && r.resuelta_ts
+          r.estatus === "completado" && r.resuelta_ts
             ? diasTranscurridos(r.creada_ts, r.resuelta_ts)
             : diasTranscurridos(r.creada_ts, Date.now());
         return (

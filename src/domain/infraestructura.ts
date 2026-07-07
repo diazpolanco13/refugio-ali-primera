@@ -117,11 +117,16 @@ export function sugerirEstadoArea(
 ): EstadoInfraestructura | null {
   void area;
   if (reparacionesVinculadas.length === 0) return null;
-  const pendientes = reparacionesVinculadas.filter((r) => r.estatus !== "reparado");
-  if (pendientes.some((r) => r.estatus === "en_reparacion" || r.estatus === "dañado")) {
+  const pendientes = reparacionesVinculadas.filter(
+    (r) => r.estatus !== "completado" && r.estatus !== "archivado",
+  );
+  if (pendientes.some((r) => r.estatus === "en_progreso" || r.estatus === "pendiente")) {
     return "en_proceso";
   }
-  if (reparacionesVinculadas.every((r) => r.estatus === "reparado")) {
+  if (
+    reparacionesVinculadas.length > 0 &&
+    reparacionesVinculadas.every((r) => r.estatus === "completado" || r.estatus === "archivado")
+  ) {
     return "mejorado";
   }
   return null;
