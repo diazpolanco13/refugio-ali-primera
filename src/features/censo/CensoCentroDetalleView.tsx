@@ -27,6 +27,7 @@ import {
 import { CEDULA_JEFE_NO_SE } from "@/domain/catalogosHumanitarios";
 import { aVulnerables, estadoCensoCentro } from "@/domain/censoResumen";
 import { puedeEditarCensoRapidoRed, puedeVerCensoRapidoRed } from "@/domain/permisos";
+import { BotonExportarCensoCentro } from "@/features/censo/BotonExportarCensoCentro";
 import { CensoEditarRegistroSheet } from "@/features/censo/CensoEditarRegistroSheet";
 import { DemografiaResumen } from "@/features/tablero/DemografiaResumen";
 import {
@@ -476,15 +477,25 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
 
           <Card className="border-teal-500/15">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Users className="size-4 text-teal-600 dark:text-teal-300" />
-                Personas registradas
-              </CardTitle>
-              <CardDescription>
-                {cargando
-                  ? "Cargando…"
-                  : `${registros.length} registro${registros.length === 1 ? "" : "s"} · busque por nombre, cédula o teléfono${puedeEditar ? " · use los iconos para corregir o eliminar" : ""}`}
-              </CardDescription>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 space-y-1">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Users className="size-4 text-teal-600 dark:text-teal-300" />
+                    Personas registradas
+                  </CardTitle>
+                  <CardDescription>
+                    {cargando
+                      ? "Cargando…"
+                      : `${registros.length} registro${registros.length === 1 ? "" : "s"} · busque por nombre, cédula o teléfono${puedeEditar ? " · use los iconos para corregir o eliminar" : ""}`}
+                  </CardDescription>
+                </div>
+                {!cargando && registros.length > 0 && (
+                  <BotonExportarCensoCentro
+                    filas={registros}
+                    centroNombre={centroNombre}
+                  />
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-3 p-4 pt-0">
               {!cargando && registros.length > 0 && (
