@@ -13,6 +13,24 @@ import {
   type Responsable,
   type Vulnerables,
 } from "./tipos";
+import {
+  responsablesCoordinacionDeCentro,
+  type ResponsableCoordinacion,
+} from "./coordinacionCentro";
+import {
+  metaUnidadSebinDe,
+  normalizarUnidadSebin,
+  type ClaveUnidadSebin,
+  type MetaUnidadSebin,
+} from "./unidadesSebin";
+
+export type { ClaveUnidadSebin, MetaUnidadSebin };
+export {
+  CATALOGO_UNIDADES_SEBIN,
+  LOGO_SEBIN,
+  metaUnidadSebinDe,
+  normalizarUnidadSebin,
+} from "./unidadesSebin";
 
 /** Clave canónica del cuerpo de seguridad/militar responsable de un centro. */
 export type ClaveCuerpo =
@@ -240,6 +258,37 @@ export const SEGURIDAD_VACIA: SeguridadCentro = {
   vehiculos: 0,
 };
 
+/** Supervisión SEBIN: dirección interna y supervisor asignado al campamento. */
+export interface SupervisionCentro {
+  /** Dirección/unidad interna del SEBIN (ej. "DIR. REG - SEBIN"). */
+  unidad_sebin: string;
+  /** Comisario o supervisor de la unidad (opcional). */
+  supervisor_sebin: string;
+}
+
+export const SUPERVISION_VACIA: SupervisionCentro = {
+  unidad_sebin: "",
+  supervisor_sebin: "",
+};
+
+export function normalizarSupervision(
+  s: Partial<SupervisionCentro> | null | undefined,
+): SupervisionCentro {
+  return { ...SUPERVISION_VACIA, ...(s ?? {}) };
+}
+
+/** Unidad SEBIN del campamento (clave canónica). */
+export function unidadSebinDe(
+  c: Pick<CentroTransitorio, "supervision">,
+): ClaveUnidadSebin {
+  return normalizarUnidadSebin(c.supervision?.unidad_sebin);
+}
+
+/** Metadata visual de la unidad SEBIN asignada. */
+export function metaUnidadSebinCentro(c: Pick<CentroTransitorio, "supervision">): MetaUnidadSebin {
+  return metaUnidadSebinDe(c.supervision?.unidad_sebin);
+}
+
 /** Servicios de salud y apoyo jurídico (sección IV). */
 export interface ServiciosCentro {
   medicos: RespuestaLevantamiento;
@@ -378,6 +427,8 @@ export interface CentroTransitorio {
   censo_en_proceso?: boolean;
   /** Novedades relevantes del reporte (sección VI). */
   novedades?: string;
+  /** Supervisión SEBIN: dirección interna y supervisor. */
+  supervision?: SupervisionCentro;
   /** Necesidades logísticas solicitadas para el centro. */
   requerimientos?: ItemRequerimiento[];
   // ---- Campos mutables (registro de estado, sincronizables) ----
@@ -389,6 +440,8 @@ export interface CentroTransitorio {
   familias_ocupadas?: number;
   /** Responsables del centro con teléfono para contacto (llamar/WhatsApp). */
   responsables?: Responsable[];
+  /** Responsables de coordinación (política, seguridad física, supervisión, etc.). */
+  responsables_coordinacion?: ResponsableCoordinacion[];
   /** URL pública de la foto del centro (Supabase Storage). */
   foto_url?: string;
   estado?: EstadoCentro;
@@ -403,6 +456,7 @@ export interface CentroNormalizado extends CentroTransitorio {
   personal: PersonalCentro;
   familias_ocupadas: number;
   responsables: Responsable[];
+  responsables_coordinacion: ResponsableCoordinacion[];
   foto_url: string;
   estado: EstadoCentro;
   fecha_levantamiento: string;
@@ -415,6 +469,7 @@ export interface CentroNormalizado extends CentroTransitorio {
   total_afectados: number;
   censo_en_proceso: boolean;
   novedades: string;
+  supervision: SupervisionCentro;
   requerimientos: ItemRequerimiento[];
 }
 
@@ -427,6 +482,7 @@ export function normalizarCentro(c: CentroTransitorio): CentroNormalizado {
     personal: normalizarPersonal(c.personal),
     familias_ocupadas: c.familias_ocupadas ?? 0,
     responsables: Array.isArray(c.responsables) ? c.responsables : [],
+    responsables_coordinacion: responsablesCoordinacionDeCentro(c),
     foto_url: c.foto_url ?? "",
     estado: c.estado ?? "preparacion",
     notas: c.notas ?? "",
@@ -440,6 +496,7 @@ export function normalizarCentro(c: CentroTransitorio): CentroNormalizado {
     total_afectados: c.total_afectados ?? 0,
     censo_en_proceso: c.censo_en_proceso ?? false,
     novedades: c.novedades ?? "",
+    supervision: normalizarSupervision(c.supervision),
     requerimientos: normalizarRequerimientos(c.requerimientos),
   };
 }

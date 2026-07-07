@@ -254,6 +254,48 @@ button {
   --sidebar-ring: oklch(0.45 0 0);
 }
 
+/* Marcadores del mapa de campamentos: latido suave en vista por color. */
+@keyframes marcador-latido-nucleo {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.15);
+    filter: brightness(1.15);
+  }
+}
+
+@keyframes marcador-latido-aura {
+  0%,
+  100% {
+    transform: scale(0.85);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.65);
+    opacity: 0;
+  }
+}
+
+.marcador-latido-nucleo {
+  animation: marcador-latido-nucleo 2.4s ease-in-out infinite;
+}
+
+.marcador-latido-aura {
+  animation: marcador-latido-aura 2.4s ease-in-out infinite;
+}
+
+.scrollbar-oculto {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-oculto::-webkit-scrollbar {
+  display: none;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

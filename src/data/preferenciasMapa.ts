@@ -7,6 +7,13 @@ import { CLAVES_BASE_MAPA } from "@/map/estiloMapa";
 
 const CLAVE_VISTA = "refugio-vista-centros-v2";
 const CLAVE_BASE = "refugio-base-centros";
+const CLAVE_MODO_MARCADOR = "refugio-modo-marcador-centros";
+const CLAVE_MOSTRAR_PARTE = "refugio-mostrar-parte-marcador";
+const CLAVE_MOSTRAR_LEYENDA = "refugio-mostrar-leyenda-marcador";
+const CLAVE_MOSTRAR_CINTA = "refugio-mostrar-cinta-totales";
+
+/** Vista del ícono en el mapa: logo SEBIN o punto de color por dirección. */
+export type ModoMarcadorCentros = "logo" | "color";
 
 export interface VistaMapaCentros {
   center: [number, number];
@@ -74,6 +81,81 @@ export function cargarBaseMapaCentros(): BaseMapa | null {
 export function guardarBaseMapaCentros(base: BaseMapa): void {
   try {
     localStorage.setItem(CLAVE_BASE, base);
+  } catch {
+    // ignorar
+  }
+}
+
+export function cargarModoMarcadorCentros(): ModoMarcadorCentros | null {
+  try {
+    const v = localStorage.getItem(CLAVE_MODO_MARCADOR);
+    if (v === "logo" || v === "color") return v;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function guardarModoMarcadorCentros(modo: ModoMarcadorCentros): void {
+  try {
+    localStorage.setItem(CLAVE_MODO_MARCADOR, modo);
+  } catch {
+    // ignorar
+  }
+}
+
+export function cargarMostrarParteMarcador(): boolean | null {
+  try {
+    const v = localStorage.getItem(CLAVE_MOSTRAR_PARTE);
+    if (v === "1") return true;
+    if (v === "0") return false;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function guardarMostrarParteMarcador(mostrar: boolean): void {
+  try {
+    localStorage.setItem(CLAVE_MOSTRAR_PARTE, mostrar ? "1" : "0");
+  } catch {
+    // ignorar
+  }
+}
+
+export function cargarMostrarLeyendaMarcador(): boolean | null {
+  try {
+    const v = localStorage.getItem(CLAVE_MOSTRAR_LEYENDA);
+    if (v === "1") return true;
+    if (v === "0") return false;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function guardarMostrarLeyendaMarcador(mostrar: boolean): void {
+  try {
+    localStorage.setItem(CLAVE_MOSTRAR_LEYENDA, mostrar ? "1" : "0");
+  } catch {
+    // ignorar
+  }
+}
+
+export function cargarMostrarCintaTotales(): boolean | null {
+  try {
+    const v = localStorage.getItem(CLAVE_MOSTRAR_CINTA);
+    if (v === "1") return true;
+    if (v === "0") return false;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function guardarMostrarCintaTotales(mostrar: boolean): void {
+  try {
+    localStorage.setItem(CLAVE_MOSTRAR_CINTA, mostrar ? "1" : "0");
   } catch {
     // ignorar
   }

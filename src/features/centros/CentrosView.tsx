@@ -3,16 +3,27 @@ import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { PanelFlotante } from "@/components/PanelFlotante";
 import { preloadLogosCuerpos } from "@/data/preloadLogosCuerpos";
 import { cargarBaseMapaCentros, guardarBaseMapaCentros } from "@/data/preferenciasMapa";
+import {
+  cargarModoMarcadorCentros,
+  cargarMostrarParteMarcador,
+  cargarMostrarLeyendaMarcador,
+  cargarMostrarCintaTotales,
+  guardarModoMarcadorCentros,
+  guardarMostrarParteMarcador,
+  guardarMostrarLeyendaMarcador,
+  guardarMostrarCintaTotales,
+  type ModoMarcadorCentros,
+} from "@/data/preferenciasMapa";
 import type { BaseMapa } from "@/map/estiloMapa";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
 import {
-  CATALOGO_CUERPOS,
-  normalizarCuerpo,
+  CATALOGO_UNIDADES_SEBIN,
   type CentroTransitorio,
-  type ClaveCuerpo,
+  type ClaveUnidadSebin,
+  unidadSebinDe,
 } from "@/domain/centrosTransitorios";
 import type { Sesion } from "@/data/authSupabase";
 import { puedeEscribir, puedeCrearCentros } from "@/domain/permisos";
@@ -49,16 +60,49 @@ export function CentrosView() {
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
   const [editando, setEditando] = useState<CentroTransitorio | null>(null);
-  const [cuerposVisibles, setCuerposVisibles] = useState<Set<ClaveCuerpo>>(
-    () => new Set(CATALOGO_CUERPOS.map((c) => c.clave)),
+  const [modoMarcador, setModoMarcador] = useState<ModoMarcadorCentros>(
+    () => cargarModoMarcadorCentros() ?? "color",
   );
-  const [expandidos, setExpandidos] = useState<Set<ClaveCuerpo>>(() => new Set());
+  const [mostrarParteMarcador, setMostrarParteMarcador] = useState(
+    () => cargarMostrarParteMarcador() ?? false,
+  );
+  const [mostrarLeyendaMarcador, setMostrarLeyendaMarcador] = useState(
+    () => cargarMostrarLeyendaMarcador() ?? true,
+  );
+  const [mostrarCintaTotales, setMostrarCintaTotales] = useState(
+    () => cargarMostrarCintaTotales() ?? true,
+  );
+  const [unidadFiltroMapa, setUnidadFiltroMapa] = useState<ClaveUnidadSebin | null>(null);
+  const [unidadesVisibles, setUnidadesVisibles] = useState<Set<ClaveUnidadSebin>>(
+    () => new Set(CATALOGO_UNIDADES_SEBIN.map((u) => u.clave)),
+  );
+  const [expandidos, setExpandidos] = useState<Set<ClaveUnidadSebin>>(() => new Set());
   const [exportando, setExportando] = useState(false);
   const mapaRef = useRef<CentrosMapHandle>(null);
 
   useEffect(() => {
     guardarBaseMapaCentros(baseMapa);
   }, [baseMapa]);
+
+  useEffect(() => {
+    guardarModoMarcadorCentros(modoMarcador);
+  }, [modoMarcador]);
+
+  useEffect(() => {
+    guardarMostrarParteMarcador(mostrarParteMarcador);
+  }, [mostrarParteMarcador]);
+
+  useEffect(() => {
+    guardarMostrarLeyendaMarcador(mostrarLeyendaMarcador);
+  }, [mostrarLeyendaMarcador]);
+
+  useEffect(() => {
+    guardarMostrarCintaTotales(mostrarCintaTotales);
+  }, [mostrarCintaTotales]);
+
+  useEffect(() => {
+    if (modoMarcador !== "color") setUnidadFiltroMapa(null);
+  }, [modoMarcador]);
 
   useEffect(() => {
     preloadLogosCuerpos();
@@ -106,8 +150,8 @@ export function CentrosView() {
   }
 
   const centrosVisibles = useMemo(
-    () => centros.filter((c) => cuerposVisibles.has(normalizarCuerpo(c.cuerpo))),
-    [centros, cuerposVisibles],
+    () => centros.filter((c) => unidadesVisibles.has(unidadSebinDe(c))),
+    [centros, unidadesVisibles],
   );
 
   const centroSel = useMemo(
@@ -115,8 +159,8 @@ export function CentrosView() {
     [centros, seleccionado],
   );
 
-  function toggleCuerpo(clave: ClaveCuerpo) {
-    setCuerposVisibles((prev) => {
+  function toggleUnidad(clave: ClaveUnidadSebin) {
+    setUnidadesVisibles((prev) => {
       const s = new Set(prev);
       if (s.has(clave)) s.delete(clave);
       else s.add(clave);
@@ -124,7 +168,7 @@ export function CentrosView() {
     });
   }
 
-  function setExpandido(clave: ClaveCuerpo, abierto: boolean) {
+  function setExpandido(clave: ClaveUnidadSebin, abierto: boolean) {
     setExpandidos((prev) => {
       const s = new Set(prev);
       if (abierto) s.add(clave);
@@ -135,8 +179,8 @@ export function CentrosView() {
 
   function seleccionarDesdeLista(centro: CentroTransitorio) {
     if (!centro.geom) return;
-    const clave = normalizarCuerpo(centro.cuerpo);
-    setCuerposVisibles((prev) => (prev.has(clave) ? prev : new Set(prev).add(clave)));
+    const clave = unidadSebinDe(centro);
+    setUnidadesVisibles((prev) => (prev.has(clave) ? prev : new Set(prev).add(clave)));
     setSeleccionado(centro.id);
     setDetalleAbierto(false);
   }
@@ -170,7 +214,7 @@ export function CentrosView() {
   useEffect(() => {
     if (!seleccionado) return;
     const centro = centros.find((c) => c.id === seleccionado);
-    if (centro) setExpandido(normalizarCuerpo(centro.cuerpo), true);
+    if (centro) setExpandido(unidadSebinDe(centro), true);
   }, [seleccionado, centros]);
 
   return (
@@ -185,6 +229,16 @@ export function CentrosView() {
               onCambiarBase={setBaseMapa}
               seleccionado={seleccionado}
               onSeleccionar={seleccionarDesdeMapa}
+              modoMarcador={modoMarcador}
+              onCambiarModoMarcador={setModoMarcador}
+              mostrarParteMarcador={mostrarParteMarcador}
+              onCambiarMostrarParteMarcador={setMostrarParteMarcador}
+              mostrarLeyenda={mostrarLeyendaMarcador}
+              onCambiarMostrarLeyenda={setMostrarLeyendaMarcador}
+              mostrarCintaTotales={mostrarCintaTotales}
+              onCambiarMostrarCintaTotales={setMostrarCintaTotales}
+              unidadFiltro={unidadFiltroMapa}
+              onCambiarUnidadFiltro={setUnidadFiltroMapa}
               detalleAbierto={detalleAbierto}
               onToggleDetalle={toggleDetalle}
               onExportar={() => void exportarVista()}
@@ -200,14 +254,16 @@ export function CentrosView() {
               onAbrirPanel={() => setPanelCentrosAbierto(true)}
             />
 
-            <div className="map-controls-overlay pointer-events-none absolute inset-x-3 bottom-8 z-10 md:bottom-auto md:left-1/2 md:top-3 md:w-[calc(100%-29rem)] md:-translate-x-1/2">
-              <TotalesMapaCentros centros={centros} />
-            </div>
+            {mostrarCintaTotales && (
+              <div className="map-controls-overlay pointer-events-none absolute inset-x-3 bottom-8 z-10 md:bottom-auto md:left-1/2 md:top-3 md:w-[calc(100%-29rem)] md:-translate-x-1/2">
+                <TotalesMapaCentros centros={centros} />
+              </div>
+            )}
 
             <PanelCentros
               centros={centros}
-              cuerposVisibles={cuerposVisibles}
-              onToggleCuerpo={toggleCuerpo}
+              unidadesVisibles={unidadesVisibles}
+              onToggleUnidad={toggleUnidad}
               expandidos={expandidos}
               onSetExpandido={setExpandido}
               seleccionado={seleccionado}

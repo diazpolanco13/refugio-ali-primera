@@ -1,7 +1,8 @@
 import { LogoCuerpo } from "@/components/LogoCuerpo";
 import { Camera, Home, Navigation, PawPrint, ShieldCheck, Users } from "lucide-react";
 import {
-  metaCuerpoDe,
+  LOGO_SEBIN,
+  metaUnidadSebinCentro,
   normalizarCentro,
   poblacionCentro,
   totalPersonalOperativo,
@@ -55,7 +56,7 @@ function urlNavegacion(centro: CentroTransitorio): string | null {
 
 /** Ficha básica de un centro transitorio: cuerpo asignado, ubicación y estado. */
 export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle }: Props) {
-  const meta = metaCuerpoDe(centro.cuerpo);
+  const metaUnidad = metaUnidadSebinCentro(centro);
   const analisis = analisisCentro(centro);
   const alertas = alertasCentro(centro);
   const centroNormalizado = normalizarCentro(centro);
@@ -115,21 +116,23 @@ export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle 
 
         <div className="flex min-h-[4.5rem] min-w-0 flex-col justify-between gap-1.5 self-stretch py-0.5">
           <span
-            className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-white"
-            style={{ borderColor: meta.color }}
-            title={meta.label}
-            aria-label={meta.label}
+            className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white"
+            style={{ borderColor: metaUnidad.color }}
+            title={`SEBIN · ${metaUnidad.label}`}
+            aria-label={`SEBIN · ${metaUnidad.label}`}
           >
-            {meta.logo ? (
-              <LogoCuerpo src={meta.logo} priority="high" />
-            ) : (
-              <span className="text-sm leading-none">{meta.icono}</span>
-            )}
+            <LogoCuerpo src={LOGO_SEBIN} priority="high" />
           </span>
 
           <p className="text-sm font-semibold leading-snug break-words text-foreground">
             {centro.nombre}
           </p>
+
+          {metaUnidad.clave !== "sin_asignar" && (
+            <p className="shrink-0 text-[10px] font-medium leading-snug text-foreground/90">
+              {metaUnidad.label}
+            </p>
+          )}
 
           {ubicacion ? (
             <p className="shrink-0 text-[10px] leading-snug break-words text-muted-foreground">

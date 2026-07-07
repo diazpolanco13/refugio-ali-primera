@@ -1,0 +1,87 @@
+-- Reasignación jul-2026: todos los campamentos bajo SEBIN con dirección interna.
+-- Fuente: planilla de distribución por direcciones SEBIN.
+
+UPDATE centros c
+SET
+  updated_at = (extract(epoch from now()) * 1000)::bigint,
+  updated_by = 'admin',
+  data = jsonb_set(
+    jsonb_set(
+      jsonb_set(
+        COALESCE(c.data, '{}'::jsonb),
+        '{cuerpo}',
+        '"SEBIN"'::jsonb,
+        true
+      ),
+      '{seguridad}',
+      COALESCE(c.data->'seguridad', '{}'::jsonb) || jsonb_build_object('organismo', 'SEBIN'),
+      true
+    ),
+    '{supervision}',
+    COALESCE(c.data->'supervision', '{}'::jsonb) || jsonb_build_object('unidad_sebin', m.unidad),
+    true
+  )
+FROM (VALUES
+  ('centro-09', 'DIR. REG - SEBIN'),
+  ('centro-10', 'DIR. REG - SEBIN'),
+  ('centro-57', 'DIR. REG - SEBIN'),
+  ('centro-58', 'DIR. REG - SEBIN'),
+  ('centro-59', 'DIR. REG - SEBIN'),
+  ('centro-37', 'DIR. EDUCACION - SEBIN'),
+  ('centro-36', 'DIR. EDUCACION - SEBIN'),
+  ('centro-34', 'DIR. EDUCACION - SEBIN'),
+  ('centro-16', 'DIR. EDUCACION - SEBIN'),
+  ('centro-18', 'DIR. EDUCACION - SEBIN'),
+  ('centro-19', 'DIR. EDUCACION - SEBIN'),
+  ('centro-14', 'DIR. EDUCACION - SEBIN'),
+  ('centro-13', 'DIR. EDUCACION - SEBIN'),
+  ('centro-65', 'DIR. EDUCACION - SEBIN'),
+  ('centro-53', 'DAI - SEBIN'),
+  ('centro-66', 'DAI - SEBIN'),
+  ('centro-05', 'INT. FINANC. - SEBIN'),
+  ('centro-04', 'INT. FINANC. - SEBIN'),
+  ('centro-03', 'DIR. SECRETARIA - SEBIN'),
+  ('centro-51', 'DIR. SECRETARIA - SEBIN'),
+  ('centro-52', 'DIR. SECRETARIA - SEBIN'),
+  ('centro-54', 'DIR. SECRETARIA - SEBIN'),
+  ('centro-30', 'DIR. SECRETARIA - SEBIN'),
+  ('centro-28', 'DIR. SECRETARIA - SEBIN'),
+  ('centro-29', 'DIR. SECRETARIA - SEBIN'),
+  ('centro-21', 'DIR. SECRETARIA - SEBIN'),
+  ('centro-20', 'DIR. SECRETARIA - SEBIN'),
+  ('centro-60', 'DIR. SECRETARIA - SEBIN'),
+  ('centro-61', 'DIR. SECRETARIA - SEBIN'),
+  ('centro-12', 'DIR. SECRETARIA - SEBIN'),
+  ('centro-26', 'DIR. PATRULLAJE - SEBIN'),
+  ('centro-63', 'DIR. PATRULLAJE - SEBIN'),
+  ('centro-06', 'DIR. PATRULLAJE - SEBIN'),
+  ('centro-08', 'DIR. PATRULLAJE - SEBIN'),
+  ('centro-64', 'DIR. PATRULLAJE - SEBIN'),
+  ('centro-27', 'DIR. CONTROL ADM. - SEBIN'),
+  ('centro-25', 'DIR. CONTROL ADM. - SEBIN'),
+  ('centro-24', 'DIR. CONTROL ADM. - SEBIN'),
+  ('centro-23', 'DIR. CONTROL ADM. - SEBIN'),
+  ('centro-56', 'DIR. CONTROL ADM. - SEBIN'),
+  ('centro-31', 'DIR. CONTROL ADM. - SEBIN'),
+  ('centro-41', 'DIR. CONTROL ADM. - SEBIN'),
+  ('centro-38', 'DIR. CONTROL ADM. - SEBIN'),
+  ('centro-40', 'DIR. CONTROL ADM. - SEBIN'),
+  ('centro-39', 'DIR. CONTROL ADM. - SEBIN'),
+  ('centro-42', 'DIR. CONTROL ADM. - SEBIN'),
+  ('centro-55', 'DIR. CIBER INT. - SEBIN'),
+  ('centro-50', 'DIR. CIBER INT. - SEBIN'),
+  ('centro-45', 'DIR. CIBER INT. - SEBIN'),
+  ('centro-43', 'DIR. CIBER INT. - SEBIN'),
+  ('centro-44', 'DIR. CIBER INT. - SEBIN'),
+  ('centro-11', 'DIR. CONTRA INT. - SEBIN'),
+  ('centro-02', 'DIR. CONTRA INT. - SEBIN'),
+  ('centro-01', 'DIR. CONTRA INT. - SEBIN'),
+  ('centro-32', 'DIR. CONTRA INT. (ORTEGA) - SEBIN'),
+  ('centro-33', 'DIR. CONTRA INT. (ORTEGA) - SEBIN'),
+  ('centro-62', 'DIR. CONTRA INT. (ORTEGA) - SEBIN'),
+  ('centro-46', 'DIR. INT. - SEBIN'),
+  ('centro-48', 'DIR. INT. - SEBIN'),
+  ('centro-49', 'DIR. INT. - SEBIN'),
+  ('centro-17', 'CONTROL EDUCATIVO - SEBIN')
+) AS m(centro_id, unidad)
+WHERE c.id = m.centro_id AND c.deleted = false;

@@ -14,11 +14,14 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { LogoCuerpo } from "@/components/LogoCuerpo";
 import {
-  CATALOGO_CUERPOS,
-  normalizarCuerpo,
+  CATALOGO_UNIDADES_SEBIN,
+  LOGO_SEBIN,
+  metaUnidadSebinCentro,
+  unidadSebinDe,
   type CentroTransitorio,
-  type ClaveCuerpo,
+  type ClaveUnidadSebin,
 } from "@/domain/centrosTransitorios";
 import {
   ESTADO_FILA_VACIO,
@@ -29,10 +32,10 @@ import {
 
 interface Props {
   centros: CentroTransitorio[];
-  cuerposVisibles: Set<ClaveCuerpo>;
-  onToggleCuerpo: (clave: ClaveCuerpo) => void;
-  expandidos: Set<ClaveCuerpo>;
-  onSetExpandido: (clave: ClaveCuerpo, abierto: boolean) => void;
+  unidadesVisibles: Set<ClaveUnidadSebin>;
+  onToggleUnidad: (clave: ClaveUnidadSebin) => void;
+  expandidos: Set<ClaveUnidadSebin>;
+  onSetExpandido: (clave: ClaveUnidadSebin, abierto: boolean) => void;
   seleccionado: string | null;
   onSeleccionarCentro: (centro: CentroTransitorio) => void;
   abierto: boolean;
@@ -40,13 +43,13 @@ interface Props {
 }
 
 /**
- * Panel lateral del mapa: búsqueda, listado por cuerpo, toggles de visibilidad
- * y semáforos. Cerrado por defecto; se abre desde ControlesMapaFlotantes.
+ * Panel lateral del mapa: búsqueda, listado por dirección interna SEBIN,
+ * toggles de visibilidad y semáforos.
  */
 export function PanelCentros({
   centros,
-  cuerposVisibles,
-  onToggleCuerpo,
+  unidadesVisibles,
+  onToggleUnidad,
   expandidos,
   onSetExpandido,
   seleccionado,
@@ -59,10 +62,10 @@ export function PanelCentros({
 
   const estados = useMemo(() => calcularEstadosFilas(centros), [centros]);
 
-  const centrosPorCuerpo = useMemo(() => {
-    const m = new Map<ClaveCuerpo, CentroTransitorio[]>();
+  const centrosPorUnidad = useMemo(() => {
+    const m = new Map<ClaveUnidadSebin, CentroTransitorio[]>();
     for (const c of centros) {
-      const clave = normalizarCuerpo(c.cuerpo);
+      const clave = unidadSebinDe(c);
       const lista = m.get(clave) ?? [];
       lista.push(c);
       m.set(clave, lista);
@@ -75,17 +78,22 @@ export function PanelCentros({
   const termino = normalizarTextoBusqueda(busqueda.trim());
   const resultados = useMemo(() => {
     if (!termino) return null;
-    return centros.filter((c) =>
-      normalizarTextoBusqueda(
-        `${c.nombre} ${c.parroquia} ${c.direccion} ${c.cuerpo}`,
-      ).includes(termino),
-    );
+    return centros.filter((c) => {
+      const meta = metaUnidadSebinCentro(c);
+      return normalizarTextoBusqueda(
+        `${c.nombre} ${c.parroquia} ${c.direccion} ${meta.label} ${c.supervision?.unidad_sebin ?? ""}`,
+      ).includes(termino);
+    });
   }, [centros, termino]);
 
   function elegirCentro(centro: CentroTransitorio) {
     onSeleccionarCentro(centro);
     if (window.innerWidth < 640) onCambiarAbierto(false);
   }
+
+  const unidadesConCampamentos = CATALOGO_UNIDADES_SEBIN.filter(
+    (u) => u.clave !== "sin_asignar" && (centrosPorUnidad.get(u.clave)?.length ?? 0) > 0,
+  );
 
   return (
     <div
@@ -97,9 +105,12 @@ export function PanelCentros({
     >
       <div className="shrink-0 space-y-2 border-b border-border px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Lista de campamentos
-          </p>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Lista de campamentos
+            </p>
+            <p className="text-[10px] text-muted-foreground/80">Por dirección interna SEBIN</p>
+          </div>
           <button
             type="button"
             onClick={() => onCambiarAbierto(false)}
@@ -151,32 +162,31 @@ export function PanelCentros({
                 centro={centro}
                 estado={estados.get(centro.id) ?? ESTADO_FILA_VACIO}
                 seleccionado={seleccionado === centro.id}
-                mostrarCuerpo
+                mostrarUnidad
                 onSeleccionar={elegirCentro}
               />
             ))}
           </div>
         ) : (
           <div className="space-y-0.5">
-            {CATALOGO_CUERPOS.map((c) => {
-              const activo = cuerposVisibles.has(c.clave);
-              const centrosCuerpo = centrosPorCuerpo.get(c.clave) ?? [];
-              if (centrosCuerpo.length === 0) return null;
-              const grupoAbierto = expandidos.has(c.clave);
-              const alertasGrupo = centrosCuerpo.reduce(
+            {unidadesConCampamentos.map((u) => {
+              const activo = unidadesVisibles.has(u.clave);
+              const centrosUnidad = centrosPorUnidad.get(u.clave) ?? [];
+              const grupoAbierto = expandidos.has(u.clave);
+              const alertasGrupo = centrosUnidad.reduce(
                 (n, centro) =>
                   n + ((estados.get(centro.id)?.alertas.length ?? 0) > 0 ? 1 : 0),
                 0,
               );
               return (
                 <Collapsible
-                  key={c.clave}
+                  key={u.clave}
                   open={grupoAbierto}
-                  onOpenChange={(o) => onSetExpandido(c.clave, o)}
+                  onOpenChange={(o) => onSetExpandido(u.clave, o)}
                 >
                   <div className="flex items-center gap-0.5">
                     <button
-                      onClick={() => onToggleCuerpo(c.clave)}
+                      onClick={() => onToggleUnidad(u.clave)}
                       title="Mostrar/ocultar en el mapa"
                       className={cn(
                         "flex flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs transition-colors hover:bg-muted/60",
@@ -185,16 +195,12 @@ export function PanelCentros({
                     >
                       <span
                         className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white text-[11px]"
-                        style={{ borderColor: c.color }}
+                        style={{ borderColor: u.color }}
                         aria-hidden
                       >
-                        {c.logo ? (
-                          <img src={c.logo} alt="" className="size-full object-cover" />
-                        ) : (
-                          c.icono
-                        )}
+                        <LogoCuerpo src={LOGO_SEBIN} priority="low" />
                       </span>
-                      <span className="flex-1 truncate text-foreground">{c.label}</span>
+                      <span className="flex-1 truncate text-foreground">{u.label}</span>
                       {alertasGrupo > 0 && (
                         <span
                           title={`${alertasGrupo} campamento(s) con servicios en déficit`}
@@ -204,7 +210,7 @@ export function PanelCentros({
                         </span>
                       )}
                       <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
-                        {centrosCuerpo.length}
+                        {centrosUnidad.length}
                       </Badge>
                     </button>
                     <CollapsibleTrigger asChild>
@@ -225,7 +231,7 @@ export function PanelCentros({
 
                   <CollapsibleContent>
                     <div className="ml-3 mb-1 mt-0.5 space-y-0.5 border-l border-border pl-2">
-                      {centrosCuerpo.map((centro) => (
+                      {centrosUnidad.map((centro) => (
                         <FilaCentroLista
                           key={centro.id}
                           centro={centro}
@@ -240,6 +246,28 @@ export function PanelCentros({
               );
             })}
 
+            {(centrosPorUnidad.get("sin_asignar")?.length ?? 0) > 0 && (
+              <Collapsible
+                open={expandidos.has("sin_asignar")}
+                onOpenChange={(o) => onSetExpandido("sin_asignar", o)}
+              >
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => onToggleUnidad("sin_asignar")}
+                    className={cn(
+                      "flex flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs opacity-60",
+                      !unidadesVisibles.has("sin_asignar") && "opacity-30",
+                    )}
+                  >
+                    <span className="text-foreground">Sin unidad asignada</span>
+                    <Badge variant="outline" className="ml-auto h-5 px-1.5 text-[10px]">
+                      {centrosPorUnidad.get("sin_asignar")!.length}
+                    </Badge>
+                  </button>
+                </div>
+              </Collapsible>
+            )}
+
             {sinUbicar.length > 0 && (
               <div className="mt-2 flex items-start gap-1.5 border-t border-border pt-2 text-[10px] text-muted-foreground">
                 <MapPinOff className="mt-0.5 size-3 shrink-0" />
@@ -251,9 +279,10 @@ export function PanelCentros({
       </div>
 
       <div className="shrink-0 border-t border-border px-3 py-1.5 text-[9.5px] leading-snug text-muted-foreground/80">
-        Íconos <span className="font-semibold text-red-500">rojos</span> /{" "}
-        <span className="font-semibold text-amber-400">ámbar</span>: servicios en
-        déficit según el estándar Esfera (camas, baños, duchas, lavaderos, basura, agua).
+        Anillo de color = dirección SEBIN. Íconos{" "}
+        <span className="font-semibold text-red-500">rojos</span> /{" "}
+        <span className="font-semibold text-amber-400">ámbar</span>: servicios en déficit según
+        Esfera.
       </div>
     </div>
   );

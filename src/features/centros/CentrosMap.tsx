@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import maplibregl from "maplibre-gl";
 import { toPng } from "html-to-image";
@@ -8,22 +8,27 @@ import {
   CARACAS_CENTRO,
   CARACAS_ZOOM,
   CARACAS_ZOOM_MAX_ENCUDRE,
-  metaCuerpoDe,
+  LOGO_SEBIN,
+  metaUnidadSebinCentro,
   normalizarCentro,
   poblacionCentro,
   totalPersonalOperativo,
+  unidadSebinDe,
   type CentroTransitorio,
+  type ClaveUnidadSebin,
 } from "@/domain/centrosTransitorios";
 import {
   cargarVistaCentros,
   guardarVistaCentros,
   VISTA_DEFECTO_CENTROS,
+  type ModoMarcadorCentros,
 } from "@/data/preferenciasMapa";
 import { analisisCentro, COLOR_SEMAFORO } from "@/domain/capacidadCentros";
 import { boundsRedCentros } from "@/domain/redCentros";
 import { MarcadorCentro } from "./MarcadorCentro";
 import { InfoCentro } from "./InfoCentro";
 import { ControlesMapaCentros } from "./ControlesMapaCentros";
+import { LeyendaUnidadesSebin } from "./LeyendaUnidadesSebin";
 
 interface Props {
   centros: CentroTransitorio[];
@@ -31,6 +36,16 @@ interface Props {
   onCambiarBase: (base: BaseMapa) => void;
   seleccionado: string | null;
   onSeleccionar: (id: string | null) => void;
+  modoMarcador: ModoMarcadorCentros;
+  onCambiarModoMarcador: (modo: ModoMarcadorCentros) => void;
+  mostrarParteMarcador: boolean;
+  onCambiarMostrarParteMarcador: (mostrar: boolean) => void;
+  mostrarLeyenda: boolean;
+  onCambiarMostrarLeyenda: (mostrar: boolean) => void;
+  mostrarCintaTotales: boolean;
+  onCambiarMostrarCintaTotales: (mostrar: boolean) => void;
+  unidadFiltro: ClaveUnidadSebin | null;
+  onCambiarUnidadFiltro: (clave: ClaveUnidadSebin | null) => void;
   /** Indica si el panel DetalleCentro está abierto (estado "presionado" del botón "detalles"). */
   detalleAbierto: boolean;
   /** Alternar (abrir/cerrar) el panel de detalle completo del centro seleccionado. */
@@ -46,7 +61,27 @@ export interface CentrosMapHandle {
 }
 
 export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMap(
-  { centros, baseMapa, onCambiarBase, seleccionado, detalleAbierto, onSeleccionar, onToggleDetalle, onExportar, exportando },
+  {
+    centros,
+    baseMapa,
+    onCambiarBase,
+    seleccionado,
+    onSeleccionar,
+    modoMarcador,
+    onCambiarModoMarcador,
+    mostrarParteMarcador,
+    onCambiarMostrarParteMarcador,
+    mostrarLeyenda,
+    onCambiarMostrarLeyenda,
+    mostrarCintaTotales,
+    onCambiarMostrarCintaTotales,
+    unidadFiltro,
+    onCambiarUnidadFiltro,
+    detalleAbierto,
+    onToggleDetalle,
+    onExportar,
+    exportando,
+  },
   ref,
 ) {
   const contenedorRef = useRef<HTMLDivElement>(null);
@@ -70,8 +105,32 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     setEscalaVista(escalaVistaDelMapa(map));
   }
 
-  const cbRef = useRef({ centros, seleccionado, detalleAbierto, onSeleccionar, onToggleDetalle });
-  cbRef.current = { centros, seleccionado, detalleAbierto, onSeleccionar, onToggleDetalle };
+  const cbRef = useRef({
+    centros,
+    seleccionado,
+    detalleAbierto,
+    modoMarcador,
+    mostrarParteMarcador,
+    unidadFiltro,
+    onSeleccionar,
+    onToggleDetalle,
+  });
+  cbRef.current = {
+    centros,
+    seleccionado,
+    detalleAbierto,
+    modoMarcador,
+    mostrarParteMarcador,
+    unidadFiltro,
+    onSeleccionar,
+    onToggleDetalle,
+  };
+
+  const unidadesPresentes = useMemo(() => {
+    const s = new Set<ClaveUnidadSebin>();
+    for (const c of centros) s.add(unidadSebinDe(c));
+    return s;
+  }, [centros]);
 
   function persistirVista() {
     const map = mapRef.current;
@@ -260,7 +319,10 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     for (const c of cbRef.current.centros) {
       if (!c.geom) continue;
       vistos.add(c.id);
-      const meta = metaCuerpoDe(c.cuerpo);
+      const metaUnidad = metaUnidadSebinCentro(c);
+      const claveUnidad = unidadSebinDe(c);
+      const resaltado =
+        cbRef.current.unidadFiltro == null || cbRef.current.unidadFiltro === claveUnidad;
       let marcador = marcadores.current.get(c.id);
       if (!marcador) {
         const anchor = document.createElement("div");
@@ -277,10 +339,13 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       const personalTotal = totalPersonalOperativo(normalizarCentro(c).personal);
       roots.current.get(c.id)?.render(
         <MarcadorCentro
-          icono={meta.icono}
-          logo={meta.logo}
-          color={meta.color}
+          modo={cbRef.current.modoMarcador}
+          icono="🛡️"
+          logo={LOGO_SEBIN}
+          color={metaUnidad.color}
           seleccionado={cbRef.current.seleccionado === c.id}
+          resaltado={resaltado}
+          mostrarParte={cbRef.current.mostrarParteMarcador}
           refugiados={refugiados}
           personalTotal={personalTotal}
           semaforoColor={
@@ -304,7 +369,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     sincronizarMarcadores();
     aplicarVistaDefectoSiCorresponde();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [centros, seleccionado]);
+  }, [centros, seleccionado, modoMarcador, mostrarParteMarcador, unidadFiltro]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -398,7 +463,24 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
         onGps={alternarGps}
         onCentrarCaracas={centrarCaracas}
         onExportar={onExportar}
+        vistaMarcadores={{
+          modoMarcador,
+          onCambiarModo: onCambiarModoMarcador,
+          mostrarParte: mostrarParteMarcador,
+          onCambiarMostrarParte: onCambiarMostrarParteMarcador,
+          mostrarLeyenda,
+          onCambiarMostrarLeyenda,
+          mostrarCintaTotales,
+          onCambiarMostrarCintaTotales,
+        }}
       />
+      {modoMarcador === "color" && mostrarLeyenda && (
+        <LeyendaUnidadesSebin
+          unidadesPresentes={unidadesPresentes}
+          unidadSeleccionada={unidadFiltro}
+          onSeleccionarUnidad={onCambiarUnidadFiltro}
+        />
+      )}
     </div>
   );
 });

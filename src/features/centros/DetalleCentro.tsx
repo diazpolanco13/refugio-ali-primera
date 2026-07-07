@@ -17,6 +17,7 @@ import {
 import {
   ESTADOS_CENTRO,
   metaCuerpoDe,
+  metaUnidadSebinCentro,
   normalizarCentro,
   normalizarPersonal,
   poblacionCentro,
@@ -43,6 +44,7 @@ import {
 } from "@/features/centros/LevantamientoCentro";
 import { AlertasDelDiaCentro } from "@/features/centros/AlertasDelDiaCentro";
 import { ListaRequerimientos } from "@/features/centros/RequerimientosCentro";
+import { ListaResponsablesCoordinacion } from "@/features/centros/ResponsablesCoordinacion";
 import { GraficoOcupacionCentro } from "@/features/centros/GraficoOcupacionCentro";
 import { SeccionReporteDiarioCentro } from "@/features/centros/ReporteDiarioCentro";
 import { SeccionIncidenciasCentro } from "@/features/centros/IncidenciasCentro";
@@ -198,6 +200,7 @@ export function SeccionFotoCentro({ centro }: SeccionProps) {
 export function SeccionIdentificacionCentro({ centro }: SeccionProps) {
   const c = normalizarCentro(centro);
   const meta = metaCuerpoDe(centro.cuerpo);
+  const metaUnidad = metaUnidadSebinCentro(centro);
   const ubicacion = ubicacionCentro(centro);
   return (
     <div className="space-y-2">
@@ -211,18 +214,33 @@ export function SeccionIdentificacionCentro({ centro }: SeccionProps) {
           })}
         </p>
       )}
-      <div
-        className="inline-flex items-center gap-2 rounded-full border py-0.5 pl-0.5 pr-2.5"
-        style={{ borderColor: meta.color }}
-      >
-        <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
-          {meta.logo ? (
-            <LogoCuerpo src={meta.logo} />
-          ) : (
-            <span className="text-sm leading-none">{meta.icono}</span>
-          )}
-        </span>
-        <span className="text-xs font-semibold text-foreground">{meta.label}</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <div
+          className="inline-flex items-center gap-2 rounded-full border py-0.5 pl-0.5 pr-2.5"
+          style={{ borderColor: meta.color }}
+        >
+          <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
+            {meta.logo ? (
+              <LogoCuerpo src={meta.logo} />
+            ) : (
+              <span className="text-sm leading-none">{meta.icono}</span>
+            )}
+          </span>
+          <span className="text-xs font-semibold text-foreground">{meta.label}</span>
+        </div>
+        {metaUnidad.clave !== "sin_asignar" && (
+          <div
+            className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5"
+            style={{ borderColor: metaUnidad.color }}
+          >
+            <span
+              className="size-2 shrink-0 rounded-full"
+              style={{ background: metaUnidad.color }}
+              aria-hidden
+            />
+            <span className="text-[11px] font-medium text-foreground">{metaUnidad.label}</span>
+          </div>
+        )}
       </div>
       <div className="space-y-0.5 text-xs text-muted-foreground">
         {ubicacion && <p>{ubicacion}</p>}
@@ -270,16 +288,20 @@ export function SeccionSeguridadCentro({ centro }: SeccionProps) {
 }
 
 /** V · Población — totales visibles, desglose demográfico desplegable. */
-export function SeccionPoblacionCentro({ centro }: SeccionProps) {
+export function SeccionPoblacionCentro({
+  centro,
+  children,
+}: SeccionProps & { children?: React.ReactNode }) {
   const c = normalizarCentro(centro);
   const analisis = analisisCentro(centro);
   const poblacion = poblacionCentro(centro);
   return (
     <div className="rounded-xl border border-border bg-card p-3">
       <p className="text-xs font-semibold text-foreground">Población afectada</p>
-      <div className="mt-2 grid grid-cols-2 gap-2">
+      <div className="mt-2 grid grid-cols-3 gap-2">
         <KpiGrande etiqueta="Damnificados" valor={poblacion} clase="text-sky-300" />
-        <KpiGrande etiqueta="Familias" valor={analisis.familias} />
+        <KpiGrande etiqueta="Familias" valor={analisis.familias} clase="text-orange-300" />
+        <KpiGrande etiqueta="Mascotas" valor={c.ocupacion.mascotas} clase="text-amber-300" />
       </div>
       {c.censo_en_proceso && (
         <Badge
@@ -309,6 +331,7 @@ export function SeccionPoblacionCentro({ centro }: SeccionProps) {
           <DemografiaResumen vulnerables={c.ocupacion} mostrarEstructura />
         </CollapsibleContent>
       </Collapsible>
+      {children}
     </div>
   );
 }
@@ -583,6 +606,7 @@ export function SeccionNotasCentro({ centro }: SeccionProps) {
  * reutilizables en una sola columna, igual que siempre.
  */
 export function DetalleCentro({ centro, puedeEditar, onEditar }: Props) {
+  const c = normalizarCentro(centro);
   return (
     <div className="space-y-4">
       <SeccionFotoCentro centro={centro} />
@@ -600,8 +624,13 @@ export function DetalleCentro({ centro, puedeEditar, onEditar }: Props) {
       <AlertasDelDiaCentro centro={centro} />
 
       <SeccionIdentificacionCentro centro={centro} />
-      <SeccionCoordinacionCentro centro={centro} />
-      <SeccionSeguridadCentro centro={centro} />
+      <div>
+        <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+          <ClipboardList className="size-3.5" />
+          Coordinación
+        </p>
+        <ListaResponsablesCoordinacion responsables={c.responsables_coordinacion} />
+      </div>
       <SeccionPoblacionCentro centro={centro} />
       <SeccionPersonalCentro centro={centro} />
       <SeccionServiciosCentro centro={centro} />
@@ -611,7 +640,6 @@ export function DetalleCentro({ centro, puedeEditar, onEditar }: Props) {
       <SeccionHistoricoCentro centro={centro} />
       <SeccionRequerimientosCentro centro={centro} />
       <SeccionCapacidadCentro centro={centro} />
-      <SeccionResponsablesCentro centro={centro} />
       <SeccionNovedadesNotasCentro centro={centro} />
 
       {puedeEditar && (

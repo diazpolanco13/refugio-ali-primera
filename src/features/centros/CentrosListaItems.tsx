@@ -2,7 +2,8 @@ import { LogoCuerpo } from "@/components/LogoCuerpo";
 import { MapPin, MapPinOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  metaCuerpoDe,
+  LOGO_SEBIN,
+  metaUnidadSebinCentro,
   poblacionCentro,
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
@@ -56,17 +57,17 @@ export function FilaCentroLista({
   centro,
   estado,
   seleccionado,
-  mostrarCuerpo,
+  mostrarUnidad,
   onSeleccionar,
 }: {
   centro: CentroTransitorio;
   estado: EstadoFilaCentro;
   seleccionado: boolean;
-  mostrarCuerpo?: boolean;
+  mostrarUnidad?: boolean;
   onSeleccionar: (centro: CentroTransitorio) => void;
 }) {
   const sinGeom = !centro.geom;
-  const meta = mostrarCuerpo ? metaCuerpoDe(centro.cuerpo) : null;
+  const metaUnidad = mostrarUnidad ? metaUnidadSebinCentro(centro) : null;
   return (
     <button
       type="button"
@@ -84,17 +85,13 @@ export function FilaCentroLista({
       )}
     >
       <div className="flex items-center gap-1.5">
-        {meta ? (
+        {metaUnidad ? (
           <span
-            className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-white text-[10px]"
-            style={{ borderColor: meta.color }}
+            className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white text-[10px]"
+            style={{ borderColor: metaUnidad.color }}
             aria-hidden
           >
-            {meta.logo ? (
-              <LogoCuerpo src={meta.logo} priority="low" />
-            ) : (
-              meta.icono
-            )}
+            <LogoCuerpo src={LOGO_SEBIN} priority="low" />
           </span>
         ) : sinGeom ? (
           <MapPinOff className="size-3 shrink-0 text-muted-foreground" />
@@ -119,7 +116,8 @@ export function FilaCentroLista({
       </div>
       <div className="mt-0.5 flex items-center gap-2 pl-[26px] text-[10px] text-muted-foreground">
         <span className="min-w-0 truncate">
-          {mostrarCuerpo && centro.parroquia ? `${centro.parroquia} · ` : ""}
+          {mostrarUnidad && metaUnidad ? `${metaUnidad.label} · ` : ""}
+          {mostrarUnidad && !metaUnidad && centro.parroquia ? `${centro.parroquia} · ` : ""}
           {estado.refugiados > 0
             ? `${estado.refugiados.toLocaleString("es")} pers.`
             : "sin ocupación"}

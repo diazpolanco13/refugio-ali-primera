@@ -132,7 +132,7 @@ export function BuscadorCompacto({
                     centro={centro}
                     estado={estados.get(centro.id) ?? ESTADO_FILA_VACIO}
                     seleccionado={seleccionado === centro.id}
-                    mostrarCuerpo
+                    mostrarUnidad
                     onSeleccionar={(c) => {
                       onSeleccionar(c);
                       setAbierto(false);

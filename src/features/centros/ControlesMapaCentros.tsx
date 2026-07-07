@@ -1,5 +1,16 @@
 import { useState, type ReactNode } from "react";
-import { Camera, Check, Home, Layers, Loader2, Locate, LocateFixed, Minus, Plus } from "lucide-react";
+import {
+  Camera,
+  Check,
+  Home,
+  Layers,
+  Loader2,
+  Locate,
+  LocateFixed,
+  Minus,
+  Plus,
+  SlidersHorizontal,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -11,11 +22,14 @@ import {
 } from "@/components/ui/tooltip";
 import { BASES_DISPONIBLES, type BaseMapa } from "@/map/estiloMapa";
 import { cn } from "@/lib/utils";
+import {
+  PanelTogglesVistaMapa,
+  type PropsTogglesVistaMapa,
+} from "./ControlesVistaMarcadores";
 
 interface ControlesProps {
   className?: string;
   gpsActivo: boolean;
-  /** Ancho visible aproximado del mapa, p. ej. "3k" o "500m". */
   escalaVista?: string;
   exportando?: boolean;
   baseMapa: BaseMapa;
@@ -25,6 +39,7 @@ interface ControlesProps {
   onGps: () => void;
   onCentrarCaracas: () => void;
   onExportar?: () => void;
+  vistaMarcadores?: PropsTogglesVistaMapa;
 }
 
 interface CapasProps {
@@ -134,6 +149,45 @@ function MenuCapas({ baseMapa, onCambiarBase }: CapasProps) {
   );
 }
 
+/** Popover de opciones de vista: marcadores, leyenda y cinta de totales. */
+function MenuVistaMarcadores(props: PropsTogglesVistaMapa) {
+  const [abierto, setAbierto] = useState(false);
+
+  return (
+    <Popover open={abierto} onOpenChange={setAbierto}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className={cn(
+                "h-10 w-10 min-w-10 shrink-0 border-0 bg-card text-foreground shadow-none hover:bg-muted/80",
+                abierto && "bg-primary/15 text-primary",
+              )}
+              aria-label="Opciones de vista del mapa"
+            >
+              <SlidersHorizontal className="size-4" />
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="left" sideOffset={8}>
+          Vista y marcadores
+        </TooltipContent>
+      </Tooltip>
+      <PopoverContent
+        side="left"
+        align="end"
+        sideOffset={8}
+        className="w-[min(15rem,calc(100vw-5rem))] p-2.5"
+      >
+        <PanelTogglesVistaMapa {...props} />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /** Controles laterales: zoom, GPS, Caracas y captura (cámara). */
 export function ControlesMapaCentros({
   className,
@@ -147,6 +201,7 @@ export function ControlesMapaCentros({
   onGps,
   onCentrarCaracas,
   onExportar,
+  vistaMarcadores,
 }: ControlesProps) {
   return (
     <TooltipProvider delayDuration={200}>
@@ -218,6 +273,15 @@ export function ControlesMapaCentros({
           )}
           <MenuCapas baseMapa={baseMapa} onCambiarBase={onCambiarBase} />
         </ButtonGroup>
+
+        {vistaMarcadores && (
+          <ButtonGroup
+            orientation="vertical"
+            className="pointer-events-auto w-10 min-w-10 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
+          >
+            <MenuVistaMarcadores {...vistaMarcadores} />
+          </ButtonGroup>
+        )}
       </div>
     </TooltipProvider>
   );
