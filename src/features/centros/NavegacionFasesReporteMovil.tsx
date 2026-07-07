@@ -58,20 +58,15 @@ export function NavegacionFasesReporteMovil({ fases, faseActiva }: Props) {
         </div>
       </div>
 
-      {/* Pasos: 5 columnas iguales; flechas superpuestas (no ocupan ancho) */}
+      {/* Pasos: 5 columnas iguales; flechas en los huecos entre iconos */}
       <div className="relative box-border px-4 pb-3 pt-3">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-[12%] right-[12%] top-[1.65rem] h-px bg-border/80"
-        />
-
         {fases.slice(0, -1).map((fase, i) => (
           <ChevronRight
             key={`flecha-${fase.value}`}
             aria-hidden
             className={cn(
-              "pointer-events-none absolute top-[1.35rem] size-3.5 -translate-x-1/2",
-              fase.completa ? "text-emerald-500/75" : "text-muted-foreground/50",
+              "pointer-events-none absolute top-1/2 z-0 size-3.5 -translate-x-1/2 -translate-y-1/2",
+              fase.completa ? "text-emerald-500/80" : "text-muted-foreground/55",
             )}
             style={{ left: `${posicionFlecha(i, total)}%` }}
             strokeWidth={2.5}
@@ -105,13 +100,13 @@ export function NavegacionFasesReporteMovil({ fases, faseActiva }: Props) {
               >
                 <span
                   className={cn(
-                    "relative flex size-10 items-center justify-center rounded-full border-2 transition-colors",
+                    "relative z-10 flex size-10 items-center justify-center rounded-full border-2 bg-background transition-colors",
                     activa &&
                       "border-teal-400 bg-teal-500/20",
                     !activa &&
                       fase.completa &&
                       "border-emerald-500 bg-emerald-500/15",
-                    !activa && !fase.completa && "border-border bg-muted/30",
+                    !activa && !fase.completa && "border-border bg-muted/40",
                   )}
                 >
                   <Icono
