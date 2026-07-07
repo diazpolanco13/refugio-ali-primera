@@ -1,7 +1,9 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import {
   Archive,
   BarChart3,
+  ChevronRight,
   ClipboardList,
   LayoutGrid,
   MapPinned,
@@ -24,6 +26,11 @@ import { useIncidencias } from "@/data/useIncidencias";
 import { incidenciasAbiertas } from "@/domain/incidencias";
 import { BadgeEnDesarrollo } from "@/components/BadgeEnDesarrollo";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
@@ -34,8 +41,21 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import {
+  SECCIONES_FICHA_CENTRO,
+  centroIdDePathname,
+  esFichaCentroPathname,
+  esReportesCentroPathname,
+  esRutaReportesRed,
+  esSeccionFichaCentro,
+  rutaSeccionFichaCentro,
+  rutaSeccionReportesCentro,
+} from "@/features/centros/seccionesFichaCentro";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -80,6 +100,83 @@ function ItemMenu({
         <SidebarMenuBadge className={badgeClassName}>{badge}</SidebarMenuBadge>
       )}
     </SidebarMenuItem>
+  );
+}
+
+function ItemMenuReportesDiarios({ pathname }: { pathname: string }) {
+  const [searchParams] = useSearchParams();
+  const enReportesRed = esRutaReportesRed(pathname);
+  const esFichaCentro = esFichaCentroPathname(pathname);
+  const esReportesCentro = esReportesCentroPathname(pathname);
+  const centroId = centroIdDePathname(pathname);
+  const [submenuAbierto, setSubmenuAbierto] = useState(true);
+
+  const seccionParam = searchParams.get("vista");
+  const seccionActiva = esSeccionFichaCentro(seccionParam) ? seccionParam : "resumen";
+  const enListadoReportes = pathname === "/centros/reportes";
+  const activo = enReportesRed || esFichaCentro;
+  const enCampamento = centroId != null && (esReportesCentro || esFichaCentro);
+
+  if (!enReportesRed && !esFichaCentro) {
+    return (
+      <ItemMenu
+        to="/centros/reportes"
+        icono={ClipboardList}
+        label="Reportes diarios (red)"
+        activo={false}
+      />
+    );
+  }
+
+  function rutaSeccion(seccion: (typeof SECCIONES_FICHA_CENTRO)[number]["id"]): string {
+    if (!centroId) return "/centros/reportes";
+    if (esReportesCentro || pathname.startsWith("/centros/reportes/")) {
+      return rutaSeccionReportesCentro(centroId, seccion);
+    }
+    return rutaSeccionFichaCentro(pathname, centroId, seccion);
+  }
+
+  return (
+    <Collapsible
+      open={submenuAbierto}
+      onOpenChange={setSubmenuAbierto}
+      className="group/collapsible"
+    >
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton isActive={activo} tooltip="Reportes diarios (red)">
+            <ClipboardList />
+            <TextoMenu>Reportes diarios (red)</TextoMenu>
+            <ChevronRight
+              className={cn(
+                "ml-auto size-4 shrink-0 transition-transform duration-200",
+                submenuAbierto && "rotate-90",
+              )}
+            />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            <SidebarMenuSubItem>
+              <SidebarMenuSubButton asChild isActive={enListadoReportes}>
+                <Link to="/centros/reportes">Por campamento</Link>
+              </SidebarMenuSubButton>
+            </SidebarMenuSubItem>
+            {enCampamento &&
+              SECCIONES_FICHA_CENTRO.map((seccion) => (
+                <SidebarMenuSubItem key={seccion.id}>
+                  <SidebarMenuSubButton
+                    asChild
+                    isActive={enCampamento && seccionActiva === seccion.id}
+                  >
+                    <Link to={rutaSeccion(seccion.id)}>{seccion.label}</Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              ))}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
   );
 }
 
@@ -142,12 +239,9 @@ function NavContenido({ sesion }: Props) {
     );
   }
 
-  const esFichaCentro =
-    /^\/centro\/[^/]+$/.test(pathname) && pathname !== "/centro/nuevo";
   const esSeccionCampamentos =
     rutaActiva(pathname, "/centros/tablero") ||
     rutaActiva(pathname, "/centros/refugiados") ||
-    esFichaCentro ||
     pathname === "/centro/nuevo";
 
   return (
@@ -184,12 +278,7 @@ function NavContenido({ sesion }: Props) {
               label="Campamentos"
               activo={esSeccionCampamentos}
             />
-            <ItemMenu
-              to="/centros/reportes"
-              icono={ClipboardList}
-              label="Reportes diarios (red)"
-              activo={rutaActiva(pathname, "/centros/reportes")}
-            />
+            <ItemMenuReportesDiarios pathname={pathname} />
             {veCensoRed && (
               <ItemMenu
                 to="/centros/censo-rapido"

@@ -1,20 +1,11 @@
 import { matchPath } from "react-router-dom";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import { ETIQUETAS_SECCION_FICHA } from "@/features/centros/seccionesFichaCentro";
 
 export interface MigaPan {
   label: string;
   to?: string;
 }
-
-const ETIQUETAS_VISTA: Record<string, string> = {
-  resumen: "Resumen",
-  coordinacion: "Coordinación",
-  poblacion: "Población",
-  reporte: "Reporte",
-  incidencias: "Incidencias",
-  infraestructura: "Infraestructura",
-  capacidad: "Capacidad",
-};
 
 const INICIO: MigaPan = { label: "Inicio", to: "/centros/mapa" };
 const CAMPAMENTOS: MigaPan = { label: "Campamentos", to: "/centros/tablero" };
@@ -25,34 +16,21 @@ function nombreCentro(centro: CentroTransitorio | undefined, id: string): string
   return centro.nombre || id;
 }
 
-function migasCentro(
-  pathname: string,
+function migasDetalleCentro(
+  id: string,
+  baseCentro: string,
   searchParams: URLSearchParams,
   centro: CentroTransitorio | undefined,
+  encabezado: MigaPan[],
 ): MigaPan[] {
-  const match = matchPath("/centro/:id", pathname);
-  if (!match?.params.id) return [];
-
-  const id = match.params.id;
   const nombre = nombreCentro(centro, id);
-
-  if (pathname === "/centro/nuevo") {
-    return [INICIO, CAMPAMENTOS, { label: "Nuevo campamento" }];
-  }
-
   const vista = searchParams.get("vista");
   const reportar = searchParams.get("reportar") === "1";
   const editar = searchParams.get("editar") === "1";
   const registrar = searchParams.get("registrar") === "1";
   const refugiadoId = searchParams.get("refugiado");
-
-  const baseCentro = `/centro/${id}`;
   const basePoblacion = `${baseCentro}?vista=poblacion`;
-  const migas: MigaPan[] = [
-    INICIO,
-    CAMPAMENTOS,
-    { label: nombre, to: baseCentro },
-  ];
+  const migas: MigaPan[] = [...encabezado, { label: nombre, to: baseCentro }];
 
   if (editar) {
     migas.push({ label: "Editar campamento" });
@@ -77,11 +55,43 @@ function migasCentro(
   }
 
   if (vista && vista !== "resumen") {
-    const etiqueta = ETIQUETAS_VISTA[vista] ?? vista;
+    const etiqueta =
+      ETIQUETAS_SECCION_FICHA[vista as keyof typeof ETIQUETAS_SECCION_FICHA] ?? vista;
     migas.push({ label: etiqueta });
   }
 
   return migas;
+}
+
+function migasCentro(
+  pathname: string,
+  searchParams: URLSearchParams,
+  centro: CentroTransitorio | undefined,
+): MigaPan[] {
+  const match = matchPath("/centro/:id", pathname);
+  if (!match?.params.id) return [];
+
+  return migasDetalleCentro(match.params.id, `/centro/${match.params.id}`, searchParams, centro, [
+    INICIO,
+    CAMPAMENTOS,
+  ]);
+}
+
+function migasReportesCentro(
+  pathname: string,
+  searchParams: URLSearchParams,
+  centro: CentroTransitorio | undefined,
+): MigaPan[] {
+  const match = matchPath("/centros/reportes/:centroId", pathname);
+  if (!match?.params.centroId) return [];
+
+  return migasDetalleCentro(
+    match.params.centroId,
+    `/centros/reportes/${match.params.centroId}`,
+    searchParams,
+    centro,
+    [INICIO, CAMPAMENTOS, { label: "Reportes diarios", to: "/centros/reportes" }],
+  );
 }
 
 /** Construye la ruta de migas según pathname, query y datos opcionales del centro. */
@@ -145,6 +155,10 @@ export function migasPanDeRuta(
 
   if (pathname === "/centro/nuevo") {
     return [INICIO, CAMPAMENTOS, { label: "Nuevo campamento" }];
+  }
+
+  if (matchPath("/centros/reportes/:centroId", pathname)) {
+    return migasReportesCentro(pathname, searchParams, centro);
   }
 
   if (matchPath("/centro/:id", pathname)) {

@@ -51,8 +51,12 @@ export function MigasPanNav() {
   const [searchParams] = useSearchParams();
 
   const matchCentro = matchPath("/centro/:id", location.pathname);
+  const matchReportesCentro = matchPath("/centros/reportes/:centroId", location.pathname);
   const matchCensoCentro = matchPath("/centros/censo-rapido/:centroId", location.pathname);
-  const centroId = matchCentro?.params.id ?? matchCensoCentro?.params.centroId;
+  const centroId =
+    matchCentro?.params.id ??
+    matchReportesCentro?.params.centroId ??
+    matchCensoCentro?.params.centroId;
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
   const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(

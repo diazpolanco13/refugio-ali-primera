@@ -1,5 +1,6 @@
 // Vista completa de un campamento (`/centro/:id`): segmentada por pestañas
 // (Resumen, Coordinación, Población, Reporte, Incidencias, Capacidad).
+// Las mismas secciones también aparecen en el submenú del sidebar bajo Reportes diarios.
 // El reporte diario y la edición del campamento se abren integrados en el mismo marco.
 // Vive dentro del AppShell global, con sidebar y TopBar compartidos.
 
@@ -44,6 +45,11 @@ import { ResumenCentroPanel } from "./ResumenCentroPanel";
 import { SeccionReporteDiarioCentro } from "./ReporteDiarioCentro";
 import { SeccionIncidenciasCentro } from "./IncidenciasCentro";
 import { SeccionInfraestructuraCentro } from "./InfraestructuraCentro";
+import {
+  SECCIONES_FICHA_CENTRO,
+  esSeccionFichaCentro,
+  type SeccionFichaCentro,
+} from "./seccionesFichaCentro";
 import { cn } from "@/lib/utils";
 import { CentroForm } from "./CentroForm";
 import { ReporteDiarioForm } from "./ReporteDiarioForm";
@@ -52,30 +58,17 @@ interface Props {
   sesion: Sesion;
 }
 
-const SECCIONES = [
-  { id: "resumen", label: "Resumen" },
-  { id: "coordinacion", label: "Coordinación" },
-  { id: "poblacion", label: "Población" },
-  { id: "reporte", label: "Reporte" },
-  { id: "incidencias", label: "Incidencias" },
-  { id: "infraestructura", label: "Infraestructura" },
-  { id: "capacidad", label: "Capacidad" },
-] as const;
-
-type SeccionFicha = (typeof SECCIONES)[number]["id"];
-
-function esSeccionFicha(v: string | null): v is SeccionFicha {
-  return SECCIONES.some((s) => s.id === v);
-}
-
 /** Ficha completa de un campamento transitorio. */
 export function FichaCentroView({ sesion }: Props) {
-  const { id } = useParams<{ id: string }>();
+  const { id: idParam, centroId: centroIdParam } = useParams<{ id?: string; centroId?: string }>();
+  const id = centroIdParam ?? idParam;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const seccionParam = searchParams.get("vista");
-  const seccionActiva: SeccionFicha = esSeccionFicha(seccionParam) ? seccionParam : "resumen";
+  const seccionActiva: SeccionFichaCentro = esSeccionFichaCentro(seccionParam)
+    ? seccionParam
+    : "resumen";
   const modoReporte = searchParams.get("reportar") === "1";
   const modoEditar = searchParams.get("editar") === "1";
   const modoRegistrar = searchParams.get("registrar") === "1";
@@ -137,7 +130,7 @@ export function FichaCentroView({ sesion }: Props) {
     });
   }, [centro, reportesHoy, reportesRepHoy, eventosHoy, snapshotsHoy, hoyClave]);
 
-  function cambiarSeccion(vista: SeccionFicha) {
+  function cambiarSeccion(vista: SeccionFichaCentro) {
     setSearchParams(vista === "resumen" ? {} : { vista }, { replace: true });
   }
 
@@ -410,16 +403,15 @@ export function FichaCentroView({ sesion }: Props) {
 
       <Tabs
         value={seccionActiva}
-        onValueChange={(v) => cambiarSeccion(v as SeccionFicha)}
+        onValueChange={(v) => cambiarSeccion(v as SeccionFichaCentro)}
         className="flex min-h-0 flex-1 flex-col"
       >
-        {/* Pestañas segmentadas — scroll horizontal en móvil */}
         <div className="h-[50px] shrink-0 border-b border-border bg-background/95 px-4 sm:px-6">
           <TabsList
             variant="line"
             className="!h-[50px] w-full justify-start gap-0 overflow-x-auto rounded-none bg-transparent p-0 align-middle [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {SECCIONES.map((s) => (
+            {SECCIONES_FICHA_CENTRO.map((s) => (
               <TabsTrigger
                 key={s.id}
                 value={s.id}

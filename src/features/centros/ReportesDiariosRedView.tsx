@@ -1116,7 +1116,7 @@ export function ReportesDiariosRedView() {
                     return (
                   <li key={centro.id}>
                     <Link
-                      to={`/centro/${centro.id}`}
+                      to={`/centros/reportes/${centro.id}?vista=reporte`}
                       className="group flex items-center gap-2 rounded-lg border border-border/60 bg-background/65 px-2.5 py-2 transition-all active:bg-muted/30 sm:gap-3 sm:rounded-xl sm:px-3 sm:py-3 sm:hover:-translate-y-0.5 sm:hover:border-border sm:hover:bg-muted/25 sm:hover:shadow-sm"
                     >
                       <div

@@ -107,6 +107,7 @@ function precargarRutaInicial(pathname: string): Promise<unknown> {
   if (pathname.startsWith("/censo")) return importCensoView();
   if (pathname.startsWith("/dashboard")) return importDashboardView();
   if (pathname.startsWith("/centros/tablero")) return importCentrosView();
+  if (/^\/centros\/reportes\/[^/]+/.test(pathname)) return importFichaCentroView();
   if (pathname.startsWith("/centros/reportes")) return importReportesDiariosRedView();
   if (pathname.startsWith("/centros/refugiados/")) return importRefugiadoDetalleRedView();
   if (pathname.startsWith("/centros/refugiados")) return importRefugiadosRedView();
@@ -199,6 +200,10 @@ export function App() {
                   descripcion="Registro y seguimiento de movimientos de damnificados entre campamentos de la red."
                 />
               }
+            />
+            <Route
+              path="/centros/reportes/:centroId"
+              element={<FichaCentroView sesion={sesion} />}
             />
             <Route path="/centros/reportes" element={<ReportesDiariosRedView />} />
             <Route
