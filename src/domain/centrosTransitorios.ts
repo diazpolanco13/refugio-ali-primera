@@ -529,6 +529,26 @@ export function poblacionCentro(c: CentroTransitorio): number {
   return norm.total_afectados;
 }
 
+/** Presencia de refugiados en el campamento (derivado de la población reportada). */
+export type MarcadorOcupacionCentro = "activo" | "sin_refugiados";
+
+export const META_MARCADOR_OCUPACION: Record<
+  MarcadorOcupacionCentro,
+  { label: string; color: string }
+> = {
+  activo: { label: "Activo", color: "#22c55e" },
+  sin_refugiados: { label: "Sin refugiados", color: "#64748b" },
+};
+
+export const ORDEN_MARCADOR_OCUPACION: MarcadorOcupacionCentro[] = [
+  "activo",
+  "sin_refugiados",
+];
+
+export function marcadorOcupacionCentro(c: CentroTransitorio): MarcadorOcupacionCentro {
+  return poblacionCentro(c) > 0 ? "activo" : "sin_refugiados";
+}
+
 /**
  * Personal operativo desplegado en el centro (no damnificados). Se suma a la
  * población afectada para calcular demanda de agua, comida, baños y duchas.

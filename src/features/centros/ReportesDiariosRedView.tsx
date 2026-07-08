@@ -5,6 +5,7 @@ import { Link, useOutletContext } from "react-router-dom";
 import {
   ArrowDownAZ,
   ArrowUpAZ,
+  Building2,
   CalendarDays,
   CalendarPlus,
   Check,
@@ -42,7 +43,16 @@ import { casosAbiertosSeguimiento } from "@/domain/casosSalud";
 import { textoParteGeneralRed } from "@/domain/reporteTelegramRed";
 import { claveDia } from "@/data/reposSupabase";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
-import { metaCuerpoDe, type CentroTransitorio } from "@/domain/centrosTransitorios";
+import {
+  META_MARCADOR_OCUPACION,
+  marcadorOcupacionCentro,
+  metaCuerpoDe,
+  ORDEN_MARCADOR_OCUPACION,
+  type CentroTransitorio,
+  type MarcadorOcupacionCentro,
+} from "@/domain/centrosTransitorios";
+import { aplicarParteActualACentro } from "@/domain/parteActualCentros";
+import type { SnapshotOcupacion } from "@/domain/serieOcupacionCentros";
 import {
   META_ESTADO_REPORTE,
   estadoReporteDia,
@@ -98,6 +108,7 @@ import {
 import { normalizarTextoBusqueda } from "./CentrosListaItems";
 
 type FiltroEstado = EstadoReporteDia | "todos";
+type FiltroOcupacion = MarcadorOcupacionCentro | "todos";
 
 interface OutletContext {
   sesion: Sesion;
@@ -129,13 +140,6 @@ const OPCIONES_ORDEN: { valor: OrdenReportes; label: string }[] = [
   { valor: "nombre_desc", label: "Nombre Z → A" },
   { valor: "raciones", label: "Más raciones" },
   { valor: "atenciones", label: "Más atenciones" },
-];
-
-const ORDEN_RESUMEN_ESTADOS: EstadoReporteDia[] = [
-  "completo",
-  "parcial",
-  "solo_parte",
-  "pendiente",
 ];
 
 function colorRedPorDia(estados: EstadoReporteDia[]): string | undefined {
@@ -284,20 +288,69 @@ function TarjetaTotalIndicadorReporte({
   );
 }
 
-function TarjetaEstadoReporte({
-  estado,
+function TarjetaTotalRefugios({
+  total,
+  activo,
+  onClick,
+}: {
+  total: number;
+  activo: boolean;
+  onClick: () => void;
+}) {
+  const color = "#38bdf8";
+  const porcentaje = 100;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group min-w-0 rounded-lg border bg-background/80 p-2 text-left transition-all sm:rounded-xl sm:p-3 sm:hover:-translate-y-0.5 sm:hover:bg-muted/20",
+        activo ? "border-primary/60 ring-2 ring-primary/15" : "border-border/70",
+      )}
+      style={{
+        borderColor: activo ? `${color}99` : undefined,
+      }}
+    >
+      <div className="flex items-center justify-between gap-1 sm:gap-2">
+        <span className="inline-flex min-w-0 items-center gap-1 text-[10px] font-medium text-muted-foreground sm:gap-1.5 sm:text-xs">
+          <Building2 className="size-3 shrink-0" style={{ color }} />
+          <span className="truncate leading-tight">Total de refugios</span>
+        </span>
+        <span className="shrink-0 rounded-full bg-muted/60 px-1 py-0.5 text-[9px] font-medium tabular-nums text-muted-foreground sm:px-1.5 sm:text-[10px]">
+          100%
+        </span>
+      </div>
+      <div className="mt-1 flex items-end gap-1 sm:mt-2 sm:gap-1.5">
+        <span className="text-lg font-semibold leading-none tabular-nums text-foreground sm:text-2xl">
+          {total.toLocaleString("es")}
+        </span>
+        <span className="pb-0.5 text-[10px] text-muted-foreground sm:text-[11px]">ctros</span>
+      </div>
+      <div className="mt-2 hidden h-1.5 overflow-hidden rounded-full bg-muted sm:block">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${porcentaje}%`, background: color }}
+        />
+      </div>
+    </button>
+  );
+}
+
+function TarjetaMarcadorOcupacion({
+  marcador,
   cantidad,
   total,
   activo,
   onClick,
 }: {
-  estado: EstadoReporteDia;
+  marcador: MarcadorOcupacionCentro;
   cantidad: number;
   total: number;
   activo: boolean;
   onClick: () => void;
 }) {
-  const meta = META_ESTADO_REPORTE[estado];
+  const meta = META_MARCADOR_OCUPACION[marcador];
   const porcentaje = total > 0 ? Math.round((cantidad / total) * 100) : 0;
 
   return (
@@ -338,6 +391,42 @@ function TarjetaEstadoReporte({
       </div>
     </button>
   );
+}
+
+function claseChipFiltro(activo: boolean) {
+  return cn(
+    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+    activo
+      ? "ring-1 ring-primary/25"
+      : "hover:bg-muted/45",
+  );
+}
+
+function estiloChipFiltro(activo: boolean, color: string): React.CSSProperties {
+  return activo
+    ? { borderColor: `${color}99`, background: `${color}18`, color }
+    : { borderColor: `${color}44`, background: `${color}0d` };
+}
+
+function BadgeMarcadorOcupacion({ marcador }: { marcador: MarcadorOcupacionCentro }) {
+  const meta = META_MARCADOR_OCUPACION[marcador];
+  return (
+    <Badge
+      variant="outline"
+      className="h-5 shrink-0 px-1.5 text-[10px] font-medium sm:h-7 sm:px-2 sm:text-xs"
+      style={{ borderColor: `${meta.color}66`, color: meta.color }}
+    >
+      {meta.label}
+    </Badge>
+  );
+}
+
+function marcadorCentroDia(
+  centro: CentroTransitorio,
+  snap: SnapshotOcupacion | undefined,
+): MarcadorOcupacionCentro {
+  const base = snap ? aplicarParteActualACentro(centro, snap) : centro;
+  return marcadorOcupacionCentro(base);
 }
 
 function SelectorFechaReporte({
@@ -678,6 +767,7 @@ export function ReportesDiariosRedView() {
 
   const [dia, setDia] = useState<string | null>(hoyClave);
   const [estadoFiltro, setEstadoFiltro] = useState<FiltroEstado>("todos");
+  const [ocupacionFiltro, setOcupacionFiltro] = useState<FiltroOcupacion>("todos");
   const [grupoFiltro, setGrupoFiltro] = useState<string>("todos");
   const [orden, setOrden] = useState<OrdenReportes>("pendientes");
   const [busquedaNombre, setBusquedaNombre] = useState("");
@@ -707,9 +797,11 @@ export function ReportesDiariosRedView() {
         const eventosCount = eventosPorCentroDia.get(key) ?? 0;
         const snap = snapshots.find((s) => s.centro_id === centro.id && s.dia === diaActivo);
         const parte = diasConPartePorCentro.get(centro.id)?.has(diaActivo) ?? false;
+        const marcadorOcupacion = marcadorCentroDia(centro, snap);
         return {
           centro,
           estado,
+          marcadorOcupacion,
           parte,
           controlRevisado: controlOk,
           trabajosRevisados:
@@ -725,6 +817,7 @@ export function ReportesDiariosRedView() {
         };
       })
       .filter((f) => estadoFiltro === "todos" || f.estado === estadoFiltro)
+      .filter((f) => ocupacionFiltro === "todos" || f.marcadorOcupacion === ocupacionFiltro)
       .filter(
         (f) =>
           !terminoBusqueda ||
@@ -736,6 +829,7 @@ export function ReportesDiariosRedView() {
     centros,
     diaActivo,
     estadoFiltro,
+    ocupacionFiltro,
     grupoFiltro,
     orden,
     reportes,
@@ -765,19 +859,6 @@ export function ReportesDiariosRedView() {
     return m;
   }, [centros, hoyClave, reportes, controles, eventos, snapshots]);
 
-  const conteosDiaActivo = useMemo(() => {
-    const m: Record<EstadoReporteDia, number> = {
-      completo: 0,
-      parcial: 0,
-      solo_parte: 0,
-      pendiente: 0,
-    };
-    for (const c of centros) {
-      m[estadoCentroDia(c.id, diaActivo)]++;
-    }
-    return m;
-  }, [centros, diaActivo, reportes, controles, eventos, snapshots]);
-
   const marcasPorDia = useMemo(() => {
     const m = new Map<string, string>();
     for (const d of ultimosDiasReporte(30, hoyClave)) {
@@ -796,6 +877,30 @@ export function ReportesDiariosRedView() {
       })),
     [],
   );
+
+  const conteosOcupacionDiaActivo = useMemo(() => {
+    const m: Record<MarcadorOcupacionCentro, number> = {
+      activo: 0,
+      sin_refugiados: 0,
+    };
+    for (const c of centros) {
+      const snap = snapshots.find((s) => s.centro_id === c.id && s.dia === diaActivo);
+      m[marcadorCentroDia(c, snap)]++;
+    }
+    return m;
+  }, [centros, diaActivo, snapshots]);
+
+  const conteosOcupacionHoy = useMemo(() => {
+    const m: Record<MarcadorOcupacionCentro, number> = {
+      activo: 0,
+      sin_refugiados: 0,
+    };
+    for (const c of centros) {
+      const snap = snapshots.find((s) => s.centro_id === c.id && s.dia === hoyClave);
+      m[marcadorCentroDia(c, snap)]++;
+    }
+    return m;
+  }, [centros, hoyClave, snapshots]);
 
   const totalesIndicadoresDia = useMemo(() => {
     let partes = 0;
@@ -855,6 +960,7 @@ export function ReportesDiariosRedView() {
 
   const hayFiltros =
     estadoFiltro !== "todos" ||
+    ocupacionFiltro !== "todos" ||
     grupoFiltro !== "todos" ||
     dia !== hoyClave ||
     orden !== "pendientes" ||
@@ -896,6 +1002,7 @@ export function ReportesDiariosRedView() {
 
   function limpiarFiltros() {
     setEstadoFiltro("todos");
+    setOcupacionFiltro("todos");
     setGrupoFiltro("todos");
     setDia(hoyClave);
     setOrden("pendientes");
@@ -921,6 +1028,27 @@ export function ReportesDiariosRedView() {
                 style={{ background: META_ESTADO_REPORTE[e].color }}
               />
               {META_ESTADO_REPORTE[e].label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={ocupacionFiltro}
+        onValueChange={(v) => setOcupacionFiltro(v as FiltroOcupacion)}
+      >
+        <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
+          <SelectValue placeholder="Ocupación" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todos (activos y vacíos)</SelectItem>
+          {ORDEN_MARCADOR_OCUPACION.map((m) => (
+            <SelectItem key={m} value={m}>
+              <span
+                className="mr-1.5 inline-block size-2 rounded-full"
+                style={{ background: META_MARCADOR_OCUPACION[m].color }}
+              />
+              {META_MARCADOR_OCUPACION[m].label}
             </SelectItem>
           ))}
         </SelectContent>
@@ -1029,6 +1157,24 @@ export function ReportesDiariosRedView() {
                   />
                 </div>
 
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                  <TarjetaTotalRefugios
+                    total={centros.length}
+                    activo={ocupacionFiltro === "todos"}
+                    onClick={() => setOcupacionFiltro("todos")}
+                  />
+                  {ORDEN_MARCADOR_OCUPACION.map((m) => (
+                    <TarjetaMarcadorOcupacion
+                      key={m}
+                      marcador={m}
+                      cantidad={conteosOcupacionDiaActivo[m]}
+                      total={centros.length}
+                      activo={ocupacionFiltro === m}
+                      onClick={() => setOcupacionFiltro(ocupacionFiltro === m ? "todos" : m)}
+                    />
+                  ))}
+                </div>
+
                 <div className="grid grid-cols-2 gap-1.5 sm:gap-2 lg:grid-cols-3 xl:grid-cols-5">
                   <TarjetaTotalIndicadorReporte
                     titulo="Parte numérico"
@@ -1070,19 +1216,6 @@ export function ReportesDiariosRedView() {
                     total={centros.length}
                     color="#34d399"
                   />
-                </div>
-
-                <div className="grid grid-cols-2 gap-1.5 sm:gap-2 xl:grid-cols-4">
-                  {ORDEN_RESUMEN_ESTADOS.map((e) => (
-                    <TarjetaEstadoReporte
-                      key={e}
-                      estado={e}
-                      cantidad={conteosDiaActivo[e]}
-                      total={centros.length}
-                      activo={estadoFiltro === e}
-                      onClick={() => setEstadoFiltro(estadoFiltro === e ? "todos" : e)}
-                    />
-                  ))}
                 </div>
 
                 {/* Móvil: filtros colapsables */}
@@ -1185,7 +1318,7 @@ export function ReportesDiariosRedView() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_180px]">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_180px]">
                     {selectoresFiltro}
                     <SelectorFechaReporte
                       dia={diaActivo}
@@ -1198,35 +1331,65 @@ export function ReportesDiariosRedView() {
                 </div>
 
                 {/* Escritorio: atajo «Hoy» + buscador */}
-                <div className="hidden flex-wrap items-center gap-1.5 md:flex">
-                  <span className="mr-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                <div className="hidden flex-wrap items-center gap-2 md:flex">
+                  <span className="mr-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     Hoy · {formatearDiaCalendario(hoyClave)}
                   </span>
-                  {(Object.keys(META_ESTADO_REPORTE) as EstadoReporteDia[]).map((e) => (
-                    <button
-                      key={e}
-                      type="button"
-                      onClick={() => {
-                        setDia(hoyClave);
-                        setEstadoFiltro(estadoFiltro === e ? "todos" : e);
-                      }}
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors",
-                        estadoFiltro === e && diaActivo === hoyClave
-                          ? "border-primary/60 bg-primary/10"
-                          : "border-border bg-background/80 hover:bg-muted/40",
-                      )}
-                    >
-                      <span
-                        className="size-1.5 rounded-full"
-                        style={{ background: META_ESTADO_REPORTE[e].color }}
-                      />
-                      <span className="text-muted-foreground">{META_ESTADO_REPORTE[e].label}</span>
-                      <span className="font-bold tabular-nums text-foreground">
-                        {conteosHoy[e]}
-                      </span>
-                    </button>
-                  ))}
+                  {(Object.keys(META_ESTADO_REPORTE) as EstadoReporteDia[]).map((e) => {
+                    const activo = estadoFiltro === e && diaActivo === hoyClave;
+                    const color = META_ESTADO_REPORTE[e].color;
+                    return (
+                      <button
+                        key={e}
+                        type="button"
+                        onClick={() => {
+                          setDia(hoyClave);
+                          setEstadoFiltro(estadoFiltro === e ? "todos" : e);
+                        }}
+                        className={claseChipFiltro(activo)}
+                        style={estiloChipFiltro(activo, color)}
+                      >
+                        <span
+                          className="size-2 rounded-full"
+                          style={{ background: color }}
+                        />
+                        <span className={activo ? "text-foreground" : "text-muted-foreground"}>
+                          {META_ESTADO_REPORTE[e].label}
+                        </span>
+                        <span className="font-bold tabular-nums text-foreground">
+                          {conteosHoy[e]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  <span className="mx-0.5 hidden h-5 w-px bg-border sm:inline-block" aria-hidden />
+                  {ORDEN_MARCADOR_OCUPACION.map((m) => {
+                    const activo = ocupacionFiltro === m && diaActivo === hoyClave;
+                    const color = META_MARCADOR_OCUPACION[m].color;
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => {
+                          setDia(hoyClave);
+                          setOcupacionFiltro(ocupacionFiltro === m ? "todos" : m);
+                        }}
+                        className={claseChipFiltro(activo)}
+                        style={estiloChipFiltro(activo, color)}
+                      >
+                        <span
+                          className="size-2 rounded-full"
+                          style={{ background: color }}
+                        />
+                        <span className={activo ? "text-foreground" : "text-muted-foreground"}>
+                          {META_MARCADOR_OCUPACION[m].label}
+                        </span>
+                        <span className="font-bold tabular-nums text-foreground">
+                          {conteosOcupacionHoy[m]}
+                        </span>
+                      </button>
+                    );
+                  })}
                   <BuscadorNombreCampamento
                     valor={busquedaNombre}
                     onChange={setBusquedaNombre}
@@ -1286,6 +1449,7 @@ export function ReportesDiariosRedView() {
                   ({
                     centro,
                     estado,
+                    marcadorOcupacion,
                     parte,
                     controlRevisado,
                     trabajosRevisados,
@@ -1323,6 +1487,9 @@ export function ReportesDiariosRedView() {
                           N.° {centro.nro ?? "—"} · {centro.grupo}
                           {centro.parroquia ? ` · ${centro.parroquia}` : ""}
                         </p>
+                        <div className="mt-1 sm:hidden">
+                          <BadgeMarcadorOcupacion marcador={marcadorOcupacion} />
+                        </div>
                         <div className="mt-1 flex items-center gap-1.5 sm:hidden">
                           <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-sky-300">
                             <Users className="size-2.5" />
@@ -1357,6 +1524,7 @@ export function ReportesDiariosRedView() {
                         </div>
                       </div>
                       <div className="hidden min-w-0 shrink-0 items-center gap-2 sm:flex sm:justify-end">
+                        <BadgeMarcadorOcupacion marcador={marcadorOcupacion} />
                         <IndicadorBloqueReporte
                           titulo="Parte numérico (damnificados)"
                           icono={<Users className="size-3 text-sky-400" />}
