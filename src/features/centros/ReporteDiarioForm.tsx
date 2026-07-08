@@ -51,17 +51,19 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { NumInput } from "@/components/ui/num-input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { EventosReporteTab } from "./EventosReporteTab";
 import { ControlReporteTab } from "./ControlReporteTab";
 import { TrabajosReporteTab } from "./TrabajosReporteTab";
 import { RequerimientosReporteTab } from "./RequerimientosReporteTab";
 import { CasosSaludParte } from "./CasosSaludParte";
+import { NavegacionFasesReporteMovil } from "./NavegacionFasesReporteMovil";
+import { NavegacionFasesReporteDesktop } from "./NavegacionFasesReporteDesktop";
 import {
-  NavegacionFasesReporteMovil,
+  estadoFaseReporte,
   type FaseReporteNav,
-} from "./NavegacionFasesReporteMovil";
+} from "./ProgresoFasesReporte";
 
 interface Props {
   centro: CentroTransitorio;
@@ -121,19 +123,6 @@ function controlIgual(a: ControlDatos, b: ControlDatos): boolean {
 function eventosIguales(a: EventoReporte[], b: EventoReporte[]): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
-
-const clasePestanaReporte = cn(
-  "relative flex h-full min-h-0 min-w-0 w-full flex-row items-center justify-center gap-0.5 overflow-hidden rounded-none px-0 py-0",
-  "!border-x-transparent !border-t-transparent !border-b-2 !border-b-transparent !bg-transparent !shadow-none",
-  "!whitespace-normal text-[10px] font-medium leading-none text-muted-foreground",
-  "transition-colors hover:text-foreground",
-  "after:!hidden after:!content-none",
-  "data-active:!border-x-transparent data-active:!border-t-transparent data-active:!border-b-primary",
-  "data-active:!bg-transparent data-active:!text-foreground data-active:!shadow-none",
-  "dark:data-active:!border-x-transparent dark:data-active:!border-t-transparent dark:data-active:!border-b-primary dark:data-active:!bg-transparent",
-  "sm:gap-1.5 sm:px-1 sm:text-sm",
-  "[&_svg]:size-4 shrink-0",
-);
 
 const PESTANAS_REPORTE: {
   value: string;
@@ -371,22 +360,35 @@ export function ReporteDiarioForm({
     !eventosModificados &&
     (eventosRevisados || (eventosReporte.length > 0 && eventosIguales(eventosReporte, baselineEventos.current)));
 
-  const fasesNav: FaseReporteNav[] = PESTANAS_REPORTE.map(({ value, titulo, icono }) => ({
-    value,
-    titulo,
-    etiquetaMovil: ETIQUETAS_MOVIL[value] ?? titulo,
-    icono,
-    completa:
+  const fasesNav: FaseReporteNav[] = PESTANAS_REPORTE.map(({ value, titulo, icono }) => {
+    const estado =
       value === "parte"
-        ? parteHoyConfirmado
+        ? estadoFaseReporte(parteHoyConfirmado, parteModificado)
         : value === "control"
-          ? control.revisado && !controlModificado
+          ? estadoFaseReporte(control.revisado, controlModificado)
           : value === "trabajos"
             ? trabajosRevisados
+              ? "completa"
+              : "pendiente"
             : value === "requerimientos"
               ? requerimientosRevisados
-              : novedadesCompletas,
-  }));
+                ? "completa"
+                : "pendiente"
+              : novedadesCompletas
+                ? "completa"
+                : eventosModificados || eventosRevisados
+                  ? "en_progreso"
+                  : "pendiente";
+
+    return {
+      value,
+      titulo,
+      etiquetaMovil: ETIQUETAS_MOVIL[value] ?? titulo,
+      icono,
+      estado,
+      completa: estado === "completa",
+    };
+  });
 
   const refugiados = poblacionCentro({ ...centro, ocupacion, total_afectados: totalAfectados });
 
@@ -622,22 +624,6 @@ export function ReporteDiarioForm({
     </div>
   );
 
-  const listaPestanas = (
-    <TabsList
-      variant="line"
-      className="hidden !h-[50px] w-full min-w-0 grid-cols-5 gap-0 overflow-hidden rounded-none bg-background p-0 sm:grid"
-    >
-      {PESTANAS_REPORTE.map(({ value, titulo, etiquetaCorta, icono: Icono }) => (
-        <TabsTrigger key={value} value={value} title={titulo} className={clasePestanaReporte}>
-          <Icono />
-          <span className="hidden min-w-0 truncate sm:inline">
-            {etiquetaCorta ?? titulo}
-          </span>
-        </TabsTrigger>
-      ))}
-    </TabsList>
-  );
-
   const cuerpoFormulario = (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Tabs
@@ -645,9 +631,7 @@ export function ReporteDiarioForm({
         onValueChange={setPestanaActiva}
         className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden"
       >
-        <div className="relative z-30 shrink-0 overflow-hidden border-b border-border/80 bg-background">
-          {listaPestanas}
-        </div>
+        <NavegacionFasesReporteDesktop fases={fasesNav} faseActiva={pestanaActiva} />
 
         <div
           className={cn(

@@ -52,6 +52,9 @@ interface Props {
   etiquetaActualizar?: string;
   badgeExtra?: React.ReactNode;
   className?: string;
+  /** Bloquea el botón principal (p. ej. formulario de ítem sin guardar). */
+  confirmacionBloqueada?: boolean;
+  mensajeConfirmacionBloqueada?: string;
 }
 
 export function BloqueConfirmacionReporte({
@@ -71,6 +74,8 @@ export function BloqueConfirmacionReporte({
   etiquetaActualizar = "Actualizar revisión",
   badgeExtra,
   className,
+  confirmacionBloqueada,
+  mensajeConfirmacionBloqueada,
 }: Props) {
   const estilos = ESTILOS_ACENTO[acento];
   const tituloMostrado = revisado && !modificado ? (tituloRevisado ?? titulo) : titulo;
@@ -82,6 +87,7 @@ export function BloqueConfirmacionReporte({
       : etiquetaConfirmar;
 
   const textoBadge = revisado && !modificado ? "Revisado" : modificado ? "Con cambios" : "Pendiente";
+  const botonDeshabilitado = deshabilitado || guardando || confirmacionBloqueada;
 
   return (
     <div
@@ -115,18 +121,21 @@ export function BloqueConfirmacionReporte({
           </Badge>
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
+      {confirmacionBloqueada && mensajeConfirmacionBloqueada ? (
+        <p className="mt-3 text-xs leading-snug text-amber-400/95">{mensajeConfirmacionBloqueada}</p>
+      ) : null}
+      <div className={cn("flex flex-wrap gap-2", confirmacionBloqueada && mensajeConfirmacionBloqueada ? "mt-2" : "mt-3")}>
         <Button
           type="button"
           className="min-h-10 bg-teal-600 font-semibold text-white hover:bg-teal-500"
-          disabled={deshabilitado || guardando}
+          disabled={botonDeshabilitado}
           onClick={onConfirmar}
         >
           {guardando ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
           {textoBoton}
         </Button>
         {revisado && !modificado && onDesmarcar && (
-          <Button type="button" variant="outline" disabled={deshabilitado || guardando} onClick={onDesmarcar}>
+          <Button type="button" variant="outline" disabled={botonDeshabilitado} onClick={onDesmarcar}>
             Desmarcar revisión
           </Button>
         )}

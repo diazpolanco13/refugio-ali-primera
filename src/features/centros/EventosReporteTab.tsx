@@ -242,11 +242,17 @@ export function EventosReporteTab({
         deshabilitado={deshabilitado}
         onConfirmar={() => onConfirmarRevision?.()}
         onDesmarcar={onDesmarcarRevision}
-        etiquetaGuardar="Guardar novedades"
+        etiquetaGuardar="Guardar todos los cambios"
         etiquetaConfirmar={
           eventos.length === 0 ? "Confirmar sin novedades" : "Confirmar sin cambios"
         }
         etiquetaActualizar="Actualizar novedades"
+        confirmacionBloqueada={borradorPendiente}
+        mensajeConfirmacionBloqueada={
+          borradorPendiente
+            ? "Guarda la novedad en edición antes de guardar todos los cambios."
+            : undefined
+        }
         badgeExtra={
           <Badge variant="outline" className="w-fit shrink-0 gap-1 tabular-nums">
             {eventos.length} evento{eventos.length === 1 ? "" : "s"}
@@ -495,7 +501,7 @@ export function EventosReporteTab({
             onClick={agregarEvento}
           >
             <Plus className="size-4" />
-            Agregar evento
+            Guardar esta novedad
           </Button>
         </CardContent>
       </Card>

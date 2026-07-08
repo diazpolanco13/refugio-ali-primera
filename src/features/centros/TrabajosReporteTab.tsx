@@ -192,12 +192,16 @@ export function TrabajosReporteTab({
   const formularioModificado = formularioPendiente || listadoModificado;
 
   async function confirmarBloque() {
-    if (formularioPendiente && titulo.trim()) {
-      await guardarItem();
-    }
+    if (formularioPendiente) return;
     await onConfirmarRevision();
     setListadoModificado(false);
   }
+
+  const mensajeBloqueoConfirmacion = formularioPendiente
+    ? editandoId
+      ? "Actualiza o cancela el trabajo en edición antes de guardar todos los cambios."
+      : "Guarda el trabajo en edición antes de guardar todos los cambios."
+    : undefined;
 
   return (
     <div className="space-y-4">
@@ -213,9 +217,11 @@ export function TrabajosReporteTab({
         deshabilitado={deshabilitado}
         onConfirmar={() => void confirmarBloque()}
         onDesmarcar={onDesmarcarRevision ? () => void onDesmarcarRevision() : undefined}
-        etiquetaGuardar="Guardar cambios"
+        etiquetaGuardar="Guardar todos los cambios"
         etiquetaConfirmar="Confirmar sin cambios"
         etiquetaActualizar="Actualizar revisión"
+        confirmacionBloqueada={formularioPendiente}
+        mensajeConfirmacionBloqueada={mensajeBloqueoConfirmacion}
         badgeExtra={
           <Badge variant="outline" className="tabular-nums">
             {trabajos.length} {trabajos.length === 1 ? "ítem" : "ítems"}
@@ -268,7 +274,7 @@ export function TrabajosReporteTab({
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" disabled={!titulo.trim() || guardandoItem || deshabilitado} onClick={() => void guardarItem()}>
               {guardandoItem ? <Loader2 className="size-3.5 animate-spin" /> : editandoId ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
-              {editandoId ? "Actualizar" : "Añadir trabajo"}
+              {editandoId ? "Actualizar" : "Guardar este trabajo"}
             </Button>
             {editandoId && (
               <Button type="button" size="sm" variant="outline" onClick={resetForm}>

@@ -179,12 +179,16 @@ export function RequerimientosReporteTab({
   const formularioModificado = formularioPendiente || listadoModificado;
 
   async function confirmarBloque() {
-    if (formularioPendiente && concepto.trim()) {
-      await guardarItem();
-    }
+    if (formularioPendiente) return;
     await onConfirmarRevision();
     setListadoModificado(false);
   }
+
+  const mensajeBloqueoConfirmacion = formularioPendiente
+    ? editandoId
+      ? "Actualiza o cancela el requerimiento en edición antes de guardar todos los cambios."
+      : "Guarda el requerimiento en edición antes de guardar todos los cambios."
+    : undefined;
 
   return (
     <div className="space-y-4">
@@ -200,9 +204,11 @@ export function RequerimientosReporteTab({
         deshabilitado={deshabilitado}
         onConfirmar={() => void confirmarBloque()}
         onDesmarcar={onDesmarcarRevision ? () => void onDesmarcarRevision() : undefined}
-        etiquetaGuardar="Guardar cambios"
+        etiquetaGuardar="Guardar todos los cambios"
         etiquetaConfirmar="Confirmar sin cambios"
         etiquetaActualizar="Actualizar revisión"
+        confirmacionBloqueada={formularioPendiente}
+        mensajeConfirmacionBloqueada={mensajeBloqueoConfirmacion}
         badgeExtra={
           <Badge variant="outline" className="tabular-nums">
             {items.length} {items.length === 1 ? "ítem" : "ítems"}
@@ -262,7 +268,7 @@ export function RequerimientosReporteTab({
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" disabled={!concepto.trim() || guardandoItem || deshabilitado} onClick={() => void guardarItem()}>
               {guardandoItem ? <Loader2 className="size-3.5 animate-spin" /> : editandoId ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
-              {editandoId ? "Actualizar" : "Añadir requerimiento"}
+              {editandoId ? "Actualizar" : "Guardar este requerimiento"}
             </Button>
             {editandoId && (
               <Button type="button" size="sm" variant="outline" onClick={resetForm}>
