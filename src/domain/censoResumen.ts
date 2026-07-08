@@ -1,6 +1,11 @@
 import type { Vulnerables } from "./tipos";
 
-export type EstadoCensoCentro = "sin_iniciar" | "en_curso" | "completado_declarado";
+export type EstadoCensoCentro =
+  | "sin_iniciar"
+  | "en_curso"
+  | "completado_declarado"
+  /** Cierre declarado con 0 personas (sin refugiados / en adecuación). */
+  | "sin_ocupantes";
 
 /** Resumen agregado del censo rápido de una escuela/campamento. */
 export interface ResumenCensoCentro {
@@ -100,8 +105,12 @@ export function pctConCedula(resumen: ResumenCensoCentro): number {
 
 /** Estado del levantamiento según registros y último cierre declarado. */
 export function estadoCensoCentro(resumen: ResumenCensoCentro): EstadoCensoCentro {
+  // El cierre declarado manda: un centro vacío con cierre no es "sin iniciar".
+  if (resumen.cierreEn) {
+    if (resumen.totalRegistrados === 0) return "sin_ocupantes";
+    return "completado_declarado";
+  }
   if (resumen.totalRegistrados === 0) return "sin_iniciar";
-  if (resumen.cierreEn) return "completado_declarado";
   return "en_curso";
 }
 

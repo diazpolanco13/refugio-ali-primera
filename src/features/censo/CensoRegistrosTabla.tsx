@@ -144,6 +144,9 @@ function FilaRegistro({
 interface Props {
   filas: (RegistroCensoGuardado & { centro_id?: string; centro_nombre?: string })[];
   mostrarCentro?: boolean;
+  /** Número de la primera fila visible (para paginación). */
+  numeroInicial?: number;
+  numeracionDescendente?: boolean;
   puedeEditar: boolean;
   onEditar: (fila: RegistroCensoGuardado) => void;
   onEliminar: (fila: RegistroCensoGuardado) => void;
@@ -152,10 +155,13 @@ interface Props {
 export function CensoRegistrosTabla({
   filas,
   mostrarCentro = false,
+  numeroInicial,
+  numeracionDescendente = true,
   puedeEditar,
   onEditar,
   onEliminar,
 }: Props) {
+  const baseNumero = numeroInicial ?? filas.length;
   return (
     <div className="-mx-4 overflow-x-auto">
       <Table className="text-xs">
@@ -179,7 +185,7 @@ export function CensoRegistrosTabla({
             <FilaRegistro
               key={f.id}
               fila={f}
-              numero={filas.length - i}
+              numero={numeracionDescendente ? baseNumero - i : baseNumero + i}
               mostrarCentro={mostrarCentro}
               puedeEditar={puedeEditar}
               onEditar={() => onEditar(f)}

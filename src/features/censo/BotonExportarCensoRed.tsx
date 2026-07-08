@@ -13,27 +13,45 @@ import {
 import { exportarCensoRedExcel, exportarCensoRedPdf } from "./exportarCensoRed";
 
 export function BotonExportarCensoRed({
-  filas,
+  obtenerFilas,
+  totalEsperado,
   deshabilitado,
 }: {
-  filas: RegistroCensoRed[];
+  obtenerFilas: (onProgreso?: (cargados: number, total: number) => void) => Promise<RegistroCensoRed[]>;
+  totalEsperado?: number;
   deshabilitado?: boolean;
 }) {
   const [exportando, setExportando] = useState<"pdf" | "excel" | null>(null);
+  const [progreso, setProgreso] = useState<{ cargados: number; total: number } | null>(null);
 
   async function exportar(tipo: "pdf" | "excel") {
     setExportando(tipo);
+    setProgreso(null);
     try {
+      const filas = await obtenerFilas((cargados, total) => {
+        setProgreso({ cargados, total });
+      });
+      if (filas.length === 0) {
+        alert("No hay registros para exportar con los filtros actuales.");
+        return;
+      }
       if (tipo === "pdf") await exportarCensoRedPdf(filas);
       else await exportarCensoRedExcel(filas);
     } catch (err) {
       alert(err instanceof Error ? err.message : "No se pudo exportar los datos");
     } finally {
       setExportando(null);
+      setProgreso(null);
     }
   }
 
   const ocupado = exportando != null;
+  const etiquetaProgreso =
+    progreso != null
+      ? `${progreso.cargados.toLocaleString("es")}/${progreso.total.toLocaleString("es")}`
+      : totalEsperado != null
+        ? totalEsperado.toLocaleString("es")
+        : null;
 
   return (
     <DropdownMenu>
@@ -44,20 +62,28 @@ export function BotonExportarCensoRed({
           ) : (
             <Download className="size-4" />
           )}
-          Exportar datos
+          {ocupado
+            ? progreso
+              ? `Descargando ${etiquetaProgreso}…`
+              : "Preparando…"
+            : "Exportar datos"}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuLabel>Formato de exportación</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>
+          {totalEsperado != null
+            ? `Exportar ${totalEsperado.toLocaleString("es")} persona${totalEsperado === 1 ? "" : "s"}`
+            : "Formato de exportación"}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled={ocupado} onSelect={() => void exportar("pdf")}>
           <FileText className="size-4" />
-          PDF
+          PDF (todas)
           {exportando === "pdf" && <Loader2 className="ml-auto size-3.5 animate-spin" />}
         </DropdownMenuItem>
         <DropdownMenuItem disabled={ocupado} onSelect={() => void exportar("excel")}>
           <FileSpreadsheet className="size-4" />
-          Excel
+          Excel (todas)
           {exportando === "excel" && <Loader2 className="ml-auto size-3.5 animate-spin" />}
         </DropdownMenuItem>
       </DropdownMenuContent>

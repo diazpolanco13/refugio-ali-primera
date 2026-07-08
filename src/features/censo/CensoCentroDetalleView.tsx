@@ -8,6 +8,7 @@ import {
   BarChart3,
   CheckCircle2,
   ClipboardList,
+  Flag,
   Loader2,
   Pencil,
   RefreshCw,
@@ -20,6 +21,7 @@ import type { Sesion } from "@/data/authSupabase";
 import { useCensoCentroRegistros } from "@/data/useCensoCentroRegistros";
 import { useCensoRedResumen } from "@/data/useCensoRedResumen";
 import {
+  completarCenso,
   CONDICIONES_VIVIENDA,
   eliminarCenso,
   type RegistroCensoGuardado,
@@ -107,6 +109,10 @@ const META_ESTADO = {
   completado_declarado: {
     label: "Completado declarado",
     clase: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  },
+  sin_ocupantes: {
+    label: "Sin ocupantes",
+    clase: "border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-300",
   },
 } as const;
 
@@ -297,6 +303,9 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
   const [eliminarTarget, setEliminarTarget] = useState<RegistroCensoGuardado | null>(null);
   const [eliminando, setEliminando] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState("");
+  const [confirmarSinOcupantes, setConfirmarSinOcupantes] = useState(false);
+  const [completando, setCompletando] = useState(false);
+  const [errorCompletar, setErrorCompletar] = useState("");
 
   async function refrescarTodo() {
     await Promise.all([refrescar(), refrescarResumen()]);
@@ -314,6 +323,28 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
       setErrorEliminar(err instanceof Error ? err.message : "No se pudo eliminar el registro");
     } finally {
       setEliminando(false);
+    }
+  }
+
+  async function confirmarCierreSinOcupantes() {
+    if (!centroId) return;
+    setCompletando(true);
+    setErrorCompletar("");
+    try {
+      await completarCenso(centroId, {
+        jerarquia: sesion.user.jerarquia?.trim() || sesion.user.rol,
+        nombre: sesion.user.nombre?.trim() || sesion.user.username || "Usuario interno",
+        institucion: "Sala situacional",
+        telefono: sesion.user.whatsapp?.trim() || "",
+      });
+      setConfirmarSinOcupantes(false);
+      await refrescarTodo();
+    } catch (err) {
+      setErrorCompletar(
+        err instanceof Error ? err.message : "No se pudo declarar el cierre sin ocupantes",
+      );
+    } finally {
+      setCompletando(false);
     }
   }
 
@@ -346,8 +377,14 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
     return null;
   }
 
-  const estado = resumen ? estadoCensoCentro(resumen) : registros.length > 0 ? "en_curso" : "sin_iniciar";
+  const estado = resumen
+    ? estadoCensoCentro(resumen)
+    : registros.length > 0
+      ? "en_curso"
+      : "sin_iniciar";
   const metaEstado = META_ESTADO[estado];
+  const puedeMarcarSinOcupantes =
+    !cargando && estado === "sin_iniciar" && registros.length === 0;
 
   return (
     <VistaPagina
@@ -404,18 +441,60 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
           </div>
 
           {resumen?.cierreEn && (
-            <div className="flex items-start gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-800 dark:text-emerald-300">
+            <div
+              className={cn(
+                "flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm",
+                estado === "sin_ocupantes"
+                  ? "border-violet-500/40 bg-violet-500/10 text-violet-800 dark:text-violet-300"
+                  : "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300",
+              )}
+            >
               <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
               <div className="min-w-0">
-                <p className="font-medium">Censo completado declarado</p>
+                <p className="font-medium">
+                  {estado === "sin_ocupantes"
+                    ? "Censo cerrado sin ocupantes"
+                    : "Censo completado declarado"}
+                </p>
                 <p className="text-xs opacity-90">
                   {formatearFecha(resumen.cierreEn)}
-                  {resumen.cierreTotal != null
-                    ? ` · ${resumen.cierreTotal.toLocaleString("es")} persona${resumen.cierreTotal === 1 ? "" : "s"} al cierre`
-                    : ""}
+                  {estado === "sin_ocupantes"
+                    ? " · sin personas refugiadas / en adecuación"
+                    : resumen.cierreTotal != null
+                      ? ` · ${resumen.cierreTotal.toLocaleString("es")} persona${resumen.cierreTotal === 1 ? "" : "s"} al cierre`
+                      : ""}
+                  {resumen.cierreFuncionario ? ` · ${resumen.cierreFuncionario}` : ""}
                 </p>
               </div>
             </div>
+          )}
+
+          {puedeMarcarSinOcupantes && (
+            <Card className="border-violet-500/20">
+              <CardContent className="space-y-3 py-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">
+                    Centro sin refugiados o en adecuación
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Si este campamento aún no tiene personas o está en preparación, puede marcar el
+                    censo como completado con 0 ocupantes. Dejará de aparecer como «sin iniciar».
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 w-full border-violet-500/40 text-violet-700 hover:bg-violet-500/10 dark:text-violet-300"
+                  onClick={() => {
+                    setErrorCompletar("");
+                    setConfirmarSinOcupantes(true);
+                  }}
+                >
+                  <Flag className="size-4" />
+                  Marcar completado (sin refugiados)
+                </Button>
+              </CardContent>
+            </Card>
           )}
 
           {error && (
@@ -616,6 +695,48 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
                     </>
                   ) : (
                     "Eliminar"
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog
+            open={confirmarSinOcupantes}
+            onOpenChange={(abierto) => {
+              if (!abierto) {
+                setConfirmarSinOcupantes(false);
+                setErrorCompletar("");
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Cerrar censo sin ocupantes?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Declara que en <strong>{centroNombre}</strong> no hay personas refugiadas por
+                  censar (vacío o en adecuación). El centro pasará a estado «sin ocupantes» y
+                  contará como cierre declarado. Si más adelante llegan personas, podrá registrarlas
+                  igual.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              {errorCompletar && <p className="text-sm text-destructive">{errorCompletar}</p>}
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={completando}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={completando}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    void confirmarCierreSinOcupantes();
+                  }}
+                >
+                  {completando ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Guardando…
+                    </>
+                  ) : (
+                    "Confirmar cierre"
                   )}
                 </AlertDialogAction>
               </AlertDialogFooter>

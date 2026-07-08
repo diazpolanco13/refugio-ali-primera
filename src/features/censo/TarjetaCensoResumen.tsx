@@ -26,6 +26,10 @@ const META_ESTADO = {
     label: "Cierre declarado",
     clase: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
   },
+  sin_ocupantes: {
+    label: "Sin ocupantes",
+    clase: "border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-300",
+  },
 } as const;
 
 const META_CONTRASTE = {
@@ -116,8 +120,18 @@ export function TarjetaCensoResumen({ resumen }: Props) {
             Último registro: {formatearFecha(resumen.ultimoRegistroEn)}
           </p>
           {resumen.cierreEn && (
-            <p className="text-[10px] text-emerald-700 dark:text-emerald-300">
-              Cierre declarado: {formatearFecha(resumen.cierreEn)}
+            <p
+              className={cn(
+                "text-[10px]",
+                estadoCensoCentro(resumen) === "sin_ocupantes"
+                  ? "text-violet-700 dark:text-violet-300"
+                  : "text-emerald-700 dark:text-emerald-300",
+              )}
+            >
+              {estadoCensoCentro(resumen) === "sin_ocupantes"
+                ? "Cerrado sin ocupantes"
+                : "Cierre declarado"}
+              : {formatearFecha(resumen.cierreEn)}
               {resumen.cierreFuncionario ? ` · ${resumen.cierreFuncionario}` : ""}
             </p>
           )}

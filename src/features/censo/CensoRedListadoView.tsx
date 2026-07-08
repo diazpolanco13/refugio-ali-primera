@@ -1,6 +1,6 @@
 // Vista interna: listado general de damnificados del censo rápido (toda la red).
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Baby,
   FilterX,
@@ -12,19 +12,16 @@ import {
   Users,
 } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
+import { obtenerListadoCensoRedFiltrado } from "@/data/reposCenso";
 import { useCensoRedListado } from "@/data/useCensoRedListado";
+import { useCensoRedResumen } from "@/data/useCensoRedResumen";
 import { eliminarCenso, type RegistroCensoGuardado } from "@/data/reposCenso";
 import { puedeEditarCensoRapidoRed, puedeVerCensoRapidoRed } from "@/domain/permisos";
 import { BotonExportarCensoRed } from "@/features/censo/BotonExportarCensoRed";
 import { CensoEditarRegistroSheet } from "@/features/censo/CensoEditarRegistroSheet";
 import { CensoRedTabs } from "@/features/censo/CensoRedTabs";
 import { CensoRegistrosTabla } from "@/features/censo/CensoRegistrosTabla";
-import {
-  estadisticasRegistrosCenso,
-  filtrarRegistrosCenso,
-  ordenarRegistrosCenso,
-  type OrdenRegistrosCenso,
-} from "@/features/censo/censoRegistrosUtil";
+import { type OrdenRegistrosCenso } from "@/features/censo/censoRegistrosUtil";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PaginadorTabla } from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
@@ -92,41 +90,79 @@ function KpiPersona({
 export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
   const tieneAcceso = puedeVerCensoRapidoRed(sesion.user.rol);
   const puedeEditar = puedeEditarCensoRapidoRed(sesion.user.rol);
-  const { registros, cargando, error, refrescar } = useCensoRedListado();
+  const { resumenes, cargando: cargandoResumen } = useCensoRedResumen();
   const [busqueda, setBusqueda] = useState("");
   const [centroId, setCentroId] = useState("todos");
   const [sexo, setSexo] = useState<FiltroSexo>("todos");
   const [orden, setOrden] = useState<OrdenRegistrosCenso>("reciente");
+  const {
+    registros,
+    total,
+    pagina,
+    setPagina,
+    totalPaginas,
+    filasPorPagina,
+    cargando,
+    error,
+    refrescar,
+    filtrosApi,
+  } = useCensoRedListado({ busqueda, centroId, sexo, orden });
   const [editando, setEditando] = useState<RegistroCensoGuardado | null>(null);
   const [eliminarTarget, setEliminarTarget] = useState<RegistroCensoGuardado | null>(null);
   const [eliminando, setEliminando] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState("");
 
-  const campamentos = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const r of registros) {
-      map.set(r.centro_id, r.centro_nombre);
-    }
-    return [...map.entries()]
-      .map(([id, nombre]) => ({ id, nombre }))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
-  }, [registros]);
+  const campamentos = useMemo(
+    () =>
+      resumenes
+        .filter((r) => r.totalRegistrados > 0)
+        .map((r) => ({ id: r.centroId, nombre: r.centroNombre }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+    [resumenes],
+  );
 
   const kpis = useMemo(() => {
-    const stats = estadisticasRegistrosCenso(registros);
-    const campamentosActivos = new Set(registros.map((r) => r.centro_id)).size;
-    return { ...stats, campamentosActivos };
-  }, [registros]);
-
-  const visibles = useMemo(() => {
-    let filas = filtrarRegistrosCenso(registros, busqueda, (f) => [f.centro_nombre]);
-    if (centroId !== "todos") filas = filas.filter((f) => f.centro_id === centroId);
-    if (sexo !== "todos") filas = filas.filter((f) => f.sexo === sexo);
-    return ordenarRegistrosCenso(filas, orden, (f) => f.centro_nombre);
-  }, [busqueda, centroId, sexo, orden, registros]);
+    const totalRed = resumenes.reduce((acc, r) => acc + r.totalRegistrados, 0);
+    const hombres = resumenes.reduce((acc, r) => acc + r.hombres, 0);
+    const mujeres = resumenes.reduce((acc, r) => acc + r.mujeres, 0);
+    const menores = resumenes.reduce(
+      (acc, r) =>
+        acc +
+        r.recienNacidosH +
+        r.recienNacidosM +
+        r.ninos +
+        r.ninas +
+        r.adolescentesH +
+        r.adolescentesM,
+      0,
+    );
+    const campamentosActivos = resumenes.filter((r) => r.totalRegistrados > 0).length;
+    const embarazadas = resumenes.reduce((acc, r) => acc + r.embarazadas, 0);
+    const discapacidad = resumenes.reduce((acc, r) => acc + r.discapacidad, 0);
+    const enfermedad = resumenes.reduce((acc, r) => acc + r.enfermedad, 0);
+    return {
+      total: totalRed,
+      hombres,
+      mujeres,
+      menores,
+      campamentosActivos,
+      embarazadas,
+      discapacidad,
+      enfermedad,
+    };
+  }, [resumenes]);
 
   const hayFiltros =
     busqueda.trim() !== "" || centroId !== "todos" || sexo !== "todos" || orden !== "reciente";
+
+  const numeroInicial =
+    orden === "reciente" ? total - pagina * filasPorPagina : pagina * filasPorPagina + 1;
+
+  const obtenerFilasExportacion = useCallback(
+    (onProgreso?: (cargados: number, total: number) => void) =>
+      obtenerListadoCensoRedFiltrado(filtrosApi, onProgreso),
+    [filtrosApi],
+  );
 
   async function confirmarEliminar() {
     if (!eliminarTarget) return;
@@ -154,8 +190,9 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
         tieneAcceso ? (
           <div className="flex items-center gap-2">
             <BotonExportarCensoRed
-              filas={visibles}
-              deshabilitado={cargando || visibles.length === 0}
+              obtenerFilas={obtenerFilasExportacion}
+              totalEsperado={total}
+              deshabilitado={cargando || total === 0}
             />
             <Button size="sm" variant="outline" onClick={() => void refrescar()} disabled={cargando}>
               <RefreshCw className={cn("size-4", cargando && "animate-spin")} />
@@ -179,7 +216,11 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
           <CensoRedTabs />
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            <KpiPersona valor={kpis.total} etiqueta="Total registrados" icono={Users} />
+            <KpiPersona
+              valor={kpis.total}
+              etiqueta="Total registrados"
+              icono={Users}
+            />
             <KpiPersona valor={kpis.campamentosActivos} etiqueta="Campamentos" icono={Users} />
             <KpiPersona valor={kpis.hombres} etiqueta="Hombres" icono={Users} />
             <KpiPersona valor={kpis.mujeres} etiqueta="Mujeres" icono={Users} />
@@ -259,7 +300,8 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
             )}
 
             <Badge variant="outline" className="ml-auto tabular-nums">
-              {visibles.length} persona{visibles.length === 1 ? "" : "s"}
+              {total.toLocaleString("es")} persona{total === 1 ? "" : "s"}
+              {hayFiltros ? " (filtradas)" : ""}
             </Badge>
           </div>
 
@@ -273,36 +315,46 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Damnificados registrados</CardTitle>
               <CardDescription>
-                {cargando
+                {cargando || cargandoResumen
                   ? "Cargando…"
-                  : `${registros.length} registro${registros.length === 1 ? "" : "s"} en la red`}
+                  : `${kpis.total.toLocaleString("es")} registro${kpis.total === 1 ? "" : "s"} en la red`}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              {cargando ? (
+              {cargando && registros.length === 0 ? (
                 <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin text-primary" />
                   Cargando listado…
                 </div>
-              ) : registros.length === 0 ? (
+              ) : total === 0 && !cargando ? (
                 <p className="py-12 text-center text-sm text-muted-foreground">
-                  Aún no hay damnificados registrados en el censo rápido.
-                </p>
-              ) : visibles.length === 0 ? (
-                <p className="py-12 text-center text-sm text-muted-foreground">
-                  Ninguna persona coincide con los filtros seleccionados.
+                  {hayFiltros
+                    ? "Ninguna persona coincide con los filtros seleccionados."
+                    : "Aún no hay damnificados registrados en el censo rápido."}
                 </p>
               ) : (
-                <CensoRegistrosTabla
-                  filas={visibles}
-                  mostrarCentro
-                  puedeEditar={puedeEditar}
-                  onEditar={setEditando}
-                  onEliminar={(f) => {
-                    setErrorEliminar("");
-                    setEliminarTarget(f);
-                  }}
-                />
+                <>
+                  <CensoRegistrosTabla
+                    filas={registros}
+                    mostrarCentro
+                    numeroInicial={numeroInicial}
+                    numeracionDescendente={orden === "reciente"}
+                    puedeEditar={puedeEditar}
+                    onEditar={setEditando}
+                    onEliminar={(f) => {
+                      setErrorEliminar("");
+                      setEliminarTarget(f);
+                    }}
+                  />
+                  <PaginadorTabla
+                    pagina={pagina}
+                    totalPaginas={totalPaginas}
+                    totalFilas={total}
+                    filasPorPagina={filasPorPagina}
+                    cargando={cargando}
+                    onPagina={setPagina}
+                  />
+                </>
               )}
             </CardContent>
           </Card>

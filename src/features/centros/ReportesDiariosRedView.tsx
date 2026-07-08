@@ -528,7 +528,7 @@ export function ReportesDiariosRedView() {
     const conteo = { completados: 0, enCurso: 0, sinIniciar: 0 };
     for (const r of censoResumenes) {
       const estado = estadoCensoCentro(r);
-      if (estado === "completado_declarado") conteo.completados += 1;
+      if (estado === "completado_declarado" || estado === "sin_ocupantes") conteo.completados += 1;
       else if (estado === "en_curso") conteo.enCurso += 1;
       else conteo.sinIniciar += 1;
     }

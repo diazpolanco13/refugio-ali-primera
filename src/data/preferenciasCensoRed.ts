@@ -23,7 +23,8 @@ function esFiltroEstado(v: string): v is FiltroEstadoCensoRed {
     v === "todos" ||
     v === "sin_iniciar" ||
     v === "en_curso" ||
-    v === "completado_declarado"
+    v === "completado_declarado" ||
+    v === "sin_ocupantes"
   );
 }
 

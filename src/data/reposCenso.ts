@@ -3,8 +3,35 @@
 // La escritura pasa por funciones security definer en Supabase; el rol anon
 // no tiene acceso directo a las tablas.
 
+import type { PostgrestSingleResponse } from "@supabase/supabase-js";
 import type { ResumenCensoCentro } from "@/domain/censoResumen";
 import { supabase } from "./supabaseClient";
+
+/** PostgREST/Supabase devuelve como máximo 1000 filas por petición RPC. */
+const LIMITE_FILAS_RPC = 1000;
+
+/** Tamaño de bloque al descargar todos los registros (p. ej. exportación). */
+export const LIMITE_BLOQUE_EXPORTACION_CENSO_RED = LIMITE_FILAS_RPC;
+
+async function rpcSetofPaginado<T>(
+  consultar: (desde: number, hasta: number) => PromiseLike<PostgrestSingleResponse<T[]>>,
+): Promise<T[]> {
+  const acumulado: T[] = [];
+  let desde = 0;
+
+  for (;;) {
+    const hasta = desde + LIMITE_FILAS_RPC - 1;
+    const { data, error } = await consultar(desde, hasta);
+    if (error) throw new Error(error.message);
+
+    const pagina = data ?? [];
+    acumulado.push(...pagina);
+    if (pagina.length < LIMITE_FILAS_RPC) break;
+    desde += LIMITE_FILAS_RPC;
+  }
+
+  return acumulado;
+}
 
 export interface CentroCenso {
   id: string;
@@ -255,9 +282,9 @@ export async function eliminarCenso(id: string): Promise<void> {
 
 /** Registros del censo de un refugio (vista de estadística del operador). */
 export async function listarRegistrosCenso(centroId: string): Promise<RegistroCensoGuardado[]> {
-  const { data, error } = await supabase.rpc("censo_listado", { p_centro_id: centroId });
-  if (error) throw new Error(error.message);
-  return (data ?? []) as RegistroCensoGuardado[];
+  return rpcSetofPaginado<RegistroCensoGuardado>((desde, hasta) =>
+    supabase.rpc("censo_listado", { p_centro_id: centroId }).range(desde, hasta),
+  );
 }
 
 /** Declara completado el registro del refugio. Devuelve el total al momento del cierre. */
@@ -373,9 +400,80 @@ export async function obtenerResumenCensoRed(): Promise<ResumenCensoCentro[]> {
 
 type FilaListadoCensoRed = RegistroCensoRed;
 
-/** Listado de todas las personas del censo rápido en la red (solo roles autorizados). */
-export async function obtenerListadoCensoRed(): Promise<RegistroCensoRed[]> {
-  const { data, error } = await supabase.rpc("censo_listado_red");
+export const FILAS_POR_PAGINA_CENSO_RED = 50;
+
+export interface FiltrosListadoCensoRed {
+  centroId?: string;
+  sexo?: string;
+  busqueda?: string;
+  orden?: string;
+}
+
+function paramsFiltrosListadoCensoRed(filtros: FiltrosListadoCensoRed) {
+  return {
+    p_centro_id: filtros.centroId && filtros.centroId !== "todos" ? filtros.centroId : null,
+    p_sexo: filtros.sexo && filtros.sexo !== "todos" ? filtros.sexo : null,
+    p_busqueda: filtros.busqueda?.trim() || null,
+    p_orden: filtros.orden ?? "reciente",
+  };
+}
+
+/** Total de registros del listado general con filtros (sin paginar). */
+export async function contarListadoCensoRed(filtros: FiltrosListadoCensoRed = {}): Promise<number> {
+  const { p_centro_id, p_sexo, p_busqueda } = paramsFiltrosListadoCensoRed(filtros);
+  const { data, error } = await supabase.rpc("censo_listado_red_conteo", {
+    p_centro_id,
+    p_sexo,
+    p_busqueda,
+  });
+  if (error) throw new Error(error.message);
+  return Number(data ?? 0);
+}
+
+/** Página del listado general del censo rápido en la red. */
+export async function obtenerListadoCensoRedPaginado(
+  filtros: FiltrosListadoCensoRed,
+  pagina: number,
+  filasPorPagina = FILAS_POR_PAGINA_CENSO_RED,
+): Promise<RegistroCensoRed[]> {
+  const { p_centro_id, p_sexo, p_busqueda, p_orden } = paramsFiltrosListadoCensoRed(filtros);
+  const { data, error } = await supabase.rpc("censo_listado_red_paginado", {
+    p_limit: filasPorPagina,
+    p_offset: pagina * filasPorPagina,
+    p_centro_id,
+    p_sexo,
+    p_busqueda,
+    p_orden,
+  });
   if (error) throw new Error(error.message);
   return (data ?? []) as FilaListadoCensoRed[];
+}
+
+/** Todos los registros que coinciden con filtros (p. ej. exportación). */
+export async function obtenerListadoCensoRedFiltrado(
+  filtros: FiltrosListadoCensoRed = {},
+  onProgreso?: (cargados: number, total: number) => void,
+): Promise<RegistroCensoRed[]> {
+  const totalEsperado = await contarListadoCensoRed(filtros);
+  const acumulado: RegistroCensoRed[] = [];
+  let pagina = 0;
+
+  for (;;) {
+    const bloque = await obtenerListadoCensoRedPaginado(
+      filtros,
+      pagina,
+      LIMITE_BLOQUE_EXPORTACION_CENSO_RED,
+    );
+    acumulado.push(...bloque);
+    onProgreso?.(acumulado.length, totalEsperado);
+    if (bloque.length < LIMITE_BLOQUE_EXPORTACION_CENSO_RED) break;
+    pagina += 1;
+  }
+
+  return acumulado;
+}
+
+/** @deprecated Usar obtenerListadoCensoRedPaginado o obtenerListadoCensoRedFiltrado. */
+export async function obtenerListadoCensoRed(): Promise<RegistroCensoRed[]> {
+  return obtenerListadoCensoRedFiltrado();
 }

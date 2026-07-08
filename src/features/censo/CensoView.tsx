@@ -1726,23 +1726,35 @@ function PasoRegistrados({
       </Card>
 
       {/* Cierre declarativo del censo */}
-      {!cargando && filas.length > 0 && (
+      {!cargando && (
         <Card className="shadow-lg">
           <CardContent className="space-y-3 py-4">
-            <p className="text-sm text-muted-foreground">
-              Cuando haya registrado a todas las personas del campamento, confirme el cierre del censo.
-              Esto no impide seguir agregando o corrigiendo registros después.
-            </p>
+            {filas.length > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Cuando haya registrado a todas las personas del campamento, confirme el cierre del
+                censo. Esto no impide seguir agregando o corrigiendo registros después.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Si el campamento no tiene personas refugiadas todavía (vacío o en adecuación), puede
+                declarar el censo completado con 0 ocupantes.
+              </p>
+            )}
             <Button
               type="button"
-              className="h-12 w-full text-base"
+              className={cn(
+                "h-12 w-full text-base",
+                filas.length === 0 &&
+                  "border border-violet-500/40 bg-violet-500/10 text-violet-800 hover:bg-violet-500/15 dark:text-violet-300",
+              )}
+              variant={filas.length === 0 ? "outline" : "default"}
               onClick={() => {
                 setErrorCompletar("");
                 setConfirmarCompletar(true);
               }}
             >
               <Flag className="size-4" />
-              Censo completado
+              {filas.length === 0 ? "Completado (sin refugiados)" : "Censo completado"}
             </Button>
           </CardContent>
         </Card>
@@ -1810,10 +1822,20 @@ function PasoRegistrados({
           <AlertDialogHeader>
             <AlertDialogTitle>¿Confirmar censo completado?</AlertDialogTitle>
             <AlertDialogDescription>
-              Declara que se registró la totalidad de las personas presentes en{" "}
-              <strong>{centroNombre}</strong> ({stats.total} persona
-              {stats.total === 1 ? "" : "s"} al momento). Podrá seguir registrando o corrigiendo
-              después si hace falta.
+              {stats.total === 0 ? (
+                <>
+                  Declara que en <strong>{centroNombre}</strong> no hay personas refugiadas por
+                  censar (campamento vacío o en adecuación). Podrá registrar personas después si
+                  llegan.
+                </>
+              ) : (
+                <>
+                  Declara que se registró la totalidad de las personas presentes en{" "}
+                  <strong>{centroNombre}</strong> ({stats.total} persona
+                  {stats.total === 1 ? "" : "s"} al momento). Podrá seguir registrando o corrigiendo
+                  después si hace falta.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {errorCompletar && (

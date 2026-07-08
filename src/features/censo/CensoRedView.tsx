@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
+  CircleDashed,
   ClipboardList,
   FilterX,
   Loader2,
@@ -52,6 +53,7 @@ const OPCIONES_ESTADO: { valor: FiltroEstado; label: string }[] = [
   { valor: "sin_iniciar", label: "Sin iniciar" },
   { valor: "en_curso", label: "En curso" },
   { valor: "completado_declarado", label: "Completado declarado" },
+  { valor: "sin_ocupantes", label: "Sin ocupantes / adecuación" },
 ];
 
 const OPCIONES_ORDEN: { valor: OrdenCenso; label: string }[] = [
@@ -143,10 +145,15 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
   }, [busqueda, estado, orden]);
 
   const kpis = useMemo(() => {
-    const activas = resumenes.filter((r) => r.totalRegistrados > 0).length;
+    const activas = resumenes.filter((r) => estadoCensoCentro(r) === "en_curso").length;
+    const sinIniciar = resumenes.filter((r) => estadoCensoCentro(r) === "sin_iniciar").length;
     const totalPersonas = resumenes.reduce((acc, r) => acc + r.totalRegistrados, 0);
-    const conCierre = resumenes.filter((r) => r.cierreEn).length;
-    return { activas, totalPersonas, conCierre };
+    const conCierre = resumenes.filter(
+      (r) =>
+        estadoCensoCentro(r) === "completado_declarado" ||
+        estadoCensoCentro(r) === "sin_ocupantes",
+    ).length;
+    return { activas, sinIniciar, totalPersonas, conCierre };
   }, [resumenes]);
 
   const visibles = useMemo(() => {
@@ -190,7 +197,13 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
         <div className="space-y-4">
           <CensoRedTabs />
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <KpiRed
+              valor={kpis.sinIniciar}
+              etiqueta="Escuelas sin iniciar censo"
+              icono={CircleDashed}
+              clase="bg-muted text-muted-foreground"
+            />
             <KpiRed valor={kpis.activas} etiqueta="Escuelas con censo activo" icono={ClipboardList} />
             <KpiRed valor={kpis.totalPersonas} etiqueta="Personas registradas (red)" icono={Users} />
             <KpiRed
