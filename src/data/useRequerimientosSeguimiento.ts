@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
 import {
   normalizarRequerimientoSeguimiento,
@@ -12,15 +12,20 @@ interface Opciones {
 
 type Fila = Partial<RequerimientoSeguimiento> & { id: string; centro_id: string };
 
-export function useRequerimientosSeguimiento(opts: Opciones = {}): RequerimientoSeguimiento[] {
+export function useRequerimientosSeguimiento(opts: Opciones = {}): {
+  requerimientos: RequerimientoSeguimiento[];
+  /** Refetch silencioso; llamar tras una mutación local (crear/editar/archivar). */
+  recargar: () => Promise<void>;
+} {
   const { centroId, soloActivos = false } = opts;
-  const [items, setItems] = useState<RequerimientoSeguimiento[]>([]);
+  const [requerimientos, setRequerimientos] = useState<RequerimientoSeguimiento[]>([]);
+  const recargarRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
     let cancelado = false;
     const channelName = `useRequerimientosSeguimiento:${centroId ?? "all"}:${Math.random().toString(36).slice(2)}`;
 
-    (async () => {
+    async function cargar() {
       let q = supabase.from("requerimientos_seguimiento").select("*");
       if (centroId) q = q.eq("centro_id", centroId);
       if (soloActivos) q = q.neq("estatus", "archivado");
@@ -30,33 +35,18 @@ export function useRequerimientosSeguimiento(opts: Opciones = {}): Requerimiento
         console.warn("[useRequerimientosSeguimiento] select:", error.message);
         return;
       }
-      setItems(((data ?? []) as Fila[]).map(normalizarRequerimientoSeguimiento));
-    })();
+      setRequerimientos(((data ?? []) as Fila[]).map(normalizarRequerimientoSeguimiento));
+    }
+
+    recargarRef.current = cargar;
+    void cargar();
 
     const channel = supabase
       .channel(channelName)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "requerimientos_seguimiento" },
-        (payload) => {
-          if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-            const cruda = payload.new as unknown as Fila;
-            if (centroId && cruda.centro_id !== centroId) return;
-            const fila = normalizarRequerimientoSeguimiento(cruda);
-            if (soloActivos && fila.estatus === "archivado") {
-              setItems((prev) => prev.filter((r) => r.id !== fila.id));
-              return;
-            }
-            setItems((prev) =>
-              prev.some((r) => r.id === fila.id)
-                ? prev.map((r) => (r.id === fila.id ? fila : r))
-                : [fila, ...prev],
-            );
-          } else if (payload.eventType === "DELETE") {
-            const fila = payload.old as unknown as { id: string };
-            setItems((prev) => prev.filter((r) => r.id !== fila.id));
-          }
-        },
+        () => void cargar(),
       )
       .subscribe();
 
@@ -66,5 +56,7 @@ export function useRequerimientosSeguimiento(opts: Opciones = {}): Requerimiento
     };
   }, [centroId, soloActivos]);
 
-  return items;
+  const recargar = useCallback(() => recargarRef.current(), []);
+
+  return { requerimientos, recargar };
 }

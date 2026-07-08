@@ -155,7 +155,10 @@ export function RequerimientosReporteTab({
   deshabilitado,
   guardando,
 }: Props) {
-  const items = useRequerimientosSeguimiento({ centroId, soloActivos: true });
+  const { requerimientos: items, recargar: recargarRequerimientos } = useRequerimientosSeguimiento({
+    centroId,
+    soloActivos: true,
+  });
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [concepto, setConcepto] = useState("");
   const [cantidad, setCantidad] = useState(0);
@@ -217,6 +220,7 @@ export function RequerimientosReporteTab({
       }
       resetForm();
       setListadoModificado(true);
+      await recargarRequerimientos();
     } finally {
       setGuardandoItem(false);
     }
@@ -228,6 +232,7 @@ export function RequerimientosReporteTab({
       await eliminarRequerimientoSeguimiento(id);
       if (editandoId === id) resetForm();
       setListadoModificado(true);
+      await recargarRequerimientos();
     } finally {
       setEliminandoId(null);
     }
@@ -349,7 +354,10 @@ export function RequerimientosReporteTab({
                 eliminando={eliminandoId === r.id}
                 onEditar={() => cargarEdicion(r)}
                 onArchivar={() => {
-                  void archivarRequerimientoSeguimiento(r.id).then(() => setListadoModificado(true));
+                  void archivarRequerimientoSeguimiento(r.id).then(async () => {
+                    setListadoModificado(true);
+                    await recargarRequerimientos();
+                  });
                 }}
                 onEliminar={() => void eliminarItem(r.id)}
               />

@@ -11,8 +11,7 @@
 // Análogo al `poblacion.ts` que existía para los sectores del parque (ver
 // referencias en CLAUDE.md), aplicado ahora a la red de centros.
 
-import type { Vulnerables } from "./tipos";
-import { normalizarVulnerables } from "./tipos";
+import { normalizarVulnerables, totalPoblacion, type Vulnerables } from "./tipos";
 
 export interface SnapshotOcupacion {
   centro_id: string;
@@ -25,6 +24,18 @@ export interface SnapshotOcupacion {
   /** Contador manual de incidencias de salud del día (parte Telegram). */
   incidencias_salud: number;
   ocupacion: Vulnerables;
+}
+
+/**
+ * Refugiados en un snapshot diario: personas alojadas, sin personal operativo
+ * ni mascotas. Las embarazadas ya están en `adultos_m` del desglose etario;
+ * no se suman aparte.
+ */
+export function refugiadosEnSnapshot(snap: SnapshotOcupacion): number {
+  const desdeDesglose = totalPoblacion(normalizarVulnerables(snap.ocupacion));
+  const totalParte = Math.max(0, snap.total_afectados ?? 0);
+  if (totalParte > 0) return totalParte;
+  return desdeDesglose;
 }
 
 export interface PuntoSerie {

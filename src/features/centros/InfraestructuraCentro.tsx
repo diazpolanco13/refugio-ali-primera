@@ -609,7 +609,7 @@ function TarjetaArea({
 export function InfraestructuraCentro({ centroId, puedeEditar = false, esNuevo }: PropsCentro) {
   const [filtroEstado, setFiltroEstado] = useState<EstadoInfraestructura | "todos">("todos");
   const areasTodas = useAreasInfraestructura({ centroId });
-  const reparaciones = useReparacionesCentros({ centroId });
+  const { trabajos: reparaciones } = useReparacionesCentros({ centroId });
   const [mostrandoForm, setMostrandoForm] = useState(false);
   const [editando, setEditando] = useState<AreaInfraestructura | null>(null);
 
@@ -748,7 +748,7 @@ export function SeccionInfraestructuraCentro({
   variant = "compacto",
 }: PropsSeccion) {
   const areas = useAreasInfraestructura({ centroId: centro.id });
-  const reparaciones = useReparacionesCentros({ centroId: centro.id });
+  const { trabajos: reparaciones } = useReparacionesCentros({ centroId: centro.id });
   const conteos = contarPorEstado(areas);
   const expandido = variant === "expandido";
 

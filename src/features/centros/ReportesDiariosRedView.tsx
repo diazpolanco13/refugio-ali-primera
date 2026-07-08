@@ -52,7 +52,10 @@ import {
   type MarcadorOcupacionCentro,
 } from "@/domain/centrosTransitorios";
 import { aplicarParteActualACentro } from "@/domain/parteActualCentros";
-import type { SnapshotOcupacion } from "@/domain/serieOcupacionCentros";
+import {
+  refugiadosEnSnapshot,
+  type SnapshotOcupacion,
+} from "@/domain/serieOcupacionCentros";
 import {
   META_ESTADO_REPORTE,
   estadoReporteDia,
@@ -121,6 +124,7 @@ type OrdenReportes =
   | "nro_desc"
   | "nombre_asc"
   | "nombre_desc"
+  | "refugiados"
   | "raciones"
   | "atenciones";
 
@@ -138,6 +142,7 @@ const OPCIONES_ORDEN: { valor: OrdenReportes; label: string }[] = [
   { valor: "nro_desc", label: "N.° descendente" },
   { valor: "nombre_asc", label: "Nombre A → Z" },
   { valor: "nombre_desc", label: "Nombre Z → A" },
+  { valor: "refugiados", label: "Más refugiados" },
   { valor: "raciones", label: "Más raciones" },
   { valor: "atenciones", label: "Más atenciones" },
 ];
@@ -159,6 +164,7 @@ function ordenarFilas<
   T extends {
     centro: CentroTransitorio;
     estado: EstadoReporteDia;
+    damnificados: number;
     incidenciasSalud: number;
     eventos: number;
   },
@@ -182,6 +188,12 @@ function ordenarFilas<
     case "nombre_desc":
       return copia.sort((a, b) =>
         b.centro.nombre.localeCompare(a.centro.nombre, "es"),
+      );
+    case "refugiados":
+      return copia.sort(
+        (a, b) =>
+          b.damnificados - a.damnificados ||
+          (a.centro.nro ?? 0) - (b.centro.nro ?? 0),
       );
     case "raciones":
       return copia.sort(
@@ -680,8 +692,8 @@ export function ReportesDiariosRedView() {
   const eventos = useEventosReportes({ desde });
   const incidencias = useIncidencias({ desde });
   const snapshots = useOcupacionesCentros({ desde });
-  const trabajosRed = useReparacionesCentros({ soloActivos: true });
-  const requerimientosRed = useRequerimientosSeguimiento({ soloActivos: true });
+  const { trabajos: trabajosRed } = useReparacionesCentros({ soloActivos: true });
+  const { requerimientos: requerimientosRed } = useRequerimientosSeguimiento({ soloActivos: true });
   const casosSaludRed = useCasosSaludCentros({ soloActivos: true });
   const { resumenes: censoResumenes } = useCensoRedResumen();
   const censoEstados = useMemo(() => {
@@ -883,7 +895,7 @@ export function ReportesDiariosRedView() {
           eventosRevisados: eventosRevisados(reporte, eventosCount),
           incidenciasSalud: snap?.incidencias_salud ?? 0,
           eventos: eventosCount,
-          damnificados: snap?.total_afectados ?? 0,
+          damnificados: snap ? refugiadosEnSnapshot(snap) : 0,
           trabajosActivos: trabajosActivosPorCentro.get(centro.id) ?? 0,
           requerimientosActivos: requerimientosActivosPorCentro.get(centro.id) ?? 0,
         };
@@ -995,8 +1007,10 @@ export function ReportesDiariosRedView() {
         const snap = snapshots.find(
           (s) => s.centro_id === centro.id && s.dia === diaActivo,
         );
-        refugiados += snap?.total_afectados ?? 0;
-        incidenciasSalud += snap?.incidencias_salud ?? 0;
+        if (snap) {
+          refugiados += refugiadosEnSnapshot(snap);
+          incidenciasSalud += snap.incidencias_salud ?? 0;
+        }
       }
       if (controlesPorCentroDia.has(key)) controlOk++;
       if (reportesRepPorCentroDia.has(key) || reporte?.trabajos_revisados) trabajosOk++;
@@ -1249,7 +1263,7 @@ export function ReportesDiariosRedView() {
 
                 <div className="grid grid-cols-2 gap-1.5 sm:gap-2 lg:grid-cols-3 xl:grid-cols-5">
                   <TarjetaTotalIndicadorReporte
-                    titulo="Parte numérico"
+                    titulo="Total refugiados"
                     icono={<Users className="size-3 shrink-0 text-sky-400" />}
                     valor={totalesIndicadoresDia.refugiados.toLocaleString("es")}
                     completados={totalesIndicadoresDia.partes}

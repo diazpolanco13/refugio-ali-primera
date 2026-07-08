@@ -229,8 +229,8 @@ export function ReporteDiarioForm({
   const reportes = useReportesCentros({ centroId: centro.id, dia: diaReporte });
   const reporteExistente = reporteDelDia(reportes, centro.id, diaReporte);
   const controles = useReportesControlDia({ centroId: centro.id });
-  const trabajos = useReparacionesCentros({ centroId: centro.id });
-  const requerimientos = useRequerimientosSeguimiento({ centroId: centro.id });
+  const { trabajos } = useReparacionesCentros({ centroId: centro.id });
+  const { requerimientos } = useRequerimientosSeguimiento({ centroId: centro.id });
   const casosSalud = useCasosSaludCentros({ centroId: centro.id });
   const eventosExistentes = useEventosReportes({ centroId: centro.id, dia: diaReporte });
 

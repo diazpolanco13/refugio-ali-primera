@@ -173,7 +173,10 @@ export function TrabajosReporteTab({
   deshabilitado,
   guardando,
 }: Props) {
-  const trabajos = useReparacionesCentros({ centroId, soloActivos: true });
+  const { trabajos, recargar: recargarTrabajos } = useReparacionesCentros({
+    centroId,
+    soloActivos: true,
+  });
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [titulo, setTitulo] = useState("");
   const [finalidad, setFinalidad] = useState("");
@@ -230,6 +233,7 @@ export function TrabajosReporteTab({
       }
       resetForm();
       setListadoModificado(true);
+      await recargarTrabajos();
     } finally {
       setGuardandoItem(false);
     }
@@ -241,6 +245,7 @@ export function TrabajosReporteTab({
       await eliminarTrabajo(id);
       if (editandoId === id) resetForm();
       setListadoModificado(true);
+      await recargarTrabajos();
     } finally {
       setEliminandoId(null);
     }
@@ -355,7 +360,10 @@ export function TrabajosReporteTab({
                 eliminando={eliminandoId === t.id}
                 onEditar={() => cargarEdicion(t)}
                 onArchivar={() => {
-                  void archivarTrabajo(t.id).then(() => setListadoModificado(true));
+                  void archivarTrabajo(t.id).then(async () => {
+                    setListadoModificado(true);
+                    await recargarTrabajos();
+                  });
                 }}
                 onEliminar={() => void eliminarItem(t.id)}
               />

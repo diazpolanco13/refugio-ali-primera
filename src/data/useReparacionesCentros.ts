@@ -1,7 +1,7 @@
 // Hook para leer reparaciones persistentes de `reparaciones_centros` con
-// Realtime. Mismo patrón que `useIncidencias`.
+// Realtime. Mismo patrón que `useBeneficiosRefugiado`.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
 import {
   normalizarTrabajo,
@@ -20,15 +20,20 @@ interface Opciones {
 
 type FilaReparacion = Partial<TrabajoCentro> & { id: string; centro_id: string };
 
-export function useReparacionesCentros(opts: Opciones = {}): TrabajoCentro[] {
+export function useReparacionesCentros(opts: Opciones = {}): {
+  trabajos: TrabajoCentro[];
+  /** Refetch silencioso; llamar tras una mutación local (crear/editar/archivar). */
+  recargar: () => Promise<void>;
+} {
   const { centroId, estatus, soloActivos = false } = opts;
-  const [reparaciones, setReparaciones] = useState<TrabajoCentro[]>([]);
+  const [trabajos, setTrabajos] = useState<TrabajoCentro[]>([]);
+  const recargarRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
     let cancelado = false;
     const channelName = `useReparacionesCentros:${centroId ?? "all"}:${estatus ?? "all"}:${Math.random().toString(36).slice(2)}`;
 
-    (async () => {
+    async function cargar() {
       let q = supabase.from("reparaciones_centros").select("*");
       if (centroId) q = q.eq("centro_id", centroId);
       if (estatus) q = q.eq("estatus", estatus);
@@ -39,37 +44,18 @@ export function useReparacionesCentros(opts: Opciones = {}): TrabajoCentro[] {
         console.warn("[useReparacionesCentros] error en select:", error.message);
         return;
       }
-      setReparaciones(((data ?? []) as FilaReparacion[]).map(normalizarTrabajo));
-    })();
+      setTrabajos(((data ?? []) as FilaReparacion[]).map(normalizarTrabajo));
+    }
+
+    recargarRef.current = cargar;
+    void cargar();
 
     const channel = supabase
       .channel(channelName)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "reparaciones_centros" },
-        (payload) => {
-          if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-            const cruda = payload.new as unknown as FilaReparacion;
-            if (centroId && cruda.centro_id !== centroId) return;
-            const fila = normalizarTrabajo(cruda);
-            if (soloActivos && fila.estatus === "archivado") {
-              setReparaciones((prev) => prev.filter((r) => r.id !== fila.id));
-              return;
-            }
-            if (estatus && fila.estatus !== estatus) {
-              setReparaciones((prev) => prev.filter((r) => r.id !== fila.id));
-              return;
-            }
-            setReparaciones((prev) =>
-              prev.some((r) => r.id === fila.id)
-                ? prev.map((r) => (r.id === fila.id ? fila : r))
-                : [fila, ...prev],
-            );
-          } else if (payload.eventType === "DELETE") {
-            const fila = payload.old as unknown as { id: string };
-            setReparaciones((prev) => prev.filter((r) => r.id !== fila.id));
-          }
-        },
+        () => void cargar(),
       )
       .subscribe((status) => {
         if (status === "CHANNEL_ERROR") {
@@ -83,5 +69,7 @@ export function useReparacionesCentros(opts: Opciones = {}): TrabajoCentro[] {
     };
   }, [centroId, estatus, soloActivos]);
 
-  return reparaciones;
+  const recargar = useCallback(() => recargarRef.current(), []);
+
+  return { trabajos, recargar };
 }
