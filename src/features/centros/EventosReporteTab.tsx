@@ -4,6 +4,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarPlus,
+  Check,
+  Pencil,
   Plus,
   ThumbsDown,
   ThumbsUp,
@@ -46,6 +48,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { normalizarTextoBusqueda } from "./CentrosListaItems";
 
 interface Props {
@@ -132,12 +135,14 @@ export function EventosReporteTab({
   guardando,
 }: Props) {
   const { alojamientos, cargando } = useAlojamientosCentro({ centroId, estado: "activo" });
+  const [editandoId, setEditandoId] = useState<string | null>(null);
   const [borrador, setBorrador] = useState<BorradorEvento>(BORRADOR_INICIAL);
   const [consulta, setConsulta] = useState("");
   const [nombreManual, setNombreManual] = useState("");
   const [selectorAbierto, setSelectorAbierto] = useState(false);
 
   const borradorPendiente =
+    editandoId !== null ||
     borrador.titulo.trim() !== "" ||
     borrador.descripcion.trim() !== "" ||
     borrador.hora.trim() !== "" ||
@@ -146,6 +151,28 @@ export function EventosReporteTab({
   useEffect(() => {
     onBorradorPendienteChange?.(borradorPendiente);
   }, [borradorPendiente, onBorradorPendienteChange]);
+
+  function resetForm() {
+    setEditandoId(null);
+    setBorrador(BORRADOR_INICIAL);
+    setConsulta("");
+    setNombreManual("");
+    setSelectorAbierto(false);
+  }
+
+  function cargarEdicion(evento: EventoReporte) {
+    setEditandoId(evento.id);
+    setBorrador({
+      tipo: evento.tipo,
+      hora: horaDesdeTs(evento.ts),
+      titulo: evento.titulo,
+      descripcion: evento.descripcion,
+      participantes: [...evento.participantes],
+    });
+    setConsulta("");
+    setNombreManual("");
+    setSelectorAbierto(false);
+  }
 
   const idsSeleccionados = useMemo(
     () => new Set(borrador.participantes.map((p) => p.refugiado_id).filter(Boolean)),
@@ -201,10 +228,9 @@ export function EventosReporteTab({
     }));
   }
 
-  function agregarEvento() {
+  function guardarEvento() {
     if (!borrador.titulo.trim()) return;
-    const evento: EventoReporte = {
-      id: nuevoId(),
+    const datos = {
       centro_id: centroId,
       dia,
       ts: tsDesdeHora(borrador.hora, dia),
@@ -212,21 +238,234 @@ export function EventosReporteTab({
       titulo: borrador.titulo.trim(),
       descripcion: borrador.descripcion.trim(),
       participantes: borrador.participantes,
-      creada_por: "",
       updated_at: Date.now(),
       updated_by: "",
     };
-    onEventosChange([...eventos, evento]);
+
+    if (editandoId) {
+      onEventosChange(
+        eventos.map((evento) =>
+          evento.id === editandoId ? { ...evento, ...datos } : evento,
+        ),
+      );
+    } else {
+      onEventosChange([
+        ...eventos,
+        {
+          id: nuevoId(),
+          ...datos,
+          creada_por: "",
+        },
+      ]);
+    }
     onEventosRevisadosChange(true);
-    setBorrador(BORRADOR_INICIAL);
+    resetForm();
   }
 
   function quitarEvento(id: string) {
+    if (editandoId === id) resetForm();
     const restantes = eventos.filter((evento) => evento.id !== id);
     onEventosChange(restantes);
     if (restantes.length === 0) onEventosRevisadosChange(false);
   }
 
+  const mensajeBloqueoConfirmacion = borradorPendiente
+    ? editandoId
+      ? "Actualiza o cancela la novedad en edición antes de guardar todos los cambios."
+      : "Guarda la novedad en edición antes de guardar todos los cambios."
+    : undefined;
+
+  const formularioNovedad = (
+    <Card size="sm" className="border-border/80">
+      <CardHeader className="px-3 py-2">
+        <CardTitle className="flex items-center gap-1.5 text-xs">
+          {editandoId ? <Pencil className="size-3.5 text-teal-400" /> : <Plus className="size-3.5 text-teal-400" />}
+          {editandoId ? "Editar novedad" : "Nueva novedad"}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 px-3 pb-3">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[140px_minmax(0,1fr)]">
+          <div>
+            <Label className="text-[11px] text-muted-foreground">Tipo</Label>
+            <Select
+              value={borrador.tipo}
+              disabled={deshabilitado}
+              onValueChange={(v) =>
+                setBorrador((prev) => ({ ...prev, tipo: v as TipoEventoReporte }))
+              }
+            >
+              <SelectTrigger className={claseSelectReporte}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CATALOGO_TIPOS_EVENTO_REPORTE.map((tipo) => (
+                  <SelectItem key={tipo.valor} value={tipo.valor}>
+                    {tipo.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="evento-hora" className="text-[11px] text-muted-foreground">
+              Hora
+            </Label>
+            <Input
+              id="evento-hora"
+              type="time"
+              className="mt-1"
+              disabled={deshabilitado}
+              value={borrador.hora}
+              onChange={(e) => setBorrador((prev) => ({ ...prev, hora: e.target.value }))}
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="evento-titulo" className="text-[11px] text-muted-foreground">
+            Título
+          </Label>
+          <Input
+            id="evento-titulo"
+            className="mt-1"
+            disabled={deshabilitado}
+            value={borrador.titulo}
+            onChange={(e) => setBorrador((prev) => ({ ...prev, titulo: e.target.value }))}
+            placeholder="Ej. jornada recreativa, conflicto, visita institucional…"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="evento-desc" className="text-[11px] text-muted-foreground">
+            Descripción
+          </Label>
+          <Textarea
+            id="evento-desc"
+            className="mt-1"
+            rows={3}
+            disabled={deshabilitado}
+            value={borrador.descripcion}
+            onChange={(e) =>
+              setBorrador((prev) => ({ ...prev, descripcion: e.target.value }))
+            }
+            placeholder="Resumen breve de lo ocurrido y acciones tomadas…"
+          />
+        </div>
+
+        <div>
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <Label className="text-[11px] text-muted-foreground">Participantes</Label>
+            <Popover open={selectorAbierto} onOpenChange={setSelectorAbierto}>
+              <PopoverTrigger asChild>
+                <Button type="button" size="xs" variant="outline" disabled={deshabilitado}>
+                  <UserRound className="size-3" />
+                  Agregar
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[min(22rem,calc(100vw-2rem))] p-0" align="end">
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    value={consulta}
+                    onValueChange={setConsulta}
+                    placeholder="Buscar por nombre o cédula…"
+                  />
+                  <CommandList>
+                    <CommandEmpty>
+                      {cargando ? "Cargando…" : "Sin resultados en este campamento."}
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {resultados.map((a) => {
+                        const r = a.refugiado;
+                        return (
+                          <CommandItem
+                            key={a.id}
+                            value={r.id}
+                            onSelect={() => agregarParticipante(participanteDesdeAlojamiento(a))}
+                            className="items-start py-2"
+                          >
+                            <UserRound className="mt-0.5 size-4 text-muted-foreground" />
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">
+                                {nombreCompleto(r)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {r.codigo_ficha ?? formatearCedula(r.cedula, r.tipo_doc)}
+                              </p>
+                            </div>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+                <div className="border-t border-border p-2">
+                  <Label htmlFor="evento-participante-manual" className="text-[10px]">
+                    Agregar nombre manual
+                  </Label>
+                  <div className="mt-1 flex gap-1.5">
+                    <Input
+                      id="evento-participante-manual"
+                      className="h-8"
+                      value={nombreManual}
+                      onChange={(e) => setNombreManual(e.target.value)}
+                      placeholder="Nombre y apellido"
+                    />
+                    <Button
+                      type="button"
+                      size="xs"
+                      disabled={!nombreManual.trim()}
+                      onClick={agregarManual}
+                    >
+                      <Plus className="size-3" />
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {borrador.participantes.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+              Puedes dejarlo vacío si el evento no involucra damnificados específicos.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {borrador.participantes.map((p, i) => (
+                <Badge key={`${etiquetaParticipante(p)}-${i}`} variant="secondary" className="gap-1 pr-1">
+                  {etiquetaParticipante(p)}
+                  <button
+                    type="button"
+                    disabled={deshabilitado}
+                    onClick={() => quitarParticipante(i)}
+                    className="rounded-full p-0.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <Trash2 className="size-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            disabled={deshabilitado || !borrador.titulo.trim()}
+            onClick={guardarEvento}
+          >
+            {editandoId ? <Check className="size-4" /> : <Plus className="size-4" />}
+            {editandoId ? "Actualizar" : "Guardar esta novedad"}
+          </Button>
+          {editandoId && (
+            <Button type="button" size="sm" variant="outline" onClick={resetForm}>
+              Cancelar
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="min-w-0 space-y-4">
@@ -248,11 +487,7 @@ export function EventosReporteTab({
         }
         etiquetaActualizar="Actualizar novedades"
         confirmacionBloqueada={borradorPendiente}
-        mensajeConfirmacionBloqueada={
-          borradorPendiente
-            ? "Guarda la novedad en edición antes de guardar todos los cambios."
-            : undefined
-        }
+        mensajeConfirmacionBloqueada={mensajeBloqueoConfirmacion}
         badgeExtra={
           <Badge variant="outline" className="w-fit shrink-0 gap-1 tabular-nums">
             {eventos.length} evento{eventos.length === 1 ? "" : "s"}
@@ -260,12 +495,22 @@ export function EventosReporteTab({
         }
       />
 
-      {eventos.length > 0 && (
+      {formularioNovedad}
+
+      {eventos.length > 0 ? (
         <div className="space-y-2">
           {eventos.map((evento) => {
             const meta = META_TIPO_EVENTO_REPORTE[evento.tipo];
+            const enEdicion = editandoId === evento.id;
             return (
-              <Card key={evento.id} size="sm" className="border-border/80 py-0">
+              <Card
+                key={evento.id}
+                size="sm"
+                className={cn(
+                  "border-border/80 py-0",
+                  enEdicion && "border-teal-500/40 bg-teal-500/5",
+                )}
+              >
                 <CardContent className="flex min-w-0 items-start gap-2 px-3 py-2.5">
                   <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/40">
                     <IconoTipoEvento tipo={evento.tipo} />
@@ -305,206 +550,37 @@ export function EventosReporteTab({
                       </div>
                     )}
                   </div>
-                  <Button
-                    type="button"
-                    size="icon-xs"
-                    variant="ghost"
-                    className="shrink-0 text-destructive hover:text-destructive"
-                    disabled={deshabilitado}
-                    onClick={() => quitarEvento(evento.id)}
-                    aria-label="Eliminar evento"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  <div className="flex shrink-0 gap-0.5">
+                    <Button
+                      type="button"
+                      size="icon-xs"
+                      variant="ghost"
+                      disabled={deshabilitado}
+                      onClick={() => cargarEdicion(evento)}
+                      aria-label="Editar novedad"
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon-xs"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      disabled={deshabilitado}
+                      onClick={() => quitarEvento(evento.id)}
+                      aria-label="Eliminar novedad"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );
           })}
         </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Sin novedades registradas.</p>
       )}
-
-      <Card size="sm" className="border-border/80">
-        <CardHeader className="px-3 py-2">
-          <CardTitle className="flex items-center gap-1.5 text-xs">
-            <Plus className="size-3.5 text-teal-400" />
-            Nuevo evento
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 px-3 pb-3">
-          <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[140px_minmax(0,1fr)]">
-            <div>
-              <Label className="text-[11px] text-muted-foreground">Tipo</Label>
-              <Select
-                value={borrador.tipo}
-                disabled={deshabilitado}
-                onValueChange={(v) =>
-                  setBorrador((prev) => ({ ...prev, tipo: v as TipoEventoReporte }))
-                }
-              >
-                <SelectTrigger className={claseSelectReporte}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATALOGO_TIPOS_EVENTO_REPORTE.map((tipo) => (
-                    <SelectItem key={tipo.valor} value={tipo.valor}>
-                      {tipo.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="evento-hora" className="text-[11px] text-muted-foreground">
-                Hora
-              </Label>
-              <Input
-                id="evento-hora"
-                type="time"
-                className="mt-1"
-                disabled={deshabilitado}
-                value={borrador.hora}
-                onChange={(e) => setBorrador((prev) => ({ ...prev, hora: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="evento-titulo" className="text-[11px] text-muted-foreground">
-              Título
-            </Label>
-            <Input
-              id="evento-titulo"
-              className="mt-1"
-              disabled={deshabilitado}
-              value={borrador.titulo}
-              onChange={(e) => setBorrador((prev) => ({ ...prev, titulo: e.target.value }))}
-              placeholder="Ej. jornada recreativa, conflicto, visita institucional…"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="evento-desc" className="text-[11px] text-muted-foreground">
-              Descripción
-            </Label>
-            <Textarea
-              id="evento-desc"
-              className="mt-1"
-              rows={3}
-              disabled={deshabilitado}
-              value={borrador.descripcion}
-              onChange={(e) =>
-                setBorrador((prev) => ({ ...prev, descripcion: e.target.value }))
-              }
-              placeholder="Resumen breve de lo ocurrido y acciones tomadas…"
-            />
-          </div>
-
-          <div>
-            <div className="mb-1.5 flex items-center justify-between gap-2">
-              <Label className="text-[11px] text-muted-foreground">Participantes</Label>
-              <Popover open={selectorAbierto} onOpenChange={setSelectorAbierto}>
-                <PopoverTrigger asChild>
-                  <Button type="button" size="xs" variant="outline" disabled={deshabilitado}>
-                    <UserRound className="size-3" />
-                    Agregar
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[min(22rem,calc(100vw-2rem))] p-0" align="end">
-                  <Command shouldFilter={false}>
-                    <CommandInput
-                      value={consulta}
-                      onValueChange={setConsulta}
-                      placeholder="Buscar por nombre o cédula…"
-                    />
-                    <CommandList>
-                      <CommandEmpty>
-                        {cargando ? "Cargando…" : "Sin resultados en este campamento."}
-                      </CommandEmpty>
-                      <CommandGroup>
-                        {resultados.map((a) => {
-                          const r = a.refugiado;
-                          return (
-                            <CommandItem
-                              key={a.id}
-                              value={r.id}
-                              onSelect={() => agregarParticipante(participanteDesdeAlojamiento(a))}
-                              className="items-start py-2"
-                            >
-                              <UserRound className="mt-0.5 size-4 text-muted-foreground" />
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-medium">
-                                  {nombreCompleto(r)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {r.codigo_ficha ?? formatearCedula(r.cedula, r.tipo_doc)}
-                                </p>
-                              </div>
-                            </CommandItem>
-                          );
-                        })}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                  <div className="border-t border-border p-2">
-                    <Label htmlFor="evento-participante-manual" className="text-[10px]">
-                      Agregar nombre manual
-                    </Label>
-                    <div className="mt-1 flex gap-1.5">
-                      <Input
-                        id="evento-participante-manual"
-                        className="h-8"
-                        value={nombreManual}
-                        onChange={(e) => setNombreManual(e.target.value)}
-                        placeholder="Nombre y apellido"
-                      />
-                      <Button
-                        type="button"
-                        size="xs"
-                        disabled={!nombreManual.trim()}
-                        onClick={agregarManual}
-                      >
-                        <Plus className="size-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {borrador.participantes.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-                Puedes dejarlo vacío si el evento no involucra damnificados específicos.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {borrador.participantes.map((p, i) => (
-                  <Badge key={`${etiquetaParticipante(p)}-${i}`} variant="secondary" className="gap-1 pr-1">
-                    {etiquetaParticipante(p)}
-                    <button
-                      type="button"
-                      disabled={deshabilitado}
-                      onClick={() => quitarParticipante(i)}
-                      className="rounded-full p-0.5 text-muted-foreground hover:text-foreground"
-                    >
-                      <Trash2 className="size-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <Button
-            type="button"
-            size="sm"
-            disabled={deshabilitado || !borrador.titulo.trim()}
-            onClick={agregarEvento}
-          >
-            <Plus className="size-4" />
-            Guardar esta novedad
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }

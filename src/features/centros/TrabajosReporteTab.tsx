@@ -5,6 +5,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Trash2,
   Wrench,
 } from "lucide-react";
 import { useReparacionesCentros } from "@/data/useReparacionesCentros";
@@ -12,6 +13,7 @@ import {
   actualizarTrabajo,
   archivarTrabajo,
   crearTrabajo,
+  eliminarTrabajo,
 } from "@/data/reposReparaciones";
 import {
   ESTATUS_TRABAJO,
@@ -25,6 +27,17 @@ import { claseSelectReporte } from "@/features/centros/clasesReporte";
 import { BadgeAntiguedad } from "@/components/ui/badge-antiguedad";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,11 +65,15 @@ function TarjetaTrabajo({
   trabajo,
   onEditar,
   onArchivar,
+  onEliminar,
+  eliminando,
   deshabilitado,
 }: {
   trabajo: TrabajoCentro;
   onEditar: () => void;
   onArchivar: () => void;
+  onEliminar: () => void;
+  eliminando?: boolean;
   deshabilitado?: boolean;
 }) {
   const meta = META_ESTATUS_TRABAJO[trabajo.estatus];
@@ -95,7 +112,7 @@ function TarjetaTrabajo({
           )}
         </div>
         <div className="flex shrink-0 gap-0.5">
-          <Button type="button" size="icon-xs" variant="ghost" disabled={deshabilitado} onClick={onEditar}>
+          <Button type="button" size="icon-xs" variant="ghost" disabled={deshabilitado || eliminando} onClick={onEditar}>
             <Pencil className="size-3.5" />
           </Button>
           {puedeArchivarTrabajo(trabajo.estatus) && (
@@ -103,13 +120,44 @@ function TarjetaTrabajo({
               type="button"
               size="icon-xs"
               variant="ghost"
-              disabled={deshabilitado}
+              disabled={deshabilitado || eliminando}
               onClick={onArchivar}
               aria-label="Archivar"
             >
               <Archive className="size-3.5" />
             </Button>
           )}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                disabled={deshabilitado || eliminando}
+                aria-label="Eliminar trabajo"
+              >
+                {eliminando ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar trabajo?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Se borrará «{trabajo.titulo}» de forma permanente. Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={onEliminar}
+                >
+                  Eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </div>
@@ -132,6 +180,7 @@ export function TrabajosReporteTab({
   const [descripcion, setDescripcion] = useState("");
   const [estatus, setEstatus] = useState<EstatusTrabajo>("pendiente");
   const [guardandoItem, setGuardandoItem] = useState(false);
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
   const [listadoModificado, setListadoModificado] = useState(false);
   const revisadoPrevio = useRef(revisado);
 
@@ -183,6 +232,17 @@ export function TrabajosReporteTab({
       setListadoModificado(true);
     } finally {
       setGuardandoItem(false);
+    }
+  }
+
+  async function eliminarItem(id: string) {
+    setEliminandoId(id);
+    try {
+      await eliminarTrabajo(id);
+      if (editandoId === id) resetForm();
+      setListadoModificado(true);
+    } finally {
+      setEliminandoId(null);
     }
   }
 
@@ -292,10 +352,12 @@ export function TrabajosReporteTab({
               <TarjetaTrabajo
                 trabajo={t}
                 deshabilitado={deshabilitado}
+                eliminando={eliminandoId === t.id}
                 onEditar={() => cargarEdicion(t)}
                 onArchivar={() => {
                   void archivarTrabajo(t.id).then(() => setListadoModificado(true));
                 }}
+                onEliminar={() => void eliminarItem(t.id)}
               />
             </li>
           ))}

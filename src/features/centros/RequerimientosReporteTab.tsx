@@ -6,12 +6,14 @@ import {
   Package,
   Pencil,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { useRequerimientosSeguimiento } from "@/data/useRequerimientosSeguimiento";
 import {
   actualizarRequerimientoSeguimiento,
   archivarRequerimientoSeguimiento,
   crearRequerimientoSeguimiento,
+  eliminarRequerimientoSeguimiento,
 } from "@/data/reposRequerimientosSeguimiento";
 import {
   CATEGORIAS_REQUERIMIENTO,
@@ -27,6 +29,17 @@ import { claseSelectReporte } from "@/features/centros/clasesReporte";
 import { BadgeAntiguedad } from "@/components/ui/badge-antiguedad";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,11 +67,15 @@ function TarjetaRequerimiento({
   item,
   onEditar,
   onArchivar,
+  onEliminar,
+  eliminando,
   deshabilitado,
 }: {
   item: RequerimientoSeguimiento;
   onEditar: () => void;
   onArchivar: () => void;
+  onEliminar: () => void;
+  eliminando?: boolean;
   deshabilitado?: boolean;
 }) {
   const meta = META_ESTATUS_REQUERIMIENTO[item.estatus];
@@ -84,14 +101,45 @@ function TarjetaRequerimiento({
           {item.notas && <p className="text-xs text-muted-foreground">{item.notas}</p>}
         </div>
         <div className="flex shrink-0 gap-0.5">
-          <Button type="button" size="icon-xs" variant="ghost" disabled={deshabilitado} onClick={onEditar}>
+          <Button type="button" size="icon-xs" variant="ghost" disabled={deshabilitado || eliminando} onClick={onEditar}>
             <Pencil className="size-3.5" />
           </Button>
           {puedeArchivarRequerimiento(item.estatus) && (
-            <Button type="button" size="icon-xs" variant="ghost" disabled={deshabilitado} onClick={onArchivar} aria-label="Archivar">
+            <Button type="button" size="icon-xs" variant="ghost" disabled={deshabilitado || eliminando} onClick={onArchivar} aria-label="Archivar">
               <Archive className="size-3.5" />
             </Button>
           )}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                disabled={deshabilitado || eliminando}
+                aria-label="Eliminar requerimiento"
+              >
+                {eliminando ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar requerimiento?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Se borrará «{item.concepto}» de forma permanente. Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={onEliminar}
+                >
+                  Eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </div>
@@ -115,6 +163,7 @@ export function RequerimientosReporteTab({
   const [notas, setNotas] = useState("");
   const [estatus, setEstatus] = useState<EstatusRequerimientoSeguimiento>("solicitado");
   const [guardandoItem, setGuardandoItem] = useState(false);
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
   /** Cambios en ítems ya guardados (editar estatus, archivar, etc.) pendientes de confirmar bloque. */
   const [listadoModificado, setListadoModificado] = useState(false);
   const revisadoPrevio = useRef(revisado);
@@ -170,6 +219,17 @@ export function RequerimientosReporteTab({
       setListadoModificado(true);
     } finally {
       setGuardandoItem(false);
+    }
+  }
+
+  async function eliminarItem(id: string) {
+    setEliminandoId(id);
+    try {
+      await eliminarRequerimientoSeguimiento(id);
+      if (editandoId === id) resetForm();
+      setListadoModificado(true);
+    } finally {
+      setEliminandoId(null);
     }
   }
 
@@ -286,10 +346,12 @@ export function RequerimientosReporteTab({
               <TarjetaRequerimiento
                 item={r}
                 deshabilitado={deshabilitado}
+                eliminando={eliminandoId === r.id}
                 onEditar={() => cargarEdicion(r)}
                 onArchivar={() => {
                   void archivarRequerimientoSeguimiento(r.id).then(() => setListadoModificado(true));
                 }}
+                onEliminar={() => void eliminarItem(r.id)}
               />
             </li>
           ))}

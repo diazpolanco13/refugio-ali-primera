@@ -92,4 +92,10 @@ export async function archivarRequerimientoSeguimiento(id: string): Promise<void
   registrarHistorial("archivar_requerimiento", "requerimiento", id);
 }
 
+export async function eliminarRequerimientoSeguimiento(id: string): Promise<void> {
+  const { error } = await supabase.from("requerimientos_seguimiento").delete().eq("id", id);
+  if (error) throw new Error(`[reposRequerimientosSeguimiento] delete: ${error.message}`);
+  registrarHistorial("eliminar_requerimiento", "requerimiento", id);
+}
+
 export { normalizarRequerimientoSeguimiento };
