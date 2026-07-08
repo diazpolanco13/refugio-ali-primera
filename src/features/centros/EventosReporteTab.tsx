@@ -1,10 +1,9 @@
 // Pestaña Eventos del reporte diario: eventos positivos/negativos y
 // participantes vinculados a fichas nominales o capturados manualmente.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarPlus,
-  Check,
   Plus,
   ThumbsDown,
   ThumbsUp,
@@ -23,6 +22,8 @@ import {
   type TipoEventoReporte,
 } from "@/domain/eventosReportes";
 import { formatearCedula, nombreCompleto, type AlojamientoEnriquecido } from "@/domain/refugiados";
+import { BloqueConfirmacionReporte } from "@/features/centros/BloqueConfirmacionReporte";
+import { claseSelectReporte } from "@/features/centros/clasesReporte";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +46,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import { normalizarTextoBusqueda } from "./CentrosListaItems";
 
 interface Props {
@@ -53,11 +53,14 @@ interface Props {
   dia: string;
   eventos: EventoReporte[];
   eventosRevisados: boolean;
+  modificado: boolean;
   onEventosChange: (eventos: EventoReporte[]) => void;
   onEventosRevisadosChange: (valor: boolean) => void;
-  /** Confirma la revisión "sin novedades" y la GUARDA de inmediato. */
-  onConfirmarRevision?: (valor: boolean) => void;
+  onBorradorPendienteChange?: (pendiente: boolean) => void;
+  onConfirmarRevision?: () => void;
+  onDesmarcarRevision?: () => void;
   deshabilitado?: boolean;
+  guardando?: boolean;
 }
 
 interface BorradorEvento {
@@ -119,16 +122,30 @@ export function EventosReporteTab({
   dia,
   eventos,
   eventosRevisados,
+  modificado,
   onEventosChange,
   onEventosRevisadosChange,
+  onBorradorPendienteChange,
   onConfirmarRevision,
+  onDesmarcarRevision,
   deshabilitado,
+  guardando,
 }: Props) {
   const { alojamientos, cargando } = useAlojamientosCentro({ centroId, estado: "activo" });
   const [borrador, setBorrador] = useState<BorradorEvento>(BORRADOR_INICIAL);
   const [consulta, setConsulta] = useState("");
   const [nombreManual, setNombreManual] = useState("");
   const [selectorAbierto, setSelectorAbierto] = useState(false);
+
+  const borradorPendiente =
+    borrador.titulo.trim() !== "" ||
+    borrador.descripcion.trim() !== "" ||
+    borrador.hora.trim() !== "" ||
+    borrador.participantes.length > 0;
+
+  useEffect(() => {
+    onBorradorPendienteChange?.(borradorPendiente);
+  }, [borradorPendiente, onBorradorPendienteChange]);
 
   const idsSeleccionados = useMemo(
     () => new Set(borrador.participantes.map((p) => p.refugiado_id).filter(Boolean)),
@@ -210,54 +227,32 @@ export function EventosReporteTab({
     if (restantes.length === 0) onEventosRevisadosChange(false);
   }
 
-  const bloqueCompleto = eventosRevisados || eventos.length > 0;
 
   return (
     <div className="min-w-0 space-y-4">
-      <div
-        className={cn(
-          "rounded-lg border px-3 py-3",
-          bloqueCompleto
-            ? "border-emerald-500/35 bg-emerald-500/5"
-            : "border-teal-500/35 bg-teal-500/5",
-        )}
-      >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-              <CalendarPlus className="size-4 text-teal-400" />
-              Eventos del día
-            </p>
-            <p className="mt-1 text-xs leading-snug text-muted-foreground">
-              Registra actividades, novedades positivas o situaciones negativas relevantes
-              para el cierre diario.
-            </p>
-          </div>
+      <BloqueConfirmacionReporte
+        titulo="Novedades y eventos"
+        tituloRevisado="Novedades revisadas hoy"
+        descripcion="Registra actividades, novedades positivas o situaciones negativas relevantes para el cierre diario."
+        icono={CalendarPlus}
+        acento="teal"
+        revisado={eventosRevisados}
+        modificado={modificado}
+        guardando={guardando}
+        deshabilitado={deshabilitado}
+        onConfirmar={() => onConfirmarRevision?.()}
+        onDesmarcar={onDesmarcarRevision}
+        etiquetaGuardar="Guardar novedades"
+        etiquetaConfirmar={
+          eventos.length === 0 ? "Confirmar sin novedades" : "Confirmar sin cambios"
+        }
+        etiquetaActualizar="Actualizar novedades"
+        badgeExtra={
           <Badge variant="outline" className="w-fit shrink-0 gap-1 tabular-nums">
-            {bloqueCompleto ? <Check className="size-3 text-emerald-400" /> : null}
             {eventos.length} evento{eventos.length === 1 ? "" : "s"}
-            {eventosRevisados && eventos.length === 0 ? " · revisado" : ""}
           </Badge>
-        </div>
-
-        {eventos.length === 0 && (
-          <Button
-            type="button"
-            size="default"
-            variant={eventosRevisados ? "secondary" : "default"}
-            className={cn(
-              "mt-3 min-h-10 w-full justify-center font-semibold shadow-sm sm:w-auto",
-              !eventosRevisados && "bg-teal-600 text-white shadow-teal-950/20 hover:bg-teal-500",
-              eventosRevisados && "border border-emerald-500/40 text-emerald-400",
-            )}
-            disabled={deshabilitado}
-            onClick={() => (onConfirmarRevision ?? onEventosRevisadosChange)(!eventosRevisados)}
-          >
-            {eventosRevisados ? <Check className="size-4" /> : <CalendarPlus className="size-4" />}
-            {eventosRevisados ? "Quitar revisión sin novedades" : "Confirmar que no hubo eventos"}
-          </Button>
-        )}
-      </div>
+        }
+      />
 
       {eventos.length > 0 && (
         <div className="space-y-2">
@@ -340,7 +335,7 @@ export function EventosReporteTab({
                   setBorrador((prev) => ({ ...prev, tipo: v as TipoEventoReporte }))
                 }
               >
-                <SelectTrigger className="mt-1 w-full">
+                <SelectTrigger className={claseSelectReporte}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   Check,
-  CheckCircle2,
   Loader2,
   Pencil,
   Plus,
@@ -21,6 +20,8 @@ import {
   type EstatusTrabajo,
   type TrabajoCentro,
 } from "@/domain/reparaciones";
+import { BloqueConfirmacionReporte } from "@/features/centros/BloqueConfirmacionReporte";
+import { claseSelectReporte } from "@/features/centros/clasesReporte";
 import { BadgeAntiguedad } from "@/components/ui/badge-antiguedad";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,8 +42,8 @@ interface Props {
   centroId: string;
   hoyClave: string;
   revisado: boolean;
-  onRevisadoChange: (v: boolean) => void;
   onConfirmarRevision: () => Promise<void>;
+  onDesmarcarRevision?: () => Promise<void>;
   deshabilitado?: boolean;
   guardando?: boolean;
 }
@@ -119,8 +120,8 @@ export function TrabajosReporteTab({
   centroId,
   hoyClave,
   revisado,
-  onRevisadoChange,
   onConfirmarRevision,
+  onDesmarcarRevision,
   deshabilitado,
   guardando,
 }: Props) {
@@ -131,6 +132,15 @@ export function TrabajosReporteTab({
   const [descripcion, setDescripcion] = useState("");
   const [estatus, setEstatus] = useState<EstatusTrabajo>("pendiente");
   const [guardandoItem, setGuardandoItem] = useState(false);
+  const [listadoModificado, setListadoModificado] = useState(false);
+  const revisadoPrevio = useRef(revisado);
+
+  useEffect(() => {
+    if (revisado && !revisadoPrevio.current) {
+      setListadoModificado(false);
+    }
+    revisadoPrevio.current = revisado;
+  }, [revisado]);
 
   function resetForm() {
     setEditandoId(null);
@@ -170,29 +180,48 @@ export function TrabajosReporteTab({
         });
       }
       resetForm();
+      setListadoModificado(true);
     } finally {
       setGuardandoItem(false);
     }
   }
 
+  const formularioPendiente =
+    editandoId !== null || titulo.trim() !== "" || finalidad.trim() !== "" || descripcion.trim() !== "";
+
+  const formularioModificado = formularioPendiente || listadoModificado;
+
+  async function confirmarBloque() {
+    if (formularioPendiente && titulo.trim()) {
+      await guardarItem();
+    }
+    await onConfirmarRevision();
+    setListadoModificado(false);
+  }
+
   return (
     <div className="space-y-4">
-      <div
-        className={cn(
-          "rounded-lg border px-3 py-3",
-          revisado ? "border-emerald-500/35 bg-emerald-500/5" : "border-amber-500/35 bg-amber-500/5",
-        )}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <p className="flex items-center gap-1.5 text-sm font-semibold">
-            <Wrench className="size-4 text-amber-400" />
-            Trabajos activos
-          </p>
+      <BloqueConfirmacionReporte
+        titulo="Trabajos activos"
+        tituloRevisado="Trabajos revisados hoy"
+        descripcion="Revisa el listado, actualiza estatus o añade trabajos nuevos antes de confirmar."
+        icono={Wrench}
+        acento="amber"
+        revisado={revisado}
+        modificado={formularioModificado}
+        guardando={guardando || guardandoItem}
+        deshabilitado={deshabilitado}
+        onConfirmar={() => void confirmarBloque()}
+        onDesmarcar={onDesmarcarRevision ? () => void onDesmarcarRevision() : undefined}
+        etiquetaGuardar="Guardar cambios"
+        etiquetaConfirmar="Confirmar sin cambios"
+        etiquetaActualizar="Actualizar revisión"
+        badgeExtra={
           <Badge variant="outline" className="tabular-nums">
             {trabajos.length} {trabajos.length === 1 ? "ítem" : "ítems"}
           </Badge>
-        </div>
-      </div>
+        }
+      />
 
       <Card size="sm" className="border-border/80">
         <CardContent className="space-y-2 px-3 py-3">
@@ -224,7 +253,7 @@ export function TrabajosReporteTab({
           <div>
             <Label className="text-[11px] text-muted-foreground">Progreso</Label>
             <Select value={estatus} onValueChange={(v) => setEstatus(v as EstatusTrabajo)} disabled={deshabilitado}>
-              <SelectTrigger className="mt-1 w-full">
+              <SelectTrigger className={claseSelectReporte}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -258,7 +287,9 @@ export function TrabajosReporteTab({
                 trabajo={t}
                 deshabilitado={deshabilitado}
                 onEditar={() => cargarEdicion(t)}
-                onArchivar={() => void archivarTrabajo(t.id)}
+                onArchivar={() => {
+                  void archivarTrabajo(t.id).then(() => setListadoModificado(true));
+                }}
               />
             </li>
           ))}
@@ -266,20 +297,6 @@ export function TrabajosReporteTab({
       ) : (
         <p className="text-xs text-muted-foreground">Sin trabajos abiertos.</p>
       )}
-
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          disabled={deshabilitado || guardando}
-          onClick={() => {
-            onRevisadoChange(true);
-            void onConfirmarRevision();
-          }}
-        >
-          {guardando ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-          Confirmar revisión del bloque
-        </Button>
-      </div>
     </div>
   );
 }

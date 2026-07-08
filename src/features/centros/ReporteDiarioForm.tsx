@@ -4,10 +4,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   CalendarPlus,
-  Check,
-  CheckCircle2,
-  ClipboardCheck,
-  Loader2,
   Package,
   ShieldCheck,
   Users,
@@ -44,7 +40,7 @@ import { normalizarVulnerables, type Vulnerables } from "@/domain/tipos";
 import type { ReporteControlDia } from "@/domain/controlReporte";
 import { reporteControlDelDia } from "@/domain/controlReporte";
 import { DesgloseDemografico } from "@/features/censo/DesgloseDemografico";
-import { Badge } from "@/components/ui/badge";
+import { BloqueConfirmacionReporte } from "./BloqueConfirmacionReporte";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -91,6 +87,39 @@ function parteIgual(a: ParteForm, b: ParteForm): boolean {
     a.incidenciasSalud === b.incidenciasSalud &&
     JSON.stringify(a.ocupacion) === JSON.stringify(b.ocupacion)
   );
+}
+
+type ControlDatos = Pick<
+  ReporteControlDia,
+  | "captahuella"
+  | "captahuella_nota"
+  | "juez_paz"
+  | "juez_paz_nota"
+  | "servicio_medico"
+  | "servicio_medico_nota"
+  | "ambulancia"
+  | "ambulancia_nota"
+>;
+
+function controlDatos(c: Omit<ReporteControlDia, "id">): ControlDatos {
+  return {
+    captahuella: c.captahuella,
+    captahuella_nota: c.captahuella_nota,
+    juez_paz: c.juez_paz,
+    juez_paz_nota: c.juez_paz_nota,
+    servicio_medico: c.servicio_medico,
+    servicio_medico_nota: c.servicio_medico_nota,
+    ambulancia: c.ambulancia,
+    ambulancia_nota: c.ambulancia_nota,
+  };
+}
+
+function controlIgual(a: ControlDatos, b: ControlDatos): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function eventosIguales(a: EventoReporte[], b: EventoReporte[]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 const clasePestanaReporte = cn(
@@ -167,6 +196,7 @@ export function ReporteDiarioForm({
   const [eventosReporte, setEventosReporte] = useState<EventoReporte[]>([]);
   const [eventosRevisados, setEventosRevisados] = useState(false);
   const [idsEventosExistentes, setIdsEventosExistentes] = useState<string[]>([]);
+  const [eventosBorradorPendiente, setEventosBorradorPendiente] = useState(false);
 
   const [guardandoBloque, setGuardandoBloque] = useState<GuardandoBloque>(null);
   const [confirmandoParte, setConfirmandoParte] = useState(false);
@@ -184,6 +214,24 @@ export function ReporteDiarioForm({
     familias: base.familias_ocupadas,
     incidenciasSalud: 0,
   });
+
+  const baselineControl = useRef<ControlDatos>(controlDatos({
+    centro_id: centro.id,
+    dia: diaReporte,
+    captahuella: null,
+    captahuella_nota: "",
+    juez_paz: null,
+    juez_paz_nota: "",
+    servicio_medico: null,
+    servicio_medico_nota: "",
+    ambulancia: null,
+    ambulancia_nota: "",
+    revisado: false,
+    updated_at: 0,
+    updated_by: "",
+  }));
+
+  const baselineEventos = useRef<EventoReporte[]>([]);
 
   const snapshots = useOcupacionesCentros({ centroId: centro.id, desde: diaReporte });
   const parteHoyEnBd = snapshots.some((s) => s.dia === diaReporte);
@@ -241,6 +289,7 @@ export function ReporteDiarioForm({
       casosSalud,
     });
     setControl(ctx.controlBorrador);
+    baselineControl.current = controlDatos(ctx.controlBorrador);
     setControlHeredado(ctx.controlHeredadoDeAyer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [controles, centro.id, diaReporte]);
@@ -291,6 +340,7 @@ export function ReporteDiarioForm({
   useEffect(() => {
     if (controlHoy && !control.revisado) {
       setControl({ ...controlHoy });
+      baselineControl.current = controlDatos(controlHoy);
       setControlHeredado(false);
     }
   }, [controlHoy?.updated_at]);
@@ -300,6 +350,7 @@ export function ReporteDiarioForm({
     if (precargadoEventos || eventosExistentes.length === 0) return;
     setEventosReporte(eventosExistentes);
     setIdsEventosExistentes(eventosExistentes.map((e) => e.id));
+    baselineEventos.current = eventosExistentes;
     setPrecargadoEventos(true);
   }, [eventosExistentes, precargadoEventos]);
 
@@ -312,6 +363,14 @@ export function ReporteDiarioForm({
   const parteModificado = !parteIgual(parteActual, baselineParte.current);
   const parteHoyConfirmado = !parteDesmarcadoOk && (parteHoyEnBd || parteConfirmadoOk);
 
+  const controlModificado = !controlIgual(controlDatos(control), baselineControl.current);
+
+  const eventosModificados =
+    eventosBorradorPendiente || !eventosIguales(eventosReporte, baselineEventos.current);
+  const novedadesCompletas =
+    !eventosModificados &&
+    (eventosRevisados || (eventosReporte.length > 0 && eventosIguales(eventosReporte, baselineEventos.current)));
+
   const fasesNav: FaseReporteNav[] = PESTANAS_REPORTE.map(({ value, titulo, icono }) => ({
     value,
     titulo,
@@ -321,12 +380,12 @@ export function ReporteDiarioForm({
       value === "parte"
         ? parteHoyConfirmado
         : value === "control"
-          ? control.revisado
+          ? control.revisado && !controlModificado
           : value === "trabajos"
             ? trabajosRevisados
             : value === "requerimientos"
               ? requerimientosRevisados
-              : eventosRevisados,
+              : novedadesCompletas,
   }));
 
   const refugiados = poblacionCentro({ ...centro, ocupacion, total_afectados: totalAfectados });
@@ -418,10 +477,25 @@ export function ReporteDiarioForm({
     setGuardandoBloque("control");
     try {
       await guardarReporteControlDia({ ...control, revisado: true });
-      setControl((p) => ({ ...p, revisado: true }));
+      const actualizado = { ...control, revisado: true };
+      setControl(actualizado);
+      baselineControl.current = controlDatos(actualizado);
       setControlHeredado(false);
     } catch (err) {
       setErrorGuardado(err instanceof Error ? err.message : "No se pudo guardar control.");
+    } finally {
+      setGuardandoBloque(null);
+    }
+  }
+
+  async function desmarcarControl() {
+    setErrorGuardado(null);
+    setGuardandoBloque("control");
+    try {
+      await guardarReporteControlDia({ ...control, revisado: false });
+      setControl((p) => ({ ...p, revisado: false }));
+    } catch (err) {
+      setErrorGuardado(err instanceof Error ? err.message : "No se pudo desmarcar control.");
     } finally {
       setGuardandoBloque(null);
     }
@@ -431,6 +505,17 @@ export function ReporteDiarioForm({
     setGuardandoBloque("trabajos");
     try {
       await guardarFlagsReporte({ trabajos_revisados: true });
+      setTrabajosRevisados(true);
+    } finally {
+      setGuardandoBloque(null);
+    }
+  }
+
+  async function desmarcarTrabajosRevision() {
+    setGuardandoBloque("trabajos");
+    try {
+      await guardarFlagsReporte({ trabajos_revisados: false });
+      setTrabajosRevisados(false);
     } finally {
       setGuardandoBloque(null);
     }
@@ -440,12 +525,35 @@ export function ReporteDiarioForm({
     setGuardandoBloque("requerimientos");
     try {
       await guardarFlagsReporte({ requerimientos_revisados: true });
+      setRequerimientosRevisados(true);
     } finally {
       setGuardandoBloque(null);
     }
   }
 
-  /** El botón "Confirmar que no hubo eventos" persiste la revisión al instante. */
+  async function desmarcarRequerimientosRevision() {
+    setGuardandoBloque("requerimientos");
+    try {
+      await guardarFlagsReporte({ requerimientos_revisados: false });
+      setRequerimientosRevisados(false);
+    } finally {
+      setGuardandoBloque(null);
+    }
+  }
+
+  /** Confirma revisión de novedades (con o sin eventos) y persiste al instante. */
+  async function confirmarNovedades() {
+    if (eventosModificados) {
+      await guardarEventos();
+      return;
+    }
+    if (eventosReporte.length === 0) {
+      await confirmarRevisionEventos(true);
+      return;
+    }
+    await guardarEventos();
+  }
+
   async function confirmarRevisionEventos(valor: boolean) {
     setEventosRevisados(valor);
     setErrorGuardado(null);
@@ -463,8 +571,6 @@ export function ReporteDiarioForm({
     setErrorGuardado(null);
     setGuardandoBloque("eventos");
     try {
-      // Guardar el bloque ES revisarlo: el flag va explícito (el estado local
-      // puede venir stale si se marcó en este mismo tick).
       await guardarFlagsReporte({ eventos_revisados: true });
       setEventosRevisados(true);
       await guardarEventosReporteDia({
@@ -474,8 +580,22 @@ export function ReporteDiarioForm({
         idsExistentes: idsEventosExistentes,
       });
       setIdsEventosExistentes(eventosReporte.map((e) => e.id));
+      baselineEventos.current = eventosReporte;
     } catch (err) {
       setErrorGuardado(err instanceof Error ? err.message : "No se pudo guardar novedades.");
+    } finally {
+      setGuardandoBloque(null);
+    }
+  }
+
+  async function desmarcarNovedades() {
+    setErrorGuardado(null);
+    setGuardandoBloque("eventos");
+    try {
+      await guardarFlagsReporte({ eventos_revisados: false });
+      setEventosRevisados(false);
+    } catch (err) {
+      setErrorGuardado(err instanceof Error ? err.message : "No se pudo desmarcar novedades.");
     } finally {
       setGuardandoBloque(null);
     }
@@ -539,52 +659,22 @@ export function ReporteDiarioForm({
             <p className="mb-3 text-xs leading-snug text-destructive sm:hidden">{errorGuardado}</p>
           )}
           <TabsContent value="parte" className="mt-0 block flex-none space-y-5 outline-none">
-            <div
-              className={cn(
-                "rounded-lg border px-3 py-3",
-                parteHoyConfirmado
-                  ? "border-emerald-500/35 bg-emerald-500/5"
-                  : parteModificado
-                    ? "border-amber-500/30 bg-amber-500/5"
-                    : "border-teal-500/35 bg-teal-500/5",
-              )}
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 space-y-1">
-                  <p className="flex items-center gap-1.5 text-sm font-semibold">
-                    {parteHoyConfirmado ? (
-                      <CheckCircle2 className="size-4 text-emerald-400" />
-                    ) : (
-                      <ClipboardCheck className="size-4 text-teal-400" />
-                    )}
-                    {parteHoyConfirmado ? "Parte confirmado hoy" : "Parte de hoy"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Demografía, afectados/familias e incidencias de salud del día.
-                  </p>
-                </div>
-                <Badge variant="outline" className="w-fit shrink-0 gap-1 tabular-nums">
-                  {parteHoyConfirmado ? <Check className="size-3 text-emerald-400" /> : null}
-                  {parteHoyConfirmado ? "Revisado" : parteModificado ? "Con cambios" : "Pendiente"}
-                </Badge>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  className="min-h-10 bg-teal-600 font-semibold text-white hover:bg-teal-500"
-                  disabled={confirmandoParte || guardando}
-                  onClick={() => void guardarParte()}
-                >
-                  {confirmandoParte ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-                  {parteModificado ? "Guardar parte" : parteHoyConfirmado ? "Actualizar parte" : "Confirmar sin cambios"}
-                </Button>
-                {parteHoyConfirmado && !parteModificado && (
-                  <Button type="button" variant="outline" disabled={confirmandoParte} onClick={() => void desmarcarParte()}>
-                    Desmarcar revisión
-                  </Button>
-                )}
-              </div>
-            </div>
+            <BloqueConfirmacionReporte
+              titulo="Parte de hoy"
+              tituloRevisado="Parte confirmado hoy"
+              descripcion="Demografía, afectados/familias e incidencias de salud del día."
+              icono={Users}
+              acento="teal"
+              revisado={parteHoyConfirmado}
+              modificado={parteModificado}
+              guardando={confirmandoParte}
+              deshabilitado={guardando}
+              onConfirmar={() => void guardarParte()}
+              onDesmarcar={() => void desmarcarParte()}
+              etiquetaGuardar="Guardar parte"
+              etiquetaConfirmar="Confirmar sin cambios"
+              etiquetaActualizar="Actualizar parte"
+            />
 
             <div>
               <Label className="text-sm font-semibold">Población afectada</Label>
@@ -645,11 +735,14 @@ export function ReporteDiarioForm({
             <ControlReporteTab
               control={control}
               heredadoDeAyer={controlHeredado}
+              revisado={control.revisado}
+              modificado={controlModificado}
               onChange={(patch) => {
                 controlTocado.current = true;
                 setControl((p) => ({ ...p, ...patch }));
               }}
               onConfirmarRevision={() => void guardarControl()}
+              onDesmarcarRevision={() => void desmarcarControl()}
               deshabilitado={guardando || confirmandoParte}
               guardando={guardandoBloque === "control"}
             />
@@ -660,8 +753,8 @@ export function ReporteDiarioForm({
               centroId={centro.id}
               hoyClave={diaReporte}
               revisado={trabajosRevisados}
-              onRevisadoChange={setTrabajosRevisados}
               onConfirmarRevision={guardarTrabajosRevision}
+              onDesmarcarRevision={desmarcarTrabajosRevision}
               deshabilitado={guardando || confirmandoParte}
               guardando={guardandoBloque === "trabajos"}
             />
@@ -672,8 +765,8 @@ export function ReporteDiarioForm({
               centroId={centro.id}
               hoyClave={diaReporte}
               revisado={requerimientosRevisados}
-              onRevisadoChange={setRequerimientosRevisados}
               onConfirmarRevision={guardarRequerimientosRevision}
+              onDesmarcarRevision={desmarcarRequerimientosRevision}
               deshabilitado={guardando || confirmandoParte}
               guardando={guardandoBloque === "requerimientos"}
             />
@@ -685,21 +778,15 @@ export function ReporteDiarioForm({
               dia={diaReporte}
               eventos={eventosReporte}
               eventosRevisados={eventosRevisados}
+              modificado={eventosModificados}
               onEventosChange={setEventosReporte}
               onEventosRevisadosChange={setEventosRevisados}
-              onConfirmarRevision={(valor) => void confirmarRevisionEventos(valor)}
+              onBorradorPendienteChange={setEventosBorradorPendiente}
+              onConfirmarRevision={() => void confirmarNovedades()}
+              onDesmarcarRevision={() => void desmarcarNovedades()}
               deshabilitado={guardando || confirmandoParte}
+              guardando={guardandoBloque === "eventos"}
             />
-            <div className="flex justify-end">
-              <Button type="button" disabled={guardando || confirmandoParte} onClick={() => void guardarEventos()}>
-                {guardandoBloque === "eventos" ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Check className="size-4" />
-                )}
-                Guardar novedades
-              </Button>
-            </div>
           </TabsContent>
         </div>
 

@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { claseSelectReporte } from "@/features/centros/clasesReporte";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -382,7 +383,7 @@ export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabil
             onValueChange={(v) => setEstatus(v as EstatusCasoSalud)}
             disabled={deshabilitado || guardando}
           >
-            <SelectTrigger className="h-10 w-full text-sm">
+            <SelectTrigger className={cn(claseSelectReporte, "mt-0")}>
               <SelectValue placeholder="Estatus" />
             </SelectTrigger>
             <SelectContent>
