@@ -506,24 +506,33 @@ export function FichaCentroView({ sesion }: Props) {
             variant="line"
             className="!h-[50px] w-full justify-start gap-0 overflow-x-auto rounded-none bg-transparent p-0 align-middle [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {SECCIONES_FICHA_CENTRO.map((s) => (
-              <TabsTrigger
-                key={s.id}
-                value={s.id}
-                className={cn(
-                  "shrink-0 rounded-none px-3 py-2.5 text-xs after:bottom-0 sm:text-sm",
-                  s.id === "reporte" &&
-                    puedeEditar &&
-                    hoyEstado !== "completo" &&
-                    "font-semibold text-teal-300",
-                )}
-              >
-                {s.label}
-                {s.id === "reporte" && puedeEditar && hoyEstado !== "completo" && (
-                  <span className="ml-1.5 inline-block size-1.5 rounded-full bg-amber-400" />
-                )}
-              </TabsTrigger>
-            ))}
+            {SECCIONES_FICHA_CENTRO.map((s) => {
+              const activa = s.id === seccionActiva;
+              const reportePendiente =
+                s.id === "reporte" && puedeEditar && hoyEstado !== "completo";
+
+              return (
+                <TabsTrigger
+                  key={s.id}
+                  value={s.id}
+                  className={cn(
+                    "relative shrink-0 rounded-none px-3 py-2.5 text-xs font-medium sm:text-sm",
+                    "!h-full !border-x-transparent !border-t-transparent !border-b-2 !border-b-transparent !bg-transparent !shadow-none",
+                    "text-muted-foreground transition-colors hover:text-foreground",
+                    "after:!hidden after:!content-none",
+                    "data-active:!border-x-transparent data-active:!border-t-transparent data-active:!border-b-primary",
+                    "data-active:!bg-transparent data-active:!font-semibold data-active:!text-teal-300 data-active:!shadow-none",
+                    "dark:data-active:!border-b-primary dark:data-active:!bg-transparent",
+                    reportePendiente && !activa && "font-semibold text-teal-300/80",
+                  )}
+                >
+                  {s.label}
+                  {reportePendiente && (
+                    <span className="ml-1.5 inline-block size-1.5 rounded-full bg-amber-400" />
+                  )}
+                </TabsTrigger>
+              );
+            })}
           </TabsList>
         </div>
 

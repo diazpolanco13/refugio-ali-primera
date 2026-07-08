@@ -554,30 +554,102 @@ function BuscadorNombreCampamento({
   );
 }
 
+type DatosCompletitudReporte = {
+  estado: EstadoReporteDia;
+  parte: boolean;
+  controlRevisado: boolean;
+  trabajosRevisados: boolean;
+  requerimientosRevisados: boolean;
+  eventosRevisados: boolean;
+};
+
+const BLOQUES_COMPLETITUD_REPORTE: {
+  fase: string;
+  label: string;
+  labelCorto: string;
+  listo: (datos: DatosCompletitudReporte) => boolean;
+}[] = [
+  { fase: "parte", label: "Parte numérico", labelCorto: "Parte", listo: (d) => d.parte },
+  {
+    fase: "control",
+    label: "Control operativo",
+    labelCorto: "Control",
+    listo: (d) => d.controlRevisado,
+  },
+  {
+    fase: "trabajos",
+    label: "Trabajos",
+    labelCorto: "Trabajos",
+    listo: (d) => d.trabajosRevisados,
+  },
+  {
+    fase: "requerimientos",
+    label: "Requerimientos",
+    labelCorto: "Req.",
+    listo: (d) => d.requerimientosRevisados,
+  },
+  {
+    fase: "novedades",
+    label: "Novedades",
+    labelCorto: "Noved.",
+    listo: (d) => d.eventosRevisados,
+  },
+];
+
+function bloquesPendientesReporte(datos: DatosCompletitudReporte) {
+  if (datos.estado === "completo") return [];
+  return BLOQUES_COMPLETITUD_REPORTE.filter((bloque) => !bloque.listo(datos));
+}
+
+function fasePendienteReporte(datos: DatosCompletitudReporte): string | undefined {
+  return bloquesPendientesReporte(datos)[0]?.fase;
+}
+
+function tituloFaltantesReporte(pendientes: typeof BLOQUES_COMPLETITUD_REPORTE): string | undefined {
+  if (pendientes.length === 0) return undefined;
+  return `Falta confirmar: ${pendientes.map((b) => b.label).join(", ")}`;
+}
+
 function IndicadorBloqueReporte({
   titulo,
   icono,
   valor,
   listo,
+  destacarFaltante = false,
+  compacto = false,
   className,
 }: {
   titulo: string;
   icono: React.ReactNode;
   valor: React.ReactNode;
   listo: boolean;
+  destacarFaltante?: boolean;
+  compacto?: boolean;
   className?: string;
 }) {
+  const falta = destacarFaltante && !listo;
+  const tituloTooltip = falta ? `${titulo} · pendiente de confirmar` : titulo;
+
   return (
     <span
-      title={titulo}
+      title={tituloTooltip}
       className={cn(
-        "inline-flex h-7 items-center gap-1 rounded-lg border px-2 text-xs tabular-nums",
+        "relative inline-flex items-center gap-1 rounded-lg border tabular-nums",
+        compacto ? "h-5 gap-0.5 px-1 text-[10px]" : "h-7 gap-1 px-2 text-xs",
         listo
-          ? "border-teal-400/25 bg-teal-400/10 text-teal-100"
-          : "border-border/60 bg-muted/20 text-muted-foreground",
-        className,
+          ? cn("border-teal-400/25 bg-teal-400/10 text-teal-100", className)
+          : cn(
+              "border-border/60 bg-muted/20 text-muted-foreground",
+              falta && "border-dashed opacity-80",
+            ),
       )}
     >
+      {falta ? (
+        <span
+          aria-hidden
+          className="absolute -right-0.5 -top-0.5 size-1 rounded-full bg-amber-500/80"
+        />
+      ) : null}
       {icono}
       <span className="font-semibold">{valor}</span>
     </span>
@@ -1462,10 +1534,25 @@ export function ReportesDiariosRedView() {
                     requerimientosActivos,
                   }) => {
                     const meta = metaCuerpoDe(centro.cuerpo);
+                    const datosCompletitud: DatosCompletitudReporte = {
+                      estado,
+                      parte,
+                      controlRevisado,
+                      trabajosRevisados,
+                      requerimientosRevisados,
+                      eventosRevisados: eventosOk,
+                    };
+                    const pendientes = bloquesPendientesReporte(datosCompletitud);
+                    const destacarFaltante = estado !== "completo";
+                    const faseLink = fasePendienteReporte(datosCompletitud);
+                    const tooltipFaltantes = tituloFaltantesReporte(pendientes);
+                    const urlReporte = `/centros/reportes/${centro.id}?vista=reporte${
+                      faseLink ? `&fase=${faseLink}` : ""
+                    }`;
                     return (
                   <li key={centro.id}>
                     <Link
-                      to={`/centros/reportes/${centro.id}?vista=reporte`}
+                      to={urlReporte}
                       className="group flex items-center gap-2 rounded-lg border border-border/60 bg-background/65 px-2.5 py-2 transition-all active:bg-muted/30 sm:gap-3 sm:rounded-xl sm:px-3 sm:py-3 sm:hover:-translate-y-0.5 sm:hover:border-border sm:hover:bg-muted/25 sm:hover:shadow-sm"
                     >
                       <div
@@ -1490,30 +1577,55 @@ export function ReportesDiariosRedView() {
                         <div className="mt-1 sm:hidden">
                           <BadgeMarcadorOcupacion marcador={marcadorOcupacion} />
                         </div>
-                        <div className="mt-1 flex items-center gap-1.5 sm:hidden">
-                          <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-sky-300">
-                            <Users className="size-2.5" />
-                            {damnificados.toLocaleString("es")}
-                          </span>
-                          <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-rose-300">
-                            <Stethoscope className="size-2.5" />
-                            {incidenciasSalud}
-                          </span>
-                          <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-violet-300">
-                            <ShieldCheck className="size-2.5" />
-                            {controlRevisado ? 1 : 0}
-                          </span>
-                          <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-amber-300">
-                            <Wrench className="size-2.5" />
-                            {trabajosActivos}
-                          </span>
-                          <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-emerald-300">
-                            <CalendarPlus className="size-2.5" />
-                            {eventos}
-                          </span>
+                        <div className="mt-1 flex flex-wrap items-center gap-1 sm:hidden">
+                          <IndicadorBloqueReporte
+                            titulo="Parte numérico (damnificados)"
+                            icono={<Users className="size-2.5 text-sky-400" />}
+                            valor={damnificados.toLocaleString("es")}
+                            listo={parte}
+                            destacarFaltante={destacarFaltante}
+                            compacto
+                            className={parte ? "border-sky-400/25 bg-sky-400/10 text-sky-100" : ""}
+                          />
+                          <IndicadorBloqueReporte
+                            titulo="Control"
+                            icono={<ShieldCheck className="size-2.5 text-sky-400" />}
+                            valor={controlRevisado ? 1 : 0}
+                            listo={controlRevisado}
+                            destacarFaltante={destacarFaltante}
+                            compacto
+                          />
+                          <IndicadorBloqueReporte
+                            titulo="Trabajos activos"
+                            icono={<Wrench className="size-2.5 text-amber-400" />}
+                            valor={trabajosActivos}
+                            listo={trabajosRevisados}
+                            destacarFaltante={destacarFaltante}
+                            compacto
+                          />
+                          <IndicadorBloqueReporte
+                            titulo="Requerimientos abiertos"
+                            icono={<Package className="size-2.5 text-violet-400" />}
+                            valor={requerimientosActivos}
+                            listo={requerimientosRevisados}
+                            destacarFaltante={destacarFaltante}
+                            compacto
+                          />
+                          <IndicadorBloqueReporte
+                            titulo="Novedades"
+                            icono={<CalendarPlus className="size-2.5 text-emerald-400" />}
+                            valor={eventos}
+                            listo={eventosOk}
+                            destacarFaltante={destacarFaltante}
+                            compacto
+                            className={
+                              eventosOk ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-100" : ""
+                            }
+                          />
                           <Badge
                             variant="outline"
                             className="h-5 px-1.5 text-[10px]"
+                            title={tooltipFaltantes}
                             style={{
                               borderColor: `${META_ESTADO_REPORTE[estado].color}66`,
                               color: META_ESTADO_REPORTE[estado].color,
@@ -1530,6 +1642,7 @@ export function ReportesDiariosRedView() {
                           icono={<Users className="size-3 text-sky-400" />}
                           valor={damnificados}
                           listo={parte}
+                          destacarFaltante={destacarFaltante}
                           className={parte ? "border-sky-400/25 bg-sky-400/10 text-sky-100" : ""}
                         />
                         <IndicadorBloqueReporte
@@ -1537,6 +1650,7 @@ export function ReportesDiariosRedView() {
                           icono={<ShieldCheck className="size-3 text-sky-400" />}
                           valor={controlRevisado ? 1 : 0}
                           listo={controlRevisado}
+                          destacarFaltante={destacarFaltante}
                         />
                         <IndicadorBloqueReporte
                           titulo="Incid. salud"
@@ -1550,23 +1664,27 @@ export function ReportesDiariosRedView() {
                           icono={<Wrench className="size-3 text-amber-400" />}
                           valor={trabajosActivos}
                           listo={trabajosRevisados}
+                          destacarFaltante={destacarFaltante}
                         />
                         <IndicadorBloqueReporte
                           titulo="Requerimientos abiertos"
                           icono={<Package className="size-3 text-violet-400" />}
                           valor={requerimientosActivos}
                           listo={requerimientosRevisados}
+                          destacarFaltante={destacarFaltante}
                         />
                         <IndicadorBloqueReporte
                           titulo="Novedades"
                           icono={<CalendarPlus className="size-3 text-emerald-400" />}
                           valor={eventos}
                           listo={eventosOk}
+                          destacarFaltante={destacarFaltante}
                           className={eventosOk ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-100" : ""}
                         />
                         <Badge
                           variant="outline"
                           className="h-7"
+                          title={tooltipFaltantes}
                           style={{
                             borderColor: `${META_ESTADO_REPORTE[estado].color}66`,
                             color: META_ESTADO_REPORTE[estado].color,
