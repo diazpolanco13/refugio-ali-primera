@@ -10,7 +10,8 @@ import { registrarHistorial } from "./historial";
 
 export async function crearCasoSalud(datos: {
   centro_id: string;
-  descripcion: string;
+  titulo: string;
+  descripcion?: string;
   estatus?: EstatusCasoSalud;
   reportado_dia?: string;
 }): Promise<string> {
@@ -19,7 +20,8 @@ export async function crearCasoSalud(datos: {
   const estatus = normalizarEstatusCasoSalud(datos.estatus);
   const fila = {
     centro_id: datos.centro_id,
-    descripcion: datos.descripcion.trim(),
+    titulo: datos.titulo.trim(),
+    descripcion: (datos.descripcion ?? "").trim(),
     estatus,
     reportado_dia: dia,
     resuelta_ts: estatus === "resuelto" ? ts : null,
@@ -36,20 +38,21 @@ export async function crearCasoSalud(datos: {
   const id = (data as { id: string }).id;
   registrarHistorial("crear_caso_salud", "caso_salud", id, {
     centro_id: fila.centro_id,
-    descripcion: fila.descripcion,
+    titulo: fila.titulo,
   });
   return id;
 }
 
 export async function actualizarCasoSalud(
   id: string,
-  cambios: Partial<Pick<CasoSaludCentro, "descripcion" | "estatus">>,
+  cambios: Partial<Pick<CasoSaludCentro, "titulo" | "descripcion" | "estatus">>,
 ): Promise<void> {
   const now = Date.now();
   const fila: Record<string, unknown> = {
     updated_at: now,
     updated_by: usuarioActual(),
   };
+  if (cambios.titulo !== undefined) fila.titulo = cambios.titulo.trim();
   if (cambios.descripcion !== undefined) fila.descripcion = cambios.descripcion.trim();
   if (cambios.estatus !== undefined) {
     const estatus = normalizarEstatusCasoSalud(cambios.estatus);

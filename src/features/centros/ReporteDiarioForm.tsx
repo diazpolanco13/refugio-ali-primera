@@ -40,7 +40,7 @@ import {
   poblacionCentro,
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
-import type { Vulnerables } from "@/domain/tipos";
+import { normalizarVulnerables, type Vulnerables } from "@/domain/tipos";
 import type { ReporteControlDia } from "@/domain/controlReporte";
 import { reporteControlDelDia } from "@/domain/controlReporte";
 import { DesgloseDemografico } from "@/features/censo/DesgloseDemografico";
@@ -73,6 +73,8 @@ interface Props {
   onCerrar: () => void;
   /** Día del reporte (YYYY-MM-DD). Por defecto: hoy. */
   diaReporte?: string;
+  /** Pestaña con la que abre el formulario (parte, control, trabajos, requerimientos, novedades). */
+  faseInicial?: string;
 }
 
 interface ParteForm {
@@ -132,9 +134,11 @@ export function ReporteDiarioForm({
   variant = "dialog",
   onCerrar,
   diaReporte: diaReporteProp,
+  faseInicial,
 }: Props) {
   const base = normalizarCentro(centro);
   const diaReporte = diaReporteProp ?? claveDia(Date.now());
+  const esDiaPasado = diaReporte !== claveDia(Date.now());
 
   const [ocupacion, setOcupacion] = useState<Vulnerables>(base.ocupacion);
   const [totalAfectados, setTotalAfectados] = useState(base.total_afectados);
@@ -169,7 +173,9 @@ export function ReporteDiarioForm({
   const [parteConfirmadoOk, setParteConfirmadoOk] = useState(false);
   const [parteDesmarcadoOk, setParteDesmarcadoOk] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
-  const [pestanaActiva, setPestanaActiva] = useState("parte");
+  const [pestanaActiva, setPestanaActiva] = useState(() =>
+    PESTANAS_REPORTE.some((p) => p.value === faseInicial) ? (faseInicial as string) : "parte",
+  );
   const guardando = guardandoBloque !== null;
 
   const baselineParte = useRef<ParteForm>({
@@ -191,11 +197,40 @@ export function ReporteDiarioForm({
   const casosSalud = useCasosSaludCentros({ centroId: centro.id });
   const eventosExistentes = useEventosReportes({ centroId: centro.id, dia: diaReporte });
 
+  // Al corregir un día pasado, el parte se precarga desde el snapshot de ESE
+  // día (no desde el estado vigente del centro).
+  const parteInicializadoPasado = useRef(false);
+  useEffect(() => {
+    if (!esDiaPasado || parteInicializadoPasado.current || !snapHoy) return;
+    const ocupacionDia = normalizarVulnerables(snapHoy.ocupacion);
+    setOcupacion(ocupacionDia);
+    setTotalAfectados(snapHoy.total_afectados);
+    setFamilias(snapHoy.familias);
+    baselineParte.current = {
+      ocupacion: ocupacionDia,
+      totalAfectados: snapHoy.total_afectados,
+      familias: snapHoy.familias,
+      incidenciasSalud: snapHoy.incidencias_salud ?? 0,
+    };
+    parteInicializadoPasado.current = true;
+  }, [esDiaPasado, snapHoy]);
+
   const [contextoCargado, setContextoCargado] = useState(false);
   const incidenciasInicializado = useRef(false);
 
   useEffect(() => {
     if (contextoCargado) return;
+    setContextoCargado(true);
+  }, [contextoCargado]);
+
+  // Herencia del control de ayer: los hooks llegan vacíos en el primer render
+  // (select async), así que se reevalúa cada vez que `controles` carga o
+  // cambia, hasta que el usuario toque el bloque o exista el control de HOY
+  // en BD (ese caso lo cubre el efecto de `controlHoy` más abajo).
+  const controlTocado = useRef(false);
+  useEffect(() => {
+    if (controlTocado.current || control.revisado) return;
+    if (reporteControlDelDia(controles, centro.id, diaReporte)) return;
     const ctx = construirContextoReporteHoy({
       centroId: centro.id,
       hoyClave: diaReporte,
@@ -207,8 +242,8 @@ export function ReporteDiarioForm({
     });
     setControl(ctx.controlBorrador);
     setControlHeredado(ctx.controlHeredadoDeAyer);
-    setContextoCargado(true);
-  }, [contextoCargado, centro.id, diaReporte, snapshots, controles, trabajos, requerimientos, casosSalud]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controles, centro.id, diaReporte]);
 
   useEffect(() => {
     if (incidenciasInicializado.current) return;
@@ -296,18 +331,29 @@ export function ReporteDiarioForm({
 
   const refugiados = poblacionCentro({ ...centro, ocupacion, total_afectados: totalAfectados });
 
-  async function guardarFlagsReporte(): Promise<void> {
+  /**
+   * Upsert de la fila del día preservando lo ya guardado (comidas, salud,
+   * observaciones). Los flags de revisión aceptan `overrides` porque los
+   * botones "Confirmar" del tab llaman a esto en el mismo tick en que marcan
+   * el estado local (aún stale): el valor explícito gana sobre el useState.
+   */
+  async function guardarFlagsReporte(overrides?: {
+    trabajos_revisados?: boolean;
+    requerimientos_revisados?: boolean;
+    eventos_revisados?: boolean;
+  }): Promise<void> {
     await guardarReporteDiario({
       centro_id: centro.id,
       dia: diaReporte,
-      comidas: normalizarComidas(undefined),
-      atenciones_medicas_detalle: [],
-      atenciones_medicas: 0,
-      salud_reportada: false,
-      eventos_revisados: eventosRevisados || eventosReporte.length > 0,
-      trabajos_revisados: trabajosRevisados,
-      requerimientos_revisados: requerimientosRevisados,
-      observaciones: "",
+      comidas: normalizarComidas(reporteExistente?.comidas),
+      atenciones_medicas_detalle: reporteExistente?.atenciones_medicas_detalle ?? [],
+      atenciones_medicas: reporteExistente?.atenciones_medicas ?? 0,
+      salud_reportada: reporteExistente?.salud_reportada ?? false,
+      eventos_revisados:
+        overrides?.eventos_revisados ?? (eventosRevisados || eventosReporte.length > 0),
+      trabajos_revisados: overrides?.trabajos_revisados ?? trabajosRevisados,
+      requerimientos_revisados: overrides?.requerimientos_revisados ?? requerimientosRevisados,
+      observaciones: reporteExistente?.observaciones ?? "",
     });
   }
 
@@ -321,7 +367,15 @@ export function ReporteDiarioForm({
         total_afectados: totalAfectados,
         familias_ocupadas: familias,
       };
-      if (parteModificado) {
+      if (esDiaPasado) {
+        // Corrección histórica: solo el snapshot de ese día; el estado
+        // vigente del centro no se toca.
+        await confirmarParteNumericoDia(centroActualizado, diaReporte, {
+          incidenciasSalud,
+          omitirPersonal: true,
+          soloSnapshot: true,
+        });
+      } else if (parteModificado) {
         await guardarCentro(centroActualizado);
         await confirmarParteNumericoDia(centroActualizado, diaReporte, {
           incidenciasSalud,
@@ -376,7 +430,7 @@ export function ReporteDiarioForm({
   async function guardarTrabajosRevision() {
     setGuardandoBloque("trabajos");
     try {
-      await guardarFlagsReporte();
+      await guardarFlagsReporte({ trabajos_revisados: true });
     } finally {
       setGuardandoBloque(null);
     }
@@ -385,7 +439,21 @@ export function ReporteDiarioForm({
   async function guardarRequerimientosRevision() {
     setGuardandoBloque("requerimientos");
     try {
-      await guardarFlagsReporte();
+      await guardarFlagsReporte({ requerimientos_revisados: true });
+    } finally {
+      setGuardandoBloque(null);
+    }
+  }
+
+  /** El botón "Confirmar que no hubo eventos" persiste la revisión al instante. */
+  async function confirmarRevisionEventos(valor: boolean) {
+    setEventosRevisados(valor);
+    setErrorGuardado(null);
+    setGuardandoBloque("eventos");
+    try {
+      await guardarFlagsReporte({ eventos_revisados: valor });
+    } catch (err) {
+      setErrorGuardado(err instanceof Error ? err.message : "No se pudo guardar la revisión.");
     } finally {
       setGuardandoBloque(null);
     }
@@ -395,7 +463,10 @@ export function ReporteDiarioForm({
     setErrorGuardado(null);
     setGuardandoBloque("eventos");
     try {
-      await guardarFlagsReporte();
+      // Guardar el bloque ES revisarlo: el flag va explícito (el estado local
+      // puede venir stale si se marcó en este mismo tick).
+      await guardarFlagsReporte({ eventos_revisados: true });
+      setEventosRevisados(true);
       await guardarEventosReporteDia({
         centro_id: centro.id,
         dia: diaReporte,
@@ -461,7 +532,7 @@ export function ReporteDiarioForm({
         <div
           className={cn(
             "relative z-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-background px-4 py-3 sm:px-6 sm:py-5",
-            "pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:pb-5",
+            "pb-4 sm:pb-5",
           )}
         >
           {errorGuardado && (
@@ -574,7 +645,10 @@ export function ReporteDiarioForm({
             <ControlReporteTab
               control={control}
               heredadoDeAyer={controlHeredado}
-              onChange={(patch) => setControl((p) => ({ ...p, ...patch }))}
+              onChange={(patch) => {
+                controlTocado.current = true;
+                setControl((p) => ({ ...p, ...patch }));
+              }}
               onConfirmarRevision={() => void guardarControl()}
               deshabilitado={guardando || confirmandoParte}
               guardando={guardandoBloque === "control"}
@@ -613,6 +687,7 @@ export function ReporteDiarioForm({
               eventosRevisados={eventosRevisados}
               onEventosChange={setEventosReporte}
               onEventosRevisadosChange={setEventosRevisados}
+              onConfirmarRevision={(valor) => void confirmarRevisionEventos(valor)}
               deshabilitado={guardando || confirmandoParte}
             />
             <div className="flex justify-end">
@@ -630,8 +705,8 @@ export function ReporteDiarioForm({
 
         <div
           className={cn(
-            "fixed inset-x-0 bottom-0 z-40 box-border w-full max-w-[100dvw] sm:hidden",
-            "pb-[env(safe-area-inset-bottom)]",
+            "relative z-40 shrink-0 sm:hidden",
+            "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
           )}
         >
           <NavegacionFasesReporteMovil fases={fasesNav} faseActiva={pestanaActiva} />

@@ -49,10 +49,24 @@ export function claveDia(ts: number): string {
 }
 
 export function nuevoId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
+  const cryptoApi = typeof crypto !== "undefined" ? (crypto as Partial<Crypto>) : undefined;
+  if (cryptoApi?.randomUUID) {
+    return cryptoApi.randomUUID();
   }
-  return `id-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  // `crypto.randomUUID` solo existe en contextos seguros (https/localhost).
+  // En despliegues http (p. ej. el dev server accedido por IP) generamos un
+  // UUID v4 con getRandomValues: varias tablas (eventos_reportes, etc.)
+  // tienen columna `id uuid` y rechazan cualquier otro formato.
+  const bytes = new Uint8Array(16);
+  if (cryptoApi?.getRandomValues) {
+    cryptoApi.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // versión 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variante RFC 4122
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 /**

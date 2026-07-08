@@ -20,7 +20,14 @@ import {
   racionesDelDia,
   type ReporteDiario,
 } from "./reporteDiario";
-import type { ReporteReparacionesDia } from "./reparaciones";
+import type { ReporteReparacionesDia, TrabajoCentro } from "./reparaciones";
+import type { ReporteControlDia } from "./controlReporte";
+import type { RequerimientoSeguimiento } from "./requerimientosSeguimiento";
+import type { CasoSaludCentro } from "./casosSalud";
+import type { EventoReporte } from "./eventosReportes";
+import { CATEGORIAS_REQUERIMIENTO } from "./requerimientosSeguimiento";
+import { diasAbierto } from "./antiguedadSeguimiento";
+import { metaUnidadSebinDe } from "./unidadesSebin";
 import type { Incidencia } from "./incidencias";
 import type { NivelPrioridad } from "./prioridadCentros";
 import type { TipoEventoReporte } from "./eventosReportes";
@@ -45,6 +52,18 @@ export interface EntradaReporteEjecutivoCampamentos {
   reportesReparaciones?: ReporteReparacionesDia[];
   eventos?: EventoReporteEjecutivo[];
   incidencias?: Incidencia[];
+  /** Controles operativos (se filtran por `dia`). */
+  controles?: ReporteControlDia[];
+  /** Trabajos activos (pendiente / en progreso) de toda la red. */
+  trabajosActivos?: TrabajoCentro[];
+  /** Requerimientos abiertos de toda la red. */
+  requerimientosActivos?: RequerimientoSeguimiento[];
+  /** Casos de salud abiertos (activo / en proceso) de toda la red. */
+  casosSaludAbiertos?: CasoSaludCentro[];
+  /** Novedades con título/descripción (se filtran por `dia`). */
+  eventosDetalle?: EventoReporte[];
+  /** Estatus del censo SEBIN de la red (conteo por estado). */
+  censoEstados?: CensoEstadosEjecutivo | null;
   dia: string;
   generadoTs?: number;
   generadoPor?: string | null;
@@ -63,6 +82,14 @@ export interface DemografiaEjecutiva {
   discapacidad: number;
   vulnerables: number;
   mascotas: number;
+  /** Desglose H/M por grupo etario (para el parte demográfico detallado). */
+  porGrupo: {
+    etiqueta: string;
+    h: number;
+    m: number;
+  }[];
+  discapacidadH: number;
+  discapacidadM: number;
 }
 
 export interface LogisticaEjecutiva {
@@ -111,6 +138,94 @@ export interface PrioridadEjecutiva {
   factores: string[];
 }
 
+export interface ConteoSiNo {
+  si: number;
+  no: number;
+  sinReporte: number;
+}
+
+export interface ControlEjecutivo {
+  campamentosRevisados: number;
+  captahuella: ConteoSiNo;
+  juezPaz: ConteoSiNo;
+  servicioMedico: ConteoSiNo;
+  ambulancia: ConteoSiNo;
+}
+
+export interface FilaRedEjecutiva {
+  nro: number | null;
+  nombre: string;
+  parroquia: string;
+  cuerpo: string;
+  unidadSebin: string;
+  refugiados: number;
+  familias: number;
+  parteDia: boolean;
+  captahuella: boolean | null;
+  juezPaz: boolean | null;
+  trabajos: number;
+  /** Antigüedad (días) del trabajo activo más viejo, o null. */
+  trabajoMasViejoDias: number | null;
+  /** Título y antigüedad de cada trabajo activo del campamento. */
+  trabajosDetalle: { titulo: string; dias: number }[];
+  casosSalud: number;
+  novedades: number;
+  /** Casos de salud abiertos del campamento (título, estatus y días abiertos). */
+  casosDetalle: { titulo: string; estatus: string; dias: number }[];
+  /** Novedades del día del campamento (título y tipo). */
+  novedadesDetalle: { titulo: string; tipo: TipoEventoReporte }[];
+}
+
+export interface CasoSaludEjecutivo {
+  centro: string;
+  titulo: string;
+  descripcion: string;
+  estatus: string;
+  dias: number;
+}
+
+export interface NovedadEjecutiva {
+  centro: string;
+  tipo: TipoEventoReporte;
+  titulo: string;
+  descripcion: string;
+}
+
+export interface RequerimientoCategoriaEjecutivo {
+  categoria: string;
+  items: number;
+  unidades: number;
+}
+
+export interface CensoEstadosEjecutivo {
+  completados: number;
+  enCurso: number;
+  sinIniciar: number;
+}
+
+export interface UnidadSebinEjecutiva {
+  unidad: string;
+  campamentos: number;
+  refugiados: number;
+}
+
+export interface TrabajoRedItem {
+  centro: string;
+  titulo: string;
+  estatus: string;
+  dias: number;
+}
+
+export interface TrabajosRedEjecutivo {
+  activos: number;
+  pendientes: number;
+  enProgreso: number;
+  campamentos: number;
+  masViejoDias: number | null;
+  /** Detalle de cada trabajo activo (más viejos primero). */
+  lista: TrabajoRedItem[];
+}
+
 export interface ReporteEjecutivoCampamentos {
   dia: string;
   generadoTs: number;
@@ -129,6 +244,16 @@ export interface ReporteEjecutivoCampamentos {
   grupos: GrupoEjecutivo[];
   cuerpos: CuerpoEjecutivo[];
   prioridades: PrioridadEjecutiva[];
+  control: ControlEjecutivo;
+  filasRed: FilaRedEjecutiva[];
+  casosSaludDetalle: CasoSaludEjecutivo[];
+  novedadesDetalle: NovedadEjecutiva[];
+  requerimientosPorCategoria: RequerimientoCategoriaEjecutivo[];
+  trabajosRed: TrabajosRedEjecutivo;
+  /** Campamentos con parte numérico del día del corte. */
+  partesDelDia: number;
+  unidadesSebin: UnidadSebinEjecutiva[];
+  censo: CensoEstadosEjecutivo | null;
 }
 
 function porcentaje(valor: number, total: number): number {
@@ -138,6 +263,13 @@ function porcentaje(valor: number, total: number): number {
 
 function sumarDemografia(v: Vulnerables): DemografiaEjecutiva {
   const discapacidad = v.discapacidad_h + v.discapacidad_m;
+  const porGrupo = [
+    { etiqueta: "0-2 años", h: v.recien_nacidos_h, m: v.recien_nacidos_m },
+    { etiqueta: "3-11 años", h: v.ninos, m: v.ninas },
+    { etiqueta: "12-17 años", h: v.adolescentes_h, m: v.adolescentes_m },
+    { etiqueta: "18-59 años", h: v.adultos_h, m: v.adultos_m },
+    { etiqueta: "60+ años", h: v.adultos_mayores_h, m: v.adultos_mayores_m },
+  ];
   return {
     total: totalHombres(v) + totalMujeres(v),
     hombres: totalHombres(v),
@@ -151,6 +283,9 @@ function sumarDemografia(v: Vulnerables): DemografiaEjecutiva {
     discapacidad,
     vulnerables: totalVulnerables(v),
     mascotas: v.mascotas,
+    porGrupo,
+    discapacidadH: v.discapacidad_h,
+    discapacidadM: v.discapacidad_m,
   };
 }
 
@@ -248,12 +383,28 @@ function resumenDiario({
   };
 }
 
+function conteoSiNo(
+  controles: ReporteControlDia[],
+  campo: "captahuella" | "juez_paz" | "servicio_medico" | "ambulancia",
+  totalCampamentos: number,
+): ConteoSiNo {
+  const si = controles.filter((c) => c[campo] === true).length;
+  const no = controles.filter((c) => c[campo] === false).length;
+  return { si, no, sinReporte: Math.max(0, totalCampamentos - si - no) };
+}
+
 export function construirReporteEjecutivoCampamentos({
   centros,
   snapshots,
   reportes,
   eventos = [],
   incidencias = [],
+  controles = [],
+  trabajosActivos = [],
+  requerimientosActivos = [],
+  casosSaludAbiertos = [],
+  eventosDetalle = [],
+  censoEstados = null,
   dia,
   generadoTs = Date.now(),
   generadoPor,
@@ -267,6 +418,154 @@ export function construirReporteEjecutivoCampamentos({
   const reportesDia = reportes.filter((r) => r.dia === dia);
   const racionesGestionadas = reportesDia.reduce((acc, r) => acc + racionesDelDia(r), 0);
   const objetivoRaciones = personasLogistica * COMIDAS_POR_PERSONA_DIA;
+
+  // ---- Secciones nuevas: control, tabla de red y detalle del día ----
+  const hoyRef = dia;
+  const controlesDia = controles.filter((c) => c.dia === dia);
+  const controlPorCentro = new Map(controlesDia.map((c) => [c.centro_id, c]));
+  const trabajosVivos = trabajosActivos.filter(
+    (t) => t.estatus === "pendiente" || t.estatus === "en_progreso",
+  );
+  const trabajosPorCentro = new Map<string, TrabajoCentro[]>();
+  for (const t of trabajosVivos) {
+    const lista = trabajosPorCentro.get(t.centro_id) ?? [];
+    lista.push(t);
+    trabajosPorCentro.set(t.centro_id, lista);
+  }
+  const casosPorCentro = new Map<string, CasoSaludCentro[]>();
+  for (const c of casosSaludAbiertos) {
+    const lista = casosPorCentro.get(c.centro_id) ?? [];
+    lista.push(c);
+    casosPorCentro.set(c.centro_id, lista);
+  }
+  const eventosDia = eventosDetalle.filter((e) => e.dia === dia);
+  const eventosPorCentro = new Map<string, EventoReporte[]>();
+  for (const e of eventosDia) {
+    const lista = eventosPorCentro.get(e.centro_id) ?? [];
+    lista.push(e);
+    eventosPorCentro.set(e.centro_id, lista);
+  }
+  const diasConParteHoy = new Set(
+    snapshots.filter((s) => s.dia === dia).map((s) => s.centro_id),
+  );
+  const nombreDe = new Map(centrosConParte.map((c) => [c.id, c.nombre]));
+
+  const control: ControlEjecutivo = {
+    campamentosRevisados: controlesDia.filter((c) => c.revisado).length,
+    captahuella: conteoSiNo(controlesDia, "captahuella", centros.length),
+    juezPaz: conteoSiNo(controlesDia, "juez_paz", centros.length),
+    servicioMedico: conteoSiNo(controlesDia, "servicio_medico", centros.length),
+    ambulancia: conteoSiNo(controlesDia, "ambulancia", centros.length),
+  };
+
+  const filasRed: FilaRedEjecutiva[] = centrosConParte
+    .map((centro) => {
+      const c = normalizarCentro(centro);
+      const ctrl = controlPorCentro.get(centro.id);
+      const trabajosCentro = trabajosPorCentro.get(centro.id) ?? [];
+      const masViejo = trabajosCentro.length
+        ? Math.max(...trabajosCentro.map((t) => diasAbierto(t.reportada_dia, hoyRef)))
+        : null;
+      const unidad = metaUnidadSebinDe(centro.supervision?.unidad_sebin);
+      return {
+        nro: centro.nro ?? null,
+        nombre: centro.nombre,
+        parroquia: centro.parroquia,
+        cuerpo: metaCuerpoDe(centro.cuerpo).label,
+        unidadSebin: unidad.clave !== "sin_asignar" ? unidad.label : "",
+        refugiados: poblacionCentro(c),
+        familias: c.familias_ocupadas,
+        parteDia: diasConParteHoy.has(centro.id),
+        captahuella: ctrl ? ctrl.captahuella : null,
+        juezPaz: ctrl ? ctrl.juez_paz : null,
+        trabajos: trabajosCentro.length,
+        trabajoMasViejoDias: masViejo,
+        trabajosDetalle: trabajosCentro
+          .map((t) => ({ titulo: t.titulo, dias: diasAbierto(t.reportada_dia, hoyRef) }))
+          .sort((a, b) => b.dias - a.dias),
+        casosSalud: (casosPorCentro.get(centro.id) ?? []).length,
+        novedades: (eventosPorCentro.get(centro.id) ?? []).length,
+        casosDetalle: (casosPorCentro.get(centro.id) ?? [])
+          .map((caso) => ({
+            titulo: caso.titulo,
+            estatus: caso.estatus,
+            dias: diasAbierto(caso.reportado_dia, hoyRef),
+          }))
+          .sort((a, b) => b.dias - a.dias),
+        novedadesDetalle: (eventosPorCentro.get(centro.id) ?? []).map((e) => ({
+          titulo: e.titulo,
+          tipo: e.tipo,
+        })),
+      };
+    })
+    // La tabla sigue la numeración oficial de la red (N°).
+    .sort((a, b) => (a.nro ?? 9999) - (b.nro ?? 9999) || a.nombre.localeCompare(b.nombre));
+
+  const casosSaludDetalle: CasoSaludEjecutivo[] = [...casosSaludAbiertos]
+    .sort(
+      (a, b) =>
+        diasAbierto(b.reportado_dia, hoyRef) - diasAbierto(a.reportado_dia, hoyRef),
+    )
+    .map((c) => ({
+      centro: nombreDe.get(c.centro_id) ?? c.centro_id,
+      titulo: c.titulo,
+      descripcion: c.descripcion,
+      estatus: c.estatus,
+      dias: diasAbierto(c.reportado_dia, hoyRef),
+    }));
+
+  const novedadesDetalle: NovedadEjecutiva[] = eventosDia.map((e) => ({
+    centro: nombreDe.get(e.centro_id) ?? e.centro_id,
+    tipo: e.tipo,
+    titulo: e.titulo,
+    descripcion: e.descripcion,
+  }));
+
+  const etiquetasCategoria = new Map<string, string>(
+    CATEGORIAS_REQUERIMIENTO.map((c) => [c.valor, c.label]),
+  );
+  const porCategoria = new Map<string, RequerimientoCategoriaEjecutivo>();
+  for (const r of requerimientosActivos) {
+    const label = etiquetasCategoria.get(r.categoria) ?? r.categoria;
+    const acc = porCategoria.get(label) ?? { categoria: label, items: 0, unidades: 0 };
+    acc.items += 1;
+    acc.unidades += r.cantidad;
+    porCategoria.set(label, acc);
+  }
+  const requerimientosPorCategoria = [...porCategoria.values()].sort(
+    (a, b) => b.items - a.items,
+  );
+
+  const unidadesMap = new Map<string, UnidadSebinEjecutiva>();
+  for (const centro of centrosConParte) {
+    const unidad = metaUnidadSebinDe(centro.supervision?.unidad_sebin);
+    const etiqueta = unidad.clave !== "sin_asignar" ? unidad.label : "Sin unidad asignada";
+    const fila = unidadesMap.get(etiqueta) ?? { unidad: etiqueta, campamentos: 0, refugiados: 0 };
+    fila.campamentos += 1;
+    fila.refugiados += poblacionCentro(normalizarCentro(centro));
+    unidadesMap.set(etiqueta, fila);
+  }
+  const unidadesSebin = [...unidadesMap.values()].sort(
+    (a, b) => b.campamentos - a.campamentos || a.unidad.localeCompare(b.unidad),
+  );
+
+  const trabajosRed: TrabajosRedEjecutivo = {
+    activos: trabajosVivos.length,
+    pendientes: trabajosVivos.filter((t) => t.estatus === "pendiente").length,
+    enProgreso: trabajosVivos.filter((t) => t.estatus === "en_progreso").length,
+    campamentos: trabajosPorCentro.size,
+    masViejoDias: trabajosVivos.length
+      ? Math.max(...trabajosVivos.map((t) => diasAbierto(t.reportada_dia, hoyRef)))
+      : null,
+    lista: [...trabajosVivos]
+      .map((t) => ({
+        centro: nombreDe.get(t.centro_id) ?? t.centro_id,
+        titulo: t.titulo,
+        estatus: t.estatus,
+        dias: diasAbierto(t.reportada_dia, hoyRef),
+      }))
+      .sort((a, b) => b.dias - a.dias || a.centro.localeCompare(b.centro)),
+  };
 
   return {
     dia,
@@ -310,5 +609,14 @@ export function construirReporteEjecutivoCampamentos({
         factores: prioridad.factores.slice(0, 3).map((f) => f.label),
       };
     }),
+    control,
+    filasRed,
+    casosSaludDetalle,
+    novedadesDetalle,
+    requerimientosPorCategoria,
+    trabajosRed,
+    partesDelDia: diasConParteHoy.size,
+    unidadesSebin,
+    censo: censoEstados,
   };
 }

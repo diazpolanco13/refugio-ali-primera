@@ -20,3 +20,4 @@ dev-dist
 
 # MCP (puede contener tokens/credenciales)
 .cursor/mcp.json
+scripts/__pycache__/

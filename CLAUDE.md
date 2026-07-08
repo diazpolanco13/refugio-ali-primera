@@ -38,7 +38,7 @@ datos viven en Postgres.
   + `reportes_centros` + `incidencias_centros` + `perfiles` + `historial`),
   RLS por rol + centros asignados, Edge Functions `create-user`/`delete-user`/
   `update-user-password`. Ver sección "Supabase — esquema y RLS".
-- ✅ **Datos migrados:** **51 centros** activos en la tabla `centros` (los 49
+- ✅ **Datos migrados:** los centros del Excel en la tabla `centros` (hoy **61 activos**) (los 49
   del Excel `DATA CENTRAL 03JUL26.xlsx`; la UEN Gran Colombia se divide en 3
   edificios → `centro-03/51/52`) + snapshot inicial 2026-07-03 para los 51 en
   `ocupaciones_centros`; usuarios migrados a `auth.users` + `perfiles` (admin +
@@ -82,7 +82,45 @@ datos viven en Postgres.
  `historial` con Realtime, solo admin y autoridad) y `registrarHistorial()`
  en los repos. Usuarios actuales: `admin` (admin) y `xavier` (analista_sae).
 
+- ✅ **Red renombrada a "campamentos" y ampliada a 61 activos** (ids `centro-NN`;
+ el campo `nro` del blob se rellenó desde el número del id — 08-jul). El mapa
+ agrupa por **unidad interna SEBIN** (`supervision.unidad_sebin`, catálogo en
+ `src/domain/unidadesSebin.ts`).
+- ✅ **Reporte diario de 5 fases** (Parte numérico · Control · Trabajos ·
+ Requerimientos · Novedades) en `/centros/reportes/:centroId?vista=reporte`:
+ tablas nuevas `reportes_control_dia`, `reparaciones_centros` (trabajos),
+ `requerimientos_seguimiento`, `casos_salud_centros` (con `titulo`, migración
+ `casos_salud_titulo`) y `eventos_reportes`. El control **hereda las
+ respuestas del día anterior**; los casos de salud llevan estatus segmentado
+ (activo/en proceso/resuelto) y antigüedad en días (`BadgeAntiguedad`, siempre
+ vs el día real). **Editar reportes de fechas pasadas**: solo admin/analista
+ (`puedeEditarReportesPasados`); el parte de un día pasado escribe SOLO el
+ snapshot (`soloSnapshot`), nunca el estado vigente del centro.
+- ✅ **Portal público de terreno `/terreno`** (bootstrap ligero compartido con
+ `/censo`, `src/features/terreno/`): dos botones (Reporte diario / Censo),
+ `?centro=<id>` para llegar apuntado, pantallas de instrucciones una-vez con
+ toggle de reset (`src/lib/instruccionesCampo.ts`).
+- ✅ **Partes en formato Telegram** (negritas `**…**`, pie `REF: <centro_id> |
+ <dia>` parseable por un bot futuro): botón "Copiar parte" por campamento
+ (`src/domain/reporteTelegramCentro.ts`) y menú **Compartir** en
+ `/centros/reportes` con diálogo de vista previa + copiar
+ (`src/domain/reporteTelegramRed.ts`) y descarga del PDF.
+- ✅ **PDF ejecutivo de 3 secciones** (`@react-pdf/renderer`,
+ `src/features/centros/reporte-ejecutivo/` + dominio
+ `reporteEjecutivoCampamentos.ts`): portada (KPIs, demografía H/M por grupo,
+ censo SEBIN, control con donuts, unidades SEBIN), detalle del día en 3
+ columnas (trabajos/salud/novedades con días abiertos) y tabla de la red
+ ordenada por N°.
+- ⚠️ **Datos piloto de simulación** sembrados el 08-jul en todos los
+ campamentos (partes, controles, trabajos, requerimientos, casos, novedades)
+ con `updated_by = 'simulacion'` / `creada_por = 'simulacion'`. Limpieza:
+ `delete from <tabla> where updated_by = 'simulacion'` en las 7 tablas.
+
 ### Qué falta / próximos pasos
+- 🤖 **Bot de Telegram (emisor):** publicar el parte por campamento y el parte
+  general de la red al grupo de enlaces desde un contenedor en Dokploy
+  (formateadores ya listos en `src/domain/reporteTelegram*.ts`; el `REF:` del
+  pie permite casar mensajes con la BD sin matching difuso).
 - 🔁 **Traslados entre centros:** hoy el tablero es comparativo (decides tú).
   Falta (si se pide) registrar/rastrear **movimientos de refugiados entre
   centros** y, opcionalmente, un motor de sugerencias de reubicación.
@@ -631,6 +669,13 @@ docker compose up -d --build
 - **RLS `perfiles`:** no hagas subselects directos sobre `perfiles` dentro de
   sus propias policies; usa helpers `SECURITY DEFINER` (`mi_hash_id()` para el
   chequeo de `hash_id` inmutable en updates).
+- **`crypto.randomUUID` no existe en contextos http** (acceso por IP al dev
+  server): `nuevoId()` (reposSupabase) genera un UUID v4 con `getRandomValues`
+  como fallback — varias tablas tienen `id uuid` y rechazan otros formatos.
+- **Copiar al portapapeles en http:** no hay Clipboard API; se usa
+  `src/lib/portapapeles.ts` (execCommand) y, en la vista de red, un diálogo
+  con textarea visible (copiar "a ciegas" desde un menú Radix falla porque el
+  cierre roba el foco).
 - Un warning de React "changed size between renders" que aparece **solo en el
   entorno de preview del asistente** NO proviene de esta app (se comprobó); no
   aparece en un navegador normal.

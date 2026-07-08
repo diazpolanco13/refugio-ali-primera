@@ -9,7 +9,14 @@ import {
   type Vulnerables,
 } from "@/domain/tipos";
 import type { SnapshotOcupacion } from "@/domain/serieOcupacionCentros";
-import { ChevronDown, ChevronUp, CircleCheck, CircleDashed, Users } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  CircleCheck,
+  CircleDashed,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -54,14 +61,14 @@ function KpiInline({
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-1 items-baseline gap-1.5 rounded-md border px-2 py-1",
+        "flex min-w-0 items-baseline gap-1.5 overflow-hidden rounded-md border px-2 py-1 sm:flex-1",
         principal ? "border-sky-500/25 bg-sky-500/10" : "border-border/50 bg-muted/20",
       )}
     >
-      <span className="shrink-0 text-[9px] text-muted-foreground">{etiqueta}</span>
+      <span className="min-w-0 truncate text-[9px] text-muted-foreground">{etiqueta}</span>
       <span
         className={cn(
-          "font-bold tabular-nums text-foreground",
+          "shrink-0 font-bold tabular-nums text-foreground",
           principal ? "text-base" : "text-sm",
         )}
       >
@@ -113,9 +120,16 @@ interface Props {
   snapshot: SnapshotOcupacion;
   snapshotAnterior?: SnapshotOcupacion;
   confirmado?: boolean;
+  /** Si se define, la tarjeta es clicable y abre la fase Parte del formulario. */
+  onAbrir?: () => void;
 }
 
-export function ParteNumericoResumen({ snapshot, snapshotAnterior, confirmado = true }: Props) {
+export function ParteNumericoResumen({
+  snapshot,
+  snapshotAnterior,
+  confirmado = true,
+  onAbrir,
+}: Props) {
   const [desgloseAbierto, setDesgloseAbierto] = useState(false);
   const vuln = normalizarVulnerables(snapshot.ocupacion);
   const vulnAnt = snapshotAnterior
@@ -148,7 +162,26 @@ export function ParteNumericoResumen({ snapshot, snapshotAnterior, confirmado = 
     : null;
 
   return (
-    <div className="rounded-lg border border-sky-500/25 bg-sky-500/[0.04] px-2.5 py-2">
+    <div
+      role={onAbrir ? "button" : undefined}
+      tabIndex={onAbrir ? 0 : undefined}
+      onClick={onAbrir}
+      onKeyDown={
+        onAbrir
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onAbrir();
+              }
+            }
+          : undefined
+      }
+      className={cn(
+        "rounded-lg border border-sky-500/25 bg-sky-500/[0.04] px-2.5 py-2",
+        onAbrir &&
+          "cursor-pointer transition-colors hover:border-sky-500/50 hover:bg-sky-500/10 active:bg-sky-500/15",
+      )}
+    >
       <div className="mb-1.5 flex items-center gap-1.5">
         <Users className="size-3.5 shrink-0 text-sky-400" />
         <span className="text-[11px] font-semibold text-foreground">Parte numérico</span>
@@ -160,9 +193,10 @@ export function ParteNumericoResumen({ snapshot, snapshotAnterior, confirmado = 
         ) : (
           <CircleDashed className="ml-auto size-3 text-muted-foreground" />
         )}
+        {onAbrir && <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
         <KpiInline
           etiqueta="Damnificados"
           valor={refugiados}
@@ -192,7 +226,11 @@ export function ParteNumericoResumen({ snapshot, snapshotAnterior, confirmado = 
         variant="ghost"
         size="xs"
         className="mt-1.5 h-7 w-full justify-between px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
-        onClick={() => setDesgloseAbierto((v) => !v)}
+        onClick={(e) => {
+          // No abrir el formulario cuando solo se despliega el censo demográfico.
+          e.stopPropagation();
+          setDesgloseAbierto((v) => !v);
+        }}
       >
         <span>
           Censo demográfico · {hombres.toLocaleString("es")} H / {mujeres.toLocaleString("es")} M
@@ -205,7 +243,11 @@ export function ParteNumericoResumen({ snapshot, snapshotAnterior, confirmado = 
       </Button>
 
       {desgloseAbierto && (
-      <div className="mt-1 overflow-x-auto rounded-md border border-border/40 bg-muted/10">
+      // Leer el desglose no debe disparar la apertura del formulario.
+      <div
+        className="mt-1 overflow-x-auto rounded-md border border-border/40 bg-muted/10"
+        onClick={(e) => e.stopPropagation()}
+      >
         <table className="w-full min-w-[280px] text-[10px]">
           <thead>
             <tr className="text-[9px] text-muted-foreground">

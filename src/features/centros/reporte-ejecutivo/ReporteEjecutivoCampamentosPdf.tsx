@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-import { ETIQUETA_NIVEL, type NivelPrioridad } from "@/domain/prioridadCentros";
+import { Document, Page, Path, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
 import type { ReporteEjecutivoCampamentos } from "@/domain/reporteEjecutivoCampamentos";
 
 const azul = "#0f2f3f";
@@ -12,13 +11,6 @@ const gris = "#64748b";
 const borde = "#d8e2ea";
 const fondoSuave = "#f4f8fb";
 
-const COLOR_NIVEL_PDF: Record<NivelPrioridad, string> = {
-  critico: rojo,
-  alto: "#c2410c",
-  medio: ambar,
-  estable: verde,
-  sin_datos: gris,
-};
 
 const styles = StyleSheet.create({
   page: {
@@ -313,6 +305,94 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: teal,
   },
+  tablaHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    marginTop: 10,
+    borderRadius: 7,
+    backgroundColor: azul,
+  },
+  tablaHeaderCelda: {
+    color: "#ffffff",
+    fontSize: 7,
+    fontWeight: 700,
+  },
+  tablaFila: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 3.5,
+    paddingHorizontal: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e6eef3",
+  },
+  tablaFilaAlterna: {
+    backgroundColor: fondoSuave,
+  },
+  celdaNombre: {
+    color: azul,
+    fontSize: 7.4,
+    fontWeight: 700,
+  },
+  celdaSub: {
+    color: gris,
+    fontSize: 6.3,
+  },
+  celdaTexto: {
+    color: "#334155",
+    fontSize: 7.2,
+  },
+  celdaNumero: {
+    color: azul,
+    fontSize: 7.4,
+    fontWeight: 700,
+    textAlign: "right",
+  },
+  celdaCentro: {
+    fontSize: 7.2,
+    fontWeight: 700,
+    textAlign: "center",
+  },
+  donutBloque: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  donutTextos: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  donutTitulo: {
+    color: azul,
+    fontSize: 8.6,
+    fontWeight: 700,
+  },
+  donutLinea: {
+    marginTop: 2,
+    color: "#334155",
+    fontSize: 7.2,
+  },
+  listaItem: {
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e6eef3",
+  },
+  listaTitulo: {
+    color: azul,
+    fontSize: 7.6,
+    fontWeight: 700,
+  },
+  listaMeta: {
+    marginTop: 1.5,
+    color: gris,
+    fontSize: 6.8,
+  },
+  listaDesc: {
+    marginTop: 1.5,
+    color: "#475569",
+    fontSize: 7,
+  },
   footer: {
     position: "absolute",
     left: 22,
@@ -363,7 +443,7 @@ function Kpi({
   compact,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   sub?: string;
   last?: boolean;
   compact?: boolean;
@@ -380,7 +460,7 @@ function Kpi({
     <View style={cardStyles}>
       <Text style={styles.kpiLabel}>{label}</Text>
       <Text style={compact ? [styles.kpiValue, styles.kpiValueCompact] : styles.kpiValue}>
-        {n(value)}
+        {typeof value === "number" ? n(value) : value}
       </Text>
       {sub ? (
         <Text style={compact ? [styles.kpiSub, styles.kpiSubCompact] : styles.kpiSub}>
@@ -469,30 +549,88 @@ function MiniDato({ label, value }: { label: string; value: number }) {
   );
 }
 
-function CuerpoItem({
-  label,
-  value,
-  total,
+
+const ANCHOS_TABLA = {
+  nro: 0.4,
+  campamento: 1.95,
+  cuerpo: 1.1,
+  damnif: 0.6,
+  fam: 0.52,
+  control: 1.0,
+  trabajos: 1.75,
+  salud: 1.55,
+  noved: 1.55,
+};
+
+function TextoSiNo({ valor }: { valor: boolean | null }) {
+  const texto = valor === null ? "—" : valor ? "SÍ" : "NO";
+  const color = valor === null ? gris : valor ? verde : rojo;
+  return <Text style={{ color, fontWeight: 700 }}>{texto}</Text>;
+}
+
+function arcoDonut(cx: number, cy: number, r: number, fraccion: number): string {
+  const f = Math.max(0.0001, Math.min(fraccion, 0.9999));
+  const a0 = -Math.PI / 2;
+  const a1 = a0 + Math.PI * 2 * f;
+  const x0 = cx + r * Math.cos(a0);
+  const y0 = cy + r * Math.sin(a0);
+  const x1 = cx + r * Math.cos(a1);
+  const y1 = cy + r * Math.sin(a1);
+  const grande = f > 0.5 ? 1 : 0;
+  return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${grande} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+
+function Donut({
+  titulo,
+  si,
+  no,
+  sinReporte,
 }: {
-  label: string;
-  value: number;
-  total: number;
+  titulo: string;
+  si: number;
+  no: number;
+  sinReporte: number;
 }) {
-  const porcentaje = total > 0 ? Math.round((value / total) * 100) : 0;
+  const total = Math.max(1, si + no + sinReporte);
+  const fSi = si / total;
+  const fNo = no / total;
+  const r = 24;
+  const grosor = 9;
   return (
-    <View style={styles.cuerpoItem}>
-      <View style={styles.cuerpoTop}>
-        <Text style={styles.cuerpoLabel}>{label}</Text>
-        <Text style={styles.cuerpoValue}>
-          {value}/{total}
-        </Text>
-      </View>
-      <View style={styles.cuerpoBar}>
-        <View style={[styles.cuerpoFill, { width: pct(porcentaje) }]} />
+    <View style={styles.donutBloque} wrap={false}>
+      <Svg width={62} height={62} viewBox="0 0 62 62">
+        <Path
+          d={arcoDonut(31, 31, r, 0.9999)}
+          stroke="#e5edf2"
+          strokeWidth={grosor}
+          fill="none"
+        />
+        {fNo > 0 ? (
+          <Path
+            d={arcoDonut(31, 31, r, fSi + fNo)}
+            stroke={rojo}
+            strokeWidth={grosor}
+            fill="none"
+          />
+        ) : null}
+        {fSi > 0 ? (
+          <Path d={arcoDonut(31, 31, r, fSi)} stroke={verde} strokeWidth={grosor} fill="none" />
+        ) : null}
+      </Svg>
+      <View style={styles.donutTextos}>
+        <Text style={styles.donutTitulo}>{titulo}</Text>
+        <Text style={[styles.donutLinea, { color: verde }]}>SÍ: {n(si)} ({Math.round(fSi * 100)}%)</Text>
+        <Text style={[styles.donutLinea, { color: rojo }]}>NO: {n(no)} ({Math.round(fNo * 100)}%)</Text>
+        <Text style={styles.donutLinea}>Sin reporte: {n(sinReporte)}</Text>
       </View>
     </View>
   );
 }
+
+const META_ESTATUS_CASO_PDF: Record<string, { label: string; color: string }> = {
+  activo: { label: "Activo", color: rojo },
+  en_proceso: { label: "En proceso", color: ambar },
+};
 
 export function ReporteEjecutivoCampamentosPdf({
   reporte,
@@ -532,39 +670,32 @@ export function ReporteEjecutivoCampamentosPdf({
           <Kpi label="Campamentos" value={reporte.kpis.centrosTotal} sub={`${reporte.kpis.centrosConDatos} con datos`} />
           <Kpi label="Familias" value={reporte.kpis.familiasTotal} />
           <Kpi label="Damnificados" value={reporte.kpis.refugiadosTotal} />
-          <Kpi label="Personal operativo" value={reporte.kpis.personalTotal} />
           <Kpi label="Mascotas" value={reporte.kpis.mascotasTotal} last />
         </View>
 
         <View style={styles.kpiRowTight}>
           <Kpi
-            label="Agua potable"
-            value={reporte.logistica.aguaPotableL}
-            sub="L/día · bebida y cocina"
+            label="Reportes del día"
+            value={`${n(reporte.partesDelDia)}/${n(reporte.kpis.centrosTotal)}`}
+            sub={`${reporte.kpis.centrosTotal > 0 ? Math.round((reporte.partesDelDia / reporte.kpis.centrosTotal) * 100) : 0}% de la red entregó su parte hoy`}
             compact
           />
           <Kpi
-            label="Agua uso cotidiano"
-            value={reporte.logistica.aguaUsoCotidianoL}
-            sub="L/día · aseo, pocetas, lavado"
+            label="Trabajos activos"
+            value={reporte.trabajosRed.activos}
+            sub={`en ${n(reporte.trabajosRed.campamentos)} campamentos`}
             compact
           />
           <Kpi
-            label="Comidas requeridas"
-            value={reporte.logistica.objetivoRaciones}
-            sub="3 raciones/persona/día"
+            label="Casos de salud"
+            value={reporte.casosSaludDetalle.length}
+            sub="abiertos en seguimiento"
             compact
           />
           <Kpi
-            label="Comida repartida"
-            value={reporte.logistica.racionesGestionadas}
-            sub={`${resumen.campamentosConComida} campamentos con comida`}
-            compact
-          />
-          <Kpi
-            label="Trabajos realizados"
-            value={resumen.trabajosRealizados}
-            sub={`${resumen.campamentosConTrabajo} campamentos atendidos`}
+            label="Novedades del día"
+            value={reporte.novedadesDetalle.length}
+            sub={`${resumen.eventosPositivos} positivas · ${resumen.eventosNegativos} negativas`}
             last
             compact
           />
@@ -575,11 +706,39 @@ export function ReporteEjecutivoCampamentosPdf({
             <Section title="Parte demográfico" hint={`${n(dem.total)} personas`}>
               <Barra label="Hombres" value={dem.hombres} total={totalGenero} color="#2563eb" />
               <Barra label="Mujeres" value={dem.mujeres} total={totalGenero} color="#be185d" />
+              <View style={{ marginTop: 2 }}>
+                <View style={[styles.row, { marginBottom: 3 }]}>
+                  <Text style={[styles.metricLabel, { flex: 1.4 }]}>Grupo etario</Text>
+                  <Text style={[styles.metricLabel, { flex: 0.6, textAlign: "right" }]}>H</Text>
+                  <Text style={[styles.metricLabel, { flex: 0.6, textAlign: "right" }]}>M</Text>
+                  <Text style={[styles.metricLabel, { flex: 0.7, textAlign: "right" }]}>Total</Text>
+                </View>
+                {dem.porGrupo.map((g) => (
+                  <View key={g.etiqueta} style={[styles.row, { marginBottom: 3 }]}>
+                    <Text style={[styles.rowLabel, { flex: 1.4 }]}>{g.etiqueta}</Text>
+                    <Text style={[styles.rowValue, { flex: 0.6, textAlign: "right", color: "#2563eb" }]}>
+                      {n(g.h)}
+                    </Text>
+                    <Text style={[styles.rowValue, { flex: 0.6, textAlign: "right", color: "#be185d" }]}>
+                      {n(g.m)}
+                    </Text>
+                    <Text style={[styles.rowValue, { flex: 0.7, textAlign: "right" }]}>
+                      {n(g.h + g.m)}
+                    </Text>
+                  </View>
+                ))}
+                <View style={[styles.row, { marginBottom: 3, borderTopWidth: 1, borderTopColor: borde, paddingTop: 3 }]}>
+                  <Text style={[styles.rowLabel, { flex: 1.4, fontWeight: 700 }]}>Total</Text>
+                  <Text style={[styles.rowValue, { flex: 0.6, textAlign: "right", color: "#2563eb" }]}>
+                    {n(dem.hombres)}
+                  </Text>
+                  <Text style={[styles.rowValue, { flex: 0.6, textAlign: "right", color: "#be185d" }]}>
+                    {n(dem.mujeres)}
+                  </Text>
+                  <Text style={[styles.rowValue, { flex: 0.7, textAlign: "right" }]}>{n(dem.total)}</Text>
+                </View>
+              </View>
               <View style={styles.miniGrid}>
-                <MiniDato label="0-2 años" value={dem.recienNacidos} />
-                <MiniDato label="Niñez" value={dem.ninos} />
-                <MiniDato label="Adolescentes" value={dem.adolescentes} />
-                <MiniDato label="Adultos mayores" value={dem.adultosMayores} />
                 <MiniDato label="Embarazadas" value={dem.embarazadas} />
                 <MiniDato label="Discapacidad/patologías" value={dem.discapacidad} />
               </View>
@@ -598,77 +757,73 @@ export function ReporteEjecutivoCampamentosPdf({
           </View>
 
           <View style={styles.columnWide}>
-            <Section title="Resumen operativo del día" hint="eventos, salud, comida y trabajos" tint>
-              <View style={styles.miniGrid}>
-                <StatCard label="Incidentes positivos" value={resumen.eventosPositivos} />
-                <StatCard label="Incidentes negativos" value={resumen.eventosNegativos} />
-                <StatCard label="Incidencias de salud" value={resumen.incidenciasSalud} />
-                <StatCard label="Atenciones de salud" value={resumen.atencionesSalud} />
-                <StatCard
-                  label="Comida repartida"
-                  value={reporte.logistica.racionesGestionadas}
-                  sub={`${reporte.logistica.coberturaRaciones}% del requerimiento`}
+            {reporte.censo ? (
+              <Section
+                title="Censo SEBIN"
+                hint={`${n(reporte.censo.completados + reporte.censo.enCurso + reporte.censo.sinIniciar)} campamentos`}
+                tint
+              >
+                <View style={styles.miniGrid}>
+                  <StatCard label="Completados" value={reporte.censo.completados} />
+                  <StatCard label="En curso" value={reporte.censo.enCurso} />
+                  <StatCard label="Sin iniciar" value={reporte.censo.sinIniciar} wide />
+                </View>
+                <Barra
+                  label="Avance del levantamiento"
+                  value={reporte.censo.completados}
+                  total={reporte.censo.completados + reporte.censo.enCurso + reporte.censo.sinIniciar}
+                  color={verde}
                 />
-                <StatCard label="Trabajos realizados" value={resumen.trabajosRealizados} />
-              </View>
-            </Section>
+              </Section>
+            ) : null}
 
-            <Section title="Atención inmediata" hint="top 5">
-              {reporte.prioridades.length === 0 ? (
-                <Text style={styles.rowLabel}>Sin campamentos registrados.</Text>
-              ) : (
-                reporte.prioridades.map((item) => (
-                  <View key={`${item.nro ?? "s/n"}-${item.nombre}`} style={styles.topItem}>
-                    <View style={styles.topHeader}>
-                      <View
-                        style={[
-                          styles.dot,
-                          { backgroundColor: COLOR_NIVEL_PDF[item.nivel] },
-                        ]}
-                      />
-                      <Text style={styles.topTitle}>
-                        {item.nro != null ? `N.${item.nro} ` : ""}
-                        {item.nombre}
-                      </Text>
-                    </View>
-                    <Text style={styles.topMeta}>
-                      {ETIQUETA_NIVEL[item.nivel]} - {n(item.refugiados)} damnif. -{" "}
-                      {n(item.familias)} familias
-                    </Text>
-                    {item.factores.length > 0 ? (
-                      <Text style={styles.factor}>{item.factores.join(" · ")}</Text>
-                    ) : (
-                      <Text style={styles.factor}>Sin factores críticos registrados.</Text>
-                    )}
-                  </View>
-                ))
-              )}
+            <Section title="Control operativo" hint={`${n(reporte.control.campamentosRevisados)}/${n(reporte.kpis.centrosTotal)} revisados`}>
+              <Donut
+                titulo="Captahuellas"
+                si={reporte.control.captahuella.si}
+                no={reporte.control.captahuella.no}
+                sinReporte={reporte.control.captahuella.sinReporte}
+              />
+              <Donut
+                titulo="Jueces de paz"
+                si={reporte.control.juezPaz.si}
+                no={reporte.control.juezPaz.no}
+                sinReporte={reporte.control.juezPaz.sinReporte}
+              />
+              <Barra
+                label="Servicio médico"
+                value={reporte.control.servicioMedico.si}
+                total={reporte.kpis.centrosTotal}
+                color={verde}
+              />
+              <Barra
+                label="Ambulancia"
+                value={reporte.control.ambulancia.si}
+                total={reporte.kpis.centrosTotal}
+                color={ambar}
+              />
             </Section>
           </View>
 
           <View style={[styles.column, styles.columnLast]}>
-            <Section title="Distribución territorial" hint="por grupo">
-              {reporte.grupos.map((grupo) => (
-                <View key={grupo.grupo} style={styles.row}>
-                  <Text style={styles.rowLabel}>{grupo.grupo}</Text>
+            <Section title="Trabajos en la red" hint={`${n(reporte.trabajosRed.activos)} activos`} tint>
+              <View style={styles.miniGrid}>
+                <MiniDato label="Pendientes" value={reporte.trabajosRed.pendientes} />
+                <MiniDato label="En progreso" value={reporte.trabajosRed.enProgreso} />
+                <MiniDato label="Campamentos con trabajos" value={reporte.trabajosRed.campamentos} />
+                <MiniDato label="Más antiguo (días)" value={reporte.trabajosRed.masViejoDias ?? 0} />
+              </View>
+            </Section>
+
+            <Section title="Campamentos por unidad SEBIN" hint={`${n(reporte.kpis.centrosTotal)} campamentos`}>
+              {reporte.unidadesSebin.map((u) => (
+                <View key={u.unidad} style={styles.row}>
+                  <Text style={styles.rowLabel}>{u.unidad}</Text>
                   <Text style={styles.rowValue}>
-                    {n(grupo.refugiados)} damnif. - {grupo.campamentos} camp.
+                    {String(u.campamentos).padStart(2, "0")} camp. · {n(u.refugiados)} damnif.
                   </Text>
                 </View>
               ))}
-            </Section>
-
-            <Section title="Campamentos por cuerpo policial" hint={`${n(reporte.kpis.centrosTotal)} campamentos`}>
-              <View style={styles.cuerpoGrid}>
-                {reporte.cuerpos.map((cuerpo) => (
-                  <CuerpoItem
-                    key={cuerpo.cuerpo}
-                    label={cuerpo.cuerpo}
-                    value={cuerpo.campamentos}
-                    total={reporte.kpis.centrosTotal}
-                  />
-                ))}
-              </View>
             </Section>
           </View>
         </View>
@@ -678,6 +833,235 @@ export function ReporteEjecutivoCampamentosPdf({
           <Text>Uso institucional - no contiene datos nominales de población.</Text>
         </View>
       </Page>
+
+      {/* ===== Página 2: control operativo y detalle del día ===== */}
+      <Page size="A4" orientation="landscape" style={styles.page}>
+        <View style={styles.header} fixed>
+          <View>
+            <Text style={styles.eyebrow}>SALA SITUACIONAL - CONTROL E INCIDENCIAS</Text>
+            <Text style={[styles.title, { fontSize: 15 }]}>Detalle operativo del día · {fechaCorte(reporte.dia)}</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <Text style={styles.pill}>Trabajos · salud · novedades</Text>
+            <Text
+              style={styles.smallMuted}
+              render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}
+            />
+          </View>
+        </View>
+
+        <View style={styles.body}>
+          <View style={styles.column}>
+            <Section title="Trabajos activos" hint={`${n(reporte.trabajosRed.activos)} · más viejos primero`}>
+              {reporte.trabajosRed.lista.length === 0 ? (
+                <Text style={styles.rowLabel}>Sin trabajos activos.</Text>
+              ) : (
+                <>
+                  {reporte.trabajosRed.lista.slice(0, 12).map((t, i) => (
+                    <View key={`${t.centro}-${i}`} style={styles.listaItem} wrap={false}>
+                      <Text style={styles.listaTitulo}>{t.titulo}</Text>
+                      <Text style={styles.listaMeta}>
+                        {t.centro} ·{" "}
+                        <Text style={{ color: t.estatus === "en_progreso" ? ambar : rojo }}>
+                          {t.estatus === "en_progreso" ? "En progreso" : "Pendiente"}
+                        </Text>{" "}
+                        · {t.dias === 0 ? "hoy" : `${t.dias} día${t.dias === 1 ? "" : "s"} abierto`}
+                      </Text>
+                    </View>
+                  ))}
+                  {reporte.trabajosRed.lista.length > 12 ? (
+                    <Text style={[styles.listaMeta, { marginTop: 4 }]}>
+                      +{n(reporte.trabajosRed.lista.length - 12)} trabajos más en la app.
+                    </Text>
+                  ) : null}
+                </>
+              )}
+            </Section>
+
+          </View>
+
+          <View style={styles.columnWide}>
+            <Section title="Casos de salud en seguimiento" hint={`${n(reporte.casosSaludDetalle.length)} abiertos`}>
+              {reporte.casosSaludDetalle.length === 0 ? (
+                <Text style={styles.rowLabel}>Sin casos abiertos.</Text>
+              ) : (
+                <>
+                  {reporte.casosSaludDetalle.slice(0, 14).map((caso, i) => {
+                    const meta = META_ESTATUS_CASO_PDF[caso.estatus] ?? {
+                      label: caso.estatus,
+                      color: gris,
+                    };
+                    return (
+                      <View key={`${caso.centro}-${i}`} style={styles.listaItem} wrap={false}>
+                        <Text style={styles.listaTitulo}>{caso.titulo}</Text>
+                        {caso.descripcion ? (
+                          <Text style={styles.listaDesc}>{caso.descripcion}</Text>
+                        ) : null}
+                        <Text style={styles.listaMeta}>
+                          {caso.centro} · <Text style={{ color: meta.color }}>{meta.label}</Text> ·{" "}
+                          {caso.dias === 0 ? "hoy" : `${caso.dias} día${caso.dias === 1 ? "" : "s"} abierto`}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                  {reporte.casosSaludDetalle.length > 14 ? (
+                    <Text style={[styles.listaMeta, { marginTop: 4 }]}>
+                      +{n(reporte.casosSaludDetalle.length - 14)} casos más en la app.
+                    </Text>
+                  ) : null}
+                </>
+              )}
+            </Section>
+          </View>
+
+          <View style={[styles.column, styles.columnLast]}>
+            <Section title="Novedades del día" hint={`${n(reporte.novedadesDetalle.length)} registradas`}>
+              {reporte.novedadesDetalle.length === 0 ? (
+                <Text style={styles.rowLabel}>Sin novedades registradas.</Text>
+              ) : (
+                <>
+                  {reporte.novedadesDetalle.slice(0, 12).map((nov, i) => (
+                    <View key={`${nov.centro}-${i}`} style={styles.listaItem} wrap={false}>
+                      <Text style={styles.listaTitulo}>
+                        <Text style={{ color: nov.tipo === "positivo" ? verde : rojo }}>
+                          {nov.tipo === "positivo" ? "[+] " : "[-] "}
+                        </Text>
+                        {nov.titulo}
+                      </Text>
+                      <Text style={styles.listaMeta}>{nov.centro}</Text>
+                      {nov.descripcion ? (
+                        <Text style={styles.listaDesc}>{nov.descripcion}</Text>
+                      ) : null}
+                    </View>
+                  ))}
+                  {reporte.novedadesDetalle.length > 12 ? (
+                    <Text style={[styles.listaMeta, { marginTop: 4 }]}>
+                      +{n(reporte.novedadesDetalle.length - 12)} novedades más en la app.
+                    </Text>
+                  ) : null}
+                </>
+              )}
+            </Section>
+          </View>
+        </View>
+
+        <View style={styles.footer} fixed>
+          <Text>REF: RED-CARACAS | {reporte.dia}</Text>
+          <Text>Generado: {horaGeneracion(reporte.generadoTs)} · {reporte.generadoPor}</Text>
+        </View>
+      </Page>
+      {/* ===== Páginas finales: tabla de la red, un campamento por fila ===== */}
+      <Page size="A4" orientation="landscape" style={styles.page}>
+        <View style={styles.header} fixed>
+          <View>
+            <Text style={styles.eyebrow}>SALA SITUACIONAL - DETALLE POR CAMPAMENTO</Text>
+            <Text style={[styles.title, { fontSize: 15 }]}>Situación de la red · {fechaCorte(reporte.dia)}</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <Text style={styles.pill}>{n(reporte.filasRed.length)} campamentos</Text>
+            <Text
+              style={styles.smallMuted}
+              render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}
+            />
+          </View>
+        </View>
+
+        <View style={styles.tablaHeader} fixed>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.nro }]}>N°</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.campamento }]}>Campamento</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.cuerpo }]}>Cuerpo · unidad</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.damnif, textAlign: "right" }]}>Damnif.</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.fam, textAlign: "right" }]}>Fam.</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.control, paddingLeft: 6 }]}>Control</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.trabajos }]}>Trabajos</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.salud }]}>Casos de salud</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.noved }]}>Novedades</Text>
+        </View>
+
+        {reporte.filasRed.map((fila, i) => (
+          <View
+            key={`${fila.nro ?? "s/n"}-${fila.nombre}`}
+            style={i % 2 === 1 ? [styles.tablaFila, styles.tablaFilaAlterna] : styles.tablaFila}
+            wrap={false}
+          >
+            <Text style={[styles.celdaTexto, { flex: ANCHOS_TABLA.nro }]}>
+              {fila.nro != null ? fila.nro : "—"}
+            </Text>
+            <View style={{ flex: ANCHOS_TABLA.campamento, paddingRight: 4 }}>
+              <Text style={styles.celdaNombre}>{fila.nombre}</Text>
+              {fila.parroquia ? <Text style={styles.celdaSub}>{fila.parroquia}</Text> : null}
+            </View>
+            <View style={{ flex: ANCHOS_TABLA.cuerpo, paddingRight: 4 }}>
+              <Text style={styles.celdaTexto}>{fila.cuerpo}</Text>
+              {fila.unidadSebin ? <Text style={styles.celdaSub}>{fila.unidadSebin}</Text> : null}
+            </View>
+            <Text style={[styles.celdaNumero, { flex: ANCHOS_TABLA.damnif }]}>{n(fila.refugiados)}</Text>
+            <Text style={[styles.celdaNumero, { flex: ANCHOS_TABLA.fam }]}>{n(fila.familias)}</Text>
+            <View style={{ flex: ANCHOS_TABLA.control, paddingLeft: 6 }}>
+              <Text style={styles.celdaTexto}>
+                Captah. <TextoSiNo valor={fila.captahuella} />
+              </Text>
+              <Text style={[styles.celdaTexto, { marginTop: 1 }]}>
+                Juez paz <TextoSiNo valor={fila.juezPaz} />
+              </Text>
+            </View>
+            <View style={{ flex: ANCHOS_TABLA.trabajos, paddingRight: 4 }}>
+              {fila.trabajosDetalle.length === 0 ? (
+                <Text style={[styles.celdaTexto, { color: gris }]}>—</Text>
+              ) : (
+                fila.trabajosDetalle.map((t, j) => (
+                  <Text key={j} style={[styles.celdaTexto, { marginBottom: 1 }]}>
+                    • {t.titulo}{" "}
+                    <Text style={{ color: t.dias >= 3 ? rojo : gris }}>
+                      ({t.dias === 0 ? "hoy" : `${t.dias} d`})
+                    </Text>
+                  </Text>
+                ))
+              )}
+            </View>
+            <View style={{ flex: ANCHOS_TABLA.salud, paddingRight: 4 }}>
+              {fila.casosDetalle.length === 0 ? (
+                <Text style={[styles.celdaTexto, { color: gris }]}>—</Text>
+              ) : (
+                fila.casosDetalle.map((c, j) => (
+                  <Text key={j} style={[styles.celdaTexto, { marginBottom: 1 }]}>
+                    • {c.titulo}{" "}
+                    <Text style={{ color: gris }}>
+                      (<Text style={{ color: META_ESTATUS_CASO_PDF[c.estatus]?.color ?? gris, fontWeight: 700 }}>
+                        {META_ESTATUS_CASO_PDF[c.estatus]?.label ?? c.estatus}
+                      </Text>{" "}
+                      · {c.dias === 0 ? "hoy" : `${c.dias} d`})
+                    </Text>
+                  </Text>
+                ))
+              )}
+            </View>
+            <View style={{ flex: ANCHOS_TABLA.noved }}>
+              {fila.novedadesDetalle.length === 0 ? (
+                <Text style={[styles.celdaTexto, { color: gris }]}>—</Text>
+              ) : (
+                fila.novedadesDetalle.map((nov, j) => (
+                  <Text
+                    key={j}
+                    style={[
+                      styles.celdaTexto,
+                      { marginBottom: 1, color: nov.tipo === "positivo" ? verde : rojo },
+                    ]}
+                  >
+                    • {nov.titulo}
+                  </Text>
+                ))
+              )}
+            </View>
+          </View>
+        ))}
+
+        <View style={styles.footer} fixed>
+          <Text>Ordenado por N° de campamento · Control según revisión del día · Trabajos con días abiertos.</Text>
+          <Text>Casos de salud = abiertos en seguimiento · Novedades = del día del corte.</Text>
+        </View>
+      </Page>
+
     </Document>
   );
 }

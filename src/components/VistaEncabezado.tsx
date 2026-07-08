@@ -93,11 +93,11 @@ export function VistaEncabezado({
           compacto ? "sm:items-start sm:gap-3" : "flex-wrap items-start gap-3",
         )}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-2 sm:block sm:flex-none">
+        <div className="min-w-0 flex-1 sm:flex-none">
           <CardTitle
             className={cn(
               "flex min-w-0 items-center gap-2",
-              compacto ? "text-sm sm:text-base lg:text-lg" : "flex-wrap text-base lg:text-lg",
+              compacto ? "text-sm sm:text-base lg:text-lg" : "text-base lg:text-lg",
             )}
           >
             <span
@@ -116,7 +116,12 @@ export function VistaEncabezado({
             ) : null}
           </CardTitle>
           {descripcion ? (
-            <CardDescription className={cn("mt-1", compacto && "hidden sm:block")}>
+            <CardDescription
+              className={cn(
+                "mt-1 truncate sm:overflow-visible sm:whitespace-normal",
+                compacto && "hidden sm:block",
+              )}
+            >
               {descripcion}
             </CardDescription>
           ) : null}

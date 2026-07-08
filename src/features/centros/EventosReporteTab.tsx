@@ -55,6 +55,8 @@ interface Props {
   eventosRevisados: boolean;
   onEventosChange: (eventos: EventoReporte[]) => void;
   onEventosRevisadosChange: (valor: boolean) => void;
+  /** Confirma la revisión "sin novedades" y la GUARDA de inmediato. */
+  onConfirmarRevision?: (valor: boolean) => void;
   deshabilitado?: boolean;
 }
 
@@ -119,6 +121,7 @@ export function EventosReporteTab({
   eventosRevisados,
   onEventosChange,
   onEventosRevisadosChange,
+  onConfirmarRevision,
   deshabilitado,
 }: Props) {
   const { alojamientos, cargando } = useAlojamientosCentro({ centroId, estado: "activo" });
@@ -248,7 +251,7 @@ export function EventosReporteTab({
               eventosRevisados && "border border-emerald-500/40 text-emerald-400",
             )}
             disabled={deshabilitado}
-            onClick={() => onEventosRevisadosChange(!eventosRevisados)}
+            onClick={() => (onConfirmarRevision ?? onEventosRevisadosChange)(!eventosRevisados)}
           >
             {eventosRevisados ? <Check className="size-4" /> : <CalendarPlus className="size-4" />}
             {eventosRevisados ? "Quitar revisión sin novedades" : "Confirmar que no hubo eventos"}

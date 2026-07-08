@@ -157,6 +157,15 @@ export function rolUsaCentrosAsignados(rol: Rol): boolean {
   return rol === "analista_sae" || rol === "supervisor" || rol === "operador";
 }
 
+/**
+ * Corregir reportes diarios de fechas anteriores: solo la sala (admin y
+ * analista SAE). Los supervisores/operadores reportan únicamente el día en
+ * curso.
+ */
+export function puedeEditarReportesPasados(usuario: Usuario): boolean {
+  return usuario.rol === "admin" || usuario.rol === "analista_sae";
+}
+
 /** ¿Puede este usuario editar los datos de un centro concreto? */
 export function puedeEditarCentro(usuario: Usuario, centroId: string): boolean {
   const info = permisosDeRol(usuario.rol);

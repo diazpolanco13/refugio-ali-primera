@@ -52,13 +52,11 @@ interface Props {
 
 function TarjetaRequerimiento({
   item,
-  hoyClave,
   onEditar,
   onArchivar,
   deshabilitado,
 }: {
   item: RequerimientoSeguimiento;
-  hoyClave: string;
   onEditar: () => void;
   onArchivar: () => void;
   deshabilitado?: boolean;
@@ -78,7 +76,7 @@ function TarjetaRequerimiento({
             <Badge variant="secondary" className="text-[10px]">
               {catLabel}
             </Badge>
-            <BadgeAntiguedad reportadoDia={item.reportado_dia} hoyClave={hoyClave} resueltaTs={item.resuelta_ts} creadaTs={item.creada_ts} />
+            <BadgeAntiguedad reportadoDia={item.reportado_dia} resueltaTs={item.resuelta_ts} creadaTs={item.creada_ts} />
           </div>
           <p className="text-[11px] text-muted-foreground">
             Cantidad: <span className="font-semibold tabular-nums text-foreground">{item.cantidad}</span>
@@ -183,24 +181,6 @@ export function RequerimientosReporteTab({
         </div>
       </div>
 
-      {items.length > 0 ? (
-        <ul className="space-y-2">
-          {items.map((r) => (
-            <li key={r.id}>
-              <TarjetaRequerimiento
-                item={r}
-                hoyClave={hoyClave}
-                deshabilitado={deshabilitado}
-                onEditar={() => cargarEdicion(r)}
-                onArchivar={() => void archivarRequerimientoSeguimiento(r.id)}
-              />
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-xs text-muted-foreground">Sin requerimientos abiertos.</p>
-      )}
-
       <Card size="sm" className="border-border/80">
         <CardContent className="space-y-2 px-3 py-3">
           <p className="text-xs font-medium">{editandoId ? "Editar requerimiento" : "Nuevo requerimiento"}</p>
@@ -263,6 +243,23 @@ export function RequerimientosReporteTab({
           </div>
         </CardContent>
       </Card>
+
+      {items.length > 0 ? (
+        <ul className="space-y-2">
+          {items.map((r) => (
+            <li key={r.id}>
+              <TarjetaRequerimiento
+                item={r}
+                deshabilitado={deshabilitado}
+                onEditar={() => cargarEdicion(r)}
+                onArchivar={() => void archivarRequerimientoSeguimiento(r.id)}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-muted-foreground">Sin requerimientos abiertos.</p>
+      )}
 
       <div className="flex justify-end">
         <Button

@@ -19,6 +19,7 @@ interface Props {
   marcasPorDia?: Map<string, string>;
   leyenda?: LeyendaCalendario[];
   compacto?: boolean;
+  className?: string;
 }
 
 function parsearDiaLocal(dia: string): Date {
@@ -51,6 +52,7 @@ export function VisorFechaReporte({
   marcasPorDia = new Map(),
   leyenda = [],
   compacto = false,
+  className,
 }: Props) {
   const [abierto, setAbierto] = useState(false);
   const esHoy = hoyClave != null && dia === hoyClave;
@@ -81,6 +83,7 @@ export function VisorFechaReporte({
         esHoy
           ? "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_0_1px_rgba(16,185,129,0.15)]"
           : "border-border/60",
+        className,
       )}
     >
       <Button

@@ -18,7 +18,7 @@ import { useReportesControlDia } from "@/data/useReportesControlDia";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { Sesion } from "@/data/authSupabase";
-import { puedeEditarCentro } from "@/domain/permisos";
+import { puedeEditarCentro, puedeEditarReportesPasados } from "@/domain/permisos";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
 import { controlReportado, reporteControlDelDia } from "@/domain/controlReporte";
 import {
@@ -108,6 +108,7 @@ export function FichaCentroView({ sesion }: Props) {
   );
 
   const puedeEditar = centro != null && puedeEditarCentro(sesion.user, centro.id);
+  const puedeEditarPasado = puedeEditarReportesPasados(sesion.user);
 
   const reportesHoy = useReportesCentros({
     centroId: centro?.id,
@@ -229,9 +230,10 @@ export function FichaCentroView({ sesion }: Props) {
     setSearchParams(vista === "resumen" ? {} : { vista }, { replace: true });
   }
 
-  function abrirReporte() {
+  function abrirReporte(fase?: string) {
     const next = new URLSearchParams({ vista: "reporte", reportar: "1" });
     if (diaReporte !== hoyClave) next.set("dia", diaReporte);
+    if (fase) next.set("fase", fase);
     setSearchParams(next, { replace: true });
   }
 
@@ -354,7 +356,7 @@ export function FichaCentroView({ sesion }: Props) {
     );
   }
 
-  if (modoReporte && puedeEditar) {
+  if (modoReporte && puedeEditar && (esHoyReporte || puedeEditarPasado)) {
     return (
       <MarcoVista
         ancho={ANCHO_VISTA_PRINCIPAL}
@@ -380,7 +382,7 @@ export function FichaCentroView({ sesion }: Props) {
               <p className="truncate text-xs text-muted-foreground">{titulo}</p>
             </div>
           </div>
-          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+          <div className="mt-2.5 flex items-center gap-2">
             <VisorFechaReporte
               dia={diaReporte}
               onDiaChange={cambiarDiaReporte}
@@ -388,6 +390,7 @@ export function FichaCentroView({ sesion }: Props) {
               marcasPorDia={marcasPorDia}
               leyenda={leyendaCalendario}
               compacto
+              className="h-9 min-w-0 flex-1 sm:h-8 sm:flex-none"
             />
             <BadgeEstadoReporte estado={estadoDiaReporte} destacado />
           </div>
@@ -397,6 +400,7 @@ export function FichaCentroView({ sesion }: Props) {
           centro={centro}
           variant="integrado"
           diaReporte={diaReporte}
+          faseInicial={searchParams.get("fase") ?? undefined}
           onCerrar={cerrarReporte}
         />
       </MarcoVista>
@@ -428,18 +432,24 @@ export function FichaCentroView({ sesion }: Props) {
                   compacto
                 />
               </div>
-              <BadgeEstadoReporte estado={estadoDiaReporte} destacado />
-              {puedeEditar && esHoyReporte && (
+              {/* En móvil el badge baja a la fila de la fecha (debajo) para no
+                  aplastar el nombre del campamento. */}
+              <div className="hidden sm:block">
+                <BadgeEstadoReporte estado={estadoDiaReporte} destacado />
+              </div>
+              {puedeEditar && (esHoyReporte || puedeEditarPasado) && (
                 <Button
                   size="sm"
                   className="h-9 shrink-0 gap-1.5 bg-teal-600 px-3 hover:bg-teal-500"
-                  onClick={abrirReporte}
+                  onClick={() => abrirReporte()}
                 >
                   <ClipboardCheck className="size-4" />
                   <span className="hidden sm:inline">
-                    {estadoDiaReporte === "pendiente" && !parteDiaReporte
-                      ? "Reportar hoy"
-                      : "Editar reporte"}
+                    {!esHoyReporte
+                      ? "Editar este día"
+                      : estadoDiaReporte === "pendiente" && !parteDiaReporte
+                        ? "Reportar hoy"
+                        : "Editar reporte"}
                   </span>
                   <span className="sm:hidden">Reporte</span>
                 </Button>
@@ -454,7 +464,7 @@ export function FichaCentroView({ sesion }: Props) {
                 <Button
                   size="sm"
                   className="h-9 shrink-0 gap-1.5 bg-teal-600 px-3 hover:bg-teal-500"
-                  onClick={abrirReporte}
+                  onClick={() => abrirReporte()}
                 >
                   <ClipboardCheck className="size-4" />
                   <span className="hidden sm:inline">{etiquetaBotonReporte}</span>
@@ -466,7 +476,7 @@ export function FichaCentroView({ sesion }: Props) {
         }
         debajo={
           esReporteTab ? (
-            <div className="flex flex-wrap items-center gap-2 sm:hidden">
+            <div className="flex items-center gap-2 sm:hidden">
               <VisorFechaReporte
                 dia={diaReporte}
                 onDiaChange={cambiarDiaReporte}
@@ -474,7 +484,9 @@ export function FichaCentroView({ sesion }: Props) {
                 marcasPorDia={marcasPorDia}
                 leyenda={leyendaCalendario}
                 compacto
+                className="h-9 min-w-0 flex-1"
               />
+              <BadgeEstadoReporte estado={estadoDiaReporte} destacado />
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2 sm:hidden">
@@ -543,6 +555,7 @@ export function FichaCentroView({ sesion }: Props) {
               <SeccionReporteDiarioCentro
                 centro={centro}
                 puedeEditar={puedeEditar}
+                puedeEditarPasado={puedeEditarPasado}
                 variant="expandido"
                 onAbrirReporte={puedeEditar ? abrirReporte : undefined}
                 diaSeleccionado={diaReporte}

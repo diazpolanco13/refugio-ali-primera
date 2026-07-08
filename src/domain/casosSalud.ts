@@ -25,6 +25,9 @@ export const META_ESTATUS_CASO_SALUD: Record<EstatusCasoSalud, MetaEstatusCasoSa
 export interface CasoSaludCentro {
   id: string;
   centro_id: string;
+  /** Título corto del caso (p. ej. "Adulto mayor hipertenso"). */
+  titulo: string;
+  /** Detalle opcional del caso. */
   descripcion: string;
   estatus: EstatusCasoSalud;
   /** YYYY-MM-DD */
@@ -49,7 +52,9 @@ export function normalizarCasoSalud(
   return {
     id: raw.id,
     centro_id: raw.centro_id,
-    descripcion: raw.descripcion ?? "",
+    // Casos previos a la columna `titulo`: la descripción hace de título.
+    titulo: raw.titulo?.trim() ? raw.titulo : (raw.descripcion ?? ""),
+    descripcion: raw.titulo?.trim() ? (raw.descripcion ?? "") : "",
     estatus: normalizarEstatusCasoSalud(raw.estatus),
     reportado_dia: raw.reportado_dia ?? "",
     resuelta_ts: raw.resuelta_ts != null ? Number(raw.resuelta_ts) : null,

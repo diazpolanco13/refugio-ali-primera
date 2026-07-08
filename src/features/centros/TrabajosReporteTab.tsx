@@ -49,13 +49,11 @@ interface Props {
 
 function TarjetaTrabajo({
   trabajo,
-  hoyClave,
   onEditar,
   onArchivar,
   deshabilitado,
 }: {
   trabajo: TrabajoCentro;
-  hoyClave: string;
   onEditar: () => void;
   onArchivar: () => void;
   deshabilitado?: boolean;
@@ -82,7 +80,6 @@ function TarjetaTrabajo({
             </Badge>
             <BadgeAntiguedad
               reportadoDia={trabajo.reportada_dia}
-              hoyClave={hoyClave}
               resueltaTs={trabajo.resuelta_ts}
               creadaTs={trabajo.creada_ts}
             />
@@ -197,24 +194,6 @@ export function TrabajosReporteTab({
         </div>
       </div>
 
-      {trabajos.length > 0 ? (
-        <ul className="space-y-2">
-          {trabajos.map((t) => (
-            <li key={t.id}>
-              <TarjetaTrabajo
-                trabajo={t}
-                hoyClave={hoyClave}
-                deshabilitado={deshabilitado}
-                onEditar={() => cargarEdicion(t)}
-                onArchivar={() => void archivarTrabajo(t.id)}
-              />
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-xs text-muted-foreground">Sin trabajos abiertos.</p>
-      )}
-
       <Card size="sm" className="border-border/80">
         <CardContent className="space-y-2 px-3 py-3">
           <p className="text-xs font-medium">{editandoId ? "Editar trabajo" : "Nuevo trabajo"}</p>
@@ -270,6 +249,23 @@ export function TrabajosReporteTab({
           </div>
         </CardContent>
       </Card>
+
+      {trabajos.length > 0 ? (
+        <ul className="space-y-2">
+          {trabajos.map((t) => (
+            <li key={t.id}>
+              <TarjetaTrabajo
+                trabajo={t}
+                deshabilitado={deshabilitado}
+                onEditar={() => cargarEdicion(t)}
+                onArchivar={() => void archivarTrabajo(t.id)}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-muted-foreground">Sin trabajos abiertos.</p>
+      )}
 
       <div className="flex justify-end">
         <Button

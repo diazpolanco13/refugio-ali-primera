@@ -7,15 +7,19 @@ import {
   ArrowUpAZ,
   CalendarDays,
   CalendarPlus,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  CheckCircle2,
   CircleDashed,
   ClipboardList,
+  Copy,
+  Download,
   FilterX,
   ListFilter,
+  Loader2,
   Search,
+  Share2,
   ShieldCheck,
   Package,
   Stethoscope,
@@ -29,6 +33,13 @@ import { useReportesControlDia } from "@/data/useReportesControlDia";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { useIncidencias } from "@/data/useIncidencias";
+import { useReparacionesCentros } from "@/data/useReparacionesCentros";
+import { useRequerimientosSeguimiento } from "@/data/useRequerimientosSeguimiento";
+import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
+import { useCensoRedResumen } from "@/data/useCensoRedResumen";
+import { estadoCensoCentro } from "@/domain/censoResumen";
+import { casosAbiertosSeguimiento } from "@/domain/casosSalud";
+import { textoParteGeneralRed } from "@/domain/reporteTelegramRed";
 import { claveDia } from "@/data/reposSupabase";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import { metaCuerpoDe, type CentroTransitorio } from "@/domain/centrosTransitorios";
@@ -45,6 +56,19 @@ import { construirReporteEjecutivoCampamentos } from "@/domain/reporteEjecutivoC
 import type { Sesion } from "@/data/authSupabase";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { LogoCuerpo } from "@/components/LogoCuerpo";
 import {
   Collapsible,
@@ -72,7 +96,6 @@ import {
   formatearDiaCalendario,
 } from "./CalendarioSelectorDia";
 import { normalizarTextoBusqueda } from "./CentrosListaItems";
-import { BotonReporteEjecutivo } from "./reporte-ejecutivo/BotonReporteEjecutivo";
 
 type FiltroEstado = EstadoReporteDia | "todos";
 
@@ -322,13 +345,18 @@ function SelectorFechaReporte({
   onSeleccionarDia,
   marcasPorDia,
   leyenda,
+  hoyClave,
+  className,
 }: {
   dia: string;
   onSeleccionarDia: (dia: string) => void;
   marcasPorDia: Map<string, string>;
   leyenda: { color: string; label: string }[];
+  hoyClave?: string;
+  className?: string;
 }) {
   const [abierto, setAbierto] = useState(false);
+  const esHoy = hoyClave !== undefined && dia === hoyClave;
 
   function seleccionarDia(nuevoDia: string | null) {
     if (!nuevoDia) return;
@@ -337,7 +365,15 @@ function SelectorFechaReporte({
   }
 
   return (
-    <div className="flex h-8 min-w-0 overflow-hidden rounded-lg border border-border/60 bg-card/70">
+    <div
+      className={cn(
+        "flex h-8 min-w-0 overflow-hidden rounded-lg border",
+        esHoy
+          ? "border-emerald-500/50 bg-emerald-500/10"
+          : "border-border/60 bg-card/70",
+        className,
+      )}
+    >
       <Button
         type="button"
         variant="ghost"
@@ -354,9 +390,13 @@ function SelectorFechaReporte({
           <Button
             type="button"
             variant="ghost"
-            className="h-full min-w-0 flex-1 rounded-none px-2 text-xs font-semibold tracking-wide tabular-nums"
+            className={cn(
+              "h-full min-w-0 flex-1 rounded-none px-2 text-xs font-semibold tracking-wide tabular-nums",
+              esHoy && "text-emerald-400",
+            )}
           >
             {formatearDiaSelector(dia)}
+            {esHoy ? " · Hoy" : ""}
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-[260px] overflow-hidden p-0">
@@ -479,6 +519,88 @@ export function ReportesDiariosRedView() {
   const eventos = useEventosReportes({ desde });
   const incidencias = useIncidencias({ desde });
   const snapshots = useOcupacionesCentros({ desde });
+  const trabajosRed = useReparacionesCentros({ soloActivos: true });
+  const requerimientosRed = useRequerimientosSeguimiento({ soloActivos: true });
+  const casosSaludRed = useCasosSaludCentros({ soloActivos: true });
+  const { resumenes: censoResumenes } = useCensoRedResumen();
+  const censoEstados = useMemo(() => {
+    if (!censoResumenes.length) return null;
+    const conteo = { completados: 0, enCurso: 0, sinIniciar: 0 };
+    for (const r of censoResumenes) {
+      const estado = estadoCensoCentro(r);
+      if (estado === "completado_declarado") conteo.completados += 1;
+      else if (estado === "en_curso") conteo.enCurso += 1;
+      else conteo.sinIniciar += 1;
+    }
+    return conteo;
+  }, [censoResumenes]);
+
+  const [generandoPdf, setGenerandoPdf] = useState(false);
+  const [menuCompartirAbierto, setMenuCompartirAbierto] = useState(false);
+
+  async function descargarPdfEjecutivo() {
+    setGenerandoPdf(true);
+    try {
+      const [{ pdf }, { ReporteEjecutivoCampamentosPdf }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("./reporte-ejecutivo/ReporteEjecutivoCampamentosPdf"),
+      ]);
+      const blob = await pdf(
+        <ReporteEjecutivoCampamentosPdf reporte={reporteEjecutivo} />,
+      ).toBlob();
+      const url = URL.createObjectURL(blob);
+      const enlace = document.createElement("a");
+      enlace.href = url;
+      enlace.download = `parte-global-campamentos-${diaActivo}.pdf`;
+      enlace.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setGenerandoPdf(false);
+    }
+  }
+
+  const [parteCompartir, setParteCompartir] = useState<string | null>(null);
+  const [copiadoDialogo, setCopiadoDialogo] = useState(false);
+  const areaParteRef = useRef<HTMLTextAreaElement>(null);
+
+  function abrirParteRed() {
+    setParteCompartir(
+      textoParteGeneralRed({
+        centros,
+        dia: diaActivo,
+        snapshots,
+        controlesDia: controles.filter((c) => c.dia === diaActivo),
+        casosSaludAbiertos: casosAbiertosSeguimiento(casosSaludRed),
+        trabajosActivos: trabajosRed,
+        requerimientosActivos: requerimientosRed,
+        eventosDia: eventos.filter((e) => e.dia === diaActivo),
+        incidenciasAbiertas: incidencias.filter((i) => i.estado === "abierta").length,
+      }),
+    );
+    setCopiadoDialogo(false);
+    setMenuCompartirAbierto(false);
+  }
+
+  /** Copia desde el textarea visible: única vía fiable en despliegues http. */
+  async function copiarDesdeDialogo() {
+    let ok = false;
+    if (window.isSecureContext && navigator.clipboard && parteCompartir) {
+      try {
+        await navigator.clipboard.writeText(parteCompartir);
+        ok = true;
+      } catch {
+        /* cae al fallback */
+      }
+    }
+    const area = areaParteRef.current;
+    if (!ok && area) {
+      area.focus();
+      area.select();
+      ok = document.execCommand("copy");
+    }
+    setCopiadoDialogo(ok);
+    if (ok) window.setTimeout(() => setCopiadoDialogo(false), 2000);
+  }
 
   const reportesPorCentroDia = useMemo(() => {
     const m = new Map<string, ReporteDiario>();
@@ -518,6 +640,18 @@ export function ReportesDiariosRedView() {
     }
     return m;
   }, [reportes]);
+
+  const trabajosActivosPorCentro = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of trabajosRed) m.set(t.centro_id, (m.get(t.centro_id) ?? 0) + 1);
+    return m;
+  }, [trabajosRed]);
+
+  const requerimientosActivosPorCentro = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of requerimientosRed) m.set(r.centro_id, (m.get(r.centro_id) ?? 0) + 1);
+    return m;
+  }, [requerimientosRed]);
 
   const eventosPorCentroDia = useMemo(() => {
     const m = new Map<string, number>();
@@ -585,6 +719,9 @@ export function ReportesDiariosRedView() {
           eventosRevisados: eventosRevisados(reporte, eventosCount),
           incidenciasSalud: snap?.incidencias_salud ?? 0,
           eventos: eventosCount,
+          damnificados: snap?.total_afectados ?? 0,
+          trabajosActivos: trabajosActivosPorCentro.get(centro.id) ?? 0,
+          requerimientosActivos: requerimientosActivosPorCentro.get(centro.id) ?? 0,
         };
       })
       .filter((f) => estadoFiltro === "todos" || f.estado === estadoFiltro)
@@ -608,6 +745,8 @@ export function ReportesDiariosRedView() {
     reportesRepPorCentroDia,
     requerimientosPorCentroDia,
     eventosPorCentroDia,
+    trabajosActivosPorCentro,
+    requerimientosActivosPorCentro,
     diasConPartePorCentro,
     snapshots,
     terminoBusqueda,
@@ -713,8 +852,6 @@ export function ReportesDiariosRedView() {
     eventosPorCentroDia,
   ]);
 
-  const reportadosDia = centros.length - conteosDiaActivo.pendiente;
-  const porcentajeCierreDia = porcentajeEntero(reportadosDia, centros.length);
 
   const hayFiltros =
     estadoFiltro !== "todos" ||
@@ -731,6 +868,12 @@ export function ReportesDiariosRedView() {
         reportes,
         eventos,
         incidencias,
+        controles,
+        trabajosActivos: trabajosRed,
+        requerimientosActivos: requerimientosRed,
+        casosSaludAbiertos: casosAbiertosSeguimiento(casosSaludRed),
+        eventosDetalle: eventos,
+        censoEstados,
         dia: diaActivo,
         generadoPor: sesion.user.nombre ?? sesion.user.username,
       }),
@@ -740,6 +883,11 @@ export function ReportesDiariosRedView() {
       reportes,
       eventos,
       incidencias,
+      controles,
+      trabajosRed,
+      requerimientosRed,
+      casosSaludRed,
+      censoEstados,
       diaActivo,
       sesion.user.nombre,
       sesion.user.username,
@@ -821,54 +969,63 @@ export function ReportesDiariosRedView() {
       <VistaEncabezado
         icono={ClipboardList}
         acento="teal"
+        compacto
         titulo="Reportes por campamento"
         descripcion="Corte diario de la red · clic en una fila para abrir la ficha del centro"
         acciones={
           <>
-            <Badge variant="outline" className="gap-1.5 border-teal-400/30 bg-teal-400/10 text-teal-200">
+            <Badge variant="outline" className="hidden gap-1.5 border-teal-400/30 bg-teal-400/10 text-teal-200 sm:inline-flex">
               <CalendarDays className="size-3" />
               <span className="tabular-nums">{formatearDiaSelector(diaActivo)}</span>
               {diaActivo === hoyClave ? " · Hoy" : ""}
             </Badge>
-            <Badge variant="outline" className="gap-1 tabular-nums">
-              <CheckCircle2 className="size-3 text-emerald-400" />
-              {porcentajeCierreDia} reportado
-            </Badge>
-            <Badge variant="outline" className="hidden gap-1 tabular-nums sm:inline-flex">
-              <Stethoscope className="size-3 text-rose-400" />
-              {totalesIndicadoresDia.incidenciasSalud} incid. salud
-            </Badge>
-            <Badge variant="outline" className="hidden gap-1 tabular-nums lg:inline-flex">
-              <ShieldCheck className="size-3 text-violet-400" />
-              {totalesIndicadoresDia.controlOk} control
-            </Badge>
-            <Badge variant="outline" className="hidden gap-1 tabular-nums lg:inline-flex">
-              <Wrench className="size-3 text-amber-400" />
-              {totalesIndicadoresDia.trabajosOk} trabajos
-            </Badge>
-            <Badge variant="outline" className="hidden gap-1 tabular-nums lg:inline-flex">
-              <CalendarPlus className="size-3 text-emerald-400" />
-              {totalesIndicadoresDia.eventos} eventos
-            </Badge>
-            <BotonReporteEjecutivo reporte={reporteEjecutivo} />
+            <DropdownMenu open={menuCompartirAbierto} onOpenChange={setMenuCompartirAbierto}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 shrink-0 gap-1.5 bg-teal-600 text-xs hover:bg-teal-500"
+                >
+                  {generandoPdf ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Share2 className="size-3.5" />
+                  )}
+                  Compartir
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onSelect={() => abrirParteRed()}>
+                  <Copy className="size-4" />
+                  Copiar parte (Telegram)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={generandoPdf}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    void descargarPdfEjecutivo().then(() => setMenuCompartirAbierto(false));
+                  }}
+                >
+                  <Download className="size-4" />
+                  {generandoPdf ? "Generando PDF…" : "Descargar PDF ejecutivo"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </>
         }
       />
 
           <div className="border-b border-border bg-muted/10 px-3 py-2.5 sm:px-4 sm:py-4 lg:px-6">
             <div className="space-y-2 sm:space-y-3">
-                {/* Móvil: búsqueda + fecha arriba del todo */}
-                <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-[minmax(0,1fr)_168px] md:hidden">
-                  <BuscadorNombreCampamento
-                    valor={busquedaNombre}
-                    onChange={setBusquedaNombre}
-                    inputRef={inputBusquedaRef}
-                  />
+                {/* Móvil: fecha a todo el ancho (verde cuando es hoy) */}
+                <div className="md:hidden">
                   <SelectorFechaReporte
                     dia={diaActivo}
                     onSeleccionarDia={setDia}
                     marcasPorDia={marcasPorDia}
                     leyenda={leyendaCalendario}
+                    hoyClave={hoyClave}
+                    className="h-9 w-full"
                   />
                 </div>
 
@@ -892,7 +1049,7 @@ export function ReportesDiariosRedView() {
                   <TarjetaTotalIndicadorReporte
                     titulo="Trabajos"
                     icono={<Wrench className="size-3 shrink-0 text-amber-400" />}
-                    valor={totalesIndicadoresDia.trabajosOk.toLocaleString("es")}
+                    valor={trabajosRed.length.toLocaleString("es")}
                     completados={totalesIndicadoresDia.trabajosOk}
                     total={centros.length}
                     color="#fbbf24"
@@ -900,7 +1057,7 @@ export function ReportesDiariosRedView() {
                   <TarjetaTotalIndicadorReporte
                     titulo="Requerimientos"
                     icono={<Package className="size-3 shrink-0 text-orange-400" />}
-                    valor={totalesIndicadoresDia.requerimientosOk.toLocaleString("es")}
+                    valor={requerimientosRed.length.toLocaleString("es")}
                     completados={totalesIndicadoresDia.requerimientosOk}
                     total={centros.length}
                     color="#fb923c"
@@ -979,6 +1136,15 @@ export function ReportesDiariosRedView() {
                   </CollapsibleContent>
                 </Collapsible>
 
+                {/* Móvil: búsqueda debajo de los filtros */}
+                <div className="md:hidden">
+                  <BuscadorNombreCampamento
+                    valor={busquedaNombre}
+                    onChange={setBusquedaNombre}
+                    inputRef={inputBusquedaRef}
+                  />
+                </div>
+
                 {/* Escritorio: panel de filtros completo */}
                 <div className="hidden rounded-xl border border-border/70 bg-background/80 p-3 md:block">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -1026,6 +1192,7 @@ export function ReportesDiariosRedView() {
                       onSeleccionarDia={setDia}
                       marcasPorDia={marcasPorDia}
                       leyenda={leyendaCalendario}
+                      hoyClave={hoyClave}
                     />
                   </div>
                 </div>
@@ -1126,6 +1293,9 @@ export function ReportesDiariosRedView() {
                     eventosRevisados: eventosOk,
                     incidenciasSalud,
                     eventos,
+                    damnificados,
+                    trabajosActivos,
+                    requerimientosActivos,
                   }) => {
                     const meta = metaCuerpoDe(centro.cuerpo);
                     return (
@@ -1156,7 +1326,7 @@ export function ReportesDiariosRedView() {
                         <div className="mt-1 flex items-center gap-1.5 sm:hidden">
                           <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-sky-300">
                             <Users className="size-2.5" />
-                            {parte ? 1 : 0}
+                            {damnificados.toLocaleString("es")}
                           </span>
                           <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-rose-300">
                             <Stethoscope className="size-2.5" />
@@ -1168,7 +1338,7 @@ export function ReportesDiariosRedView() {
                           </span>
                           <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-amber-300">
                             <Wrench className="size-2.5" />
-                            {trabajosRevisados ? 1 : 0}
+                            {trabajosActivos}
                           </span>
                           <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-emerald-300">
                             <CalendarPlus className="size-2.5" />
@@ -1188,9 +1358,9 @@ export function ReportesDiariosRedView() {
                       </div>
                       <div className="hidden min-w-0 shrink-0 items-center gap-2 sm:flex sm:justify-end">
                         <IndicadorBloqueReporte
-                          titulo="Parte numérico"
+                          titulo="Parte numérico (damnificados)"
                           icono={<Users className="size-3 text-sky-400" />}
-                          valor={parte ? 1 : 0}
+                          valor={damnificados}
                           listo={parte}
                           className={parte ? "border-sky-400/25 bg-sky-400/10 text-sky-100" : ""}
                         />
@@ -1208,15 +1378,15 @@ export function ReportesDiariosRedView() {
                           className={parte ? "border-rose-400/25 bg-rose-400/10 text-rose-100" : ""}
                         />
                         <IndicadorBloqueReporte
-                          titulo="Trabajos"
+                          titulo="Trabajos activos"
                           icono={<Wrench className="size-3 text-amber-400" />}
-                          valor={trabajosRevisados ? 1 : 0}
+                          valor={trabajosActivos}
                           listo={trabajosRevisados}
                         />
                         <IndicadorBloqueReporte
-                          titulo="Requerimientos"
+                          titulo="Requerimientos abiertos"
                           icono={<Package className="size-3 text-violet-400" />}
-                          valor={requerimientosRevisados ? 1 : 0}
+                          valor={requerimientosActivos}
                           listo={requerimientosRevisados}
                         />
                         <IndicadorBloqueReporte
@@ -1246,6 +1416,50 @@ export function ReportesDiariosRedView() {
               </ul>
             )}
           </div>
+      <Dialog
+        open={parteCompartir !== null}
+        onOpenChange={(abierto) => {
+          if (!abierto) setParteCompartir(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Parte de la red · {formatearDiaSelector(diaActivo)}</DialogTitle>
+            <DialogDescription>
+              Revisa el texto y cópialo para pegarlo en Telegram u otra red.
+            </DialogDescription>
+          </DialogHeader>
+          <textarea
+            ref={areaParteRef}
+            readOnly
+            value={parteCompartir ?? ""}
+            onFocus={(e) => e.currentTarget.select()}
+            className="h-72 w-full resize-none rounded-lg border border-border bg-muted/20 p-3 font-mono text-xs leading-relaxed text-foreground focus:outline-none focus:ring-1 focus:ring-teal-500/50"
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setParteCompartir(null)}>
+              Cerrar
+            </Button>
+            <Button
+              type="button"
+              className="gap-1.5 bg-teal-600 hover:bg-teal-500"
+              onClick={() => void copiarDesdeDialogo()}
+            >
+              {copiadoDialogo ? (
+                <>
+                  <Check className="size-4" />
+                  ¡Copiado!
+                </>
+              ) : (
+                <>
+                  <Copy className="size-4" />
+                  Copiar todo
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </MarcoVista>
   );
 }

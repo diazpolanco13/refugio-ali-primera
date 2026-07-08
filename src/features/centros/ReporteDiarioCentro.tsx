@@ -4,9 +4,12 @@
 import { useMemo, useState, type ReactNode } from "react";
 import {
   CalendarPlus,
+  Check,
+  ChevronRight,
   CircleCheck,
   CircleDashed,
   ClipboardCheck,
+  Copy,
   HardHat,
   Package,
   ShieldCheck,
@@ -18,8 +21,18 @@ import { claveDia } from "@/data/reposSupabase";
 import { useReportesCentros } from "@/data/useReportesCentros";
 import { useReportesControlDia } from "@/data/useReportesControlDia";
 import { useReparacionesCentros } from "@/data/useReparacionesCentros";
+import { useRequerimientosSeguimiento } from "@/data/useRequerimientosSeguimiento";
+import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
+import { textoReporteTelegramCentro } from "@/domain/reporteTelegramCentro";
+import {
+  casosAbiertosSeguimiento,
+  META_ESTATUS_CASO_SALUD,
+  type CasoSaludCentro,
+} from "@/domain/casosSalud";
+import { BadgeAntiguedad } from "@/components/ui/badge-antiguedad";
+import { copiarTexto } from "@/lib/portapapeles";
 import {
   centroRequiereReparaciones,
 } from "@/domain/reparaciones";
@@ -58,8 +71,11 @@ interface Props {
   centro: CentroTransitorio;
   puedeEditar: boolean;
   variant?: "compacto" | "expandido";
-  /** Si se define, abre el formulario integrado en la ficha (sin modal). */
-  onAbrirReporte?: () => void;
+  /** Admin/analista SAE: pueden corregir reportes de fechas anteriores. */
+  puedeEditarPasado?: boolean;
+  /** Si se define, abre el formulario integrado en la ficha (sin modal).
+   *  Recibe opcionalmente la fase (pestaña) con la que debe abrir. */
+  onAbrirReporte?: (fase?: string) => void;
   /** Día controlado desde la cabecera de la ficha (pestaña Reporte). */
   diaSeleccionado?: string;
   onDiaChange?: (dia: string) => void;
@@ -112,20 +128,23 @@ export function BadgeEstadoReporte({
   );
 }
 
-/** Bloque temático de la tarjeta de reporte (una pestaña del formulario). */
+/** Bloque temático de la tarjeta de reporte (una pestaña del formulario).
+ *  Con `onClick` se vuelve botón y abre esa fase del formulario. */
 function BloqueReporte({
   icono,
   titulo,
   listo,
+  onClick,
   children,
 }: {
   icono: ReactNode;
   titulo: string;
   listo?: boolean;
+  onClick?: () => void;
   children: ReactNode;
 }) {
-  return (
-    <div className="rounded-lg border border-border/70 bg-muted/15 w-full px-3 py-2.5">
+  const contenido = (
+    <>
       <div className="mb-1.5 flex items-center gap-1.5">
         <span className="text-muted-foreground">{icono}</span>
         <span className="text-[11px] font-semibold text-foreground">{titulo}</span>
@@ -135,9 +154,24 @@ function BloqueReporte({
           ) : (
             <CircleDashed className="ml-auto size-3.5 shrink-0 text-muted-foreground" />
           ))}
+        {onClick && <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
       </div>
       {children}
-    </div>
+    </>
+  );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="w-full rounded-lg border border-border/70 bg-muted/15 px-3 py-2.5 text-left transition-colors hover:border-primary/40 hover:bg-muted/30 active:bg-muted/40"
+      >
+        {contenido}
+      </button>
+    );
+  }
+  return (
+    <div className="rounded-lg border border-border/70 bg-muted/15 w-full px-3 py-2.5">{contenido}</div>
   );
 }
 
@@ -156,6 +190,8 @@ function TarjetaReporteDia({
   esHoy,
   puedeEditar,
   onEditar,
+  onAbrirFase,
+  casosSaludAbiertos = [],
   omitirCabecera,
 }: {
   dia: string;
@@ -171,6 +207,10 @@ function TarjetaReporteDia({
   esHoy?: boolean;
   puedeEditar?: boolean;
   onEditar?: () => void;
+  /** Abre el formulario del reporte directo en una fase (clic en un bloque). */
+  onAbrirFase?: (fase: string) => void;
+  /** Casos de salud abiertos (activo / en proceso) del campamento. */
+  casosSaludAbiertos?: CasoSaludCentro[];
   /** Oculta fecha/estado duplicados cuando la tarjeta padre ya los muestra. */
   omitirCabecera?: boolean;
 }) {
@@ -219,7 +259,18 @@ function TarjetaReporteDia({
                 snapshot={snapshot}
                 snapshotAnterior={snapshotAnterior}
                 confirmado
+                onAbrir={onAbrirFase ? () => onAbrirFase("parte") : undefined}
               />
+            ) : onAbrirFase ? (
+              <button
+                type="button"
+                onClick={() => onAbrirFase("parte")}
+                className="w-full rounded-lg border border-dashed border-sky-500/30 bg-sky-500/5 px-3 py-4 text-center transition-colors hover:border-sky-500/50 hover:bg-sky-500/10 active:bg-sky-500/15"
+              >
+                <Users className="mx-auto size-5 text-muted-foreground" />
+                <p className="mt-1.5 text-xs font-medium text-foreground">Parte sin confirmar</p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">Toque para confirmar</p>
+              </button>
             ) : (
               <div className="rounded-lg border border-dashed border-sky-500/30 bg-sky-500/5 px-3 py-4 text-center">
                 <Users className="mx-auto size-5 text-muted-foreground" />
@@ -227,16 +278,44 @@ function TarjetaReporteDia({
               </div>
             )}
 
-            <BloqueReporte icono={<Stethoscope className="size-3.5 text-rose-400" />} titulo="Incidencias salud" listo={parteNumerico}>
+            <BloqueReporte icono={<Stethoscope className="size-3.5 text-rose-400" />} titulo="Incidencias salud" listo={parteNumerico} onClick={onAbrirFase ? () => onAbrirFase("parte") : undefined}>
               <p className="text-[11px] text-muted-foreground">
                 <span className="font-bold tabular-nums text-foreground">
-                  {(snapshot?.incidencias_salud ?? 0).toLocaleString("es")}
+                  {Math.max(
+                    snapshot?.incidencias_salud ?? 0,
+                    casosSaludAbiertos.length,
+                  ).toLocaleString("es")}
                 </span>{" "}
                 incidencias reportadas
               </p>
+              {casosSaludAbiertos.length > 0 && (
+                <ul className="mt-1.5 space-y-1">
+                  {casosSaludAbiertos.slice(0, 3).map((c) => (
+                    <li key={c.id} className="flex items-center gap-1.5 text-[11px]">
+                      <span className="min-w-0 truncate">{c.titulo}</span>
+                      <BadgeAntiguedad reportadoDia={c.reportado_dia} className="ml-auto" />
+                      <Badge
+                        variant="outline"
+                        className="text-[9px]"
+                        style={{
+                          borderColor: `${META_ESTATUS_CASO_SALUD[c.estatus].color}66`,
+                          color: META_ESTATUS_CASO_SALUD[c.estatus].color,
+                        }}
+                      >
+                        {META_ESTATUS_CASO_SALUD[c.estatus].label}
+                      </Badge>
+                    </li>
+                  ))}
+                  {casosSaludAbiertos.length > 3 && (
+                    <li className="text-[10px] text-muted-foreground">
+                      +{casosSaludAbiertos.length - 3} caso{casosSaludAbiertos.length - 3 === 1 ? "" : "s"} más
+                    </li>
+                  )}
+                </ul>
+              )}
             </BloqueReporte>
 
-            <BloqueReporte icono={<ShieldCheck className="size-3.5 text-sky-400" />} titulo="Control" listo={controlOk}>
+            <BloqueReporte icono={<ShieldCheck className="size-3.5 text-sky-400" />} titulo="Control" listo={controlOk} onClick={onAbrirFase ? () => onAbrirFase("control") : undefined}>
               {controlOk ? (
                 <p className="text-[11px] text-muted-foreground">Control operativo revisado.</p>
               ) : (
@@ -244,14 +323,15 @@ function TarjetaReporteDia({
               )}
             </BloqueReporte>
 
-            <BloqueReporte icono={<Wrench className="size-3.5 text-amber-400" />} titulo="Trabajos" listo={trabajosOk}>
+            <BloqueReporte icono={<Wrench className="size-3.5 text-amber-400" />} titulo="Trabajos" listo={trabajosOk} onClick={onAbrirFase ? () => onAbrirFase("trabajos") : undefined}>
               {trabajosActivosDia && trabajosActivosDia.length > 0 ? (
                 <ul className="space-y-1">
                   {trabajosActivosDia.slice(0, 3).map((t) => (
                     <li key={t.id} className="flex items-center gap-1.5 text-[11px]">
                       <HardHat className="size-3 shrink-0" />
-                      <span className="truncate">{t.titulo}</span>
-                      <Badge variant="outline" className="ml-auto text-[9px]" style={{ borderColor: `${META_ESTATUS_TRABAJO[t.estatus].color}66`, color: META_ESTATUS_TRABAJO[t.estatus].color }}>
+                      <span className="min-w-0 truncate">{t.titulo}</span>
+                      <BadgeAntiguedad reportadoDia={t.reportada_dia} className="ml-auto" />
+                      <Badge variant="outline" className="text-[9px]" style={{ borderColor: `${META_ESTATUS_TRABAJO[t.estatus].color}66`, color: META_ESTATUS_TRABAJO[t.estatus].color }}>
                         {META_ESTATUS_TRABAJO[t.estatus].label}
                       </Badge>
                     </li>
@@ -264,13 +344,13 @@ function TarjetaReporteDia({
               )}
             </BloqueReporte>
 
-            <BloqueReporte icono={<Package className="size-3.5 text-violet-400" />} titulo="Requerimientos" listo={reqOk}>
+            <BloqueReporte icono={<Package className="size-3.5 text-violet-400" />} titulo="Requerimientos" listo={reqOk} onClick={onAbrirFase ? () => onAbrirFase("requerimientos") : undefined}>
               <p className="text-[11px] text-muted-foreground">
                 {reqOk ? "Bloque revisado." : "Sin revisión de requerimientos."}
               </p>
             </BloqueReporte>
 
-            <BloqueReporte icono={<CalendarPlus className="size-3.5 text-emerald-400" />} titulo="Novedades" listo={eventosOk}>
+            <BloqueReporte icono={<CalendarPlus className="size-3.5 text-emerald-400" />} titulo="Novedades" listo={eventosOk} onClick={onAbrirFase ? () => onAbrirFase("novedades") : undefined}>
               {eventosDia.length > 0 ? (
                 <p className="text-[11px] text-muted-foreground">
                   {eventosDia.length} novedad{eventosDia.length === 1 ? "" : "es"}
@@ -307,6 +387,7 @@ function ReporteExpandido({
   diaSeleccionado,
   onDiaChange,
   ocultarCabecera = false,
+  puedeEditarPasado,
 }: Props) {
   const hoyClave = useMemo(() => claveDia(Date.now()), []);
   const desde = useMemo(() => ultimosDiasReporte(30, hoyClave)[0], [hoyClave]);
@@ -368,16 +449,43 @@ function ReporteExpandido({
   const diaSel = diaSeleccionado ?? diaInterno;
   const setDiaSel = onDiaChange ?? setDiaInterno;
   const [reportando, setReportando] = useState(false);
+  const [faseFormulario, setFaseFormulario] = useState<string | undefined>(undefined);
+  const requerimientosActivos = useRequerimientosSeguimiento({
+    centroId: centro.id,
+    soloActivos: true,
+  });
+  const casosSalud = useCasosSaludCentros({ centroId: centro.id, soloActivos: true });
+  const casosSaludAbiertos = casosAbiertosSeguimiento(casosSalud);
+  const [estadoCopia, setEstadoCopia] = useState<"idle" | "ok" | "error">("idle");
 
-  function abrirFormularioReporte() {
+  async function copiarParteTelegram() {
+    const texto = textoReporteTelegramCentro({
+      centro,
+      dia: diaSel,
+      snapshot: snapshots.find((s) => s.dia === diaSel),
+      reporte: reportes.find((r) => r.dia === diaSel),
+      controlDia: reporteControlDelDia(controles, centro.id, diaSel),
+      eventosDia: eventosDelDia(eventos, centro.id, diaSel),
+      trabajosActivos: trabajos,
+      requerimientosActivos,
+      casosSaludAbiertos,
+    });
+    const ok = await copiarTexto(texto);
+    setEstadoCopia(ok ? "ok" : "error");
+    window.setTimeout(() => setEstadoCopia("idle"), 2500);
+  }
+
+  function abrirFormularioReporte(fase?: string) {
     if (onAbrirReporte) {
-      onAbrirReporte();
+      onAbrirReporte(fase);
       return;
     }
+    setFaseFormulario(fase);
     setReportando(true);
   }
 
   const esHoy = diaSel === hoyClave;
+  const permiteEditarDia = puedeEditar && (esHoy || puedeEditarPasado === true);
   const estadoSel = estadosPorDia.get(diaSel) ?? "pendiente";
   const parteSel = diasConParte.has(diaSel);
 
@@ -410,27 +518,57 @@ function ReporteExpandido({
                 {trabajos.length} trabajo{trabajos.length !== 1 ? "s" : ""} activo{trabajos.length !== 1 ? "s" : ""}
               </Badge>
             )}
-            {puedeEditar && esHoy && (
-              <Button type="button" size="sm" onClick={abrirFormularioReporte}>
+            {permiteEditarDia && (
+              <Button type="button" size="sm" onClick={() => abrirFormularioReporte()}>
                 <ClipboardCheck className="size-4" />
-                {estadoSel === "pendiente" && !parteSel ? "Reportar hoy" : "Editar reporte"}
+                {esHoy
+                  ? estadoSel === "pendiente" && !parteSel
+                    ? "Reportar hoy"
+                    : "Editar reporte"
+                  : "Editar este día"}
               </Button>
             )}
           </div>
         </div>
       )}
 
-      <GraficoReporteCentro
-        centroId={centro.id}
-        snapshots={snapshots}
-        diaMarcado={diaSel}
-      />
+      {/* En móvil el gráfico consume media pantalla antes del reporte del día;
+          la evolución se consulta desde escritorio. */}
+      <div className="hidden md:block">
+        <GraficoReporteCentro
+          centroId={centro.id}
+          snapshots={snapshots}
+          diaMarcado={diaSel}
+        />
+      </div>
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">
-            {esHoy ? "Reporte de hoy" : "Reporte del día"} · {formatearDiaCalendario(diaSel)}
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-sm">
+              {esHoy ? "Reporte de hoy" : "Reporte del día"} · {formatearDiaCalendario(diaSel)}
+            </CardTitle>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 shrink-0 gap-1.5 bg-teal-600 text-xs text-white shadow-sm hover:bg-teal-500"
+              onClick={copiarParteTelegram}
+            >
+              {estadoCopia === "ok" ? (
+                <>
+                  <Check className="size-3.5 text-emerald-400" />
+                  Copiado
+                </>
+              ) : estadoCopia === "error" ? (
+                "No se pudo copiar"
+              ) : (
+                <>
+                  <Copy className="size-3.5" />
+                  Copiar parte
+                </>
+              )}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {!parteSel && estadoSel === "pendiente" ? (
@@ -440,15 +578,15 @@ function ReporteExpandido({
                   ? "Aún no hay reporte registrado hoy."
                   : "Sin reporte registrado este día."}
               </p>
-              {esHoy && puedeEditar && (
+              {permiteEditarDia && (
                 <Button
                   type="button"
                   variant="link"
                   size="sm"
                   className="mt-2"
-                  onClick={abrirFormularioReporte}
+                  onClick={() => abrirFormularioReporte()}
                 >
-                  Registrar reporte de hoy
+                  {esHoy ? "Registrar reporte de hoy" : "Registrar reporte de este día"}
                 </Button>
               )}
             </div>
@@ -465,13 +603,25 @@ function ReporteExpandido({
               estado={estadoSel}
               grande
               omitirCabecera
+              casosSaludAbiertos={casosSaludAbiertos}
+              onAbrirFase={
+                permiteEditarDia ? (fase) => abrirFormularioReporte(fase) : undefined
+              }
             />
           )}
         </CardContent>
       </Card>
 
       {!onAbrirReporte && reportando && (
-        <ReporteDiarioForm centro={centro} onCerrar={() => setReportando(false)} />
+        <ReporteDiarioForm
+          centro={centro}
+          diaReporte={diaSel}
+          faseInicial={faseFormulario}
+          onCerrar={() => {
+            setReportando(false);
+            setFaseFormulario(undefined);
+          }}
+        />
       )}
     </div>
   );

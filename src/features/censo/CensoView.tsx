@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   ClipboardList,
   Flag,
+  Home,
   Loader2,
   LocateFixed,
   MapPin,
@@ -84,19 +85,16 @@ import {
   type UbicacionCensador,
 } from "@/data/reposCenso";
 import { CensoInstrucciones } from "@/features/censo/CensoInstrucciones";
+import { SelectorCentroLista } from "@/features/censo/SelectorCentroLista";
 import { GrupoOpcionesSegmentadas } from "@/features/censo/censoFormularioShared";
+import {
+  INSTRUCCIONES_CENSO_KEY,
+  debeMostrarInstrucciones,
+  marcarInstruccionesVistas,
+} from "@/lib/instruccionesCampo";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "censo_funcionario_v1";
-const INSTRUCCIONES_KEY = "censo_instrucciones_v1";
-
-function vioInstruccionesCenso(): boolean {
-  try {
-    return localStorage.getItem(INSTRUCCIONES_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
 
 const TIPOS_DOC: { valor: RegistroCenso["tipo_doc"]; label: string }[] = [
   { valor: "V", label: "V-" },
@@ -260,17 +258,26 @@ function cargarSesionGuardada(): SesionCenso | null {
 
 export function CensoView() {
   const guardada = useMemo(cargarSesionGuardada, []);
+  // Preselección por enlace (/censo?centro=<id>, p. ej. desde /terreno): el
+  // enlace gana sobre el centro recordado en localStorage; se valida contra
+  // la lista real de campamentos cuando esta llega.
+  const centroParam = useMemo(
+    () => new URLSearchParams(window.location.search).get("centro")?.trim() ?? "",
+    [],
+  );
 
-  const [mostrarInstrucciones, setMostrarInstrucciones] = useState(() => !vioInstruccionesCenso());
+  const [mostrarInstrucciones, setMostrarInstrucciones] = useState(() =>
+    debeMostrarInstrucciones(INSTRUCCIONES_CENSO_KEY),
+  );
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
   const [paso1Seccion, setPaso1Seccion] = useState<"centro" | "funcionario">(
-    guardada?.centroId ? "funcionario" : "centro",
+    centroParam || guardada?.centroId ? "funcionario" : "centro",
   );
   const [centros, setCentros] = useState<CentroCenso[]>([]);
   const [cargandoCentros, setCargandoCentros] = useState(true);
   const [errorCentros, setErrorCentros] = useState("");
 
-  const [centroId, setCentroId] = useState(guardada?.centroId ?? "");
+  const [centroId, setCentroId] = useState(centroParam || guardada?.centroId || "");
   const [funcionario, setFuncionario] = useState<FuncionarioCenso>(
     guardada?.funcionario ?? { jerarquia: "", nombre: "", institucion: "", telefono: "" },
   );
@@ -297,6 +304,16 @@ export function CensoView() {
         if (cancelado) return;
         setCentros(lista);
         setCargandoCentros(false);
+        // Enlace con un centro que no existe en la red: se descarta la
+        // preselección y el funcionario elige manualmente.
+        if (centroParam && !lista.some((c) => c.id === centroParam)) {
+          setCentroId((actual) => {
+            if (actual !== centroParam) return actual;
+            const respaldo = guardada?.centroId ?? "";
+            if (!respaldo) setPaso1Seccion("centro");
+            return respaldo;
+          });
+        }
       })
       .catch((err) => {
         if (cancelado) return;
@@ -491,11 +508,7 @@ export function CensoView() {
   });
 
   function continuarDesdeInstrucciones() {
-    try {
-      localStorage.setItem(INSTRUCCIONES_KEY, "1");
-    } catch {
-      /* ignorar */
-    }
+    marcarInstruccionesVistas(INSTRUCCIONES_CENSO_KEY);
     setMostrarInstrucciones(false);
   }
 
@@ -515,12 +528,20 @@ export function CensoView() {
           <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/15">
             <Tent className="size-6" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-lg font-semibold leading-tight">
               Planilla de Registro de Damnificados
             </h1>
             <p className="text-xs opacity-80">Fecha: {fechaHoy}</p>
           </div>
+          <a
+            href="/terreno"
+            aria-label="Volver al inicio"
+            title="Volver al inicio"
+            className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/15 transition-colors hover:bg-primary-foreground/25 active:bg-primary-foreground/30"
+          >
+            <Home className="size-5" />
+          </a>
         </div>
         {!mostrarInstrucciones && (
           <div className="mx-auto mt-4 flex w-full max-w-xl items-center gap-2 text-xs">
@@ -1369,108 +1390,6 @@ export function CensoView() {
           />
         )}
       </main>
-    </div>
-  );
-}
-
-// ============================================================================
-// Paso 1a: lista de refugios (sin popover; usable en móvil con teclado)
-// ============================================================================
-
-function SelectorCentroLista({
-  centros,
-  centroId,
-  onSelect,
-  cargando,
-  onContinuar,
-}: {
-  centros: CentroCenso[];
-  centroId: string;
-  onSelect: (id: string) => void;
-  cargando: boolean;
-  onContinuar: () => void;
-}) {
-  const [busqueda, setBusqueda] = useState("");
-
-  const filtrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    if (!q) return centros;
-    return centros.filter((c) => c.nombre.toLowerCase().includes(q));
-  }, [centros, busqueda]);
-
-  function elegir(id: string) {
-    onSelect(id);
-    onContinuar();
-  }
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="relative shrink-0">
-        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar campamento por nombre…"
-          className="h-11 pl-9"
-          autoComplete="off"
-          enterKeyHint="search"
-        />
-      </div>
-
-      {cargando ? (
-        <div className="flex flex-1 items-center justify-center py-16 text-sm text-muted-foreground">
-          <Loader2 className="mr-2 size-5 animate-spin" />
-          Cargando campamentos…
-        </div>
-      ) : (
-        <div className="relative mt-3 flex min-h-0 flex-1 flex-col">
-          <ul
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border touch-pan-y [-webkit-overflow-scrolling:touch]"
-            role="listbox"
-            aria-label="Campamentos disponibles"
-          >
-          {filtrados.length === 0 ? (
-            <li className="px-4 py-10 text-center text-sm text-muted-foreground">
-              No se encontró ningún campamento.
-            </li>
-          ) : (
-            filtrados.map((c) => (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={centroId === c.id}
-                  onClick={() => elegir(c.id)}
-                  className={cn(
-                    "flex w-full items-center gap-3 border-b px-4 py-3.5 text-left text-sm transition-colors last:border-b-0 active:bg-accent",
-                    centroId === c.id && "bg-primary/10 font-medium text-primary",
-                  )}
-                >
-                  <MapPin className="size-4 shrink-0 opacity-60" />
-                  <span className="min-w-0 flex-1 leading-snug">{c.nombre}</span>
-                  {centroId === c.id && <Check className="size-4 shrink-0" />}
-                </button>
-              </li>
-            ))
-          )}
-          </ul>
-          {filtrados.length > 6 && (
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-10 rounded-b-lg bg-gradient-to-t from-background via-background/80 to-transparent"
-              aria-hidden
-            />
-          )}
-        </div>
-      )}
-
-      <p className="mt-3 shrink-0 text-[11px] text-muted-foreground">
-        {centros.length} campamento{centros.length === 1 ? "" : "s"} disponible
-        {centros.length === 1 ? "" : "s"}.
-        {filtrados.length > 6
-          ? " Deslice la lista para ver más y toque uno para continuar."
-          : " Toque uno para continuar."}
-      </p>
     </div>
   );
 }

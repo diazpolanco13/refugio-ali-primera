@@ -22,6 +22,8 @@ type EventoEditable = Pick<
   | "creada_por"
 >;
 
+const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Guarda el conjunto de eventos de un centro/día, actualizando y retirando los eliminados. */
 export async function guardarEventosReporteDia(datos: {
   centro_id: string;
@@ -33,7 +35,9 @@ export async function guardarEventosReporteDia(datos: {
   const idsExistentes = datos.idsExistentes ?? [];
   const eventos = datos.eventos
     .map((evento) => ({
-      id: evento.id || nuevoId(),
+      // La columna es uuid: si el evento traía un id local inválido (p. ej.
+      // generado antes del fix de nuevoId en contextos http), se regenera.
+      id: evento.id && RE_UUID.test(evento.id) ? evento.id : nuevoId(),
       centro_id: datos.centro_id,
       dia: datos.dia,
       ts: evento.ts || now,
