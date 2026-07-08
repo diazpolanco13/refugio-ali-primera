@@ -1,9 +1,13 @@
-import { aplicarPartesActualesACentros } from "./parteActualCentros";
+import {
+  aplicarParteActualACentro,
+  aplicarPartesActualesACentros,
+} from "./parteActualCentros";
 import {
   normalizarCentro,
   metaCuerpoDe,
   normalizarPersonal,
   PERSONAL_VACIO,
+  marcadorOcupacionCentro,
   poblacionCentro,
   totalPersonalOperativo,
   totalJusticia,
@@ -158,6 +162,8 @@ export interface FilaRedEjecutiva {
   parroquia: string;
   cuerpo: string;
   unidadSebin: string;
+  /** Supervisor SEBIN asignado al campamento (`supervision.supervisor_sebin`). */
+  responsableSebin: string;
   refugiados: number;
   familias: number;
   parteDia: boolean;
@@ -226,6 +232,11 @@ export interface TrabajosRedEjecutivo {
   lista: TrabajoRedItem[];
 }
 
+export interface OcupacionRedEjecutiva {
+  activo: number;
+  sinRefugiados: number;
+}
+
 export interface ReporteEjecutivoCampamentos {
   dia: string;
   generadoTs: number;
@@ -254,6 +265,23 @@ export interface ReporteEjecutivoCampamentos {
   partesDelDia: number;
   unidadesSebin: UnidadSebinEjecutiva[];
   censo: CensoEstadosEjecutivo | null;
+  ocupacionRed: OcupacionRedEjecutiva;
+}
+
+function conteosOcupacionRed(
+  centros: CentroTransitorio[],
+  snapshots: SnapshotOcupacion[],
+  dia: string,
+): OcupacionRedEjecutiva {
+  let activo = 0;
+  let sinRefugiados = 0;
+  for (const centro of centros) {
+    const snap = snapshots.find((s) => s.centro_id === centro.id && s.dia === dia);
+    const base = snap ? aplicarParteActualACentro(centro, snap) : centro;
+    if (marcadorOcupacionCentro(base) === "activo") activo += 1;
+    else sinRefugiados += 1;
+  }
+  return { activo, sinRefugiados };
 }
 
 function porcentaje(valor: number, total: number): number {
@@ -473,6 +501,7 @@ export function construirReporteEjecutivoCampamentos({
         parroquia: centro.parroquia,
         cuerpo: metaCuerpoDe(centro.cuerpo).label,
         unidadSebin: unidad.clave !== "sin_asignar" ? unidad.label : "",
+        responsableSebin: centro.supervision?.supervisor_sebin?.trim() ?? "",
         refugiados: poblacionCentro(c),
         familias: c.familias_ocupadas,
         parteDia: diasConParteHoy.has(centro.id),
@@ -618,5 +647,6 @@ export function construirReporteEjecutivoCampamentos({
     partesDelDia: diasConParteHoy.size,
     unidadesSebin,
     censo: censoEstados,
+    ocupacionRed: conteosOcupacionRed(centros, snapshots, dia),
   };
 }

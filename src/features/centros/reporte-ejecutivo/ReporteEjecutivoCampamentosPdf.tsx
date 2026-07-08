@@ -3,6 +3,8 @@ import { Document, Page, Path, StyleSheet, Svg, Text, View } from "@react-pdf/re
 import type { ReporteEjecutivoCampamentos } from "@/domain/reporteEjecutivoCampamentos";
 
 const azul = "#0f2f3f";
+const verdeOcupacion = "#22c55e";
+const grisOcupacion = "#64748b";
 const teal = "#0f766e";
 const verde = "#047857";
 const ambar = "#b45309";
@@ -14,122 +16,152 @@ const fondoSuave = "#f4f8fb";
 
 const styles = StyleSheet.create({
   page: {
-    padding: 22,
+    paddingTop: 12,
+    paddingHorizontal: 14,
+    paddingBottom: 26,
     backgroundColor: "#ffffff",
     color: "#10212b",
     fontFamily: "Helvetica",
-    fontSize: 8.5,
+    fontSize: 7.5,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    paddingBottom: 10,
-    borderBottomWidth: 2,
+    paddingBottom: 5,
+    borderBottomWidth: 1.5,
     borderBottomColor: teal,
   },
   eyebrow: {
     color: teal,
-    fontSize: 8,
+    fontSize: 6.5,
     fontWeight: 700,
-    letterSpacing: 1.2,
+    letterSpacing: 0.8,
   },
   title: {
-    marginTop: 2,
+    marginTop: 1,
     color: azul,
-    fontSize: 21,
+    fontSize: 14,
     fontWeight: 700,
   },
   subtitle: {
-    marginTop: 3,
+    marginTop: 2,
     color: gris,
-    fontSize: 9,
+    fontSize: 7.5,
   },
   headerRight: {
     alignItems: "flex-end",
   },
   pill: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 999,
     backgroundColor: "#e6f5f2",
     color: teal,
-    fontSize: 8,
+    fontSize: 6.5,
     fontWeight: 700,
   },
   smallMuted: {
-    marginTop: 4,
+    marginTop: 2,
     color: gris,
-    fontSize: 7.5,
+    fontSize: 6.5,
   },
   kpiRow: {
     flexDirection: "row",
-    marginTop: 10,
+    marginTop: 5,
   },
   kpiRowTight: {
     flexDirection: "row",
-    marginTop: 7,
+    marginTop: 4,
+  },
+  ocupacionRow: {
+    marginTop: 4,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: borde,
+    borderRadius: 6,
+    backgroundColor: fondoSuave,
+  },
+  ocupacionRowInner: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  ocupacionChart: {
+    marginRight: 8,
+  },
+  ocupacionBarras: {
+    flex: 1,
+    minWidth: 0,
+  },
+  ocupacionTitulo: {
+    color: azul,
+    fontSize: 6.5,
+    fontWeight: 700,
+    marginBottom: 2,
   },
   kpiCard: {
     flex: 1,
-    marginRight: 7,
-    padding: 9,
+    marginRight: 5,
+    padding: 5,
     borderWidth: 1,
     borderColor: borde,
-    borderRadius: 10,
+    borderRadius: 6,
     backgroundColor: "#fbfdff",
   },
   kpiCardCompact: {
-    padding: 7,
-    borderRadius: 9,
+    padding: 4,
+    borderRadius: 6,
   },
   kpiCardLast: {
     marginRight: 0,
   },
   kpiLabel: {
     color: gris,
-    fontSize: 7.5,
+    fontSize: 6.5,
     fontWeight: 700,
   },
   kpiValue: {
-    marginTop: 5,
+    marginTop: 2,
     color: azul,
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: 700,
   },
   kpiValueCompact: {
-    marginTop: 3,
-    fontSize: 15,
+    marginTop: 1,
+    fontSize: 11,
   },
   kpiSub: {
-    marginTop: 2,
+    marginTop: 1,
     color: gris,
-    fontSize: 7.5,
+    fontSize: 6,
   },
   kpiSubCompact: {
-    fontSize: 6.7,
+    fontSize: 5.8,
   },
   body: {
     flexDirection: "row",
-    marginTop: 10,
+    marginTop: 5,
+    alignItems: "flex-start",
   },
   column: {
     flex: 1,
-    marginRight: 9,
+    marginRight: 6,
+    minWidth: 0,
   },
   columnWide: {
-    flex: 1.14,
-    marginRight: 9,
+    flex: 1.1,
+    marginRight: 6,
+    minWidth: 0,
   },
   columnLast: {
     marginRight: 0,
   },
   section: {
-    marginBottom: 8,
-    padding: 10,
+    marginBottom: 4,
+    padding: 5,
     borderWidth: 1,
     borderColor: borde,
-    borderRadius: 11,
+    borderRadius: 6,
     backgroundColor: "#ffffff",
   },
   sectionTint: {
@@ -139,23 +171,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 7,
+    marginBottom: 3,
   },
   sectionTitle: {
     color: azul,
-    fontSize: 10.5,
+    fontSize: 8,
     fontWeight: 700,
   },
   sectionHint: {
     color: gris,
-    fontSize: 7.5,
+    fontSize: 6.5,
   },
   metric: {
-    marginBottom: 6,
+    marginBottom: 3,
   },
   metricLabel: {
     color: gris,
-    fontSize: 7.4,
+    fontSize: 6.5,
   },
   metricValue: {
     marginTop: 1,
@@ -164,29 +196,29 @@ const styles = StyleSheet.create({
     fontWeight: 700,
   },
   barTrack: {
-    height: 6,
-    marginTop: 3,
+    height: 4,
+    marginTop: 2,
     borderRadius: 999,
     backgroundColor: "#e5edf2",
     overflow: "hidden",
   },
   barFill: {
-    height: 6,
+    height: 4,
     borderRadius: 999,
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 5,
+    marginBottom: 2,
   },
   rowLabel: {
     color: "#334155",
-    fontSize: 8,
+    fontSize: 6.5,
   },
   rowValue: {
     color: azul,
-    fontSize: 8,
+    fontSize: 6.5,
     fontWeight: 700,
   },
   miniGrid: {
@@ -196,12 +228,12 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: "48%",
-    marginRight: 5,
-    marginBottom: 6,
-    padding: 7,
+    marginRight: 4,
+    marginBottom: 3,
+    padding: 4,
     borderWidth: 1,
     borderColor: borde,
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: "#fbfdff",
   },
   statCardWide: {
@@ -210,32 +242,32 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     color: gris,
-    fontSize: 7,
+    fontSize: 6,
     fontWeight: 700,
   },
   statValue: {
-    marginTop: 3,
+    marginTop: 1,
     color: azul,
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: 700,
   },
   statSub: {
-    marginTop: 2,
+    marginTop: 1,
     color: gris,
-    fontSize: 7,
+    fontSize: 6,
   },
   miniBox: {
     width: "50%",
-    paddingRight: 5,
-    marginBottom: 5,
+    paddingRight: 4,
+    marginBottom: 2,
   },
   miniLabel: {
     color: gris,
-    fontSize: 7,
+    fontSize: 6,
   },
   miniValue: {
     color: azul,
-    fontSize: 10,
+    fontSize: 8.5,
     fontWeight: 700,
   },
   topItem: {
@@ -357,54 +389,40 @@ const styles = StyleSheet.create({
   donutBloque: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  donutBloqueCompacto: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 3,
   },
   donutTextos: {
-    marginLeft: 10,
+    marginLeft: 6,
     flex: 1,
+    minWidth: 0,
   },
   donutTitulo: {
     color: azul,
-    fontSize: 8.6,
+    fontSize: 7,
     fontWeight: 700,
   },
   donutLinea: {
-    marginTop: 2,
+    marginTop: 1,
     color: "#334155",
-    fontSize: 7.2,
-  },
-  listaItem: {
-    paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e6eef3",
-  },
-  listaTitulo: {
-    color: azul,
-    fontSize: 7.6,
-    fontWeight: 700,
-  },
-  listaMeta: {
-    marginTop: 1.5,
-    color: gris,
-    fontSize: 6.8,
-  },
-  listaDesc: {
-    marginTop: 1.5,
-    color: "#475569",
-    fontSize: 7,
+    fontSize: 6.2,
   },
   footer: {
     position: "absolute",
-    left: 22,
-    right: 22,
-    bottom: 14,
+    left: 14,
+    right: 14,
+    bottom: 8,
     flexDirection: "row",
     justifyContent: "space-between",
     borderTopWidth: 1,
     borderTopColor: borde,
-    paddingTop: 6,
+    paddingTop: 4,
     color: gris,
-    fontSize: 7,
+    fontSize: 6,
   },
 });
 
@@ -433,6 +451,13 @@ function horaGeneracion(ts: number): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(ts));
+}
+
+/** Primera letra en mayúscula y el resto en minúsculas (español). */
+function textoOracion(s: string): string {
+  const t = s.trim();
+  if (!t) return t;
+  return t.charAt(0).toLocaleUpperCase("es") + t.slice(1).toLocaleLowerCase("es");
 }
 
 function Kpi({
@@ -496,14 +521,20 @@ function Section({
   hint,
   tint,
   children,
+  fixed = false,
 }: {
   title: string;
   hint?: string;
   tint?: boolean;
   children: ReactNode;
+  /** Si es true, evita que la sección se parta entre páginas. */
+  fixed?: boolean;
 }) {
   return (
-    <View style={tint ? [styles.section, styles.sectionTint] : styles.section} wrap={false}>
+    <View
+      style={tint ? [styles.section, styles.sectionTint] : styles.section}
+      wrap={!fixed}
+    >
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
         {hint ? <Text style={styles.sectionHint}>{hint}</Text> : null}
@@ -580,48 +611,115 @@ function arcoDonut(cx: number, cy: number, r: number, fraccion: number): string 
   return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${grande} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 
+function DonutOcupacion({
+  activo,
+  sinRefugiados,
+  compact = false,
+  mini = false,
+}: {
+  activo: number;
+  sinRefugiados: number;
+  total?: number;
+  compact?: boolean;
+  mini?: boolean;
+}) {
+  const suma = Math.max(1, activo + sinRefugiados);
+  const fActivo = activo / suma;
+  const r = mini ? 18 : 24;
+  const grosor = mini ? 7 : 9;
+  const svgSize = mini ? 46 : 62;
+  const cx = svgSize / 2;
+  return (
+    <View style={[styles.donutBloque, mini ? { marginBottom: 0 } : null]} wrap={false}>
+      <Svg width={svgSize} height={svgSize} viewBox={`0 0 ${svgSize} ${svgSize}`}>
+        <Path
+          d={arcoDonut(cx, cx, r, 0.9999)}
+          stroke="#e5edf2"
+          strokeWidth={grosor}
+          fill="none"
+        />
+        {sinRefugiados > 0 ? (
+          <Path
+            d={arcoDonut(cx, cx, r, fActivo + sinRefugiados / suma)}
+            stroke={grisOcupacion}
+            strokeWidth={grosor}
+            fill="none"
+          />
+        ) : null}
+        {activo > 0 ? (
+          <Path
+            d={arcoDonut(cx, cx, r, fActivo)}
+            stroke={verdeOcupacion}
+            strokeWidth={grosor}
+            fill="none"
+          />
+        ) : null}
+      </Svg>
+      {!compact ? (
+        <View style={styles.donutTextos}>
+          <Text style={styles.donutTitulo}>Ocupación de la red</Text>
+          <Text style={[styles.donutLinea, { color: verdeOcupacion }]}>
+            Activo: {n(activo)} ({Math.round(fActivo * 100)}%)
+          </Text>
+          <Text style={[styles.donutLinea, { color: grisOcupacion }]}>
+            Sin refugiados: {n(sinRefugiados)} ({Math.round((sinRefugiados / suma) * 100)}%)
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function Donut({
   titulo,
   si,
   no,
   sinReporte,
+  compact = false,
 }: {
   titulo: string;
   si: number;
   no: number;
   sinReporte: number;
+  compact?: boolean;
 }) {
   const total = Math.max(1, si + no + sinReporte);
   const fSi = si / total;
   const fNo = no / total;
-  const r = 24;
-  const grosor = 9;
+  const r = compact ? 16 : 24;
+  const grosor = compact ? 6 : 9;
+  const svgSize = compact ? 44 : 62;
+  const cx = svgSize / 2;
   return (
-    <View style={styles.donutBloque} wrap={false}>
-      <Svg width={62} height={62} viewBox="0 0 62 62">
+    <View style={compact ? styles.donutBloqueCompacto : styles.donutBloque} wrap={false}>
+      <Svg width={svgSize} height={svgSize} viewBox={`0 0 ${svgSize} ${svgSize}`}>
         <Path
-          d={arcoDonut(31, 31, r, 0.9999)}
+          d={arcoDonut(cx, cx, r, 0.9999)}
           stroke="#e5edf2"
           strokeWidth={grosor}
           fill="none"
         />
         {fNo > 0 ? (
           <Path
-            d={arcoDonut(31, 31, r, fSi + fNo)}
+            d={arcoDonut(cx, cx, r, fSi + fNo)}
             stroke={rojo}
             strokeWidth={grosor}
             fill="none"
           />
         ) : null}
         {fSi > 0 ? (
-          <Path d={arcoDonut(31, 31, r, fSi)} stroke={verde} strokeWidth={grosor} fill="none" />
+          <Path d={arcoDonut(cx, cx, r, fSi)} stroke={verde} strokeWidth={grosor} fill="none" />
         ) : null}
       </Svg>
       <View style={styles.donutTextos}>
         <Text style={styles.donutTitulo}>{titulo}</Text>
         <Text style={[styles.donutLinea, { color: verde }]}>SÍ: {n(si)} ({Math.round(fSi * 100)}%)</Text>
         <Text style={[styles.donutLinea, { color: rojo }]}>NO: {n(no)} ({Math.round(fNo * 100)}%)</Text>
-        <Text style={styles.donutLinea}>Sin reporte: {n(sinReporte)}</Text>
+        {!compact ? (
+          <Text style={styles.donutLinea}>Sin reporte: {n(sinReporte)}</Text>
+        ) : (
+          <Text style={styles.donutLinea}>S/r: {n(sinReporte)}</Text>
+        )}
       </View>
     </View>
   );
@@ -650,13 +748,13 @@ export function ReporteEjecutivoCampamentosPdf({
       producer="@react-pdf/renderer"
       language="es-VE"
     >
-      <Page size="A4" orientation="landscape" style={styles.page} wrap={false}>
+      <Page size="LETTER" orientation="landscape" style={styles.page} wrap={false}>
         <View style={styles.header}>
           <View>
             <Text style={styles.eyebrow}>SALA SITUACIONAL - CORTE EJECUTIVO</Text>
             <Text style={styles.title}>Parte Global de Campamentos Transitorios</Text>
             <Text style={styles.subtitle}>
-              Área Metropolitana de Caracas - corte del {fechaCorte(reporte.dia)}
+              Área Metropolitana de Caracas · {fechaCorte(reporte.dia)}
             </Text>
           </View>
           <View style={styles.headerRight}>
@@ -677,25 +775,25 @@ export function ReporteEjecutivoCampamentosPdf({
           <Kpi
             label="Reportes del día"
             value={`${n(reporte.partesDelDia)}/${n(reporte.kpis.centrosTotal)}`}
-            sub={`${reporte.kpis.centrosTotal > 0 ? Math.round((reporte.partesDelDia / reporte.kpis.centrosTotal) * 100) : 0}% de la red entregó su parte hoy`}
+            sub={`${reporte.kpis.centrosTotal > 0 ? Math.round((reporte.partesDelDia / reporte.kpis.centrosTotal) * 100) : 0}% entregó parte`}
             compact
           />
           <Kpi
             label="Trabajos activos"
             value={reporte.trabajosRed.activos}
-            sub={`en ${n(reporte.trabajosRed.campamentos)} campamentos`}
+            sub={`en ${n(reporte.trabajosRed.campamentos)} camp.`}
             compact
           />
           <Kpi
             label="Casos de salud"
             value={reporte.casosSaludDetalle.length}
-            sub="abiertos en seguimiento"
+            sub="en seguimiento"
             compact
           />
           <Kpi
             label="Novedades del día"
             value={reporte.novedadesDetalle.length}
-            sub={`${resumen.eventosPositivos} positivas · ${resumen.eventosNegativos} negativas`}
+            sub={`${resumen.eventosPositivos} + · ${resumen.eventosNegativos} −`}
             last
             compact
           />
@@ -703,18 +801,18 @@ export function ReporteEjecutivoCampamentosPdf({
 
         <View style={styles.body}>
           <View style={styles.column}>
-            <Section title="Parte demográfico" hint={`${n(dem.total)} personas`}>
+            <Section title="Parte demográfico" hint={`${n(dem.total)} personas`} fixed>
               <Barra label="Hombres" value={dem.hombres} total={totalGenero} color="#2563eb" />
               <Barra label="Mujeres" value={dem.mujeres} total={totalGenero} color="#be185d" />
-              <View style={{ marginTop: 2 }}>
-                <View style={[styles.row, { marginBottom: 3 }]}>
+              <View style={{ marginTop: 1 }}>
+                <View style={[styles.row, { marginBottom: 1 }]}>
                   <Text style={[styles.metricLabel, { flex: 1.4 }]}>Grupo etario</Text>
                   <Text style={[styles.metricLabel, { flex: 0.6, textAlign: "right" }]}>H</Text>
                   <Text style={[styles.metricLabel, { flex: 0.6, textAlign: "right" }]}>M</Text>
-                  <Text style={[styles.metricLabel, { flex: 0.7, textAlign: "right" }]}>Total</Text>
+                  <Text style={[styles.metricLabel, { flex: 0.7, textAlign: "right" }]}>Tot.</Text>
                 </View>
                 {dem.porGrupo.map((g) => (
-                  <View key={g.etiqueta} style={[styles.row, { marginBottom: 3 }]}>
+                  <View key={g.etiqueta} style={[styles.row, { marginBottom: 1 }]}>
                     <Text style={[styles.rowLabel, { flex: 1.4 }]}>{g.etiqueta}</Text>
                     <Text style={[styles.rowValue, { flex: 0.6, textAlign: "right", color: "#2563eb" }]}>
                       {n(g.h)}
@@ -727,7 +825,7 @@ export function ReporteEjecutivoCampamentosPdf({
                     </Text>
                   </View>
                 ))}
-                <View style={[styles.row, { marginBottom: 3, borderTopWidth: 1, borderTopColor: borde, paddingTop: 3 }]}>
+                <View style={[styles.row, { marginBottom: 1, borderTopWidth: 1, borderTopColor: borde, paddingTop: 2 }]}>
                   <Text style={[styles.rowLabel, { flex: 1.4, fontWeight: 700 }]}>Total</Text>
                   <Text style={[styles.rowValue, { flex: 0.6, textAlign: "right", color: "#2563eb" }]}>
                     {n(dem.hombres)}
@@ -744,14 +842,14 @@ export function ReporteEjecutivoCampamentosPdf({
               </View>
             </Section>
 
-            <Section title="Personal desplegado" hint={`${n(reporte.personal.total)} personas`}>
+            <Section title="Personal desplegado" hint={`${n(reporte.personal.total)} pers.`} fixed>
               <View style={styles.miniGrid}>
-                <MiniDato label="Funcionarios" value={reporte.personal.funcionarios} />
-                <MiniDato label="Trabajadores" value={reporte.personal.trabajadores} />
-                <MiniDato label="Médicos" value={reporte.personal.medicos} />
-                <MiniDato label="Psicólogos" value={reporte.personal.psicologos} />
-                <MiniDato label="Justicia" value={reporte.personal.justicia} />
-                <MiniDato label="Total operativo" value={reporte.personal.total} />
+                <MiniDato label="Func." value={reporte.personal.funcionarios} />
+                <MiniDato label="Trab." value={reporte.personal.trabajadores} />
+                <MiniDato label="Méd." value={reporte.personal.medicos} />
+                <MiniDato label="Psic." value={reporte.personal.psicologos} />
+                <MiniDato label="Just." value={reporte.personal.justicia} />
+                <MiniDato label="Total" value={reporte.personal.total} />
               </View>
             </Section>
           </View>
@@ -762,6 +860,7 @@ export function ReporteEjecutivoCampamentosPdf({
                 title="Censo SEBIN"
                 hint={`${n(reporte.censo.completados + reporte.censo.enCurso + reporte.censo.sinIniciar)} campamentos`}
                 tint
+                fixed
               >
                 <View style={styles.miniGrid}>
                   <StatCard label="Completados" value={reporte.censo.completados} />
@@ -777,21 +876,23 @@ export function ReporteEjecutivoCampamentosPdf({
               </Section>
             ) : null}
 
-            <Section title="Control operativo" hint={`${n(reporte.control.campamentosRevisados)}/${n(reporte.kpis.centrosTotal)} revisados`}>
+            <Section title="Control operativo" hint={`${n(reporte.control.campamentosRevisados)}/${n(reporte.kpis.centrosTotal)} rev.`} fixed>
               <Donut
                 titulo="Captahuellas"
                 si={reporte.control.captahuella.si}
                 no={reporte.control.captahuella.no}
                 sinReporte={reporte.control.captahuella.sinReporte}
+                compact
               />
               <Donut
                 titulo="Jueces de paz"
                 si={reporte.control.juezPaz.si}
                 no={reporte.control.juezPaz.no}
                 sinReporte={reporte.control.juezPaz.sinReporte}
+                compact
               />
               <Barra
-                label="Servicio médico"
+                label="Serv. médico"
                 value={reporte.control.servicioMedico.si}
                 total={reporte.kpis.centrosTotal}
                 color={verde}
@@ -806,18 +907,18 @@ export function ReporteEjecutivoCampamentosPdf({
           </View>
 
           <View style={[styles.column, styles.columnLast]}>
-            <Section title="Trabajos en la red" hint={`${n(reporte.trabajosRed.activos)} activos`} tint>
+            <Section title="Trabajos en la red" hint={`${n(reporte.trabajosRed.activos)} activos`} tint fixed>
               <View style={styles.miniGrid}>
-                <MiniDato label="Pendientes" value={reporte.trabajosRed.pendientes} />
-                <MiniDato label="En progreso" value={reporte.trabajosRed.enProgreso} />
-                <MiniDato label="Campamentos con trabajos" value={reporte.trabajosRed.campamentos} />
-                <MiniDato label="Más antiguo (días)" value={reporte.trabajosRed.masViejoDias ?? 0} />
+                <MiniDato label="Pend." value={reporte.trabajosRed.pendientes} />
+                <MiniDato label="Progreso" value={reporte.trabajosRed.enProgreso} />
+                <MiniDato label="Camp." value={reporte.trabajosRed.campamentos} />
+                <MiniDato label="Antig. d" value={reporte.trabajosRed.masViejoDias ?? 0} />
               </View>
             </Section>
 
-            <Section title="Campamentos por unidad SEBIN" hint={`${n(reporte.kpis.centrosTotal)} campamentos`}>
+            <Section title="Campamentos por unidad SEBIN" hint={`${n(reporte.kpis.centrosTotal)} camp.`} fixed>
               {reporte.unidadesSebin.map((u) => (
-                <View key={u.unidad} style={styles.row}>
+                <View key={u.unidad} style={[styles.row, { marginBottom: 1.5 }]}>
                   <Text style={styles.rowLabel}>{u.unidad}</Text>
                   <Text style={styles.rowValue}>
                     {String(u.campamentos).padStart(2, "0")} camp. · {n(u.refugiados)} damnif.
@@ -825,6 +926,34 @@ export function ReporteEjecutivoCampamentosPdf({
                 </View>
               ))}
             </Section>
+
+            <View style={styles.ocupacionRow} wrap={false}>
+              <Text style={styles.ocupacionTitulo}>Ocupación de la red</Text>
+              <View style={styles.ocupacionRowInner}>
+                <View style={styles.ocupacionChart}>
+                  <DonutOcupacion
+                    activo={reporte.ocupacionRed.activo}
+                    sinRefugiados={reporte.ocupacionRed.sinRefugiados}
+                    compact
+                    mini
+                  />
+                </View>
+                <View style={styles.ocupacionBarras}>
+                  <Barra
+                    label="Activos"
+                    value={reporte.ocupacionRed.activo}
+                    total={reporte.kpis.centrosTotal}
+                    color={verdeOcupacion}
+                  />
+                  <Barra
+                    label="Sin refugiados"
+                    value={reporte.ocupacionRed.sinRefugiados}
+                    total={reporte.kpis.centrosTotal}
+                    color={grisOcupacion}
+                  />
+                </View>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -834,124 +963,8 @@ export function ReporteEjecutivoCampamentosPdf({
         </View>
       </Page>
 
-      {/* ===== Página 2: control operativo y detalle del día ===== */}
-      <Page size="A4" orientation="landscape" style={styles.page}>
-        <View style={styles.header} fixed>
-          <View>
-            <Text style={styles.eyebrow}>SALA SITUACIONAL - CONTROL E INCIDENCIAS</Text>
-            <Text style={[styles.title, { fontSize: 15 }]}>Detalle operativo del día · {fechaCorte(reporte.dia)}</Text>
-          </View>
-          <View style={styles.headerRight}>
-            <Text style={styles.pill}>Trabajos · salud · novedades</Text>
-            <Text
-              style={styles.smallMuted}
-              render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}
-            />
-          </View>
-        </View>
-
-        <View style={styles.body}>
-          <View style={styles.column}>
-            <Section title="Trabajos activos" hint={`${n(reporte.trabajosRed.activos)} · más viejos primero`}>
-              {reporte.trabajosRed.lista.length === 0 ? (
-                <Text style={styles.rowLabel}>Sin trabajos activos.</Text>
-              ) : (
-                <>
-                  {reporte.trabajosRed.lista.slice(0, 12).map((t, i) => (
-                    <View key={`${t.centro}-${i}`} style={styles.listaItem} wrap={false}>
-                      <Text style={styles.listaTitulo}>{t.titulo}</Text>
-                      <Text style={styles.listaMeta}>
-                        {t.centro} ·{" "}
-                        <Text style={{ color: t.estatus === "en_progreso" ? ambar : rojo }}>
-                          {t.estatus === "en_progreso" ? "En progreso" : "Pendiente"}
-                        </Text>{" "}
-                        · {t.dias === 0 ? "hoy" : `${t.dias} día${t.dias === 1 ? "" : "s"} abierto`}
-                      </Text>
-                    </View>
-                  ))}
-                  {reporte.trabajosRed.lista.length > 12 ? (
-                    <Text style={[styles.listaMeta, { marginTop: 4 }]}>
-                      +{n(reporte.trabajosRed.lista.length - 12)} trabajos más en la app.
-                    </Text>
-                  ) : null}
-                </>
-              )}
-            </Section>
-
-          </View>
-
-          <View style={styles.columnWide}>
-            <Section title="Casos de salud en seguimiento" hint={`${n(reporte.casosSaludDetalle.length)} abiertos`}>
-              {reporte.casosSaludDetalle.length === 0 ? (
-                <Text style={styles.rowLabel}>Sin casos abiertos.</Text>
-              ) : (
-                <>
-                  {reporte.casosSaludDetalle.slice(0, 14).map((caso, i) => {
-                    const meta = META_ESTATUS_CASO_PDF[caso.estatus] ?? {
-                      label: caso.estatus,
-                      color: gris,
-                    };
-                    return (
-                      <View key={`${caso.centro}-${i}`} style={styles.listaItem} wrap={false}>
-                        <Text style={styles.listaTitulo}>{caso.titulo}</Text>
-                        {caso.descripcion ? (
-                          <Text style={styles.listaDesc}>{caso.descripcion}</Text>
-                        ) : null}
-                        <Text style={styles.listaMeta}>
-                          {caso.centro} · <Text style={{ color: meta.color }}>{meta.label}</Text> ·{" "}
-                          {caso.dias === 0 ? "hoy" : `${caso.dias} día${caso.dias === 1 ? "" : "s"} abierto`}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                  {reporte.casosSaludDetalle.length > 14 ? (
-                    <Text style={[styles.listaMeta, { marginTop: 4 }]}>
-                      +{n(reporte.casosSaludDetalle.length - 14)} casos más en la app.
-                    </Text>
-                  ) : null}
-                </>
-              )}
-            </Section>
-          </View>
-
-          <View style={[styles.column, styles.columnLast]}>
-            <Section title="Novedades del día" hint={`${n(reporte.novedadesDetalle.length)} registradas`}>
-              {reporte.novedadesDetalle.length === 0 ? (
-                <Text style={styles.rowLabel}>Sin novedades registradas.</Text>
-              ) : (
-                <>
-                  {reporte.novedadesDetalle.slice(0, 12).map((nov, i) => (
-                    <View key={`${nov.centro}-${i}`} style={styles.listaItem} wrap={false}>
-                      <Text style={styles.listaTitulo}>
-                        <Text style={{ color: nov.tipo === "positivo" ? verde : rojo }}>
-                          {nov.tipo === "positivo" ? "[+] " : "[-] "}
-                        </Text>
-                        {nov.titulo}
-                      </Text>
-                      <Text style={styles.listaMeta}>{nov.centro}</Text>
-                      {nov.descripcion ? (
-                        <Text style={styles.listaDesc}>{nov.descripcion}</Text>
-                      ) : null}
-                    </View>
-                  ))}
-                  {reporte.novedadesDetalle.length > 12 ? (
-                    <Text style={[styles.listaMeta, { marginTop: 4 }]}>
-                      +{n(reporte.novedadesDetalle.length - 12)} novedades más en la app.
-                    </Text>
-                  ) : null}
-                </>
-              )}
-            </Section>
-          </View>
-        </View>
-
-        <View style={styles.footer} fixed>
-          <Text>REF: RED-CARACAS | {reporte.dia}</Text>
-          <Text>Generado: {horaGeneracion(reporte.generadoTs)} · {reporte.generadoPor}</Text>
-        </View>
-      </Page>
-      {/* ===== Páginas finales: tabla de la red, un campamento por fila ===== */}
-      <Page size="A4" orientation="landscape" style={styles.page}>
+      {/* ===== Tabla de la red, un campamento por fila ===== */}
+      <Page size="LETTER" orientation="landscape" style={styles.page}>
         <View style={styles.header} fixed>
           <View>
             <Text style={styles.eyebrow}>SALA SITUACIONAL - DETALLE POR CAMPAMENTO</Text>
@@ -994,6 +1007,9 @@ export function ReporteEjecutivoCampamentosPdf({
             <View style={{ flex: ANCHOS_TABLA.cuerpo, paddingRight: 4 }}>
               <Text style={styles.celdaTexto}>{fila.cuerpo}</Text>
               {fila.unidadSebin ? <Text style={styles.celdaSub}>{fila.unidadSebin}</Text> : null}
+              {fila.responsableSebin ? (
+                <Text style={styles.celdaSub}>{fila.responsableSebin}</Text>
+              ) : null}
             </View>
             <Text style={[styles.celdaNumero, { flex: ANCHOS_TABLA.damnif }]}>{n(fila.refugiados)}</Text>
             <Text style={[styles.celdaNumero, { flex: ANCHOS_TABLA.fam }]}>{n(fila.familias)}</Text>
@@ -1011,7 +1027,7 @@ export function ReporteEjecutivoCampamentosPdf({
               ) : (
                 fila.trabajosDetalle.map((t, j) => (
                   <Text key={j} style={[styles.celdaTexto, { marginBottom: 1 }]}>
-                    • {t.titulo}{" "}
+                    • {textoOracion(t.titulo)}{" "}
                     <Text style={{ color: t.dias >= 3 ? rojo : gris }}>
                       ({t.dias === 0 ? "hoy" : `${t.dias} d`})
                     </Text>
@@ -1025,7 +1041,7 @@ export function ReporteEjecutivoCampamentosPdf({
               ) : (
                 fila.casosDetalle.map((c, j) => (
                   <Text key={j} style={[styles.celdaTexto, { marginBottom: 1 }]}>
-                    • {c.titulo}{" "}
+                    • {textoOracion(c.titulo)}{" "}
                     <Text style={{ color: gris }}>
                       (<Text style={{ color: META_ESTATUS_CASO_PDF[c.estatus]?.color ?? gris, fontWeight: 700 }}>
                         {META_ESTATUS_CASO_PDF[c.estatus]?.label ?? c.estatus}
@@ -1048,7 +1064,7 @@ export function ReporteEjecutivoCampamentosPdf({
                       { marginBottom: 1, color: nov.tipo === "positivo" ? verde : rojo },
                     ]}
                   >
-                    • {nov.titulo}
+                    • {textoOracion(nov.titulo)}
                   </Text>
                 ))
               )}
