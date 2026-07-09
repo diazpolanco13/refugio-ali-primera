@@ -116,20 +116,11 @@ export async function editarDenuncia(
 export async function softDeleteDenuncia(
   id: string,
   centroId: string,
-  usuario: string,
+  _usuario: string,
 ): Promise<void> {
-  const ahora = Date.now();
-  const { error } = await supabase
-    .from("denuncias_centros")
-    .update({
-      deleted: true,
-      deleted_at: ahora,
-      deleted_by: usuario,
-      updated_at: ahora,
-      updated_by: usuario,
-    })
-    .eq("id", id)
-    .eq("deleted", false);
+  // RPC security definer: el UPDATE directo falla para analista_sae porque
+  // PostgREST exige SELECT de la fila resultante y las eliminadas solo las ve admin.
+  const { error } = await supabase.rpc("denuncia_soft_delete", { p_id: id });
   if (error) throw new Error(error.message);
   registrarHistorial("eliminar_denuncia", "denuncia", id, {
     centro_id: centroId,
