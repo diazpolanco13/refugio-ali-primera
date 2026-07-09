@@ -295,19 +295,44 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       aplicarBase();
       aplicarVistaDefectoSiCorresponde();
       actualizarEscalaVista();
+      map.resize();
+    });
+
+    const contenedor = contenedorRef.current;
+    const ro = new ResizeObserver(() => {
+      const mapActual = mapRef.current;
+      if (!mapActual || !listoRef.current) return;
+      if (contenedor.clientWidth === 0 || contenedor.clientHeight === 0) return;
+      mapActual.resize();
+    });
+    ro.observe(contenedor);
+    requestAnimationFrame(() => {
+      if (mapRef.current && listoRef.current) mapRef.current.resize();
     });
 
     return () => {
+      ro.disconnect();
       if (guardarVistaTimer.current) clearTimeout(guardarVistaTimer.current);
       detenerGps();
       ocultarPopup();
-      for (const [, root] of roots.current) root.unmount();
+      // Diferir unmount: React 19 no permite desmontar un root síncrono
+      // mientras otro render está en curso (Strict Mode / remount).
+      const rootsADesmontar = [...roots.current.values()];
       roots.current.clear();
       marcadores.current.forEach((m) => m.remove());
       marcadores.current.clear();
       map.remove();
       mapRef.current = null;
       listoRef.current = false;
+      queueMicrotask(() => {
+        for (const root of rootsADesmontar) {
+          try {
+            root.unmount();
+          } catch {
+            /* root ya desmontado */
+          }
+        }
+      });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -358,10 +383,19 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     }
     for (const [id, m] of marcadores.current) {
       if (!vistos.has(id)) {
-        roots.current.get(id)?.unmount();
+        const root = roots.current.get(id);
         roots.current.delete(id);
         m.remove();
         marcadores.current.delete(id);
+        if (root) {
+          queueMicrotask(() => {
+            try {
+              root.unmount();
+            } catch {
+              /* root ya desmontado */
+            }
+          });
+        }
       }
     }
   }
