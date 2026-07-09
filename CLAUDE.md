@@ -149,6 +149,15 @@ datos viven en Postgres.
  leía la ficha humanitaria de toda la red!) → ahora admin/analista/autoridad
  todo, supervisor/operador solo sus campamentos (en `refugiados` vía
  alojamiento + `updated_by = mi_username()` para el RETURNING del alta).
+- ✅ **Cap obligatorio en denuncias (10-jul):** el alta pública ya no va por la
+ RPC directa (anon revocado) sino por la Edge Function **`denuncia-registrar`**
+ (`supabase/functions/denuncia-registrar/`), que verifica el token de Cap
+ (siteverify, mismo `CAP_SECRET` que `login-with-cap`) antes de insertar y pasa
+ la IP real como `p_ip` (la RPC ganó ese parámetro; migración
+ `denuncia_registrar_cap_ip`). Frontend: `DenunciaView` monta `<cap-widget>`
+ (estilo reutilizado de `features/auth/cap-login.css`) y `reposDenuncias`
+ llama a la Edge Function con el `capToken`. Anti-flood en capas: Cap
+ (proof-of-work) + topes de la RPC por campamento/IP/huella.
 - ✅ **Denuncias de damnificados por QR (Fase 3, 09-jul):** tabla
  `denuncias_centros` + RPCs `denuncia_registrar` (alta anónima con el token
  `publico` del campamento, validaciones + freno de 20/hora por centro) y

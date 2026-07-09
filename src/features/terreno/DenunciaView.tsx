@@ -6,11 +6,14 @@
 // exige el QR. Al enviar se captura telemetría de origen (IP en servidor,
 // user-agent y huella de dispositivo) para detectar abuso.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import "cap-widget";
+import "@/features/auth/cap-login.css";
 import { CheckCircle2, Loader2, MapPin, Megaphone, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { obtenerCentroDenuncia, registrarDenuncia } from "@/data/reposDenuncias";
+import { capApiEndpoint, capHabilitado } from "@/data/capConfig";
 import type { CentroCenso } from "@/data/reposCenso";
 import { CATEGORIAS_DENUNCIA, type CategoriaDenuncia } from "@/domain/denuncias";
 import { cn } from "@/lib/utils";
@@ -20,6 +23,26 @@ const LARGO_MAXIMO = 1200;
 
 function tokenDeLaUrl(): string {
   return new URLSearchParams(window.location.search).get("t")?.trim() ?? "";
+}
+
+type CapWidgetEl = HTMLElement & {
+  tokenValue?: string | null;
+  reset?: () => void;
+  cleanup?: () => void;
+};
+
+/** Cap deja workers especulativos vivos al desmontar; los abortamos a mano. */
+function detenerCapWidget(el: CapWidgetEl | null): void {
+  if (!el) return;
+  try {
+    el.cleanup?.();
+  } catch {
+    try {
+      el.reset?.();
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 export function DenunciaView() {
@@ -35,6 +58,17 @@ export function DenunciaView() {
   const [enviando, setEnviando] = useState(false);
   const [errorEnviar, setErrorEnviar] = useState("");
   const [enviada, setEnviada] = useState(false);
+  const [capToken, setCapToken] = useState("");
+  const [capKey, setCapKey] = useState(0);
+  const widgetRef = useRef<CapWidgetEl>(null);
+
+  useEffect(() => () => detenerCapWidget(widgetRef.current), []);
+
+  function reiniciarCap(): void {
+    detenerCapWidget(widgetRef.current);
+    setCapToken("");
+    setCapKey((k) => k + 1);
+  }
 
   useEffect(() => {
     if (!token) return;
@@ -59,6 +93,11 @@ export function DenunciaView() {
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     if (enviando || !categoria) return;
+    const tokenCap = widgetRef.current?.tokenValue?.trim() || capToken.trim();
+    if (capHabilitado && !tokenCap) {
+      setErrorEnviar("Marque la casilla de verificación antes de enviar.");
+      return;
+    }
     setErrorEnviar("");
     setEnviando(true);
     try {
@@ -68,10 +107,13 @@ export function DenunciaView() {
         titulo,
         texto,
         contacto,
+        capToken: tokenCap,
       });
       setEnviada(true);
     } catch (err) {
       setErrorEnviar(err instanceof Error ? err.message : "No se pudo enviar. Intente de nuevo.");
+      // El token de Cap es de un solo uso: hay que resolverlo de nuevo.
+      if (capHabilitado) reiniciarCap();
     } finally {
       setEnviando(false);
     }
@@ -84,11 +126,15 @@ export function DenunciaView() {
     setContacto("");
     setErrorEnviar("");
     setEnviada(false);
+    if (capHabilitado) reiniciarCap();
     window.scrollTo({ top: 0 });
   }
 
   const listo =
-    Boolean(categoria) && titulo.trim().length >= 3 && texto.trim().length >= 10;
+    Boolean(categoria) &&
+    titulo.trim().length >= 3 &&
+    texto.trim().length >= 10 &&
+    (!capHabilitado || Boolean(capToken));
 
   return (
     <div className="min-h-dvh bg-background px-4 py-8 text-foreground">
@@ -220,6 +266,26 @@ export function DenunciaView() {
                 puede ver quién lo envió: llega directo a la supervisión de la red.
               </p>
             </div>
+
+            {capHabilitado && (
+              <div className="cap-login rounded-xl border border-border bg-card/60 px-3 py-2.5">
+                <cap-widget
+                  ref={widgetRef}
+                  key={capKey}
+                  data-cap-api-endpoint={capApiEndpoint()}
+                  data-cap-i18n-initial-state="No soy un robot"
+                  data-cap-i18n-verifying-label="Comprobando…"
+                  data-cap-i18n-solved-label="Verificado"
+                  data-cap-i18n-error-label="Error"
+                  data-cap-i18n-required-label="Complete la verificación"
+                  data-cap-i18n-verify-aria-label="Verificar que es una persona"
+                  data-cap-i18n-verified-aria-label="Verificación completada"
+                  onsolve={(e) => setCapToken(e.detail.token)}
+                  onerror={() => setCapToken("")}
+                  onreset={() => setCapToken("")}
+                />
+              </div>
+            )}
 
             {errorEnviar && <p className="text-sm text-destructive">{errorEnviar}</p>}
 

@@ -4,6 +4,7 @@
 
 import type { CentroCenso } from "./reposCenso";
 import { registrarHistorial } from "./historial";
+import { invocarEdgeFunction } from "./edgeFunctions";
 import { supabase } from "./supabaseClient";
 import {
   huellaDispositivo,
@@ -25,24 +26,30 @@ export interface DatosAltaDenuncia {
   titulo: string;
   texto: string;
   contacto: string;
+  /** Token del widget Cap (proof-of-work); obligatorio en el servidor. */
+  capToken: string;
 }
 
-/** Alta anónima de una denuncia/sugerencia. Devuelve el id. */
+/**
+ * Alta anónima de una denuncia/sugerencia. Devuelve el id. Va por la Edge
+ * Function `denuncia-registrar`, que verifica Cap antes de insertar (la RPC
+ * ya no está abierta a anon, así que no se puede saltar la verificación).
+ */
 export async function registrarDenuncia(datos: DatosAltaDenuncia): Promise<string> {
   const senales: SenalesDispositivo = senalesDispositivo();
   const { userAgent, ...meta } = senales;
-  const { data, error } = await supabase.rpc("denuncia_registrar", {
-    p_token: datos.token,
-    p_categoria: datos.categoria,
-    p_titulo: datos.titulo.trim(),
-    p_texto: datos.texto.trim(),
-    p_contacto: datos.contacto.trim() || null,
-    p_user_agent: userAgent || null,
-    p_dispositivo_huella: huellaDispositivo(senales),
-    p_dispositivo_meta: meta,
+  const { id } = await invocarEdgeFunction<{ id: string }>("denuncia-registrar", {
+    token: datos.token,
+    categoria: datos.categoria,
+    titulo: datos.titulo.trim(),
+    texto: datos.texto.trim(),
+    contacto: datos.contacto.trim() || null,
+    userAgent: userAgent || null,
+    dispositivoHuella: huellaDispositivo(senales),
+    dispositivoMeta: meta,
+    capToken: datos.capToken,
   });
-  if (error) throw new Error(error.message);
-  return data as string;
+  return id;
 }
 
 /** Marca una denuncia como resuelta, con nota opcional de qué se hizo. */

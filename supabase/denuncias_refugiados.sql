@@ -190,3 +190,17 @@ end;
 $$;
 revoke all on function public.denuncia_registrar(text, text, text, text, text, text, text, jsonb) from public;
 grant execute on function public.denuncia_registrar(text, text, text, text, text, text, text, jsonb) to anon, authenticated;
+
+-- ── Cap obligatorio (migración denuncia_registrar_cap_ip, 10-jul) ───────────
+-- El alta dejó de ir por la RPC directa. Ahora pasa SOLO por la Edge Function
+-- `denuncia-registrar` (supabase/functions/denuncia-registrar/), que verifica
+-- el token de Cap (siteverify, secret CAP_SECRET compartido con
+-- login-with-cap) antes de insertar. Se revocó el execute de anon sobre la RPC
+-- (para que Cap no sea burlable) y se le añadió `p_ip` (la Edge Function pasa
+-- la IP real del cliente porque, al ser ella el caller, ya no llega en
+-- request.headers). Solo service_role puede ejecutar la RPC:
+--   revoke all on function public.denuncia_registrar(...9 args...) from public, anon, authenticated;
+--   grant execute on function public.denuncia_registrar(...9 args...) to service_role;
+-- Frontend: DenunciaView monta el widget <cap-widget> y reposDenuncias llama a
+-- la Edge Function con el capToken. Si algún día se retira Cap, hay que volver
+-- a conceder execute a anon y quitar el widget.
