@@ -16,6 +16,7 @@ import {
 import type { Sesion } from "@/data/authSupabase";
 import {
   puedeGestionarUsuarios,
+  puedeVerCensoCentro,
   puedeVerCensoRapidoRed,
   puedeVerLogs,
   esRolCensoRapido,
@@ -105,9 +106,11 @@ function ItemMenu({
 function ItemMenuReportesDiarios({
   pathname,
   veCensoRapido,
+  veCensoFicha,
 }: {
   pathname: string;
   veCensoRapido: boolean;
+  veCensoFicha: boolean;
 }) {
   const [searchParams] = useSearchParams();
   const enReportesRed = esRutaReportesRed(pathname);
@@ -122,7 +125,7 @@ function ItemMenuReportesDiarios({
   const activo = enReportesRed || esFichaCentro;
   const enCampamento = centroId != null && (esReportesCentro || esFichaCentro);
   const seccionesSubmenu = SECCIONES_FICHA_CENTRO.filter(
-    (s) => s.id !== "censo_rapido" || veCensoRapido,
+    (s) => s.id !== "censo_rapido" || veCensoFicha || veCensoRapido,
   );
 
   if (!enReportesRed && !esFichaCentro) {
@@ -218,6 +221,9 @@ function NavContenido({ sesion }: Props) {
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
   const veCensoRed = puedeVerCensoRapidoRed(sesion.user.rol);
+  const centroIdRuta = centroIdDePathname(location.pathname);
+  const veCensoFicha =
+    centroIdRuta != null && puedeVerCensoCentro(sesion.user, centroIdRuta);
   const { casos: casosSalud } = useCasosSaludCentros({ soloActivos: true });
   const abiertas = esCensoRapido ? 0 : totalCasosSaludActivosRed(casosSalud);
   const urgentes = esCensoRapido
@@ -309,7 +315,11 @@ function NavContenido({ sesion }: Props) {
               label="Campamentos"
               activo={esSeccionCampamentos}
             />
-            <ItemMenuReportesDiarios pathname={pathname} veCensoRapido={veCensoRed} />
+            <ItemMenuReportesDiarios
+              pathname={pathname}
+              veCensoRapido={veCensoRed}
+              veCensoFicha={veCensoFicha}
+            />
             {veCensoRed && (
               <ItemMenu
                 to="/centros/censo-rapido"

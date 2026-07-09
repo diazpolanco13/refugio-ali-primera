@@ -1,5 +1,5 @@
 // Vista completa de un campamento (`/centro/:id`): segmentada por pestañas
-// (Resumen, Coordinación, Población, Censo rápido, Reporte, Seguimiento, Infraestructura).
+// (Resumen, Coordinación, Población, Censo, Reporte, Seguimiento, Infraestructura).
 // Las mismas secciones también aparecen en el submenú del sidebar bajo Reportes diarios.
 // El reporte diario y la edición del campamento se abren integrados en el mismo marco.
 // Vive dentro del AppShell global, con sidebar y TopBar compartidos.
@@ -23,7 +23,7 @@ import {
   esRolTerreno,
   puedeEditarCentro,
   puedeEditarReportesPasados,
-  puedeVerCensoRapidoRed,
+  puedeVerCensoCentro,
 } from "@/domain/permisos";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
 import { controlReportado, reporteControlDelDia } from "@/domain/controlReporte";
@@ -79,19 +79,20 @@ export function FichaCentroView({ sesion }: Props) {
   const seccionParam = searchParams.get("vista");
   // Sesión del QR de terreno: la ficha se reduce a sus pestañas operativas
   // (resumen, población, reporte, infraestructura). Una vista oculta en la
-  // URL cae al reporte. «Censo rápido» solo para roles con acceso a la red.
+  // URL cae al reporte. «Censo» para roles de red y para el supervisor en
+  // sus campamentos asignados.
   const esTerreno = esRolTerreno(sesion.user.rol);
-  const veCensoRapido = puedeVerCensoRapidoRed(sesion.user.rol);
+  const veCensoFicha = id != null && puedeVerCensoCentro(sesion.user, id);
   const seccionesVisibles = useMemo(
     () =>
       SECCIONES_FICHA_CENTRO.filter((s) => {
         if (esTerreno && !(SECCIONES_FICHA_TERRENO as readonly string[]).includes(s.id)) {
           return false;
         }
-        if (s.id === "censo_rapido" && !veCensoRapido) return false;
+        if (s.id === "censo_rapido" && !veCensoFicha) return false;
         return true;
       }),
-    [esTerreno, veCensoRapido],
+    [esTerreno, veCensoFicha],
   );
   const seccionNormalizada = normalizarSeccionFichaCentro(seccionParam);
   const seccionActiva: SeccionFichaCentro = seccionesVisibles.some(
@@ -592,7 +593,7 @@ export function FichaCentroView({ sesion }: Props) {
               />
             </TabsContent>
 
-            {veCensoRapido && (
+            {veCensoFicha && (
               <TabsContent value="censo_rapido" className="mt-0">
                 <CensoCentroPanel
                   centroId={centro.id}

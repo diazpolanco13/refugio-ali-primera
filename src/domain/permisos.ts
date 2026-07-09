@@ -3,14 +3,14 @@ import type { Rol, Usuario } from "../data/authSupabase";
 /**
  * Metadatos y matriz de permisos de cada rol (ver docs/sistema-usuarios.md).
  *
- * | Rol          | Usuarios | Ver centros | Escribir     | Incidencias                    | Logs | Censo red |
- * |--------------|----------|-------------|--------------|--------------------------------|------|-----------|
- * | admin        | Sí       | Todos       | Todos        | Abrir/resolver en todos        | Sí   | Sí        |
- * | analista_sae | No       | Todos       | Todos        | Abrir/resolver en todos        | No   | Sí        |
- * | autoridad    | No       | Todos       | No           | No                             | Sí   | Sí        |
- * | supervisor   | No       | Asignados   | Asignados    | Abrir/resolver en asignados    | No   | No        |
- * | operador     | No       | Asignados   | Asignados    | Abrir; resolver solo las suyas | No   | No        |
- * | censo_rapido | No       | Todos       | No           | No                             | No   | Sí        |
+ * | Rol          | Usuarios | Ver centros | Escribir     | Incidencias                    | Logs | Censo red | Censo ficha |
+ * |--------------|----------|-------------|--------------|--------------------------------|------|-----------|-------------|
+ * | admin        | Sí       | Todos       | Todos        | Abrir/resolver en todos        | Sí   | Sí        | Sí (editar) |
+ * | analista_sae | No       | Todos       | Todos        | Abrir/resolver en todos        | No   | Sí        | Sí (editar) |
+ * | autoridad    | No       | Todos       | No           | No                             | Sí   | Sí        | Solo lectura|
+ * | supervisor   | No       | Asignados   | Asignados    | Abrir/resolver en asignados    | No   | No        | Asignados (editar) |
+ * | operador     | No       | Asignados   | Asignados    | Abrir; resolver solo las suyas | No   | No        | No          |
+ * | censo_rapido | No       | Todos       | No           | No                             | No   | Sí        | Solo lectura|
  *
  * La RLS de Supabase aplica esta misma matriz en el servidor (migración
  * `sistema_usuarios_5_roles`); estos helpers solo controlan la UI.
@@ -143,7 +143,7 @@ export function puedeVerCensoRapidoRed(rol: Rol): boolean {
   );
 }
 
-/** Editar o eliminar registros del censo rápido (RLS: admin y analista SAE). */
+/** Editar o eliminar registros del censo rápido en toda la red (admin / analista SAE). */
 export function puedeEditarCensoRapidoRed(rol: Rol): boolean {
   return rol === "admin" || rol === "analista_sae";
 }
@@ -172,6 +172,21 @@ export function puedeEditarCentro(usuario: Usuario, centroId: string): boolean {
   if (!info.puedeEscribir) return false;
   if (info.escrituraTotal) return true;
   return (usuario.centros_asignados ?? []).includes(centroId);
+}
+
+/**
+ * Pestaña Censo de la ficha del campamento: roles de red + supervisor en
+ * centros asignados (edición operativa del censo de su refugio).
+ */
+export function puedeVerCensoCentro(usuario: Usuario, centroId: string): boolean {
+  if (puedeVerCensoRapidoRed(usuario.rol)) return true;
+  return usuario.rol === "supervisor" && puedeEditarCentro(usuario, centroId);
+}
+
+/** Editar censo (registros, cierre/reapertura) en un campamento concreto. */
+export function puedeEditarCensoCentro(usuario: Usuario, centroId: string): boolean {
+  if (puedeEditarCensoRapidoRed(usuario.rol)) return true;
+  return usuario.rol === "supervisor" && puedeEditarCentro(usuario, centroId);
 }
 
 export function puedeVerSaludMental(rol: Rol): boolean {

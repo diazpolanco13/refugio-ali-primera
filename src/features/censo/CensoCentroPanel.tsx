@@ -25,7 +25,7 @@ import {
 } from "@/data/reposCenso";
 import { estadoCensoCentro, type EstadoCensoCentro } from "@/domain/censoResumen";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
-import { puedeEditarCensoRapidoRed, puedeVerCensoRapidoRed } from "@/domain/permisos";
+import { puedeEditarCensoCentro, puedeVerCensoCentro } from "@/domain/permisos";
 import { BotonExportarCensoCentro } from "@/features/censo/BotonExportarCensoCentro";
 import { CalidadCensoResumen } from "@/features/censo/CalidadCensoResumen";
 import { CensoEditarRegistroSheet } from "@/features/censo/CensoEditarRegistroSheet";
@@ -123,8 +123,8 @@ export function CensoCentroPanel({
   accionesExtra,
   mostrarActualizar = true,
 }: Props) {
-  const tieneAcceso = puedeVerCensoRapidoRed(sesion.user.rol);
-  const puedeEditar = puedeEditarCensoRapidoRed(sesion.user.rol);
+  const tieneAcceso = puedeVerCensoCentro(sesion.user, centroId);
+  const puedeEditar = puedeEditarCensoCentro(sesion.user, centroId);
   const { resumenes, cargando: cargandoResumen, refrescar: refrescarResumen } =
     useCensoRedResumen();
   const [tab, setTab] = useState<TabCensoCentro>("resumen");
@@ -223,8 +223,8 @@ export function CensoCentroPanel({
         <ShieldCheck className="mx-auto mb-3 size-8 text-muted-foreground" />
         <p className="text-sm font-medium text-foreground">Acceso restringido</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Solo el administrador, el analista SAE y la autoridad pueden consultar el censo de la
-          red.
+          Solo el administrador, el analista SAE, la autoridad y el supervisor de este campamento
+          pueden consultar el censo.
         </p>
       </div>
     );

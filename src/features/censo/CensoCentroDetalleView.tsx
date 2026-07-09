@@ -1,11 +1,11 @@
-// Detalle interno: listado de personas registradas en un campamento (censo rápido en terreno).
-// Acceso restringido a admin, analista SAE y autoridad.
+// Acceso: roles de red (admin, analista SAE, autoridad, censo_rapido) y
+// supervisor en el campamento asignado.
 
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ClipboardList } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
 import { useCensoRedResumen } from "@/data/useCensoRedResumen";
-import { puedeVerCensoRapidoRed } from "@/domain/permisos";
+import { puedeVerCensoCentro, puedeVerCensoRapidoRed } from "@/domain/permisos";
 import { CensoCentroPanel } from "@/features/censo/CensoCentroPanel";
 import { Button } from "@/components/ui/button";
 import { VistaPagina } from "@/components/VistaPagina";
@@ -13,7 +13,9 @@ import { VistaPagina } from "@/components/VistaPagina";
 export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
   const { centroId } = useParams<{ centroId: string }>();
   const navigate = useNavigate();
-  const tieneAcceso = puedeVerCensoRapidoRed(sesion.user.rol);
+  const tieneAccesoRed = puedeVerCensoRapidoRed(sesion.user.rol);
+  const tieneAcceso =
+    centroId != null && puedeVerCensoCentro(sesion.user, centroId);
   const { resumenes } = useCensoRedResumen();
 
   if (!centroId) {
@@ -32,11 +34,18 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
       descripcion="Personas registradas en el censo rápido de este campamento"
       cuerpoClassName="p-4 lg:p-6"
       acciones={
-        tieneAcceso ? (
+        tieneAccesoRed ? (
           <Button size="sm" variant="outline" asChild>
             <Link to="/centros/censo-rapido">
               <ArrowLeft className="size-4" />
               Volver
+            </Link>
+          </Button>
+        ) : tieneAcceso ? (
+          <Button size="sm" variant="outline" asChild>
+            <Link to={`/centro/${centroId}?vista=censo_rapido`}>
+              <ArrowLeft className="size-4" />
+              Volver al campamento
             </Link>
           </Button>
         ) : undefined
