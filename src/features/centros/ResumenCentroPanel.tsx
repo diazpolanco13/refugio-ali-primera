@@ -223,7 +223,7 @@ function FotoCentroEditable({
     <div className="flex h-full min-h-0 flex-col gap-1.5">
       <div
         className={cn(
-          "relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/20",
+          "relative aspect-square min-h-0 w-full overflow-hidden rounded-xl border border-border bg-muted/20 sm:aspect-auto sm:h-full",
           editable && "group",
         )}
       >
@@ -233,15 +233,32 @@ function FotoCentroEditable({
             alt={centro.nombre}
             className="size-full object-cover"
           />
+        ) : subiendo ? (
+          <div className="flex size-full flex-col items-center justify-center gap-2 px-3 text-center">
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Subiendo…</span>
+          </div>
+        ) : editable ? (
+          // Estado vacío editable: una sola CTA (evita solapar "Sin foto" + "Añadir foto")
+          <button
+            type="button"
+            className="flex size-full flex-col items-center justify-center gap-2.5 px-3 text-center transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+            onClick={() => inputRef.current?.click()}
+            aria-label="Añadir foto del campamento"
+          >
+            <span className="flex size-10 items-center justify-center rounded-full border border-dashed border-border bg-background/40">
+              <ImagePlus className="size-5 text-muted-foreground" />
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-3 py-1 text-[11px] font-medium text-foreground shadow-sm">
+              <Camera className="size-3.5" />
+              Añadir foto
+            </span>
+          </button>
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-1.5 px-2 text-center">
-            {subiendo ? (
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
-            ) : (
-              <ImagePlus className="size-5 text-muted-foreground/70" />
-            )}
+            <ImagePlus className="size-5 text-muted-foreground/70" />
             <span className="text-[10px] leading-tight text-muted-foreground sm:text-xs">
-              {subiendo ? "Subiendo…" : "Sin foto"}
+              Sin foto
             </span>
           </div>
         )}
@@ -264,42 +281,36 @@ function FotoCentroEditable({
                 if (file) void onArchivo(file);
               }}
             />
-            <button
-              type="button"
-              className={cn(
-                "absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/0 text-white transition-colors",
-                "hover:bg-black/45 focus-visible:bg-black/45 focus-visible:outline-none",
-                !hayFoto && "bg-transparent hover:bg-black/25",
-              )}
-              onClick={() => inputRef.current?.click()}
-              aria-label={hayFoto ? "Cambiar foto del campamento" : "Añadir foto del campamento"}
-            >
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-medium backdrop-blur-sm",
-                  hayFoto
-                    ? "opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                    : "opacity-100",
-                )}
-              >
-                <Camera className="size-3.5" />
-                {hayFoto ? "Cambiar foto" : "Añadir foto"}
-              </span>
-            </button>
             {hayFoto && (
-              <Button
-                type="button"
-                size="icon-xs"
-                variant="secondary"
-                className="absolute right-1.5 top-1.5 z-10 size-7 bg-black/55 text-white hover:bg-black/70"
-                title="Quitar foto"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void quitarFoto();
-                }}
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
+              <>
+                <button
+                  type="button"
+                  className={cn(
+                    "absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/0 text-white transition-colors",
+                    "hover:bg-black/45 focus-visible:bg-black/45 focus-visible:outline-none",
+                  )}
+                  onClick={() => inputRef.current?.click()}
+                  aria-label="Cambiar foto del campamento"
+                >
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-medium opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                    <Camera className="size-3.5" />
+                    Cambiar foto
+                  </span>
+                </button>
+                <Button
+                  type="button"
+                  size="icon-xs"
+                  variant="secondary"
+                  className="absolute right-1.5 top-1.5 z-10 size-7 bg-black/55 text-white hover:bg-black/70"
+                  title="Quitar foto"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void quitarFoto();
+                  }}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </>
             )}
           </>
         )}
