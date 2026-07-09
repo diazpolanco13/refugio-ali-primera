@@ -21,3 +21,19 @@ export async function obtenerTokenActivoCentro(
   if (error) throw new Error(error.message);
   return data?.token ?? null;
 }
+
+export interface TokenTerrenoActivo {
+  centro_id: string;
+  tipo: TipoTokenCentro;
+  token: string;
+}
+
+/** Todos los tokens activos de la red (para la hoja imprimible de QRs). */
+export async function listarTokensTerrenoActivos(): Promise<TokenTerrenoActivo[]> {
+  const { data, error } = await supabase
+    .from("tokens_centros")
+    .select("centro_id, tipo, token")
+    .eq("activo", true);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as TokenTerrenoActivo[];
+}

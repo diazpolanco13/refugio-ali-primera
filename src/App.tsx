@@ -70,6 +70,11 @@ const IncidenciasAnaliticaView = lazy(() =>
 const IncidenciasRefugiadosView = lazy(() =>
   importIncidenciasRefugiadosView().then((m) => ({ default: m.IncidenciasRefugiadosView })),
 );
+const HojaQrsTerrenoView = lazy(() =>
+  import("./features/centros/HojaQrsTerrenoView").then((m) => ({
+    default: m.HojaQrsTerrenoView,
+  })),
+);
 const GestionUsuarios = lazy(() =>
   importGestionUsuarios().then((m) => ({ default: m.GestionUsuarios })),
 );
@@ -228,8 +233,9 @@ export function App() {
               />
               <Route path="archivadas" element={<IncidenciasArchivadasView />} />
               <Route path="analitica" element={<IncidenciasAnaliticaView />} />
-              <Route path="refugiados" element={<IncidenciasRefugiadosView />} />
+              <Route path="refugiados" element={<IncidenciasRefugiadosView sesion={sesion} />} />
             </Route>
+            <Route path="/qrs-terreno" element={<HojaQrsTerrenoView sesion={sesion} />} />
             <Route path="/usuarios" element={<GestionUsuarios sesion={sesion} />} />
             <Route path="/logs" element={<LogsView sesion={sesion} />} />
             <Route

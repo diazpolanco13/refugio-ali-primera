@@ -140,6 +140,22 @@ datos viven en Postgres.
  entra directo autenticado. Registra `crear_usuario_terreno` y
  `login_terreno` en `historial`. Verificado E2E contra producción: la sesión
  emitida solo ve/escribe su centro.
+- ✅ **Denuncias de damnificados por QR (Fase 3, 09-jul):** tabla
+ `denuncias_centros` + RPCs `denuncia_registrar` (alta anónima con el token
+ `publico` del campamento, validaciones + freno de 20/hora por centro) y
+ `denuncia_centro` (nombre para la página pública); SQL de referencia en
+ `supabase/denuncias_refugiados.sql`. **Sin policy de INSERT** (solo la RPC
+ definer escribe); las ven/gestionan quienes vigilan: admin/analista toda la
+ red, autoridad lectura, **supervisor solo sus campamentos** (pasa revista y
+ acciona); el **operador de terreno NO las ve** (el personal del centro es el
+ potencial denunciado). Frontend: página pública **`/denuncia?t=`**
+ (bootstrap ligero, una pantalla, anónima, el token público NO se guarda en
+ localStorage), bandeja **`/incidencias/refugiados`**
+ (`IncidenciasRefugiadosView`, filtros + resolver con nota, Realtime vía
+ `useDenuncias`) y **hoja imprimible `/qrs-terreno`** (solo admin/analista):
+ una página por campamento con el QR del personal y el QR público de
+ denuncias, botón imprimir (truco CSS de visibilidad para imprimir solo las
+ hojas).
 - ✅ **Partes en formato Telegram** (negritas `**…**`, pie `REF: <centro_id> |
  <dia>` parseable por un bot futuro): botón "Copiar parte" por campamento
  (`src/domain/reporteTelegramCentro.ts`) y menú **Compartir** en

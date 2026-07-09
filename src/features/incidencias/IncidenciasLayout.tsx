@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Archive, BarChart3, Siren } from "lucide-react";
+import { Archive, BarChart3, Megaphone, Siren } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
 import { useSupabaseConectado } from "@/data/useSupabaseConectado";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,11 @@ const TABS = [
     to: "/incidencias/funcionarios",
     label: "Bandeja funcionarios",
     icon: Siren,
+  },
+  {
+    to: "/incidencias/refugiados",
+    label: "Bandeja damnificados",
+    icon: Megaphone,
   },
   {
     to: "/incidencias/archivadas",

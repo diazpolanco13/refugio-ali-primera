@@ -7,7 +7,7 @@ function rutaEs(base: string): boolean {
   return window.location.pathname === base || window.location.pathname.startsWith(`${base}/`);
 }
 
-if (rutaEs("/censo") || rutaEs("/terreno")) {
+if (rutaEs("/censo") || rutaEs("/terreno") || rutaEs("/denuncia")) {
   const msg = document.getElementById("app-splash-msg");
   if (msg) msg.textContent = rutaEs("/censo") ? "Cargando planilla…" : "Cargando…";
   void import("./censo-entry").then((m) => m.mount());

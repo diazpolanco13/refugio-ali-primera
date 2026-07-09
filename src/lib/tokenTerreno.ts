@@ -15,9 +15,14 @@ const STORAGE_KEY = "refugio.token_terreno";
  */
 export const URL_PORTAL_TERRENO = "https://m0n1t0r-d3-3v3nt0s.net";
 
-/** Enlace de terreno de un campamento a partir de su token. */
+/** Enlace de terreno (personal: reporte + censo) a partir de su token. */
 export function enlaceTerreno(token: string): string {
   return `${URL_PORTAL_TERRENO}/terreno?t=${encodeURIComponent(token)}`;
+}
+
+/** Enlace público de denuncias de un campamento a partir de su token 'publico'. */
+export function enlaceDenuncia(token: string): string {
+  return `${URL_PORTAL_TERRENO}/denuncia?t=${encodeURIComponent(token)}`;
 }
 
 /** Token vigente del dispositivo: el de la URL gana y se recuerda. */
