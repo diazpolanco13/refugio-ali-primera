@@ -17,12 +17,18 @@ create table public.denuncias_centros (
   ts bigint not null default (extract(epoch from now()) * 1000)::bigint,
   categoria text not null check (categoria in
     ('comida', 'dotaciones', 'trato', 'seguridad', 'salud', 'infraestructura', 'otro')),
+  titulo text check (titulo is null or char_length(titulo) between 3 and 120),
   texto text not null check (char_length(texto) between 10 and 1200),
   contacto text check (contacto is null or char_length(contacto) <= 120),
   estado text not null default 'abierta' check (estado in ('abierta', 'resuelta')),
   resuelta_ts bigint,
   resuelta_por text,
   nota_resolucion text,
+  -- Telemetría de origen (anti-abuso). La MAC no es accesible desde el navegador.
+  ip text,
+  user_agent text,
+  dispositivo_huella text,
+  dispositivo_meta jsonb,
   updated_at bigint,
   updated_by text
 );
@@ -75,19 +81,30 @@ $$;
 revoke all on function public.denuncia_centro(text) from public;
 grant execute on function public.denuncia_centro(text) to anon, authenticated;
 
--- Alta anónima con el token 'publico' del QR. Valida catálogo y largo, y
--- frena spam básico: máximo 20 denuncias por centro por hora.
+-- Alta anónima con el token 'publico' del QR. Valida catálogo y largo, captura
+-- telemetría de origen (IP/UA/huella) y frena spam: por centro, por IP y por
+-- huella. Ver también supabase/denuncias_titulo_telemetria.sql.
 create or replace function public.denuncia_registrar(
   p_token text,
   p_categoria text,
   p_texto text,
-  p_contacto text default null
+  p_contacto text default null,
+  p_titulo text default null,
+  p_user_agent text default null,
+  p_dispositivo_huella text default null,
+  p_dispositivo_meta jsonb default null
 )
 returns uuid language plpgsql security definer set search_path = public as $$
 declare
   v_centro_id text;
+  v_titulo text;
   v_texto text;
   v_contacto text;
+  v_ip text;
+  v_ua text;
+  v_huella text;
+  v_meta jsonb;
+  v_headers json;
   v_id uuid;
 begin
   v_centro_id := public.centro_de_token(p_token, 'publico');
@@ -103,6 +120,11 @@ begin
     raise exception 'Seleccione una categoría';
   end if;
 
+  v_titulo := nullif(left(trim(coalesce(p_titulo, '')), 120), '');
+  if v_titulo is null or char_length(v_titulo) < 3 then
+    raise exception 'Escriba un título de al menos 3 caracteres';
+  end if;
+
   v_texto := trim(coalesce(p_texto, ''));
   if char_length(v_texto) < 10 then
     raise exception 'Describa la situación con al menos 10 caracteres';
@@ -113,15 +135,52 @@ begin
 
   v_contacto := nullif(left(trim(coalesce(p_contacto, '')), 120), '');
 
+  begin
+    v_headers := current_setting('request.headers', true)::json;
+  exception when others then
+    v_headers := '{}'::json;
+  end;
+  v_ip := nullif(trim(split_part(coalesce(v_headers->>'x-forwarded-for', ''), ',', 1)), '');
+  if v_ip is null then
+    v_ip := nullif(trim(coalesce(v_headers->>'cf-connecting-ip', '')), '');
+  end if;
+  if v_ip is null then
+    v_ip := nullif(trim(coalesce(v_headers->>'x-real-ip', '')), '');
+  end if;
+
+  v_ua := nullif(left(trim(coalesce(p_user_agent, v_headers->>'user-agent', '')), 500), '');
+  v_huella := nullif(left(trim(coalesce(p_dispositivo_huella, '')), 128), '');
+  v_meta := case
+    when p_dispositivo_meta is null then null
+    when jsonb_typeof(p_dispositivo_meta) = 'object' then p_dispositivo_meta
+    else null
+  end;
+
   if (select count(*) from public.denuncias_centros d
       where d.centro_id = v_centro_id
         and d.ts > (extract(epoch from now()) * 1000)::bigint - 3600000) >= 20 then
     raise exception 'Se han recibido muchos reportes en la última hora. Intente más tarde.';
   end if;
 
-  insert into public.denuncias_centros (centro_id, categoria, texto, contacto, updated_at, updated_by)
-  values (
-    v_centro_id, p_categoria, v_texto, v_contacto,
+  if v_ip is not null and (select count(*) from public.denuncias_centros d
+      where d.ip = v_ip
+        and d.ts > (extract(epoch from now()) * 1000)::bigint - 3600000) >= 10 then
+    raise exception 'Se han recibido muchos reportes desde esta red. Intente más tarde.';
+  end if;
+
+  if v_huella is not null and (select count(*) from public.denuncias_centros d
+      where d.dispositivo_huella = v_huella
+        and d.ts > (extract(epoch from now()) * 1000)::bigint - 3600000) >= 8 then
+    raise exception 'Se han recibido muchos reportes desde este dispositivo. Intente más tarde.';
+  end if;
+
+  insert into public.denuncias_centros (
+    centro_id, categoria, titulo, texto, contacto,
+    ip, user_agent, dispositivo_huella, dispositivo_meta,
+    updated_at, updated_by
+  ) values (
+    v_centro_id, p_categoria, v_titulo, v_texto, v_contacto,
+    v_ip, v_ua, v_huella, v_meta,
     (extract(epoch from now()) * 1000)::bigint, 'denuncia_qr'
   )
   returning id into v_id;
@@ -129,5 +188,5 @@ begin
   return v_id;
 end;
 $$;
-revoke all on function public.denuncia_registrar(text, text, text, text) from public;
-grant execute on function public.denuncia_registrar(text, text, text, text) to anon, authenticated;
+revoke all on function public.denuncia_registrar(text, text, text, text, text, text, text, jsonb) from public;
+grant execute on function public.denuncia_registrar(text, text, text, text, text, text, text, jsonb) to anon, authenticated;

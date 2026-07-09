@@ -5,7 +5,7 @@
 // operador de terreno no llega aquí: la RLS le devuelve vacío.
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, FilterX, Phone, Printer } from "lucide-react";
+import { FilterX, Printer } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Sesion } from "@/data/authSupabase";
 import { useDenuncias } from "@/data/useDenuncias";
@@ -13,11 +13,7 @@ import { resolverDenuncia } from "@/data/reposDenuncias";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
-import {
-  CATEGORIAS_DENUNCIA,
-  labelCategoriaDenuncia,
-  type Denuncia,
-} from "@/domain/denuncias";
+import { CATEGORIAS_DENUNCIA, type Denuncia } from "@/domain/denuncias";
 import { puedeCrearCentros, puedeEditarCentro } from "@/domain/permisos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,128 +25,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { TarjetaDenuncia } from "./TarjetaDenuncia";
 
 type FiltroEstado = "abiertas" | "resueltas" | "todas";
 
 interface Props {
   sesion: Sesion;
-}
-
-function fechaCorta(ts: number): string {
-  return new Date(ts).toLocaleString("es-VE", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function TarjetaDenuncia({
-  denuncia,
-  nombreCentro,
-  puedeResolver,
-  onResolver,
-  resolviendo,
-}: {
-  denuncia: Denuncia;
-  nombreCentro: string;
-  puedeResolver: boolean;
-  onResolver: (nota: string) => void;
-  resolviendo: boolean;
-}) {
-  const [resolviendoAbierto, setResolviendoAbierto] = useState(false);
-  const [nota, setNota] = useState("");
-  const emoji = CATEGORIAS_DENUNCIA.find((c) => c.valor === denuncia.categoria)?.emoji ?? "💬";
-  const abierta = denuncia.estado === "abierta";
-
-  return (
-    <Card className={cn(!abierta && "opacity-75")}>
-      <CardContent className="space-y-2 py-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="gap-1">
-            <span aria-hidden="true">{emoji}</span>
-            {labelCategoriaDenuncia(denuncia.categoria)}
-          </Badge>
-          <span className="text-xs font-medium">{nombreCentro}</span>
-          <span className="text-xs text-muted-foreground">{fechaCorta(denuncia.ts)}</span>
-          <Badge
-            variant="outline"
-            className={cn(
-              "ml-auto",
-              abierta
-                ? "border-amber-500/40 text-amber-500"
-                : "border-emerald-500/40 text-emerald-500",
-            )}
-          >
-            {abierta ? "Abierta" : "Resuelta"}
-          </Badge>
-        </div>
-
-        <p className="whitespace-pre-wrap text-sm leading-snug">{denuncia.texto}</p>
-
-        {denuncia.contacto && (
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Phone className="size-3.5 shrink-0" aria-hidden="true" />
-            Contacto voluntario: <span className="text-foreground">{denuncia.contacto}</span>
-          </p>
-        )}
-
-        {!abierta && (
-          <p className="text-xs text-muted-foreground">
-            Resuelta por <span className="text-foreground">{denuncia.resuelta_por}</span>
-            {denuncia.resuelta_ts ? ` · ${fechaCorta(denuncia.resuelta_ts)}` : ""}
-            {denuncia.nota_resolucion ? ` — ${denuncia.nota_resolucion}` : ""}
-          </p>
-        )}
-
-        {abierta && puedeResolver && (
-          <div className="space-y-2 pt-1">
-            {resolviendoAbierto ? (
-              <>
-                <textarea
-                  value={nota}
-                  onChange={(e) => setNota(e.target.value.slice(0, 500))}
-                  rows={2}
-                  placeholder="¿Qué se hizo? (opcional, queda en el registro)"
-                  className="w-full resize-y rounded-md border border-border bg-card px-2.5 py-2 text-sm outline-none focus:border-primary"
-                />
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={resolviendo}
-                    onClick={() => onResolver(nota)}
-                  >
-                    <CheckCircle2 className="size-4" />
-                    Confirmar resolución
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setResolviendoAbierto(false)}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setResolviendoAbierto(true)}
-              >
-                <CheckCircle2 className="size-4" />
-                Resolver
-              </Button>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
 }
 
 /** Bandeja del canal público de denuncias de damnificados (QR por campamento). */

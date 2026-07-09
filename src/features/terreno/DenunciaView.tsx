@@ -1,8 +1,10 @@
 // Página pública de denuncias y sugerencias de los damnificados (/denuncia).
 // Se llega por el QR "público" pegado en el campamento (?t=<token publico>).
-// Una sola pantalla, solo escribe: categoría + texto + contacto opcional →
-// RPC `denuncia_registrar`. Es anónima por defecto y el token NO se guarda en
-// localStorage (a diferencia del token del personal): cada envío exige el QR.
+// Una sola pantalla, solo escribe: categoría + título + detalles + contacto
+// opcional → RPC `denuncia_registrar`. Es anónima por defecto y el token NO se
+// guarda en localStorage (a diferencia del token del personal): cada envío
+// exige el QR. Al enviar se captura telemetría de origen (IP en servidor,
+// user-agent y huella de dispositivo) para detectar abuso.
 
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, MapPin, Megaphone, ShieldCheck } from "lucide-react";
@@ -13,6 +15,7 @@ import type { CentroCenso } from "@/data/reposCenso";
 import { CATEGORIAS_DENUNCIA, type CategoriaDenuncia } from "@/domain/denuncias";
 import { cn } from "@/lib/utils";
 
+const LARGO_TITULO = 120;
 const LARGO_MAXIMO = 1200;
 
 function tokenDeLaUrl(): string {
@@ -26,6 +29,7 @@ export function DenunciaView() {
   const [errorCentro, setErrorCentro] = useState("");
 
   const [categoria, setCategoria] = useState<CategoriaDenuncia | "">("");
+  const [titulo, setTitulo] = useState("");
   const [texto, setTexto] = useState("");
   const [contacto, setContacto] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -58,7 +62,13 @@ export function DenunciaView() {
     setErrorEnviar("");
     setEnviando(true);
     try {
-      await registrarDenuncia(token, categoria, texto, contacto);
+      await registrarDenuncia({
+        token,
+        categoria,
+        titulo,
+        texto,
+        contacto,
+      });
       setEnviada(true);
     } catch (err) {
       setErrorEnviar(err instanceof Error ? err.message : "No se pudo enviar. Intente de nuevo.");
@@ -69,6 +79,7 @@ export function DenunciaView() {
 
   function otroReporte() {
     setCategoria("");
+    setTitulo("");
     setTexto("");
     setContacto("");
     setErrorEnviar("");
@@ -76,7 +87,8 @@ export function DenunciaView() {
     window.scrollTo({ top: 0 });
   }
 
-  const listo = Boolean(categoria) && texto.trim().length >= 10;
+  const listo =
+    Boolean(categoria) && titulo.trim().length >= 3 && texto.trim().length >= 10;
 
   return (
     <div className="min-h-dvh bg-background px-4 py-8 text-foreground">
@@ -155,8 +167,24 @@ export function DenunciaView() {
               </div>
             </section>
 
-            <section aria-label="Descripción" className="space-y-2">
-              <p className="text-sm font-medium">Cuéntenos qué pasó</p>
+            <section aria-label="Título" className="space-y-2">
+              <p className="text-sm font-medium">Título</p>
+              <input
+                type="text"
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value.slice(0, LARGO_TITULO))}
+                placeholder="Resuma el problema en una frase"
+                className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary"
+              />
+              <p className="text-right text-[11px] text-muted-foreground">
+                {titulo.trim().length < 3
+                  ? "Escriba al menos 3 caracteres"
+                  : `${titulo.length}/${LARGO_TITULO}`}
+              </p>
+            </section>
+
+            <section aria-label="Detalles" className="space-y-2">
+              <p className="text-sm font-medium">Detalles</p>
               <textarea
                 value={texto}
                 onChange={(e) => setTexto(e.target.value.slice(0, LARGO_MAXIMO))}

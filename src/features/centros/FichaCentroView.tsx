@@ -1,5 +1,5 @@
 // Vista completa de un campamento (`/centro/:id`): segmentada por pestañas
-// (Resumen, Coordinación, Población, Censo, Reporte, Seguimiento, Infraestructura).
+// (Resumen, Coordinación, Población, Censo, Reporte, Seguimiento, Infraestructura, Buzón).
 // Las mismas secciones también aparecen en el submenú del sidebar bajo Reportes diarios.
 // El reporte diario y la edición del campamento se abren integrados en el mismo marco.
 // Vive dentro del AppShell global, con sidebar y TopBar compartidos.
@@ -50,6 +50,7 @@ import { ResumenCentroPanel } from "./ResumenCentroPanel";
 import { SeccionReporteDiarioCentro, BadgeEstadoReporte } from "./ReporteDiarioCentro";
 import { SeccionSeguimientoReportesCentro } from "./SeguimientoReportesCentro";
 import { InfraestructuraCapacidadPanel } from "./InfraestructuraCapacidadPanel";
+import { BuzonCentroPanel } from "./BuzonCentroPanel";
 import {
   SECCIONES_FICHA_CENTRO,
   normalizarSeccionFichaCentro,
@@ -632,6 +633,10 @@ export function FichaCentroView({ sesion }: Props) {
                 puedeEditar={puedeEditar}
                 onIrAReporte={puedeEditar ? abrirReporte : undefined}
               />
+            </TabsContent>
+
+            <TabsContent value="buzon" className="mt-0">
+              <BuzonCentroPanel centro={centro} sesion={sesion} />
             </TabsContent>
           </div>
         </div>

@@ -35,7 +35,8 @@ export type VistaFichaCentro =
   | "censo_rapido"
   | "reporte"
   | "incidencias"
-  | "infraestructura";
+  | "infraestructura"
+  | "buzon";
 
 interface Props {
   centro: CentroTransitorio;

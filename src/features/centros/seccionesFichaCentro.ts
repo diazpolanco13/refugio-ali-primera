@@ -9,6 +9,7 @@ export const SECCIONES_FICHA_CENTRO = [
   // El id se mantiene "incidencias" por compatibilidad con enlaces guardados.
   { id: "incidencias", label: "Seguimiento" },
   { id: "infraestructura", label: "Infraestructura" },
+  { id: "buzon", label: "Buzón" },
 ] as const;
 
 export type SeccionFichaCentro = (typeof SECCIONES_FICHA_CENTRO)[number]["id"];
