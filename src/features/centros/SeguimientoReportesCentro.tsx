@@ -9,7 +9,6 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  ClipboardCheck,
   Clock,
   Loader2,
   PanelLeftClose,
@@ -96,7 +95,7 @@ interface Props {
   onIrAReporte?: (fase?: string) => void;
 }
 
-type FiltroLista = "seguimiento" | "salud" | "novedades" | "dia" | "historial";
+type TabSeguimiento = "salud" | "novedades";
 
 const LEYENDA_CALENDARIO = [
   { color: "#ef4444", label: "Salud o novedad negativa" },
@@ -610,8 +609,13 @@ function SeguimientoExpandido({
     return claveDia(dt.getTime());
   }, [hoyClave]);
 
+  const [verNovedadesAnteriores, setVerNovedadesAnteriores] = useState(false);
+
   const todosCasos = useCasosSaludCentros({ centroId: centro.id });
-  const eventos = useEventosReportes({ centroId: centro.id, desde });
+  const eventos = useEventosReportes({
+    centroId: centro.id,
+    desde: verNovedadesAnteriores ? undefined : desde,
+  });
   const snapshots = useOcupacionesCentros({ centroId: centro.id, desde });
 
   const casos = useMemo(() => casosSaludEnSeguimiento(todosCasos), [todosCasos]);
@@ -625,7 +629,10 @@ function SeguimientoExpandido({
     [centro.id, snapshots, eventos],
   );
 
-  const [filtro, setFiltro] = useState<FiltroLista>("seguimiento");
+  // Pestaña activa: hasta que el usuario elige, se abre donde hay trabajo
+  // pendiente (salud con casos activos) y si no, en las novedades.
+  const [tabManual, setTabManual] = useState<TabSeguimiento | null>(null);
+  const [subSalud, setSubSalud] = useState<"seguimiento" | "archivados">("seguimiento");
   const [diaSel, setDiaSel] = useState<string | null>(null);
   const [calendarioAbierto, setCalendarioAbierto] = useState(false);
   const [evolucionAbierta, setEvolucionAbierta] = useState(false);
@@ -650,11 +657,10 @@ function SeguimientoExpandido({
   const [guardandoNovedadId, setGuardandoNovedadId] = useState<string | null>(null);
   const [eliminandoNovedadId, setEliminandoNovedadId] = useState<string | null>(null);
 
-  const casosSeguimiento = casos;
   const casosPendientes = useMemo(() => casosSaludPendientes(casos), [casos]);
   const casosResueltos = useMemo(
-    () => casosSeguimiento.filter((c) => c.estatus === "resuelto"),
-    [casosSeguimiento],
+    () => casos.filter((c) => c.estatus === "resuelto"),
+    [casos],
   );
   const historialCasos = useMemo(
     () => todosCasos.filter((c) => c.estatus === "archivado"),
@@ -671,72 +677,40 @@ function SeguimientoExpandido({
     [centro.id, snapshots, todosCasos, hoyClave],
   );
 
-  const saludSinDetalleVisibles = useMemo(() => {
-    if (filtro === "historial" || filtro === "novedades") return [];
-    if (filtro === "dia") return diaSel ? saludSinDetalle.filter((p) => p.dia === diaSel) : [];
-    return saludSinDetalle;
-  }, [filtro, diaSel, saludSinDetalle]);
+  const tab: TabSeguimiento =
+    tabManual ?? (casosPendientes.length + saludSinDetalle.length > 0 ? "salud" : "novedades");
 
-  function seleccionarFiltro(nuevo: FiltroLista, dia?: string | null) {
-    setFiltro(nuevo);
-    if (nuevo === "dia") {
-      setDiaSel(dia ?? null);
+  const saludSinDetalleVisibles = useMemo(() => {
+    if (subSalud === "archivados") return [];
+    if (diaSel) return saludSinDetalle.filter((p) => p.dia === diaSel);
+    return saludSinDetalle;
+  }, [subSalud, diaSel, saludSinDetalle]);
+
+  function seleccionarDia(dia: string | null) {
+    setDiaSel(dia);
+    if (dia) {
       setEvolucionAbierta(true);
       setCalendarioAbierto(true);
-    } else {
-      setDiaSel(null);
     }
   }
 
   const listaCasos = useMemo(() => {
-    switch (filtro) {
-      case "seguimiento":
-        return [...casosPendientes, ...casosResueltos].sort(
-          (a, b) => b.reportado_dia.localeCompare(a.reportado_dia) || b.creada_ts - a.creada_ts,
-        );
-      case "salud":
-        return casosSeguimiento.sort(
-          (a, b) => b.reportado_dia.localeCompare(a.reportado_dia) || b.creada_ts - a.creada_ts,
-        );
-      case "historial":
-        return historialCasos.sort((a, b) => b.reportado_dia.localeCompare(a.reportado_dia));
-      case "dia":
-        return diaSel
-          ? casosSeguimiento.filter((c) => c.reportado_dia === diaSel)
-          : [];
-      default:
-        return [];
-    }
-  }, [filtro, casosPendientes, casosResueltos, casosSeguimiento, historialCasos, diaSel]);
+    const base =
+      subSalud === "archivados"
+        ? historialCasos
+        : [...casosPendientes, ...casosResueltos];
+    const filtrados = diaSel ? base.filter((c) => c.reportado_dia === diaSel) : base;
+    return [...filtrados].sort(
+      (a, b) => b.reportado_dia.localeCompare(a.reportado_dia) || b.creada_ts - a.creada_ts,
+    );
+  }, [subSalud, casosPendientes, casosResueltos, historialCasos, diaSel]);
 
-  const listaNovedades = useMemo(() => {
-    switch (filtro) {
-      case "novedades":
-        return eventosOrdenados;
-      case "dia":
-        return diaSel ? eventosOrdenados.filter((e) => e.dia === diaSel) : [];
-      case "historial":
-        return eventosOrdenados.slice(0, 50);
-      case "seguimiento":
-        // Todas las novedades del periodo (positivas y negativas), como en el gráfico.
-        return eventosOrdenados;
-      default:
-        return [];
-    }
-  }, [filtro, eventosOrdenados, diaSel]);
+  const listaNovedades = useMemo(
+    () => (diaSel ? eventosOrdenados.filter((e) => e.dia === diaSel) : eventosOrdenados),
+    [eventosOrdenados, diaSel],
+  );
 
-  const mostrarSalud =
-    filtro === "seguimiento" || filtro === "salud" || filtro === "historial" || filtro === "dia";
-  const mostrarNovedades =
-    filtro === "seguimiento" ||
-    filtro === "novedades" ||
-    filtro === "historial" ||
-    filtro === "dia";
-
-  const diaMarcado = useMemo(() => {
-    if (filtro === "dia" && diaSel) return diaSel;
-    return null;
-  }, [filtro, diaSel]);
+  const diaMarcado = diaSel;
 
   async function cambiarEstatus(id: string, estatus: EstatusCasoSalud) {
     setCambiandoId(id);
@@ -836,13 +810,8 @@ function SeguimientoExpandido({
   }
 
   const hayAlerta = contadores.casosActivos > 0 || contadores.novedadesNegativasRecientes > 0;
-  const totalSeguimiento =
-    casosPendientes.length +
-    casosResueltos.length +
-    saludSinDetalle.length +
-    eventosOrdenados.length;
-  const totalSaludTab = casosSeguimiento.length + saludSinDetalle.length;
-  const totalHistorial = historialCasos.length + Math.min(eventosOrdenados.length, 50);
+  // El badge de Salud cuenta solo lo accionable: casos abiertos y partes sin detallar.
+  const totalSaludTab = casosPendientes.length + saludSinDetalle.length;
 
   const tabTriggerClass = cn(
     "relative flex h-full min-h-0 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-none px-2 py-0",
@@ -1044,11 +1013,8 @@ function SeguimientoExpandido({
                 <div className="w-[11.5rem] shrink-0 sm:w-[12.5rem]">
                   <CalendarioSelectorDia
                     titulo="Calendario"
-                    diaSeleccionado={filtro === "dia" ? diaSel : null}
-                    onSeleccionarDia={(dia) => {
-                      if (dia) seleccionarFiltro("dia", dia);
-                      else if (filtro === "dia") seleccionarFiltro("seguimiento");
-                    }}
+                    diaSeleccionado={diaSel}
+                    onSeleccionarDia={(dia) => seleccionarDia(dia)}
                     marcasPorDia={marcasPorDia}
                     leyenda={LEYENDA_CALENDARIO}
                     onCerrar={() => setCalendarioAbierto(false)}
@@ -1070,24 +1036,15 @@ function SeguimientoExpandido({
       </Collapsible>
 
       <Tabs
-        value={filtro === "dia" ? "seguimiento" : filtro}
-        onValueChange={(v) => seleccionarFiltro(v as FiltroLista)}
+        value={tab}
+        onValueChange={(v) => setTabManual(v as TabSeguimiento)}
         className="gap-0"
       >
         <div className="border-b border-border">
           <TabsList
             variant="line"
-            className="!grid h-10 w-full grid-cols-4 gap-0 overflow-hidden rounded-none bg-transparent p-0"
+            className="!grid h-10 w-full grid-cols-2 gap-0 overflow-hidden rounded-none bg-transparent p-0"
           >
-            <TabsTrigger value="seguimiento" className={tabTriggerClass}>
-              <ClipboardCheck className="size-3.5 shrink-0" />
-              <span className="truncate">Seguimiento</span>
-              {totalSeguimiento > 0 && (
-                <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[9px] tabular-nums">
-                  {totalSeguimiento}
-                </Badge>
-              )}
-            </TabsTrigger>
             <TabsTrigger value="salud" className={tabTriggerClass}>
               <Stethoscope className="size-3.5 shrink-0" />
               <span className="truncate">Salud</span>
@@ -1109,20 +1066,11 @@ function SeguimientoExpandido({
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="historial" className={tabTriggerClass}>
-              <Clock className="size-3.5 shrink-0" />
-              <span className="truncate">Historial</span>
-              {totalHistorial > 0 && (
-                <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[9px] tabular-nums">
-                  {totalHistorial}
-                </Badge>
-              )}
-            </TabsTrigger>
           </TabsList>
         </div>
 
         {/* Banner día filtrado */}
-        {filtro === "dia" && diaSel && (
+        {diaSel && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-500/30 bg-sky-500/5 px-3 py-2 text-xs">
             <span className="text-sky-300">
               Filtrado por día {formatearDiaCalendario(diaSel)}
@@ -1132,88 +1080,49 @@ function SeguimientoExpandido({
               size="xs"
               variant="ghost"
               className="h-6"
-              onClick={() => seleccionarFiltro("seguimiento")}
+              onClick={() => seleccionarDia(null)}
             >
               Quitar filtro
             </Button>
           </div>
         )}
 
-        <TabsContent value="seguimiento" className="mt-4 space-y-5">
-          {filtro === "dia" && diaSel ? (
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Salud
-                </p>
-                {renderListaSalud(listaCasos, saludSinDetalleVisibles)}
-              </div>
-              <div className="space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Novedades
-                </p>
-                {renderListaNovedades(listaNovedades, "Sin novedades este día")}
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <p className="text-xs text-muted-foreground">
-                  Casos de salud activos y novedades del periodo.
-                </p>
-                {puedeEditar && onIrAReporte && (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-8 gap-1.5"
-                      onClick={() => onIrAReporte("salud")}
-                    >
-                      <Stethoscope className="size-3.5" />
-                      Salud
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-8 gap-1.5 bg-teal-600 hover:bg-teal-500"
-                      onClick={() => onIrAReporte("novedades")}
-                    >
-                      <CalendarPlus className="size-3.5" />
-                      Novedades
-                    </Button>
-                  </div>
-                )}
-              </div>
-              {mostrarSalud && (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Salud
-                    {listaCasos.length + saludSinDetalleVisibles.length > 0
-                      ? ` (${listaCasos.length + saludSinDetalleVisibles.length})`
-                      : ""}
-                  </p>
-                  {renderListaSalud(listaCasos, saludSinDetalleVisibles)}
-                </div>
-              )}
-              {mostrarNovedades && (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Novedades
-                    {listaNovedades.length > 0 ? ` (${listaNovedades.length})` : ""}
-                  </p>
-                  {renderListaNovedades(listaNovedades, "Sin novedades en el periodo")}
-                </div>
-              )}
-            </>
-          )}
-        </TabsContent>
-
         <TabsContent value="salud" className="mt-4 space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              Casos de salud del campamento en seguimiento.
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex overflow-hidden rounded-lg border border-border/70 text-[11px] font-semibold">
+              {(
+                [
+                  {
+                    valor: "seguimiento" as const,
+                    label: `En seguimiento${
+                      casosPendientes.length + casosResueltos.length > 0
+                        ? ` (${casosPendientes.length + casosResueltos.length})`
+                        : ""
+                    }`,
+                  },
+                  {
+                    valor: "archivados" as const,
+                    label: `Archivados${
+                      historialCasos.length > 0 ? ` (${historialCasos.length})` : ""
+                    }`,
+                  },
+                ]
+              ).map((s) => (
+                <button
+                  key={s.valor}
+                  type="button"
+                  onClick={() => setSubSalud(s.valor)}
+                  className={cn(
+                    "border-r border-border/70 px-2.5 py-1.5 transition-colors last:border-r-0",
+                    subSalud === s.valor
+                      ? "bg-teal-600/20 text-teal-300"
+                      : "text-muted-foreground hover:bg-muted/40",
+                  )}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
             {puedeEditar && onIrAReporte && (
               <Button
                 type="button"
@@ -1226,44 +1135,15 @@ function SeguimientoExpandido({
               </Button>
             )}
           </div>
-          {renderListaSalud(listaCasos, saludSinDetalleVisibles)}
-        </TabsContent>
-
-        <TabsContent value="novedades" className="mt-4 space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              Novedades positivas y negativas de los últimos 30 días.
+          {subSalud === "seguimiento" ? (
+            renderListaSalud(listaCasos, saludSinDetalleVisibles)
+          ) : listaCasos.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+              Sin casos archivados{diaSel ? " ese día" : ""}.
             </p>
-            {puedeEditar && onIrAReporte && (
-              <Button
-                type="button"
-                size="sm"
-                className="h-8 gap-1.5 bg-teal-600 hover:bg-teal-500"
-                onClick={() => onIrAReporte("novedades")}
-              >
-                <CalendarPlus className="size-3.5" />
-                Registrar en reporte
-              </Button>
-            )}
-          </div>
-          {renderListaNovedades(listaNovedades, "Sin novedades registradas")}
-        </TabsContent>
-
-        <TabsContent value="historial" className="mt-4 space-y-5">
-          <p className="text-xs text-muted-foreground">
-            Casos archivados y novedades recientes.
-          </p>
-          <div className="space-y-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Salud archivada
-              {listaCasos.length > 0 ? ` (${listaCasos.length})` : ""}
-            </p>
-            {listaCasos.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
-                Sin casos archivados.
-              </p>
-            ) : (
-              listaCasos.map((c) => (
+          ) : (
+            <div className="space-y-2">
+              {listaCasos.map((c) => (
                 <TarjetaCasoSalud
                   key={c.id}
                   caso={c}
@@ -1282,37 +1162,46 @@ function SeguimientoExpandido({
                   onCambiarEstatus={(est) => void cambiarEstatus(c.id, est)}
                   onArchivar={() => void archivar(c.id)}
                 />
-              ))
-            )}
-          </div>
-          <div className="space-y-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Novedades
-              {listaNovedades.length > 0 ? ` (${listaNovedades.length})` : ""}
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="novedades" className="mt-4 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              {verNovedadesAnteriores
+                ? "Todas las novedades registradas del campamento."
+                : "Novedades positivas y negativas de los últimos 30 días."}
             </p>
-            {listaNovedades.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
-                Sin novedades en el historial.
-              </p>
-            ) : (
-              listaNovedades.map((e) => (
-                <TarjetaNovedad
-                  key={e.id}
-                  evento={e}
-                  puedeEditar={puedeEditar}
-                  editando={editandoNovedadId === e.id}
-                  borrador={borradorNovedad}
-                  onBorradorChange={setBorradorNovedad}
-                  onEditar={() => iniciarEdicionNovedad(e)}
-                  onCancelarEdicion={cancelarEdicionNovedad}
-                  onGuardar={() => void guardarNovedadEditada(e)}
-                  onEliminar={() => void eliminarNovedad(e.id)}
-                  guardando={guardandoNovedadId === e.id}
-                  eliminando={eliminandoNovedadId === e.id}
-                />
-              ))
+            {puedeEditar && onIrAReporte && (
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 gap-1.5 bg-teal-600 hover:bg-teal-500"
+                onClick={() => onIrAReporte("novedades")}
+              >
+                <CalendarPlus className="size-3.5" />
+                Registrar en reporte
+              </Button>
             )}
           </div>
+          {renderListaNovedades(
+            listaNovedades,
+            diaSel ? "Sin novedades este día" : "Sin novedades registradas",
+          )}
+          {!verNovedadesAnteriores && !diaSel && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="w-full gap-1.5 text-xs text-muted-foreground"
+              onClick={() => setVerNovedadesAnteriores(true)}
+            >
+              <Clock className="size-3.5" />
+              Ver novedades anteriores a 30 días
+            </Button>
+          )}
         </TabsContent>
       </Tabs>
     </div>
@@ -1342,7 +1231,7 @@ function SeguimientoCompacto({
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm">
           <Stethoscope className="size-4 text-teal-400" />
-          Incidencias del reporte
+          Seguimiento del reporte
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">

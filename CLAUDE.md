@@ -34,9 +34,10 @@ datos viven en Postgres.
   propio, el offline-first (Dexie/outbox/sync engine), el JWT propio y PGlite. La
   app ahora habla directo con Supabase vía `@supabase/supabase-js` (Postgres,
   Auth, Realtime, Storage) desde el frontend.
-- ✅ **Esquema Supabase:** 12 tablas (7 sync blob+jsonb + `ocupaciones_centros`
-  + `reportes_centros` + `incidencias_centros` + `perfiles` + `historial`),
-  RLS por rol + centros asignados, Edge Functions `create-user`/`delete-user`/
+- ✅ **Esquema Supabase:** 7 tablas sync blob+jsonb + `ocupaciones_centros`
+  + `reportes_centros` + `perfiles` + `historial` + las tablas del reporte de
+  5 fases (`incidencias_centros` fue retirada el 09-jul), RLS por rol +
+  centros asignados, Edge Functions `create-user`/`delete-user`/
   `update-user-password`. Ver sección "Supabase — esquema y RLS".
 - ✅ **Datos migrados:** los centros del Excel en la tabla `centros` (hoy **61 activos**) (los 49
   del Excel `DATA CENTRAL 03JUL26.xlsx`; la UEN Gran Colombia se divide en 3
@@ -61,22 +62,19 @@ datos viven en Postgres.
  `supabase/functions.sql`) que actualiza blob `data` + columna PostGIS `geom`
  en una sola llamada. Con esto quedó cerrado el GAP de `geom` documentado en
  la Fase 3.
-- ✅ **Reporte diario e incidencias por centro:** tablas `reportes_centros`
- (comidas por jornada + atenciones médicas, una fila por centro/día) e
- `incidencias_centros` (novedades con etiqueta/categorías/estado
- abierta-resuelta), formulario "Reporte del día" en la ficha del centro
- (reutiliza el parte numérico existente → `ocupaciones_centros` sigue
- alimentándose), secciones de reporte e incidencias en `DetalleCentro`/
- `FichaCentroView`, vista global `/incidencias` (filtros + calendario con
- severidad) y 2 KPIs nuevos en `/dashboard`. Ver sección "Reporte diario e
- incidencias por centro".
+- ✅ **Reporte diario por centro:** tabla `reportes_centros` (comidas por
+ jornada + atenciones médicas, una fila por centro/día), formulario "Reporte
+ del día" en la ficha del centro (reutiliza el parte numérico existente →
+ `ocupaciones_centros` sigue alimentándose) y KPIs en `/dashboard`. (El
+ sistema de incidencias de esa fase fue reemplazado por el seguimiento de
+ salud/novedades y luego unificado el 09-jul; ver sección "Seguimiento de
+ reportes".)
 - ✅ **Sistema de usuarios con 5 roles y permisos por centro** (migración
  `sistema_usuarios_5_roles`, ver `docs/sistema-usuarios.md` y
  `supabase/sistema_usuarios.sql`): roles `admin` / `analista_sae` /
  `autoridad` / `supervisor` / `operador`; `perfiles.centros_asignados text[]`
  (reemplaza a `sector_asignado`); RLS por rol **y** centro asignado (helpers
- `mi_rol()`/`mis_centros()`/`mi_username()`/`mi_hash_id()`); `incidencias_centros.creada_por`
- (el operador solo resuelve las suyas); Edge Functions `create-user` v2
+ `mi_rol()`/`mis_centros()`/`mi_username()`/`mi_hash_id()`); Edge Functions `create-user` v2
  (genera `hash_id` en el servidor), `delete-user` y `update-user-password`
  (gestión de usuarios COMPLETA desde `/usuarios`); vista `/logs` (bitácora
  `historial` con Realtime, solo admin y autoridad) y `registrarHistorial()`
@@ -139,7 +137,18 @@ datos viven en Postgres.
  dispositivo cambia de campamento) y el botón "Reporte diario" de `/terreno`
  entra directo autenticado. Registra `crear_usuario_terreno` y
  `login_terreno` en `historial`. Verificado E2E contra producción: la sesión
- emitida solo ve/escribe su centro.
+ emitida solo ve/escribe su centro. **Alcance del QR (decisión 09-jul):** la
+ sesión de terreno (rol `operador`) queda reducida a **Reporte + Población +
+ Infraestructura de sus campamentos**: rutas solo `/centros/reportes*`
+ (`esRolTerreno`/`rutaInicialDeRol`/`rutaPermitidaParaRol` en `permisos.ts`,
+ patrón censo_rapido), menú de un solo item (AppSidebar) y pestañas de la
+ ficha filtradas (`SECCIONES_FICHA_TERRENO`; coordinación y seguimiento
+ ocultas). Además, migración **`blindaje_lectura_refugiados`** (referencia en
+ `supabase/blindaje_lectura_refugiados.sql`): `refugiados_select` y
+ `beneficios_otorgados_select` estaban en `true` (¡toda sesión autenticada
+ leía la ficha humanitaria de toda la red!) → ahora admin/analista/autoridad
+ todo, supervisor/operador solo sus campamentos (en `refugiados` vía
+ alojamiento + `updated_by = mi_username()` para el RETURNING del alta).
 - ✅ **Denuncias de damnificados por QR (Fase 3, 09-jul):** tabla
  `denuncias_centros` + RPCs `denuncia_registrar` (alta anónima con el token
  `publico` del campamento, validaciones + freno de 20/hora por centro) y
@@ -167,6 +176,17 @@ datos viven en Postgres.
  censo SEBIN, control con donuts, unidades SEBIN), detalle del día en 3
  columnas (trabajos/salud/novedades con días abiertos) y tabla de la red
  ordenada por N°.
+- ✅ **Unificación de incidencias (09-jul):** se eliminó la redundancia de
+ vistas. Ficha del campamento: pestaña renombrada a **"Seguimiento"** (el
+ `?vista=incidencias` se conserva por compatibilidad) con solo 2 sub-pestañas
+ (**Salud** con segmentado En seguimiento/Archivados · **Novedades** con
+ "ver anteriores"); desaparecieron "Seguimiento" (unión redundante) e
+ "Historial" (duplicado). Grupo del sidebar: **bandeja única**
+ `/incidencias/funcionarios` (estado En seguimiento/Histórico + calendario +
+ resumen; absorbe las vistas archivadas y analítica, cuyas rutas redirigen).
+ Se retiró el sistema legacy `incidencias_centros` (hook, lista, CRUD y tipos
+ de dominio; el `drop table` en `supabase/drop_incidencias_centros.sql`
+ quedó **pendiente de aplicar**). Ver "Seguimiento de reportes".
 - ⚠️ **Datos piloto de simulación** sembrados el 08-jul en todos los
  campamentos (partes, controles, trabajos, requerimientos, casos, novedades)
  con `updated_by = 'simulacion'` / `creada_por = 'simulacion'`. Limpieza:
@@ -246,8 +266,8 @@ src/
 │  serieOcupacionCentros.ts (series temporales con carry-forward),
 │  reporteDiario.ts (tipos y helpers del reporte diario: comidas por jornada,
 │    atenciones médicas, racionesDelDia, reporteDelDia…),
-│  incidencias.ts (tipo Incidencia + catálogos de etiquetas/categorías +
-│    helpers de severidad y agrupado por día),
+│  seguimientoReportes.ts (casos de salud + novedades: contadores, series,
+│    severidad por día para calendarios),
 │  permisos.ts (5 roles: INFO_ROLES + helpers puedeEscribir,
 │    puedeGestionarUsuarios, puedeVerLogs, puedeCrearCentros,
 │    puedeEditarCentro, puedeResolverIncidencia)
@@ -256,10 +276,11 @@ src/
 │  useSupabaseQuery.ts (hook select + Realtime, reemplaza a useLiveQuery),
 │  useSupabaseConectado.ts (estado de conexión a Realtime para la UI),
 │  useOcupacionesCentros.ts (snapshots de `ocupaciones_centros` con Realtime),
-│  useReportesCentros.ts / useIncidencias.ts (reportes diarios e incidencias
-│    con Realtime, mismo patrón que useOcupacionesCentros),
-│  reposReportes.ts (guardarReporteDiario, crearIncidencia,
-│    actualizarIncidencia, resolverIncidencia),
+│  useReportesCentros.ts / useCasosSaludCentros.ts / useEventosReportes.ts
+│    (reportes, casos de salud y novedades con Realtime, mismo patrón que
+│    useOcupacionesCentros),
+│  reposReportes.ts (guardarReporteDiario) · reposCasosSalud.ts ·
+│    reposEventosReportes.ts,
 │  edgeFunctions.ts (invocarEdgeFunction: helper para llamar Edge Functions),
 │  historial.ts (registrarHistorial fire-and-forget + useHistorial con
 │    Realtime para /logs),
@@ -277,9 +298,10 @@ src/
 │  TableroCentros, CentroForm, LevantamientoCentro,
 │  RequerimientosCentro, PanelCentros, ControlesMapaCentros, IconosAlerta,
 │  GraficoOcupacionCentro, ReporteDiarioForm, ReporteDiarioCentro,
-│  IncidenciasCentro) ·
-│  incidencias/ (IncidenciasView (/incidencias), CalendarioIncidencias,
-│  ListaIncidencias) ·
+│  SeguimientoReportesCentro) ·
+│  incidencias/ (IncidenciasLayout + IncidenciasFuncionariosView (bandeja
+│  única /incidencias/funcionarios), IncidenciasRefugiadosView (denuncias),
+│  CalendarioIncidencias, ListaSeguimientoReportes) ·
 │  dashboard/ (DashboardView, GraficoOcupacionRed) ·
 │  censo/ (DesgloseDemografico, DesglosePersonal, PersonalResumen) ·
 │  tablero/ (DemografiaResumen) ·
@@ -298,9 +320,10 @@ Rutas (react-router en `src/main.tsx` + `src/App.tsx`): `/` = `CentrosView`
 `FichaCentroView` (ficha completa de un centro a pantalla completa:
 multicolumna en escritorio lg+, una columna en móvil; se abre desde el tablero
 y, en móvil, desde el botón "detalles" del mapa), `/dashboard` = `DashboardView`
-(sala de control a pantalla completa, solo lectura), `/incidencias` =
-`IncidenciasView` (tablero global de incidencias de la red, solo lectura/
-análisis, todos los roles; link "Incidencias" con icono Siren en la Navbar),
+(sala de control a pantalla completa, solo lectura), `/incidencias` →
+redirige a la **bandeja única** `/incidencias/funcionarios`
+(`IncidenciasFuncionariosView`; las rutas viejas `/incidencias/archivadas` y
+`/incidencias/analitica` también redirigen ahí),
 `/usuarios` = `GestionUsuarios` (admin), `/logs` = `LogsView` (bitácora,
 admin y autoridad). En prod Traefik (Dokploy) hace fallback SPA a
 `index.html`; en la PWA se añadió `navigateFallback` en `vite.config.ts` para
@@ -366,17 +389,13 @@ hora_llegada, proveedor, observacion}`), `atenciones_medicas int`,
 **`unique(centro_id, dia)`** (una fila por centro por día; la última edición
 gana), índices en `(dia)` y `(centro_id, dia)`.
 
-**`incidencias_centros`** (tipada, novedades con seguimiento; mismo SQL de
-referencia): `id uuid PK`, `centro_id text not null references centros(id) on
-delete cascade`, `dia date not null`, `ts bigint`, `descripcion text`,
-`etiqueta text check in (urgente, importante, cotidiana)`, `categorias text[]`
-(catálogo: seguridad, salud, agua, alimentacion, infraestructura, servicios,
-convivencia, otro), `estado text default 'abierta' check in (abierta,
-resuelta)`, `resuelta_ts bigint`, `resuelta_por text`, **`creada_por text`**
-(quién la abrió; estable, a diferencia de `updated_by` que se pisa al editar),
-`updated_at bigint`, `updated_by text`, índices en `(dia)`, `(centro_id, dia)`
-y `(estado)`. **Append** por incidencia (no una fila por día). Ambas tablas
-están en la publicación Realtime.
+**`incidencias_centros`** — **RETIRADA (09-jul-2026).** Era el sistema viejo
+de incidencias (etiquetas urgente/importante/cotidiana); quedó vacía y sin
+consumidores cuando el seguimiento pasó a `casos_salud_centros` +
+`eventos_reportes`. El frontend ya no la referencia (se eliminaron
+`useIncidencias`, `ListaIncidencias`, `domain/incidencias` y su CRUD en
+`reposReportes`). ⚠️ El `drop table` está pendiente de aplicar:
+`supabase/drop_incidencias_centros.sql`.
 
 **`perfiles`**: `user_id uuid references auth.users`, `username text unique`,
 `nombre`, `rol check in (admin, analista_sae, autoridad, supervisor,
@@ -391,8 +410,8 @@ real → se usa el sintético `<username>@refugio.app` en `auth.users`.
 entidad_id, detalle jsonb`. Bitácora con UI en `/logs` (solo admin y
 autoridad); en la publicación Realtime. El frontend inserta vía
 `registrarHistorial()` (`src/data/historial.ts`, fire-and-forget) desde
-`guardarCentro`/`eliminarCentro`/`crearIncidencia`/`resolverIncidencia`/
-`guardarReporteDiario`; las Edge Functions insertan las acciones de usuarios.
+`guardarCentro`/`eliminarCentro`/`guardarReporteDiario` y los repos de casos
+de salud y eventos; las Edge Functions insertan las acciones de usuarios.
 
 **RLS por rol + centro** (migración `sistema_usuarios_5_roles`, SQL de
 referencia en `supabase/sistema_usuarios.sql`). Helpers `SECURITY DEFINER`
@@ -407,8 +426,8 @@ Matriz:
   `id/centro_id = any(mis_centros())`. **insert/update** — `admin/analista_sae`
   todo; `supervisor/operador` solo sus centros (insert de `centros` solo
   admin/analista). **delete** — solo `admin/analista_sae`.
-- `incidencias_centros`: igual, pero el **update** del `operador` exige además
-  `creada_por = mi_username()` (solo resuelve las suyas).
+- `incidencias_centros` (retirada): su policy especial (`operador` solo
+  resolvía las suyas vía `creada_por`) desaparece con el drop pendiente.
 - `perfiles`: select/insert/update/delete — `admin` todo; cada usuario lee y
   edita su propia fila **sin poder cambiar** `rol`, `centros_asignados` ni
   `hash_id`. (El `hash_id` dejó de ser legible por todos; nadie más necesita
@@ -482,62 +501,42 @@ Usa el componente `chart` de shadcn (`ChartContainer`/`ChartTooltip`) con
 `var(--chart-N)` como colores (siguiendo la regla del workspace de usar el MCP
 de shadcn para cualquier diseño de UI).
 
-## Reporte diario e incidencias por centro
+## Seguimiento de reportes (salud y novedades) — unificado 09-jul-2026
 
-Flujo: los supervisores de cada centro reportan **cada día** desde la ficha del
-centro. El **parte numérico** (ocupación demográfica + personal) reutiliza el
-flujo existente (`guardarCentro()`), así el snapshot histórico de
-`ocupaciones_centros` sigue funcionando sin cambios; las **comidas** y las
-**atenciones médicas** van a `reportes_centros` (una fila por centro/día); las
-**incidencias** se registran en `incidencias_centros` con etiqueta de severidad
-(**urgente** rojo / **importante** ámbar / **cotidiana** gris), categorías y
-estado abierta/resuelta. Tablas + RLS en "Supabase — esquema y RLS"; SQL de
-referencia en `supabase/reportes_incidencias.sql`.
+El "seguimiento" son los dos datasets que nacen del reporte diario de 5 fases:
+**casos de salud** (`casos_salud_centros`, ciclo activo → en proceso →
+resuelto → archivado) y **novedades** (`eventos_reportes`, positivas/
+negativas). El sistema viejo de "incidencias" (`incidencias_centros`,
+etiquetas urgente/importante/cotidiana) **fue retirado** (ver "Supabase —
+esquema y RLS"). Tras la unificación, cada dato vive en UNA vista por nivel:
 
-- **Dominio** (`src/domain/`): `reporteDiario.ts` (tipos `ReporteDiario`,
-  `ComidaJornada`, `ComidasDia`, `JornadaReporte`
-  desayuno|almuerzo|cena; catálogo `CATALOGO_JORNADAS_REPORTE`; helpers
-  `jornadaReportada`, `jornadasReportadas`, `reporteCompleto`,
-  `racionesDelDia`, `reporteDelDia`) e `incidencias.ts` (tipo `Incidencia`;
-  catálogos `ETIQUETAS_INCIDENCIA` con orden de severidad y
-  `CATEGORIAS_INCIDENCIA`; helpers `compararSeveridad`,
-  `agruparIncidenciasPorDia`, `severidadMaxima`, `severidadMaximaPorDia` —para
-  los puntos de color de los calendarios— e `incidenciasAbiertas`).
-- **Capa de datos** (`src/data/`): hooks `useReportesCentros({centroId?, dia?,
-  desde?})` y `useIncidencias({centroId?, desde?, estado?})` (select inicial +
-  Realtime, mismo patrón que `useOcupacionesCentros`) y `reposReportes.ts`
-  (`guardarReporteDiario()` con upsert `onConflict centro_id,dia`,
-  `crearIncidencia()`, `actualizarIncidencia()`, `resolverIncidencia()` que
-  marca resuelta + `resuelta_ts`/`resuelta_por`).
-- **Ficha del centro** (`src/features/centros/`): `ReporteDiarioForm` (dialog
-  con pestañas: **Parte numérico** —reutiliza `DesgloseDemografico`/
-  `DesglosePersonal` y guarda vía `guardarCentro()`—, **Comidas** por jornada
-  con raciones/hora de llegada/proveedor y **Atención médica** con número +
-  observaciones; se abre con el botón "Reporte del día" en la cabecera de
-  `FichaCentroView` y desde la sección en `DetalleCentro`),
-  `ReporteDiarioCentro` (`SeccionReporteDiarioCentro`: estado del reporte de
-  HOY con chips por jornada reportada/pendiente, raciones totales, atenciones,
-  badge "Pendiente") e `IncidenciasCentro` (`SeccionIncidenciasCentro`: alta
-  rápida con descripción + etiqueta + categorías, lista de abiertas con
-  "Resolver" con confirmación, resueltas recientes colapsables y calendario
-  mensual del centro con punto del color de la severidad máxima por día; clic
-  en un día muestra sus incidencias). Ambas secciones integradas en
-  `DetalleCentro` y `FichaCentroView` (columna 2 el reporte, columna 3 las
-  incidencias en escritorio; también en el orden móvil). Permisos:
-  `puedeEditarCentro(usuario, centroId)` (autoridad solo lee; supervisor/
-  operador solo en sus centros) y el botón "Resolver" usa
-  `puedeResolverIncidencia` (el operador solo resuelve las que abrió él;
-  `creada_por`).
-- **Vista global `/incidencias`** (`src/features/incidencias/`, todos los
-  roles, solo lectura/análisis): `IncidenciasView` (filtros por etiqueta/
-  categoría/centro/estado, contadores por categoría clicables, layout
-  responsivo), `CalendarioIncidencias` (calendario shadcn con puntos de
-  severidad y leyenda; clic filtra por día) y `ListaIncidencias` (ordenada por
-  severidad y fecha desc, enlaza a `/centro/:id`).
-- **Dashboard**: 2 KPIs nuevos con Realtime (ver "Sala de control").
-- **shadcn**: componentes nuevos `calendar`, `tabs`, `select` en
-  `src/components/ui/` (`calendar` trajo las dependencias `react-day-picker` y
-  `date-fns`).
+- **Ficha del campamento, pestaña "Seguimiento"** (`?vista=incidencias` — el
+  id del query param se mantuvo por compatibilidad con enlaces guardados;
+  `src/features/centros/SeguimientoReportesCentro.tsx`): franja resumen +
+  gráfico/calendario de evolución (colapsables) + **2 pestañas**: **Salud**
+  (segmentado "En seguimiento / Archivados"; badge rojo solo con lo
+  accionable: casos abiertos + partes sin detallar) y **Novedades**
+  (cronológica 30 días, botón "Ver novedades anteriores" amplía la ventana).
+  La pestaña por defecto es Salud si hay casos activos, si no Novedades. El
+  calendario filtra ambas listas por día (banner "Quitar filtro"). El alta
+  siempre se hace desde el formulario del reporte (fases Parte/Novedades) vía
+  `onIrAReporte`.
+- **Bandeja única de la red `/incidencias/funcionarios`**
+  (`IncidenciasFuncionariosView`): fusiona las antiguas vistas
+  funcionarios/archivadas/analítica. Filtros de estado ("En seguimiento" =
+  casos abiertos + novedades negativas · "Histórico" = casos archivados +
+  todas las novedades), tipo, campamento y día (calendario de la red con
+  severidad); tarjeta resumen (60 días); acciones de salud (cambiar estatus /
+  archivar) según `puedeEditarCentro`. Las rutas viejas redirigen:
+  `/incidencias/archivadas` → `?estado=archivadas`, `/incidencias/analitica` →
+  la bandeja. `/incidencias` redirige a la bandeja para todos los roles.
+- **Bandeja damnificados `/incidencias/refugiados`** (denuncias por QR,
+  `denuncias_centros`) sigue aparte: es otro canal y otra tabla.
+- **Capa de datos**: `useCasosSaludCentros` / `useEventosReportes` /
+  `useReportesCentros` (select + Realtime) y repos `reposCasosSalud` /
+  `reposEventosReportes` / `reposReportes` (`guardarReporteDiario()` con
+  upsert `onConflict centro_id,dia`). Dominio en
+  `src/domain/seguimientoReportes.ts` (contadores, series, severidad por día).
 
 ## Auth y usuarios
 
@@ -564,12 +563,11 @@ referencia en `supabase/reportes_incidencias.sql`.
 - **Roles** (5, ver `docs/sistema-usuarios.md`): `admin` (todo + usuarios +
   logs) · `analista_sae` (opera toda la red, sin usuarios ni logs) ·
   `autoridad` (solo lectura + logs) · `supervisor` (lee/escribe SOLO sus
-  `centros_asignados`) · `operador` (ídem supervisor, pero solo resuelve las
-  incidencias que él abrió). Los chequeos de UI viven en
-  `src/domain/permisos.ts` (`INFO_ROLES`, `puedeEscribir`,
+  `centros_asignados`) · `operador` (ídem supervisor). Los chequeos de UI
+  viven en `src/domain/permisos.ts` (`INFO_ROLES`, `puedeEscribir`,
   `puedeGestionarUsuarios`, `puedeVerLogs`, `puedeCrearCentros`,
-  `puedeEditarCentro(usuario, centroId)`, `puedeResolverIncidencia(usuario,
-  incidencia)`); la RLS aplica la misma matriz en el servidor.
+  `puedeEditarCentro(usuario, centroId)`); la RLS aplica la misma matriz en
+  el servidor.
 - **Bitácora `/logs`** (`src/features/logs/LogsView.tsx`, solo admin y
   autoridad): lista cronológica de `historial` con Realtime y filtros por
   rango de fechas, entidad y usuario. Link "Bitácora de acciones" en el menú
@@ -744,11 +742,12 @@ docker compose up -d --build
   crear un centro de prueba con coordenadas y verlo en el mapa (y eliminarlo),
   abrir el gráfico individual y el de red, editar en un dispositivo y ver
   refresco en otro (Realtime), subir foto, llenar el "Reporte del día" de un
-  centro (parte numérico + comidas + atención médica), registrar y resolver una
-  incidencia y verla en `/incidencias` y en los KPIs del dashboard.
+  centro (parte numérico + comidas + atención médica), registrar un caso de
+  salud y una novedad y verlos en la pestaña "Seguimiento" de la ficha, en la
+  bandeja `/incidencias/funcionarios` y en los KPIs del dashboard.
 - Usuarios y permisos: desde `/usuarios` crear un `operador` con 2 centros
-  asignados, loguearse con él y comprobar que solo ve/edita esos centros, que
-  solo resuelve las incidencias que abrió él, cambiarle la contraseña desde
+  asignados, loguearse con él y comprobar que solo ve/edita esos centros,
+  cambiarle la contraseña desde
   `/usuarios` (relogin) y eliminarlo (desaparece de `auth.users` y
   `perfiles`); revisar la bitácora en `/logs` con el admin.
 - Supabase: `list_tables` (verbose) y `get_advisors` (security) vía MCP para

@@ -196,7 +196,7 @@ const ENLACES: {
   { vista: "coordinacion", label: "Coordinación", icono: <ClipboardList className="size-3.5" /> },
   { vista: "poblacion", label: "Población", icono: <Users className="size-3.5" /> },
   { vista: "reporte", label: "Reporte", icono: <UtensilsCrossed className="size-3.5" /> },
-  { vista: "incidencias", label: "Incidencias", icono: <Siren className="size-3.5" /> },
+  { vista: "incidencias", label: "Seguimiento", icono: <Siren className="size-3.5" /> },
   { vista: "infraestructura", label: "Infraestructura", icono: <HardHat className="size-3.5" /> },
 ];
 

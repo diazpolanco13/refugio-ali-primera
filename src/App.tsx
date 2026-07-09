@@ -7,7 +7,7 @@ import { PantallaCarga } from "./components/PantallaCarga";
 import { EnDesarrollo } from "./components/EnDesarrollo";
 import { AppShell } from "./layouts/AppShell";
 import { ocultarSplash } from "./lib/splash";
-import { rutaPermitidaParaRol } from "./domain/permisos";
+import { rutaInicialDeRol, rutaPermitidaParaRol } from "./domain/permisos";
 
 // Rutas con carga perezosa: cada vista pesada (MapLibre, recharts, ficha
 // humanitaria…) viaja en su propio chunk. El bundle inicial queda en el núcleo
@@ -23,10 +23,6 @@ const importIncidenciasRedirect = () => import("./features/incidencias/Incidenci
 const importIncidenciasLayout = () => import("./features/incidencias/IncidenciasLayout");
 const importIncidenciasFuncionariosView = () =>
   import("./features/incidencias/IncidenciasFuncionariosView");
-const importIncidenciasArchivadasView = () =>
-  import("./features/incidencias/IncidenciasArchivadasView");
-const importIncidenciasAnaliticaView = () =>
-  import("./features/incidencias/IncidenciasAnaliticaView");
 const importIncidenciasRefugiadosView = () =>
   import("./features/incidencias/IncidenciasRefugiadosView");
 const importGestionUsuarios = () => import("./features/usuarios/GestionUsuarios");
@@ -60,12 +56,6 @@ const IncidenciasLayout = lazy(() =>
 );
 const IncidenciasFuncionariosView = lazy(() =>
   importIncidenciasFuncionariosView().then((m) => ({ default: m.IncidenciasFuncionariosView })),
-);
-const IncidenciasArchivadasView = lazy(() =>
-  importIncidenciasArchivadasView().then((m) => ({ default: m.IncidenciasArchivadasView })),
-);
-const IncidenciasAnaliticaView = lazy(() =>
-  importIncidenciasAnaliticaView().then((m) => ({ default: m.IncidenciasAnaliticaView })),
 );
 const IncidenciasRefugiadosView = lazy(() =>
   importIncidenciasRefugiadosView().then((m) => ({ default: m.IncidenciasRefugiadosView })),
@@ -127,11 +117,11 @@ function precargarRutaInicial(pathname: string): Promise<unknown> {
   return importCentrosView();
 }
 
-/** Redirige al mapa si el rol no tiene acceso a la ruta actual. */
+/** Redirige a la vista inicial del rol si no tiene acceso a la ruta actual. */
 function RutaAutorizada({ sesion, children }: { sesion: Sesion; children: ReactNode }) {
   const { pathname } = useLocation();
   if (!rutaPermitidaParaRol(pathname, sesion.user.rol)) {
-    return <Navigate to="/centros/mapa" replace />;
+    return <Navigate to={rutaInicialDeRol(sesion.user.rol)} replace />;
   }
   return children;
 }
@@ -231,8 +221,15 @@ export function App() {
                 path="funcionarios"
                 element={<IncidenciasFuncionariosView sesion={sesion} />}
               />
-              <Route path="archivadas" element={<IncidenciasArchivadasView />} />
-              <Route path="analitica" element={<IncidenciasAnaliticaView />} />
+              {/* Rutas absorbidas por la bandeja unificada de funcionarios. */}
+              <Route
+                path="archivadas"
+                element={<Navigate to="/incidencias/funcionarios?estado=archivadas" replace />}
+              />
+              <Route
+                path="analitica"
+                element={<Navigate to="/incidencias/funcionarios" replace />}
+              />
               <Route path="refugiados" element={<IncidenciasRefugiadosView sesion={sesion} />} />
             </Route>
             <Route path="/qrs-terreno" element={<HojaQrsTerrenoView sesion={sesion} />} />

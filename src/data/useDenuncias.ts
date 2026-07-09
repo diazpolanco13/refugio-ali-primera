@@ -1,5 +1,5 @@
 // Hook para leer denuncias de damnificados (`denuncias_centros`) con
-// Realtime. Mismo patrón que `useIncidencias`: select inicial + suscripción
+// Realtime. Mismo patrón que `useReportesCentros`: select inicial + suscripción
 // `postgres_changes`. La RLS decide qué ve cada rol (el supervisor solo sus
 // campamentos; el operador, nada).
 

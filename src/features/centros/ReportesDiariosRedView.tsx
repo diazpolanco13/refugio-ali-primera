@@ -1068,7 +1068,6 @@ export function ReportesDiariosRedView() {
         snapshots,
         reportes,
         eventos,
-        incidencias: [],
         controles,
         trabajosActivos: trabajosRed,
         requerimientosActivos: requerimientosRed,

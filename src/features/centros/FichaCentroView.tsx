@@ -18,7 +18,12 @@ import { useReportesControlDia } from "@/data/useReportesControlDia";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { Sesion } from "@/data/authSupabase";
-import { puedeEditarCentro, puedeEditarReportesPasados } from "@/domain/permisos";
+import {
+  SECCIONES_FICHA_TERRENO,
+  esRolTerreno,
+  puedeEditarCentro,
+  puedeEditarReportesPasados,
+} from "@/domain/permisos";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
 import { controlReportado, reporteControlDelDia } from "@/domain/controlReporte";
 import {
@@ -70,7 +75,25 @@ export function FichaCentroView({ sesion }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const seccionParam = searchParams.get("vista");
-  const seccionActiva: SeccionFichaCentro = normalizarSeccionFichaCentro(seccionParam);
+  // Sesión del QR de terreno: la ficha se reduce a sus pestañas operativas
+  // (resumen, población, reporte, infraestructura). Una vista oculta en la
+  // URL cae al reporte.
+  const esTerreno = esRolTerreno(sesion.user.rol);
+  const seccionesVisibles = useMemo(
+    () =>
+      esTerreno
+        ? SECCIONES_FICHA_CENTRO.filter((s) =>
+            (SECCIONES_FICHA_TERRENO as readonly string[]).includes(s.id),
+          )
+        : SECCIONES_FICHA_CENTRO,
+    [esTerreno],
+  );
+  const seccionNormalizada = normalizarSeccionFichaCentro(seccionParam);
+  const seccionActiva: SeccionFichaCentro = seccionesVisibles.some(
+    (s) => s.id === seccionNormalizada,
+  )
+    ? seccionNormalizada
+    : "reporte";
   const modoReporte = searchParams.get("reportar") === "1";
   const modoRegistrar = searchParams.get("registrar") === "1";
   const refugiadoId = searchParams.get("refugiado");
@@ -509,7 +532,7 @@ export function FichaCentroView({ sesion }: Props) {
             variant="line"
             className="!h-[50px] w-full justify-start gap-0 overflow-x-auto rounded-none bg-transparent p-0 align-middle [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {SECCIONES_FICHA_CENTRO.map((s) => {
+            {seccionesVisibles.map((s) => {
               const activa = s.id === seccionActiva;
               const reportePendiente =
                 s.id === "reporte" && puedeEditar && hoyEstado !== "completo";

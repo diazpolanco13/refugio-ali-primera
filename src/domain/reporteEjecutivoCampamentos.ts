@@ -32,7 +32,6 @@ import type { EventoReporte } from "./eventosReportes";
 import { CATEGORIAS_REQUERIMIENTO } from "./requerimientosSeguimiento";
 import { diasAbierto } from "./antiguedadSeguimiento";
 import { metaUnidadSebinDe } from "./unidadesSebin";
-import type { Incidencia } from "./incidencias";
 import type { NivelPrioridad } from "./prioridadCentros";
 import type { TipoEventoReporte } from "./eventosReportes";
 import type { SnapshotOcupacion } from "./serieOcupacionCentros";
@@ -55,7 +54,6 @@ export interface EntradaReporteEjecutivoCampamentos {
   reportes: ReporteDiario[];
   reportesReparaciones?: ReporteReparacionesDia[];
   eventos?: EventoReporteEjecutivo[];
-  incidencias?: Incidencia[];
   /** Controles operativos (se filtran por `dia`). */
   controles?: ReporteControlDia[];
   /** Trabajos activos (pendiente / en progreso) de toda la red. */
@@ -380,15 +378,13 @@ function resumenDiario({
   reportes,
   snapshots,
   eventos,
-  incidencias,
   dia,
 }: Pick<
   EntradaReporteEjecutivoCampamentos,
-  "reportes" | "snapshots" | "eventos" | "incidencias" | "dia"
+  "reportes" | "snapshots" | "eventos" | "dia"
 >): ResumenDiarioEjecutivo {
   const reportesDia = reportes.filter((r) => r.dia === dia);
   const eventosDia = (eventos ?? []).filter((e) => e.dia === dia);
-  const incidenciasDia = (incidencias ?? []).filter((i) => i.dia === dia);
   const campamentosConTrabajo = new Set(
     reportesDia.filter((r) => r.trabajos_revisados).map((r) => r.centro_id),
   );
@@ -399,10 +395,7 @@ function resumenDiario({
   return {
     eventosPositivos: eventosDia.filter((e) => e.tipo === "positivo").length,
     eventosNegativos: eventosDia.filter((e) => e.tipo === "negativo").length,
-    incidenciasSalud: Math.max(
-      incidenciasSaludSnapshots,
-      incidenciasDia.filter((i) => i.categorias.includes("salud")).length,
-    ),
+    incidenciasSalud: incidenciasSaludSnapshots,
     atencionesSalud: reportesDia.reduce((acc, r) => acc + r.atenciones_medicas, 0),
     trabajosRealizados: reportesDia.filter((r) => r.trabajos_revisados).length,
     campamentosConTrabajo: campamentosConTrabajo.size,
@@ -426,7 +419,6 @@ export function construirReporteEjecutivoCampamentos({
   snapshots,
   reportes,
   eventos = [],
-  incidencias = [],
   controles = [],
   trabajosActivos = [],
   requerimientosActivos = [],
@@ -620,7 +612,6 @@ export function construirReporteEjecutivoCampamentos({
       reportes,
       snapshots,
       eventos,
-      incidencias,
       dia,
     }),
     grupos: agruparPorGrupo(centrosConParte),

@@ -163,7 +163,7 @@ export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
         onClick={onIrAPestana ? () => onIrAPestana("reporte") : undefined}
       />
       <TarjetaAlerta
-        titulo="Incidencias"
+        titulo="Seguimiento"
         icono={<Stethoscope className="size-4" />}
         detalle={detalleIncidencias}
         alerta={incidenciasAlerta}

@@ -174,31 +174,8 @@ export function puedeEditarCentro(usuario: Usuario, centroId: string): boolean {
   return (usuario.centros_asignados ?? []).includes(centroId);
 }
 
-/**
- * ¿Puede este usuario resolver (o editar) una incidencia concreta?
- * El operador solo resuelve las que él mismo abrió (`creada_por`).
- */
-export function puedeResolverIncidencia(
-  usuario: Usuario,
-  incidencia: { centro_id: string; creada_por?: string | null },
-): boolean {
-  const info = permisosDeRol(usuario.rol);
-  if (!info.puedeEscribir) return false;
-  if (info.escrituraTotal) return true;
-  const enSusCentros = (usuario.centros_asignados ?? []).includes(incidencia.centro_id);
-  if (!enSusCentros) return false;
-  if (usuario.rol === "operador") return incidencia.creada_por === usuario.username;
-  return true;
-}
-
-/** ¿Puede eliminar incidencias? Solo admin y analista SAE (RLS en Supabase). */
 export function puedeVerSaludMental(rol: Rol): boolean {
   return rol !== "autoridad";
-}
-
-/** ¿Puede eliminar incidencias? Solo admin y analista SAE (RLS en Supabase). */
-export function puedeEliminarIncidencia(usuario: Usuario): boolean {
-  return usuario.rol === "admin" || usuario.rol === "analista_sae";
 }
 
 /** Rol restringido a mapa + censo rápido (sin resto del menú). */
@@ -206,12 +183,44 @@ export function esRolCensoRapido(rol: Rol): boolean {
   return rol === "censo_rapido";
 }
 
-/** Rutas permitidas para el rol Censo Rápido. */
+/**
+ * Rol de la sesión de terreno (el QR del campamento): la credencial es un
+ * código impreso y compartido, así que la UI se reduce a lo que ese personal
+ * hace en el centro — reporte diario, población e infraestructura de SUS
+ * campamentos. La RLS limita además los datos en el servidor.
+ */
+export function esRolTerreno(rol: Rol): boolean {
+  return rol === "operador";
+}
+
+/** Pestañas de la ficha del campamento visibles para la sesión de terreno. */
+export const SECCIONES_FICHA_TERRENO = [
+  "resumen",
+  "poblacion",
+  "reporte",
+  "infraestructura",
+] as const;
+
+/** Ruta de aterrizaje según el rol (destino de las redirecciones). */
+export function rutaInicialDeRol(rol: Rol): string {
+  return esRolTerreno(rol) ? "/centros/reportes" : "/centros/mapa";
+}
+
+/** Rutas permitidas para los roles restringidos (censo_rapido y operador). */
 export function rutaPermitidaParaRol(pathname: string, rol: Rol): boolean {
-  if (!esRolCensoRapido(rol)) return true;
-  return (
-    pathname === "/" ||
-    pathname === "/centros/mapa" ||
-    pathname.startsWith("/centros/censo-rapido")
-  );
+  if (esRolCensoRapido(rol)) {
+    return (
+      pathname === "/" ||
+      pathname === "/centros/mapa" ||
+      pathname.startsWith("/centros/censo-rapido")
+    );
+  }
+  if (esRolTerreno(rol)) {
+    return (
+      pathname === "/" ||
+      pathname === "/centros/reportes" ||
+      pathname.startsWith("/centros/reportes/")
+    );
+  }
+  return true;
 }

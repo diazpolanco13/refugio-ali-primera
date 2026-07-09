@@ -1,8 +1,6 @@
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import {
-  Archive,
-  BarChart3,
   ChevronRight,
   ClipboardList,
   LayoutGrid,
@@ -21,6 +19,7 @@ import {
   puedeVerCensoRapidoRed,
   puedeVerLogs,
   esRolCensoRapido,
+  esRolTerreno,
 } from "@/domain/permisos";
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import { totalCasosSaludActivosRed } from "@/domain/seguimientoReportes";
@@ -206,6 +205,7 @@ function ItemEnDesarrollo({
 function NavContenido({ sesion }: Props) {
   const location = useLocation();
   const esCensoRapido = esRolCensoRapido(sesion.user.rol);
+  const esTerreno = esRolTerreno(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
   const veCensoRed = puedeVerCensoRapidoRed(sesion.user.rol);
@@ -216,6 +216,26 @@ function NavContenido({ sesion }: Props) {
     : casosSalud.filter((c) => c.estatus === "activo").length;
 
   const pathname = location.pathname;
+
+  if (esTerreno) {
+    // Sesión del QR de terreno: una sola tarea — los reportes de sus
+    // campamentos. El resto del menú no aplica (y las rutas redirigen).
+    return (
+      <SidebarGroup>
+        <SidebarGroupLabel>Campamentos transitorios</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <ItemMenu
+              to="/centros/reportes"
+              icono={ClipboardList}
+              label="Reportes diarios"
+              activo={pathname === "/" || rutaActiva(pathname, "/centros/reportes")}
+            />
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+  }
 
   if (esCensoRapido) {
     return (
@@ -313,18 +333,6 @@ function NavContenido({ sesion }: Props) {
               badgeClassName={cn(urgentes > 0 && "bg-red-500/20 text-red-400")}
             />
             <ItemEnDesarrollo icono={UserRound} label="Bandeja damnificados" />
-            <ItemMenu
-              to="/incidencias/archivadas"
-              icono={Archive}
-              label="Archivadas"
-              activo={rutaActiva(pathname, "/incidencias/archivadas")}
-            />
-            <ItemMenu
-              to="/incidencias/analitica"
-              icono={BarChart3}
-              label="Calendario / analítica"
-              activo={rutaActiva(pathname, "/incidencias/analitica")}
-            />
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>

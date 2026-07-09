@@ -165,10 +165,6 @@ export function migasPanDeRuta(
       migas.push({ label: "Bandeja funcionarios" });
     } else if (pathname === "/incidencias/refugiados") {
       migas.push({ label: "Bandeja damnificados" });
-    } else if (pathname === "/incidencias/archivadas") {
-      migas.push({ label: "Archivadas" });
-    } else if (pathname === "/incidencias/analitica") {
-      migas.push({ label: "Calendario / analítica" });
     } else {
       migas.push({ label: "Bandeja" });
     }

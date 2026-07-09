@@ -5,7 +5,8 @@ export const SECCIONES_FICHA_CENTRO = [
   { id: "coordinacion", label: "Coordinación" },
   { id: "poblacion", label: "Población" },
   { id: "reporte", label: "Reporte" },
-  { id: "incidencias", label: "Incidencias" },
+  // El id se mantiene "incidencias" por compatibilidad con enlaces guardados.
+  { id: "incidencias", label: "Seguimiento" },
   { id: "infraestructura", label: "Infraestructura" },
 ] as const;
 
