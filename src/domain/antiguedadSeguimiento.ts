@@ -9,9 +9,13 @@ export function diasEntreClaves(inicio: string, fin: string): number {
   return Math.max(0, Math.floor(ms / 86_400_000));
 }
 
-/** Días desde la apertura hasta hoy (inclusive del día de apertura = 0). */
+/**
+ * Días desde el registro hasta hoy, contando el día de apertura como 1.
+ * Ej.: registrado hoy → 1; ayer → 2; hace una semana → 8.
+ */
 export function diasAbierto(reportadoDia: string, hoyClave: string): number {
-  return diasEntreClaves(reportadoDia, hoyClave);
+  if (!reportadoDia || !hoyClave) return 0;
+  return diasEntreClaves(reportadoDia, hoyClave) + 1;
 }
 
 /** Días desde creación hasta resolución (timestamps ms). */

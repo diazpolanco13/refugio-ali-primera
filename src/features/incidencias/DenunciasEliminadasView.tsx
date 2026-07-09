@@ -117,7 +117,7 @@ function PapeleraContenido({ sesion }: Props) {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {ordenadas.map((d) => (
               <TarjetaDenuncia
                 key={d.id}

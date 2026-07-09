@@ -1029,7 +1029,7 @@ export function ReporteEjecutivoCampamentosPdf({
                   <Text key={j} style={[styles.celdaTexto, { marginBottom: 1 }]}>
                     • {textoOracion(t.titulo)}{" "}
                     <Text style={{ color: t.dias >= 3 ? rojo : gris }}>
-                      ({t.dias === 0 ? "hoy" : `${t.dias} d`})
+                      ({t.dias <= 1 ? "hoy" : `${t.dias} d`})
                     </Text>
                   </Text>
                 ))
@@ -1046,7 +1046,7 @@ export function ReporteEjecutivoCampamentosPdf({
                       (<Text style={{ color: META_ESTATUS_CASO_PDF[c.estatus]?.color ?? gris, fontWeight: 700 }}>
                         {META_ESTATUS_CASO_PDF[c.estatus]?.label ?? c.estatus}
                       </Text>{" "}
-                      · {c.dias === 0 ? "hoy" : `${c.dias} d`})
+                      · {c.dias <= 1 ? "hoy" : `${c.dias} d`})
                     </Text>
                   </Text>
                 ))

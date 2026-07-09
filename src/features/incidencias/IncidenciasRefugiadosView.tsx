@@ -232,7 +232,7 @@ export function IncidenciasRefugiadosView({ sesion }: Props) {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {filtradas.map((d) => (
             <TarjetaDenuncia
               key={d.id}

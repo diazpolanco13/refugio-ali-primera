@@ -23,10 +23,9 @@ function claveHoyReal(): string {
 }
 
 /**
- * Badge reutilizable: fecha de registro + días transcurridos en números
- * (o días hasta cierre si ya se resolvió). La antigüedad siempre se calcula
- * contra el día real de hoy, no contra el día que se esté viendo en el visor
- * del reporte.
+ * Badge reutilizable: fecha de registro + días desde ese registro (día 1 =
+ * día en que se abrió). La antigüedad siempre se calcula contra el día real
+ * de hoy, no contra el día que se esté viendo en el visor del reporte.
  */
 export function BadgeAntiguedad({ reportadoDia, resueltaTs, creadaTs, className }: Props) {
   const abierto = diasAbierto(reportadoDia, claveHoyReal());
