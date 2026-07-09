@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ClipboardList,
   Landmark,
@@ -32,6 +32,14 @@ import { ListaResponsablesCoordinacion } from "./ResponsablesCoordinacion";
 interface Props {
   centro: CentroTransitorio;
   puedeEditar: boolean;
+}
+
+function firmaResponsables(lista: ResponsableCoordinacion[]): string {
+  return lista
+    .map((r) => r.id)
+    .filter(Boolean)
+    .sort()
+    .join("|");
 }
 
 type IdPestana = (typeof PESTANAS_COORDINACION)[number]["id"];
@@ -88,7 +96,27 @@ function descripcionPestana(id: IdPestana): string {
 
 /** Pestaña Coordinación: sub-pestañas por ámbito + diálogo para crear/editar responsables. */
 export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
-  const c = normalizarCentro(centro);
+  // Copia local: al guardar no esperamos Realtime para reflejar el cambio.
+  const [centroLocal, setCentroLocal] = useState(centro);
+  useEffect(() => {
+    setCentroLocal((prev) => {
+      if (centro.id !== prev.id) return centro;
+      const prop = normalizarCentro(centro);
+      const local = normalizarCentro(prev);
+      // Update remoto (u otro tab) con lista distinta: sincronizar.
+      // Tras un guardado propio la firma ya coincide → sin flicker.
+      if (
+        (centro.updated_at ?? 0) >= (prev.updated_at ?? 0) &&
+        firmaResponsables(prop.responsables_coordinacion) !==
+          firmaResponsables(local.responsables_coordinacion)
+      ) {
+        return centro;
+      }
+      return prev;
+    });
+  }, [centro]);
+
+  const c = normalizarCentro(centroLocal);
   const visibles = useMemo(
     () => c.responsables_coordinacion.filter(responsableCoordinacionTieneDatos),
     [c.responsables_coordinacion],
@@ -128,19 +156,25 @@ export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
       const preparada = prepararResponsablesCoordinacionParaGuardar(
         asegurarIdsResponsablesCoordinacion(lista),
       );
-      const sync = syncCentroDesdeCoordinacion(centro, preparada);
-      await guardarCentro({
-        ...centro,
+      const sync = syncCentroDesdeCoordinacion(centroLocal, preparada);
+      const siguiente: CentroTransitorio = {
+        ...centroLocal,
         responsables_coordinacion: preparada,
         personal: sync.personal,
         servicios: sync.servicios,
-      });
+        updated_at: Date.now(),
+      };
+      // Optimista: la lista se actualiza al instante; Realtime confirmará después.
+      setCentroLocal(siguiente);
+      await guardarCentro(siguiente);
       setDialogoAbierto(false);
       setResponsableEditando(null);
       setCategoriaInicialDialogo(undefined);
       return true;
     } catch (err) {
       console.error("[CoordinacionCentroPanel] error guardando:", err);
+      // Revertir al prop del padre si el upsert falló.
+      setCentroLocal(centro);
       setError(
         err instanceof Error ? err.message : "No se pudo guardar la coordinación del campamento.",
       );

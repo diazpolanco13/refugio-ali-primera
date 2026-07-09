@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Loader2, ShieldCheck, Tent } from "lucide-react";
 import "cap-widget";
 import "./cap-login.css";
@@ -22,6 +22,26 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
+type CapWidgetEl = HTMLElement & {
+  tokenValue?: string | null;
+  reset?: () => void;
+  cleanup?: () => void;
+};
+
+/** Cap deja workers especulativos vivos al desmontar el login; abortamos a mano. */
+function detenerCapWidget(el: CapWidgetEl | null): void {
+  if (!el) return;
+  try {
+    el.cleanup?.();
+  } catch {
+    try {
+      el.reset?.();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export function Login() {
   const [usuario, setUsuario] = useState("");
   const [password, setPassword] = useState("");
@@ -29,9 +49,14 @@ export function Login() {
   const [capKey, setCapKey] = useState(0);
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
-  const widgetRef = useRef<HTMLElement & { tokenValue?: string | null }>(null);
+  const widgetRef = useRef<CapWidgetEl>(null);
+
+  useEffect(() => {
+    return () => detenerCapWidget(widgetRef.current);
+  }, []);
 
   function reiniciarCap(): void {
+    detenerCapWidget(widgetRef.current);
     setCapToken("");
     setCapKey((k) => k + 1);
   }
@@ -43,6 +68,8 @@ export function Login() {
     try {
       const tokenCap =
         widgetRef.current?.tokenValue?.trim() || capToken.trim() || undefined;
+      // Detener PoW especulativo antes de emitir sesión (desmonta este Login).
+      detenerCapWidget(widgetRef.current);
       await login(usuario.trim(), password, tokenCap);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo iniciar sesión");

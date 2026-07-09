@@ -1,7 +1,7 @@
 // Pestaña Resumen de la ficha del centro: foto compacta, KPIs, seguimiento del día,
 // identificación, acceso de terreno y alertas de servicios.
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Camera, ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { claveDia, guardarCentro } from "@/data/reposSupabase";
 import { subirFotoCentro, supabaseDisponible } from "@/data/supabase";
@@ -182,13 +182,24 @@ function FotoCentroEditable({
   const inputRef = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const c = normalizarCentro(centro);
-  const hayFoto = Boolean(c.foto_url);
+  // Copia local: no esperamos Realtime para mostrar la foto tras subir/quitar.
+  const [fotoUrl, setFotoUrl] = useState(() => normalizarCentro(centro).foto_url);
+  useEffect(() => {
+    setFotoUrl(normalizarCentro(centro).foto_url);
+  }, [centro.id, centro.foto_url, centro.updated_at]);
+
+  const hayFoto = Boolean(fotoUrl);
   const hayStorage = supabaseDisponible();
   const editable = puedeEditar && hayStorage && !subiendo;
 
   async function persistirFoto(url: string) {
-    await guardarCentro({ ...centro, foto_url: url });
+    setFotoUrl(url);
+    try {
+      await guardarCentro({ ...centro, foto_url: url });
+    } catch (err) {
+      setFotoUrl(normalizarCentro(centro).foto_url);
+      throw err;
+    }
   }
 
   async function onArchivo(file: File) {
@@ -229,7 +240,7 @@ function FotoCentroEditable({
       >
         {hayFoto ? (
           <img
-            src={c.foto_url}
+            src={fotoUrl}
             alt={centro.nombre}
             className="size-full object-cover"
           />
