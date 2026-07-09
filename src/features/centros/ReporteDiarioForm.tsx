@@ -1,11 +1,12 @@
-// Formulario del REPORTE DEL DÍA (formato Telegram): 5 bloques —
-// Parte, Control, Trabajos, Requerimientos, Novedades.
+// Formulario del REPORTE DEL DÍA (formato Telegram): 6 bloques —
+// Parte, Salud, Control, Trabajos, Requerimientos, Novedades.
 
 import { useEffect, useRef, useState } from "react";
 import {
   CalendarPlus,
   Package,
   ShieldCheck,
+  Stethoscope,
   Users,
   Wrench,
 } from "lucide-react";
@@ -13,6 +14,7 @@ import {
   confirmarParteNumericoDia,
   eliminarParteNumericoDia,
   guardarCentro,
+  guardarIncidenciasSaludDia,
   claveDia,
 } from "@/data/reposSupabase";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
@@ -71,7 +73,7 @@ interface Props {
   onCerrar: () => void;
   /** Día del reporte (YYYY-MM-DD). Por defecto: hoy. */
   diaReporte?: string;
-  /** Pestaña con la que abre el formulario (parte, control, trabajos, requerimientos, novedades). */
+  /** Pestaña con la que abre el formulario (parte, salud, control, trabajos, requerimientos, novedades). */
   faseInicial?: string;
 }
 
@@ -79,14 +81,12 @@ interface ParteForm {
   ocupacion: Vulnerables;
   totalAfectados: number;
   familias: number;
-  incidenciasSalud: number;
 }
 
 function parteIgual(a: ParteForm, b: ParteForm): boolean {
   return (
     a.totalAfectados === b.totalAfectados &&
     a.familias === b.familias &&
-    a.incidenciasSalud === b.incidenciasSalud &&
     JSON.stringify(a.ocupacion) === JSON.stringify(b.ocupacion)
   );
 }
@@ -131,6 +131,7 @@ const PESTANAS_REPORTE: {
   icono: typeof Users;
 }[] = [
   { value: "parte", titulo: "Parte", icono: Users },
+  { value: "salud", titulo: "Salud", icono: Stethoscope },
   { value: "control", titulo: "Control", icono: ShieldCheck },
   { value: "trabajos", titulo: "Trabajos", icono: Wrench },
   { value: "requerimientos", titulo: "Requerimientos", etiquetaCorta: "Req.", icono: Package },
@@ -139,13 +140,21 @@ const PESTANAS_REPORTE: {
 
 const ETIQUETAS_MOVIL: Record<string, string> = {
   parte: "Parte numérico",
+  salud: "Incidencias de salud",
   control: "Control operativo",
   trabajos: "Trabajos",
   requerimientos: "Requerimientos",
   novedades: "Novedades y eventos",
 };
 
-type GuardandoBloque = "parte" | "control" | "trabajos" | "requerimientos" | "eventos" | null;
+type GuardandoBloque =
+  | "parte"
+  | "salud"
+  | "control"
+  | "trabajos"
+  | "requerimientos"
+  | "eventos"
+  | null;
 
 export function ReporteDiarioForm({
   centro,
@@ -189,20 +198,22 @@ export function ReporteDiarioForm({
 
   const [guardandoBloque, setGuardandoBloque] = useState<GuardandoBloque>(null);
   const [confirmandoParte, setConfirmandoParte] = useState(false);
+  const [confirmandoSalud, setConfirmandoSalud] = useState(false);
   const [parteConfirmadoOk, setParteConfirmadoOk] = useState(false);
   const [parteDesmarcadoOk, setParteDesmarcadoOk] = useState(false);
+  const [saludConfirmadaOk, setSaludConfirmadaOk] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
   const [pestanaActiva, setPestanaActiva] = useState(() =>
     PESTANAS_REPORTE.some((p) => p.value === faseInicial) ? (faseInicial as string) : "parte",
   );
-  const guardando = guardandoBloque !== null;
+  const guardando = guardandoBloque !== null || confirmandoSalud;
 
   const baselineParte = useRef<ParteForm>({
     ocupacion: base.ocupacion,
     totalAfectados: base.total_afectados,
     familias: base.familias_ocupadas,
-    incidenciasSalud: 0,
   });
+  const baselineIncidenciasSalud = useRef(0);
 
   const baselineControl = useRef<ControlDatos>(controlDatos({
     centro_id: centro.id,
@@ -247,7 +258,6 @@ export function ReporteDiarioForm({
       ocupacion: ocupacionDia,
       totalAfectados: snapHoy.total_afectados,
       familias: snapHoy.familias,
-      incidenciasSalud: snapHoy.incidencias_salud ?? 0,
     };
     parteInicializadoPasado.current = true;
   }, [esDiaPasado, snapHoy]);
@@ -287,7 +297,10 @@ export function ReporteDiarioForm({
     if (incidenciasInicializado.current) return;
     if (snapHoy?.incidencias_salud != null) {
       setIncidenciasSalud(snapHoy.incidencias_salud);
-      baselineParte.current.incidenciasSalud = snapHoy.incidencias_salud;
+      baselineIncidenciasSalud.current = snapHoy.incidencias_salud;
+      if (snapHoy.incidencias_salud > 0 || (reporteExistente?.salud_reportada ?? false)) {
+        setSaludConfirmadaOk(true);
+      }
       incidenciasInicializado.current = true;
       return;
     }
@@ -302,7 +315,7 @@ export function ReporteDiarioForm({
       casosSalud,
     });
     setIncidenciasSalud(ctx.incidenciasSalud);
-    baselineParte.current.incidenciasSalud = ctx.incidenciasSalud;
+    baselineIncidenciasSalud.current = ctx.incidenciasSalud;
     incidenciasInicializado.current = true;
   }, [
     snapHoy?.incidencias_salud,
@@ -314,6 +327,7 @@ export function ReporteDiarioForm({
     trabajos,
     requerimientos,
     casosSalud,
+    reporteExistente?.salud_reportada,
   ]);
 
   const [precargadoReporte, setPrecargadoReporte] = useState(false);
@@ -322,6 +336,7 @@ export function ReporteDiarioForm({
     setTrabajosRevisados(reporteExistente.trabajos_revisados);
     setRequerimientosRevisados(reporteExistente.requerimientos_revisados);
     setEventosRevisados(reporteExistente.eventos_revisados);
+    if (reporteExistente.salud_reportada) setSaludConfirmadaOk(true);
     setPrecargadoReporte(true);
   }, [precargadoReporte, reporteExistente]);
 
@@ -347,10 +362,14 @@ export function ReporteDiarioForm({
     ocupacion,
     totalAfectados,
     familias,
-    incidenciasSalud,
   };
   const parteModificado = !parteIgual(parteActual, baselineParte.current);
   const parteHoyConfirmado = !parteDesmarcadoOk && (parteHoyEnBd || parteConfirmadoOk);
+  const saludModificada = incidenciasSalud !== baselineIncidenciasSalud.current;
+  const saludHoyConfirmada =
+    saludConfirmadaOk ||
+    (reporteExistente?.salud_reportada ?? false) ||
+    (snapHoy != null && (snapHoy.incidencias_salud ?? 0) > 0 && !saludModificada);
 
   const controlModificado = !controlIgual(controlDatos(control), baselineControl.current);
 
@@ -364,21 +383,23 @@ export function ReporteDiarioForm({
     const estado =
       value === "parte"
         ? estadoFaseReporte(parteHoyConfirmado, parteModificado)
-        : value === "control"
-          ? estadoFaseReporte(control.revisado, controlModificado)
-          : value === "trabajos"
-            ? trabajosRevisados
-              ? "completa"
-              : "pendiente"
-            : value === "requerimientos"
-              ? requerimientosRevisados
+        : value === "salud"
+          ? estadoFaseReporte(saludHoyConfirmada, saludModificada)
+          : value === "control"
+            ? estadoFaseReporte(control.revisado, controlModificado)
+            : value === "trabajos"
+              ? trabajosRevisados
                 ? "completa"
                 : "pendiente"
-              : novedadesCompletas
-                ? "completa"
-                : eventosModificados || eventosRevisados
-                  ? "en_progreso"
-                  : "pendiente";
+              : value === "requerimientos"
+                ? requerimientosRevisados
+                  ? "completa"
+                  : "pendiente"
+                : novedadesCompletas
+                  ? "completa"
+                  : eventosModificados || eventosRevisados
+                    ? "en_progreso"
+                    : "pendiente";
 
     return {
       value,
@@ -428,24 +449,24 @@ export function ReporteDiarioForm({
         total_afectados: totalAfectados,
         familias_ocupadas: familias,
       };
+      // Conserva el conteo de salud ya guardado en el snapshot (vive en su pestaña).
+      const incidenciasSnapshot = snapHoy?.incidencias_salud ?? incidenciasSalud;
       if (esDiaPasado) {
-        // Corrección histórica: solo el snapshot de ese día; el estado
-        // vigente del centro no se toca.
         await confirmarParteNumericoDia(centroActualizado, diaReporte, {
-          incidenciasSalud,
+          incidenciasSalud: incidenciasSnapshot,
           omitirPersonal: true,
           soloSnapshot: true,
         });
       } else if (parteModificado) {
         await guardarCentro(centroActualizado);
         await confirmarParteNumericoDia(centroActualizado, diaReporte, {
-          incidenciasSalud,
+          incidenciasSalud: incidenciasSnapshot,
           omitirPersonal: true,
           soloSnapshot: true,
         });
       } else {
         await confirmarParteNumericoDia(centroActualizado, diaReporte, {
-          incidenciasSalud,
+          incidenciasSalud: incidenciasSnapshot,
           omitirPersonal: true,
         });
       }
@@ -457,6 +478,61 @@ export function ReporteDiarioForm({
       setErrorGuardado(err instanceof Error ? err.message : "No se pudo guardar el parte.");
     } finally {
       setConfirmandoParte(false);
+    }
+  }
+
+  async function guardarSalud() {
+    setErrorGuardado(null);
+    setConfirmandoSalud(true);
+    try {
+      await guardarIncidenciasSaludDia(centro, diaReporte, incidenciasSalud);
+      await guardarReporteDiario({
+        centro_id: centro.id,
+        dia: diaReporte,
+        comidas: normalizarComidas(reporteExistente?.comidas),
+        atenciones_medicas_detalle: reporteExistente?.atenciones_medicas_detalle ?? [],
+        atenciones_medicas: reporteExistente?.atenciones_medicas ?? 0,
+        salud_reportada: true,
+        eventos_revisados: eventosRevisados || eventosReporte.length > 0,
+        trabajos_revisados: trabajosRevisados,
+        requerimientos_revisados: requerimientosRevisados,
+        observaciones: reporteExistente?.observaciones ?? "",
+      });
+      baselineIncidenciasSalud.current = incidenciasSalud;
+      setSaludConfirmadaOk(true);
+    } catch (err) {
+      console.error("[ReporteDiarioForm] error guardando salud:", err);
+      setErrorGuardado(
+        err instanceof Error ? err.message : "No se pudo guardar las incidencias de salud.",
+      );
+    } finally {
+      setConfirmandoSalud(false);
+    }
+  }
+
+  async function desmarcarSalud() {
+    setErrorGuardado(null);
+    setConfirmandoSalud(true);
+    try {
+      await guardarReporteDiario({
+        centro_id: centro.id,
+        dia: diaReporte,
+        comidas: normalizarComidas(reporteExistente?.comidas),
+        atenciones_medicas_detalle: reporteExistente?.atenciones_medicas_detalle ?? [],
+        atenciones_medicas: reporteExistente?.atenciones_medicas ?? 0,
+        salud_reportada: false,
+        eventos_revisados: eventosRevisados || eventosReporte.length > 0,
+        trabajos_revisados: trabajosRevisados,
+        requerimientos_revisados: requerimientosRevisados,
+        observaciones: reporteExistente?.observaciones ?? "",
+      });
+      setSaludConfirmadaOk(false);
+    } catch (err) {
+      setErrorGuardado(
+        err instanceof Error ? err.message : "No se pudo desmarcar la revisión de salud.",
+      );
+    } finally {
+      setConfirmandoSalud(false);
     }
   }
 
@@ -646,7 +722,7 @@ export function ReporteDiarioForm({
             <BloqueConfirmacionReporte
               titulo="Parte de hoy"
               tituloRevisado="Parte confirmado hoy"
-              descripcion="Demografía, afectados/familias e incidencias de salud del día."
+              descripcion="Demografía y afectados/familias del día."
               icono={Users}
               acento="teal"
               revisado={parteHoyConfirmado}
@@ -691,6 +767,25 @@ export function ReporteDiarioForm({
                 />
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="salud" className="mt-0 block flex-none space-y-5 outline-none">
+            <BloqueConfirmacionReporte
+              titulo="Salud de hoy"
+              tituloRevisado="Salud confirmada hoy"
+              descripcion="Conteo de incidencias y detalle de casos del día."
+              icono={Stethoscope}
+              acento="rose"
+              revisado={saludHoyConfirmada}
+              modificado={saludModificada}
+              guardando={confirmandoSalud}
+              deshabilitado={guardando || confirmandoParte}
+              onConfirmar={() => void guardarSalud()}
+              onDesmarcar={() => void desmarcarSalud()}
+              etiquetaGuardar="Guardar salud"
+              etiquetaConfirmar="Confirmar sin cambios"
+              etiquetaActualizar="Actualizar salud"
+            />
 
             <div>
               <Label htmlFor="incidencias-salud" className="text-sm font-semibold">
@@ -704,6 +799,7 @@ export function ReporteDiarioForm({
                 className="mt-2 max-w-[8rem]"
                 value={incidenciasSalud}
                 onChange={setIncidenciasSalud}
+                disabled={guardando || confirmandoParte}
               />
             </div>
 

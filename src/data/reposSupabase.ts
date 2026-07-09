@@ -466,9 +466,22 @@ async function upsertSnapshotOcupacion(
   ts: number,
   opts: { omitirPersonal?: boolean; incidenciasSalud?: number } = {},
 ): Promise<void> {
+  let incidencias = opts.incidenciasSalud;
+  if (incidencias == null) {
+    const { data } = await supabase
+      .from("ocupaciones_centros")
+      .select("incidencias_salud")
+      .eq("centro_id", centro.id)
+      .eq("dia", dia)
+      .maybeSingle();
+    incidencias = data?.incidencias_salud ?? 0;
+  }
   const { error } = await supabase
     .from("ocupaciones_centros")
-    .upsert(filaSnapshotOcupacion(centro, dia, ts, opts), { onConflict: "centro_id,dia" });
+    .upsert(filaSnapshotOcupacion(centro, dia, ts, {
+      omitirPersonal: opts.omitirPersonal,
+      incidenciasSalud: incidencias,
+    }), { onConflict: "centro_id,dia" });
   if (error) {
     throw new Error(`[reposSupabase] upsert ocupaciones_centros: ${error.message}`);
   }
@@ -550,6 +563,58 @@ export async function confirmarParteNumericoDia(
   await upsertSnapshotOcupacion(centro, diaSnap, ts, {
     omitirPersonal: opts.omitirPersonal,
     incidenciasSalud: opts.incidenciasSalud,
+  });
+}
+
+/**
+ * Guarda el conteo de incidencias de salud del día en `ocupaciones_centros`.
+ * Si ya hay snapshot, solo actualiza `incidencias_salud`; si no, crea uno con
+ * la demografía vigente del centro (sin tocar el blob del centro).
+ */
+export async function guardarIncidenciasSaludDia(
+  centro: Omit<CentroTransitorio, "updated_at" | "updated_by">,
+  dia: string,
+  incidenciasSalud: number,
+): Promise<void> {
+  const ts = Date.now();
+  const { data: existente, error: errLectura } = await supabase
+    .from("ocupaciones_centros")
+    .select("id")
+    .eq("centro_id", centro.id)
+    .eq("dia", dia)
+    .maybeSingle();
+  if (errLectura) {
+    throw new Error(`[reposSupabase] leer ocupaciones_centros: ${errLectura.message}`);
+  }
+
+  if (existente?.id) {
+    const { error } = await supabase
+      .from("ocupaciones_centros")
+      .update({
+        incidencias_salud: Math.max(0, incidenciasSalud),
+        updated_at: ts,
+        updated_by: usuarioActual(),
+      })
+      .eq("id", existente.id);
+    if (error) {
+      throw new Error(`[reposSupabase] update incidencias_salud: ${error.message}`);
+    }
+  } else {
+    const norm = normalizarCentro({
+      ...centro,
+      updated_at: ts,
+      updated_by: usuarioActual(),
+    });
+    await upsertSnapshotOcupacion(norm, dia, ts, {
+      omitirPersonal: true,
+      incidenciasSalud: Math.max(0, incidenciasSalud),
+    });
+  }
+
+  registrarHistorial("guardar_incidencias_salud", "reporte", `${centro.id}/${dia}`, {
+    centro_id: centro.id,
+    dia,
+    incidencias_salud: Math.max(0, incidenciasSalud),
   });
 }
 

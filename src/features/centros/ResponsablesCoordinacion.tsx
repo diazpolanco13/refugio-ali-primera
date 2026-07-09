@@ -19,22 +19,67 @@ function formatearCantidad(n: number): string {
 /** Lista de responsables agrupada por categoría con bloques Personal / Logística / Transporte. */
 export function ListaResponsablesCoordinacion({
   responsables,
+  categoria,
+  integrado = false,
   modoEdicion = false,
+  ocultarBadgeCategoria = false,
   onEditar,
   onEliminar,
   onAgregarCategoria,
+  vacio,
 }: {
   responsables: ResponsableCoordinacion[];
+  /** Si se indica, solo muestra esta categoría (modo sub-pestaña). */
+  categoria?: CategoriaResponsabilidadCoordinacion;
+  integrado?: boolean;
   modoEdicion?: boolean;
+  ocultarBadgeCategoria?: boolean;
   onEditar?: (responsable: ResponsableCoordinacion) => void;
   onEliminar?: (id: string) => void;
   onAgregarCategoria?: (categoria: CategoriaResponsabilidadCoordinacion) => void;
+  vacio?: React.ReactNode;
 }) {
   const visibles = responsables.filter(responsableCoordinacionTieneDatos);
+  const categorias = categoria
+    ? CATEGORIAS_RESPONSABILIDAD_COORDINACION.filter((c) => c.valor === categoria)
+    : CATEGORIAS_RESPONSABILIDAD_COORDINACION;
+
+  if (integrado && categoria) {
+    const grupo = visibles.filter((r) => r.categoria === categoria);
+    const config = CONFIG_CATEGORIA_COORDINACION[categoria];
+    const logisticaAgregada = agregarLogisticaCategoria(grupo);
+    const vehiculosTotal = grupo.reduce((sum, r) => sum + (r.transporte?.vehiculos ?? 0), 0);
+    const tieneDatos =
+      grupo.length > 0 ||
+      logisticaAgregada.some((i) => i.disponible || i.cantidad > 0) ||
+      vehiculosTotal > 0;
+
+    if (!tieneDatos) {
+      return vacio ?? (
+        <p className="text-xs text-muted-foreground">Sin datos registrados.</p>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        <BloquePersonal
+          grupo={grupo}
+          modoEdicion={modoEdicion}
+          ocultarBadgeCategoria={ocultarBadgeCategoria}
+          onEditar={onEditar}
+          onEliminar={onEliminar}
+        />
+        {config.logistica.length > 0 && <BloqueLogistica items={logisticaAgregada} />}
+        {config.transporte && vehiculosTotal > 0 && (
+          <BloqueTransporte vehiculos={vehiculosTotal} />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
-      {CATEGORIAS_RESPONSABILIDAD_COORDINACION.map((cat) => {
+      {categorias.map((cat) => {
         const grupo = visibles.filter((r) => r.categoria === cat.valor);
         const config = CONFIG_CATEGORIA_COORDINACION[cat.valor];
         const logisticaAgregada = agregarLogisticaCategoria(grupo);
@@ -112,11 +157,13 @@ function agregarLogisticaCategoria(grupo: ResponsableCoordinacion[]) {
 function BloquePersonal({
   grupo,
   modoEdicion,
+  ocultarBadgeCategoria = false,
   onEditar,
   onEliminar,
 }: {
   grupo: ResponsableCoordinacion[];
   modoEdicion?: boolean;
+  ocultarBadgeCategoria?: boolean;
   onEditar?: (responsable: ResponsableCoordinacion) => void;
   onEliminar?: (id: string) => void;
 }) {
@@ -133,6 +180,7 @@ function BloquePersonal({
             key={r.id}
             responsable={r}
             modoEdicion={modoEdicion}
+            ocultarBadgeCategoria={ocultarBadgeCategoria}
             onEditar={onEditar}
             onEliminar={onEliminar}
           />
@@ -151,17 +199,22 @@ function BloqueLogistica({
   if (visibles.length === 0) return null;
 
   return (
-    <div>
+    <div className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2.5">
       <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
         Logística
       </p>
       <ul className="space-y-1 text-xs text-muted-foreground">
         {visibles.map((item) => (
-          <li key={item.clave}>
-            {item.label}: {item.disponible ? "Sí" : "No"}
-            {item.disponible && item.cantidad > 0 && (
-              <span className="text-foreground"> ({formatearCantidad(item.cantidad)})</span>
-            )}
+          <li key={item.clave} className="flex items-center justify-between gap-2">
+            <span>{item.label}</span>
+            <span className="font-medium text-foreground">
+              {item.disponible ? "Sí" : "No"}
+              {item.disponible && item.cantidad > 0 && (
+                <span className="ml-1 text-muted-foreground">
+                  ({formatearCantidad(item.cantidad)})
+                </span>
+              )}
+            </span>
           </li>
         ))}
       </ul>
@@ -171,13 +224,13 @@ function BloqueLogistica({
 
 function BloqueTransporte({ vehiculos }: { vehiculos: number }) {
   return (
-    <div>
-      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2.5">
+      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
         Transporte
       </p>
       <p className="text-xs text-muted-foreground">
         Vehículos asignados:{" "}
-        <span className="text-foreground">{formatearCantidad(vehiculos)}</span>
+        <span className="font-medium text-foreground">{formatearCantidad(vehiculos)}</span>
       </p>
     </div>
   );
@@ -186,11 +239,13 @@ function BloqueTransporte({ vehiculos }: { vehiculos: number }) {
 function TarjetaResponsableCoordinacion({
   responsable: r,
   modoEdicion,
+  ocultarBadgeCategoria = false,
   onEditar,
   onEliminar,
 }: {
   responsable: ResponsableCoordinacion;
   modoEdicion?: boolean;
+  ocultarBadgeCategoria?: boolean;
   onEditar?: (responsable: ResponsableCoordinacion) => void;
   onEliminar?: (id: string) => void;
 }) {
@@ -214,13 +269,15 @@ function TarjetaResponsableCoordinacion({
               {r.personal_mando.toLocaleString("es")} personal desplegado
             </p>
           )}
-          <Badge
-            variant="outline"
-            className="mt-1 text-[10px]"
-            style={{ borderColor: `${cat.color}66`, color: cat.color }}
-          >
-            {cat.label}
-          </Badge>
+          {!ocultarBadgeCategoria && (
+            <Badge
+              variant="outline"
+              className="mt-1 text-[10px]"
+              style={{ borderColor: `${cat.color}66`, color: cat.color }}
+            >
+              {cat.label}
+            </Badge>
+          )}
         </div>
         {modoEdicion && (
           <div className="flex shrink-0 gap-1">

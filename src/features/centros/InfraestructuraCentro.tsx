@@ -80,6 +80,8 @@ interface PropsBase {
 
 interface PropsCentro extends PropsBase {
   esNuevo?: boolean;
+  /** Sin bloque introductorio duplicado (sub-pestaña Infraestructura en ficha). */
+  ocultarCabecera?: boolean;
 }
 
 function BadgeEstado({ estado }: { estado: EstadoInfraestructura }) {
@@ -606,7 +608,12 @@ function TarjetaArea({
 }
 
 /** Contenido editable de la pestaña Infraestructura en CentroForm. */
-export function InfraestructuraCentro({ centroId, puedeEditar = false, esNuevo }: PropsCentro) {
+export function InfraestructuraCentro({
+  centroId,
+  puedeEditar = false,
+  esNuevo,
+  ocultarCabecera = false,
+}: PropsCentro) {
   const [filtroEstado, setFiltroEstado] = useState<EstadoInfraestructura | "todos">("todos");
   const areasTodas = useAreasInfraestructura({ centroId });
   const { trabajos: reparaciones } = useReparacionesCentros({ centroId });
@@ -631,62 +638,73 @@ export function InfraestructuraCentro({ centroId, puedeEditar = false, esNuevo }
     );
   }
 
+  const filtrosEstado = areasTodas.length > 0 && (
+    <div className={cn("flex flex-wrap gap-2 text-[10px]", !ocultarCabecera && "mt-2")}>
+      <button
+        type="button"
+        className={cn(
+          "rounded-full border px-2 py-0.5 transition-colors",
+          filtroEstado === "todos"
+            ? "border-primary/50 bg-primary/10 text-foreground"
+            : "border-border text-muted-foreground hover:bg-muted/50",
+        )}
+        onClick={() => setFiltroEstado("todos")}
+      >
+        Todas ({areasTodas.length})
+      </button>
+      {ESTADOS_INFRAESTRUCTURA.map((e) => (
+        <button
+          key={e.valor}
+          type="button"
+          className={cn(
+            "rounded-full border px-2 py-0.5 transition-colors",
+            filtroEstado === e.valor
+              ? "border-primary/50 bg-primary/10 text-foreground"
+              : "border-border text-muted-foreground hover:bg-muted/50",
+          )}
+          style={
+            filtroEstado === e.valor
+              ? { borderColor: `${e.color}66`, color: e.color }
+              : undefined
+          }
+          onClick={() => setFiltroEstado(e.valor)}
+        >
+          {conteos[e.valor]} {e.label.toLowerCase()}
+          {conteos[e.valor] !== 1 ? "s" : ""}
+        </button>
+      ))}
+    </div>
+  );
+
+  const vacioSinAreas = filtroEstado === "todos";
+
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5">
-        <div className="flex items-center gap-2">
-          <HardHat className="size-4 text-sky-400" />
-          <p className="text-sm font-medium">Áreas de infraestructura</p>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Define las áreas físicas del campamento y su estado inicial. Los trabajos se
-          registran en Reparaciones y alimentan el panel &quot;después&quot;.
-        </p>
-        {areasTodas.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
-            <button
-              type="button"
-              className={cn(
-                "rounded-full border px-2 py-0.5 transition-colors",
-                filtroEstado === "todos"
-                  ? "border-primary/50 bg-primary/10 text-foreground"
-                  : "border-border text-muted-foreground hover:bg-muted/50",
-              )}
-              onClick={() => setFiltroEstado("todos")}
-            >
-              Todas ({areasTodas.length})
-            </button>
-            {ESTADOS_INFRAESTRUCTURA.map((e) => (
-              <button
-                key={e.valor}
-                type="button"
-                className={cn(
-                  "rounded-full border px-2 py-0.5 transition-colors",
-                  filtroEstado === e.valor
-                    ? "border-primary/50 bg-primary/10 text-foreground"
-                    : "border-border text-muted-foreground hover:bg-muted/50",
-                )}
-                style={
-                  filtroEstado === e.valor
-                    ? { borderColor: `${e.color}66`, color: e.color }
-                    : undefined
-                }
-                onClick={() => setFiltroEstado(e.valor)}
-              >
-                {conteos[e.valor]} {e.label.toLowerCase()}
-                {conteos[e.valor] !== 1 ? "s" : ""}
-              </button>
-            ))}
+      {!ocultarCabecera ? (
+        <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5">
+          <div className="flex items-center gap-2">
+            <HardHat className="size-4 text-sky-400" />
+            <p className="text-sm font-medium">Áreas de infraestructura</p>
           </div>
-        )}
-      </div>
-
-      {puedeEditar && !mostrandoForm && !editando && (
-        <Button type="button" size="sm" variant="outline" onClick={() => setMostrandoForm(true)}>
-          <Plus className="size-4" />
-          Registrar área
-        </Button>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Define las áreas físicas del campamento y su estado inicial. Los trabajos se
+            registran en Reparaciones y alimentan el panel &quot;después&quot;.
+          </p>
+          {filtrosEstado}
+        </div>
+      ) : (
+        filtrosEstado
       )}
+
+      {puedeEditar &&
+        !mostrandoForm &&
+        !editando &&
+        areasTodas.length > 0 && (
+          <Button type="button" size="sm" variant="outline" onClick={() => setMostrandoForm(true)}>
+            <Plus className="size-4" />
+            Registrar área
+          </Button>
+        )}
 
       {mostrandoForm && (
         <FormularioArea
@@ -706,13 +724,29 @@ export function InfraestructuraCentro({ centroId, puedeEditar = false, esNuevo }
       )}
 
       {areas.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center">
-          <Building2 className="mx-auto size-8 text-muted-foreground/50" />
-          <p className="mt-2 text-xs text-muted-foreground">
-            {filtroEstado === "todos"
-              ? "Aún no hay áreas de infraestructura registradas."
-              : "No hay áreas con este estado."}
+        <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
+          <Building2 className="mx-auto size-10 text-muted-foreground/40" />
+          <p className="mt-3 text-sm font-medium text-foreground">
+            {vacioSinAreas
+              ? "Sin áreas de infraestructura"
+              : "No hay áreas con este estado"}
           </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {vacioSinAreas
+              ? "Define espacios físicos del campamento con fotos iniciales y seguimiento de reparaciones."
+              : "Prueba otro filtro de estado."}
+          </p>
+          {vacioSinAreas && puedeEditar && !mostrandoForm && !editando && (
+            <Button
+              type="button"
+              size="sm"
+              className="mt-4 gap-1.5"
+              onClick={() => setMostrandoForm(true)}
+            >
+              <Plus className="size-3.5" />
+              Registrar área
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-2">

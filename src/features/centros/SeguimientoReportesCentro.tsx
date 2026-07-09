@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CalendarPlus,
   Check,
+  ChevronDown,
   ChevronRight,
   ClipboardCheck,
   Clock,
@@ -52,6 +53,11 @@ import { BadgeAntiguedad } from "@/components/ui/badge-antiguedad";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -73,6 +79,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { claseSelectReporte } from "@/features/centros/clasesReporte";
 import {
@@ -85,7 +92,7 @@ interface Props {
   centro: CentroTransitorio;
   puedeEditar: boolean;
   variant?: "compacto" | "expandido";
-  /** Abre el formulario del reporte en la fase indicada (parte | novedades). */
+  /** Abre el formulario del reporte en la fase indicada (parte | salud | novedades). */
   onIrAReporte?: (fase?: string) => void;
 }
 
@@ -621,6 +628,7 @@ function SeguimientoExpandido({
   const [filtro, setFiltro] = useState<FiltroLista>("seguimiento");
   const [diaSel, setDiaSel] = useState<string | null>(null);
   const [calendarioAbierto, setCalendarioAbierto] = useState(false);
+  const [evolucionAbierta, setEvolucionAbierta] = useState(false);
   const [cambiandoId, setCambiandoId] = useState<string | null>(null);
   const [archivandoId, setArchivandoId] = useState<string | null>(null);
   const [eliminandoCasoId, setEliminandoCasoId] = useState<string | null>(null);
@@ -671,7 +679,13 @@ function SeguimientoExpandido({
 
   function seleccionarFiltro(nuevo: FiltroLista, dia?: string | null) {
     setFiltro(nuevo);
-    if (dia !== undefined) setDiaSel(dia);
+    if (nuevo === "dia") {
+      setDiaSel(dia ?? null);
+      setEvolucionAbierta(true);
+      setCalendarioAbierto(true);
+    } else {
+      setDiaSel(null);
+    }
   }
 
   const listaCasos = useMemo(() => {
@@ -718,28 +732,6 @@ function SeguimientoExpandido({
     filtro === "novedades" ||
     filtro === "historial" ||
     filtro === "dia";
-
-  function tituloLista(): string {
-    const totalSalud =
-      listaCasos.length +
-      (filtro === "seguimiento" || filtro === "salud" || filtro === "dia"
-        ? saludSinDetalleVisibles.length
-        : 0);
-    switch (filtro) {
-      case "seguimiento":
-        return `En seguimiento (${totalSalud + listaNovedades.length})`;
-      case "salud":
-        return `Casos de salud (${totalSalud})`;
-      case "novedades":
-        return `Novedades (${listaNovedades.length})`;
-      case "historial":
-        return `Historial (${listaCasos.length + listaNovedades.length})`;
-      case "dia":
-        return diaSel
-          ? `Día ${formatearDiaCalendario(diaSel)}`
-          : "Selecciona un día en el calendario";
-    }
-  }
 
   const diaMarcado = useMemo(() => {
     if (filtro === "dia" && diaSel) return diaSel;
@@ -844,176 +836,432 @@ function SeguimientoExpandido({
   }
 
   const hayAlerta = contadores.casosActivos > 0 || contadores.novedadesNegativasRecientes > 0;
+  const totalSeguimiento =
+    casosPendientes.length +
+    casosResueltos.length +
+    saludSinDetalle.length +
+    eventosOrdenados.length;
+  const totalSaludTab = casosSeguimiento.length + saludSinDetalle.length;
+  const totalHistorial = historialCasos.length + Math.min(eventosOrdenados.length, 50);
+
+  const tabTriggerClass = cn(
+    "relative flex h-full min-h-0 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-none px-2 py-0",
+    "!border-x-transparent !border-t-transparent !border-b-2 !border-b-transparent !bg-transparent !shadow-none",
+    "text-xs font-medium text-muted-foreground",
+    "transition-colors hover:text-foreground",
+    "after:!hidden after:!content-none",
+    "data-active:!border-x-transparent data-active:!border-t-transparent data-active:!border-b-primary",
+    "data-active:!bg-transparent data-active:!font-semibold data-active:!text-teal-300 data-active:!shadow-none",
+    "dark:data-active:!border-b-primary dark:data-active:!bg-transparent",
+  );
+
+  function renderListaSalud(casosLista: CasoSaludCentro[], pendientesDetalle: typeof saludSinDetalle) {
+    return (
+      <div className="space-y-2">
+        {pendientesDetalle.map((p) => (
+          <TarjetaSaludPendienteDetalle
+            key={`pendiente-${p.dia}`}
+            dia={p.dia}
+            reportadas={p.reportadas}
+            faltan={p.faltan}
+            onCompletar={
+              puedeEditar && onIrAReporte ? () => onIrAReporte("salud") : undefined
+            }
+          />
+        ))}
+        {casosLista.length === 0 && pendientesDetalle.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
+            <Stethoscope className="mx-auto size-10 text-muted-foreground/40" />
+            <p className="mt-3 text-sm font-medium text-foreground">
+              Sin casos de salud en seguimiento
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Regístralos en la fase Parte del reporte del día.
+            </p>
+            {puedeEditar && onIrAReporte && (
+              <Button
+                type="button"
+                size="sm"
+                className="mt-4 gap-1.5"
+                onClick={() => onIrAReporte("salud")}
+              >
+                <Stethoscope className="size-3.5" />
+                Registrar en reporte
+              </Button>
+            )}
+          </div>
+        ) : (
+          casosLista.map((c) => (
+            <TarjetaCasoSalud
+              key={c.id}
+              caso={c}
+              puedeEditar={puedeEditar}
+              editando={editandoCasoId === c.id}
+              borrador={borradorCaso}
+              onBorradorChange={setBorradorCaso}
+              onEditar={() => iniciarEdicionCaso(c)}
+              onCancelarEdicion={cancelarEdicionCaso}
+              onGuardar={() => void guardarCasoEditado(c.id)}
+              onEliminar={() => void eliminarCaso(c.id)}
+              cambiando={cambiandoId === c.id}
+              archivando={archivandoId === c.id}
+              eliminando={eliminandoCasoId === c.id}
+              guardando={guardandoCasoId === c.id}
+              onCambiarEstatus={(est) => void cambiarEstatus(c.id, est)}
+              onArchivar={() => void archivar(c.id)}
+            />
+          ))
+        )}
+      </div>
+    );
+  }
+
+  function renderListaNovedades(lista: EventoReporte[], vacioTitulo: string) {
+    if (lista.length === 0) {
+      return (
+        <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
+          <CalendarPlus className="mx-auto size-10 text-muted-foreground/40" />
+          <p className="mt-3 text-sm font-medium text-foreground">{vacioTitulo}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Regístralas en la fase Novedades del reporte del día.
+          </p>
+          {puedeEditar && onIrAReporte && (
+            <Button
+              type="button"
+              size="sm"
+              className="mt-4 gap-1.5"
+              onClick={() => onIrAReporte("novedades")}
+            >
+              <CalendarPlus className="size-3.5" />
+              Registrar en reporte
+            </Button>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-2">
+        {lista.map((e) => (
+          <TarjetaNovedad
+            key={e.id}
+            evento={e}
+            puedeEditar={puedeEditar}
+            editando={editandoNovedadId === e.id}
+            borrador={borradorNovedad}
+            onBorradorChange={setBorradorNovedad}
+            onEditar={() => iniciarEdicionNovedad(e)}
+            onCancelarEdicion={cancelarEdicionNovedad}
+            onGuardar={() => void guardarNovedadEditada(e)}
+            onEliminar={() => void eliminarNovedad(e.id)}
+            guardando={guardandoNovedadId === e.id}
+            eliminando={eliminandoNovedadId === e.id}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
-            <Stethoscope className={cn("size-5", hayAlerta ? "text-rose-400" : "text-teal-400")} />
-            Seguimiento de incidencias
-          </h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Casos de salud y novedades registrados en el reporte diario de este campamento.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {contadores.casosActivos > 0 && (
-            <Badge variant="outline" className="border-rose-500/50 text-rose-400">
-              {contadores.casosActivos} salud activo{contadores.casosActivos === 1 ? "" : "s"}
-            </Badge>
-          )}
-          {contadores.casosResueltos > 0 && (
-            <Badge variant="outline" className="border-emerald-500/50 text-emerald-400">
-              {contadores.casosResueltos} por archivar
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      {puedeEditar && onIrAReporte && (
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="secondary" onClick={() => onIrAReporte("parte")}>
-            <Stethoscope className="size-3.5" />
-            Registrar salud en reporte
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            onClick={() => onIrAReporte("novedades")}
-          >
-            <CalendarPlus className="size-3.5" />
-            Registrar novedades
-          </Button>
-        </div>
-      )}
-
-      <div className="flex items-stretch gap-2">
-        {calendarioAbierto && (
-          <div className="w-[11.5rem] shrink-0 sm:w-[12.5rem]">
-            <CalendarioSelectorDia
-              titulo="Calendario"
-              diaSeleccionado={filtro === "dia" ? diaSel : null}
-              onSeleccionarDia={(dia) => {
-                if (dia) seleccionarFiltro("dia", dia);
-                else if (filtro === "dia") seleccionarFiltro("seguimiento");
-              }}
-              marcasPorDia={marcasPorDia}
-              leyenda={LEYENDA_CALENDARIO}
-              onCerrar={() => setCalendarioAbierto(false)}
-            />
-          </div>
+      {/* Franja resumen */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-border bg-muted/20 px-4 py-2.5 text-xs">
+        <span className="text-muted-foreground">
+          Salud:{" "}
+          <span className={cn("font-medium", contadores.casosActivos > 0 ? "text-rose-400" : "text-foreground")}>
+            {contadores.casosActivos > 0
+              ? `${contadores.casosActivos} activo${contadores.casosActivos === 1 ? "" : "s"}`
+              : "sin activos"}
+          </span>
+        </span>
+        <span className="hidden text-border sm:inline">·</span>
+        <span className="text-muted-foreground">
+          Novedades:{" "}
+          <span className="font-medium text-foreground">
+            {eventosOrdenados.length > 0
+              ? `${eventosOrdenados.length} (30d)`
+              : "ninguna"}
+          </span>
+        </span>
+        {contadores.novedadesNegativasRecientes > 0 && (
+          <>
+            <span className="hidden text-border sm:inline">·</span>
+            <span className="font-medium text-rose-400">
+              {contadores.novedadesNegativasRecientes} negativa
+              {contadores.novedadesNegativasRecientes === 1 ? "" : "s"}
+            </span>
+          </>
         )}
-        <div className="min-w-0 flex-1">
-          <GraficoSeguimientoCentro
-            centroId={centro.id}
-            snapshots={snapshots}
-            eventos={eventos}
-            diaMarcado={diaMarcado}
-            casosAbiertos={contadores.casosAbiertos}
-            accionCalendario={
-              <Button
-                type="button"
-                size="xs"
-                variant={calendarioAbierto ? "secondary" : "outline"}
-                className="h-6 gap-1 px-2 text-[10px]"
-                onClick={() => setCalendarioAbierto((v) => !v)}
-              >
-                {calendarioAbierto ? (
-                  <PanelLeftClose className="size-3" />
-                ) : (
-                  <PanelLeftOpen className="size-3" />
-                )}
-                <CalendarDays className="size-3" />
-                {diaMarcado ? formatearDiaCalendario(diaMarcado) : "Fecha"}
-              </Button>
-            }
-          />
-        </div>
+        {contadores.casosResueltos > 0 && (
+          <>
+            <span className="hidden text-border sm:inline">·</span>
+            <span className="font-medium text-emerald-400">
+              {contadores.casosResueltos} por archivar
+            </span>
+          </>
+        )}
       </div>
 
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-sm font-semibold">{tituloLista()}</h4>
-          <div className="flex flex-wrap gap-1">
+      {/* Evolución colapsable */}
+      <Collapsible open={evolucionAbierta} onOpenChange={setEvolucionAbierta}>
+        <div className="rounded-lg border border-border">
+          <div className="flex items-center justify-between gap-2 px-3 py-2">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-center gap-2 text-left text-xs font-medium text-foreground hover:text-teal-300"
+              >
+                <ChevronDown
+                  className={cn(
+                    "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                    evolucionAbierta && "rotate-180",
+                  )}
+                />
+                <span>Evolución diaria</span>
+                {hayAlerta && (
+                  <span className="size-1.5 shrink-0 rounded-full bg-rose-400" />
+                )}
+              </button>
+            </CollapsibleTrigger>
             <Button
               type="button"
               size="xs"
-              variant={filtro === "seguimiento" ? "secondary" : "outline"}
+              variant={calendarioAbierto ? "secondary" : "outline"}
+              className="h-6 gap-1 px-2 text-[10px]"
+              onClick={() => setCalendarioAbierto((v) => !v)}
+            >
+              {calendarioAbierto ? (
+                <PanelLeftClose className="size-3" />
+              ) : (
+                <PanelLeftOpen className="size-3" />
+              )}
+              <CalendarDays className="size-3" />
+              {diaMarcado ? formatearDiaCalendario(diaMarcado) : "Fecha"}
+            </Button>
+          </div>
+          <CollapsibleContent>
+            <div className="flex items-stretch gap-2 border-t border-border p-2">
+              {calendarioAbierto && (
+                <div className="w-[11.5rem] shrink-0 sm:w-[12.5rem]">
+                  <CalendarioSelectorDia
+                    titulo="Calendario"
+                    diaSeleccionado={filtro === "dia" ? diaSel : null}
+                    onSeleccionarDia={(dia) => {
+                      if (dia) seleccionarFiltro("dia", dia);
+                      else if (filtro === "dia") seleccionarFiltro("seguimiento");
+                    }}
+                    marcasPorDia={marcasPorDia}
+                    leyenda={LEYENDA_CALENDARIO}
+                    onCerrar={() => setCalendarioAbierto(false)}
+                  />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <GraficoSeguimientoCentro
+                  centroId={centro.id}
+                  snapshots={snapshots}
+                  eventos={eventos}
+                  diaMarcado={diaMarcado}
+                  casosAbiertos={contadores.casosAbiertos}
+                />
+              </div>
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
+
+      <Tabs
+        value={filtro === "dia" ? "seguimiento" : filtro}
+        onValueChange={(v) => seleccionarFiltro(v as FiltroLista)}
+        className="gap-0"
+      >
+        <div className="border-b border-border">
+          <TabsList
+            variant="line"
+            className="!grid h-10 w-full grid-cols-4 gap-0 overflow-hidden rounded-none bg-transparent p-0"
+          >
+            <TabsTrigger value="seguimiento" className={tabTriggerClass}>
+              <ClipboardCheck className="size-3.5 shrink-0" />
+              <span className="truncate">Seguimiento</span>
+              {totalSeguimiento > 0 && (
+                <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[9px] tabular-nums">
+                  {totalSeguimiento}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="salud" className={tabTriggerClass}>
+              <Stethoscope className="size-3.5 shrink-0" />
+              <span className="truncate">Salud</span>
+              {totalSaludTab > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="h-4 min-w-4 border-rose-500/30 bg-rose-500/10 px-1 text-[9px] tabular-nums text-rose-400"
+                >
+                  {totalSaludTab}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="novedades" className={tabTriggerClass}>
+              <CalendarPlus className="size-3.5 shrink-0" />
+              <span className="truncate">Novedades</span>
+              {eventosOrdenados.length > 0 && (
+                <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[9px] tabular-nums">
+                  {eventosOrdenados.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="historial" className={tabTriggerClass}>
+              <Clock className="size-3.5 shrink-0" />
+              <span className="truncate">Historial</span>
+              {totalHistorial > 0 && (
+                <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[9px] tabular-nums">
+                  {totalHistorial}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        {/* Banner día filtrado */}
+        {filtro === "dia" && diaSel && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-500/30 bg-sky-500/5 px-3 py-2 text-xs">
+            <span className="text-sky-300">
+              Filtrado por día {formatearDiaCalendario(diaSel)}
+            </span>
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              className="h-6"
               onClick={() => seleccionarFiltro("seguimiento")}
             >
-              <ClipboardCheck className="size-3" />
-              Seguimiento
-            </Button>
-            <Button
-              type="button"
-              size="xs"
-              variant={filtro === "salud" ? "secondary" : "outline"}
-              onClick={() => seleccionarFiltro("salud")}
-            >
-              <Stethoscope className="size-3" />
-              Salud
-            </Button>
-            <Button
-              type="button"
-              size="xs"
-              variant={filtro === "novedades" ? "secondary" : "outline"}
-              onClick={() => seleccionarFiltro("novedades")}
-            >
-              <CalendarPlus className="size-3" />
-              Novedades
-            </Button>
-            <Button
-              type="button"
-              size="xs"
-              variant={filtro === "historial" ? "secondary" : "outline"}
-              onClick={() => seleccionarFiltro("historial")}
-            >
-              <Clock className="size-3" />
-              Historial
+              Quitar filtro
             </Button>
           </div>
-        </div>
+        )}
 
-        {mostrarSalud && (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">
-              Incidencias de salud
-              {listaCasos.length + saludSinDetalleVisibles.length > 0
-                ? ` (${listaCasos.length + saludSinDetalleVisibles.length})`
-                : ""}
-            </p>
-            {saludSinDetalleVisibles.map((p) => (
-              <TarjetaSaludPendienteDetalle
-                key={`pendiente-${p.dia}`}
-                dia={p.dia}
-                reportadas={p.reportadas}
-                faltan={p.faltan}
-                onCompletar={
-                  puedeEditar && onIrAReporte ? () => onIrAReporte("parte") : undefined
-                }
-              />
-            ))}
-            {listaCasos.length === 0 && saludSinDetalleVisibles.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center">
-                <p className="text-sm text-muted-foreground">
-                  {filtro === "seguimiento"
-                    ? "Sin casos de salud en seguimiento."
-                    : "No hay casos de salud en este periodo."}
+        <TabsContent value="seguimiento" className="mt-4 space-y-5">
+          {filtro === "dia" && diaSel ? (
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Salud
                 </p>
-                {puedeEditar && onIrAReporte && filtro === "seguimiento" && (
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => onIrAReporte("parte")}
-                  >
-                    Registrar en el reporte del día
-                  </Button>
+                {renderListaSalud(listaCasos, saludSinDetalleVisibles)}
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Novedades
+                </p>
+                {renderListaNovedades(listaNovedades, "Sin novedades este día")}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Casos de salud activos y novedades del periodo.
+                </p>
+                {puedeEditar && onIrAReporte && (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5"
+                      onClick={() => onIrAReporte("salud")}
+                    >
+                      <Stethoscope className="size-3.5" />
+                      Salud
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-8 gap-1.5 bg-teal-600 hover:bg-teal-500"
+                      onClick={() => onIrAReporte("novedades")}
+                    >
+                      <CalendarPlus className="size-3.5" />
+                      Novedades
+                    </Button>
+                  </div>
                 )}
               </div>
+              {mostrarSalud && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Salud
+                    {listaCasos.length + saludSinDetalleVisibles.length > 0
+                      ? ` (${listaCasos.length + saludSinDetalleVisibles.length})`
+                      : ""}
+                  </p>
+                  {renderListaSalud(listaCasos, saludSinDetalleVisibles)}
+                </div>
+              )}
+              {mostrarNovedades && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Novedades
+                    {listaNovedades.length > 0 ? ` (${listaNovedades.length})` : ""}
+                  </p>
+                  {renderListaNovedades(listaNovedades, "Sin novedades en el periodo")}
+                </div>
+              )}
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="salud" className="mt-4 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              Casos de salud del campamento en seguimiento.
+            </p>
+            {puedeEditar && onIrAReporte && (
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 gap-1.5 bg-teal-600 hover:bg-teal-500"
+                onClick={() => onIrAReporte("salud")}
+              >
+                <Stethoscope className="size-3.5" />
+                Registrar en reporte
+              </Button>
+            )}
+          </div>
+          {renderListaSalud(listaCasos, saludSinDetalleVisibles)}
+        </TabsContent>
+
+        <TabsContent value="novedades" className="mt-4 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              Novedades positivas y negativas de los últimos 30 días.
+            </p>
+            {puedeEditar && onIrAReporte && (
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 gap-1.5 bg-teal-600 hover:bg-teal-500"
+                onClick={() => onIrAReporte("novedades")}
+              >
+                <CalendarPlus className="size-3.5" />
+                Registrar en reporte
+              </Button>
+            )}
+          </div>
+          {renderListaNovedades(listaNovedades, "Sin novedades registradas")}
+        </TabsContent>
+
+        <TabsContent value="historial" className="mt-4 space-y-5">
+          <p className="text-xs text-muted-foreground">
+            Casos archivados y novedades recientes.
+          </p>
+          <div className="space-y-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Salud archivada
+              {listaCasos.length > 0 ? ` (${listaCasos.length})` : ""}
+            </p>
+            {listaCasos.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+                Sin casos archivados.
+              </p>
             ) : (
               listaCasos.map((c) => (
                 <TarjetaCasoSalud
@@ -1037,33 +1285,15 @@ function SeguimientoExpandido({
               ))
             )}
           </div>
-        )}
-
-        {mostrarNovedades && (
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">
-              Novedades del reporte
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Novedades
               {listaNovedades.length > 0 ? ` (${listaNovedades.length})` : ""}
             </p>
             {listaNovedades.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center">
-                <p className="text-sm text-muted-foreground">
-                  {filtro === "novedades"
-                    ? "Sin novedades registradas en los últimos 30 días."
-                    : "No hay novedades en este periodo."}
-                </p>
-                {puedeEditar && onIrAReporte && (
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => onIrAReporte("novedades")}
-                  >
-                    Registrar en el reporte del día
-                  </Button>
-                )}
-              </div>
+              <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+                Sin novedades en el historial.
+              </p>
             ) : (
               listaNovedades.map((e) => (
                 <TarjetaNovedad
@@ -1083,8 +1313,8 @@ function SeguimientoExpandido({
               ))
             )}
           </div>
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

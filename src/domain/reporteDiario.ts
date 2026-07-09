@@ -337,13 +337,14 @@ export function eventosRevisados(
 
 export interface BloquesReporteDia {
   parteNumerico: boolean;
+  saludReportada: boolean;
   controlRevisado: boolean;
   trabajosRevisados: boolean;
   requerimientosRevisados: boolean;
   eventosRevisados: boolean;
 }
 
-/** ¿El reporte del día está completo? Si se pasan bloques, exige los cinco. */
+/** ¿El reporte del día está completo? Si se pasan bloques, exige los seis. */
 export function reporteCompleto(
   _reporte: ReporteDiario | undefined | null,
   bloques?: Partial<BloquesReporteDia>,
@@ -351,6 +352,7 @@ export function reporteCompleto(
   if (!bloques) return false;
   return (
     bloques.parteNumerico === true &&
+    bloques.saludReportada === true &&
     bloques.controlRevisado === true &&
     bloques.trabajosRevisados === true &&
     bloques.requerimientosRevisados === true &&
@@ -393,25 +395,30 @@ export const META_ESTADO_REPORTE: Record<
   pendiente: { label: "Sin reporte", color: "#64748b" },
 };
 
-/** Evalúa qué tan completo está el reporte de un día (5 bloques Telegram). */
+/** Evalúa qué tan completo está el reporte de un día (6 bloques Telegram). */
 export function estadoReporteDia(
   reporte: ReporteDiario | undefined | null,
   parteNumerico: boolean,
   bloques: Partial<
     Pick<
       BloquesReporteDia,
-      "controlRevisado" | "trabajosRevisados" | "requerimientosRevisados" | "eventosRevisados"
+      | "saludReportada"
+      | "controlRevisado"
+      | "trabajosRevisados"
+      | "requerimientosRevisados"
+      | "eventosRevisados"
     >
   > = {},
 ): EstadoReporteDia {
   const completos = [
     parteNumerico,
+    bloques.saludReportada === true || reporte?.salud_reportada === true,
     bloques.controlRevisado === true,
     bloques.trabajosRevisados === true || reporte?.trabajos_revisados === true,
     bloques.requerimientosRevisados === true || reporte?.requerimientos_revisados === true,
     bloques.eventosRevisados === true,
   ].filter(Boolean).length;
-  if (completos === 5) return "completo";
+  if (completos === 6) return "completo";
   if (completos > 1) return "parcial";
   if (parteNumerico) return "solo_parte";
   return "pendiente";

@@ -16,6 +16,7 @@ const ETIQUETAS_CORTAS: Record<string, string> = {
 };
 
 export function NavegacionFasesReporteDesktop({ fases, faseActiva }: Props) {
+  const cols = Math.max(fases.length, 1);
   return (
     <div className="hidden shrink-0 overflow-hidden border-b border-border/80 bg-background sm:block">
       <div className="border-b border-border/40 px-4 py-2 sm:px-6">
@@ -25,8 +26,9 @@ export function NavegacionFasesReporteDesktop({ fases, faseActiva }: Props) {
       <TabsList
         variant="line"
         className={cn(
-          "!grid h-10 w-full min-w-0 grid-cols-5 gap-0 overflow-hidden rounded-none bg-background p-0",
+          "!grid h-10 w-full min-w-0 gap-0 overflow-hidden rounded-none bg-background p-0",
         )}
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
       >
         {fases.map((fase) => {
           const activa = fase.value === faseActiva;

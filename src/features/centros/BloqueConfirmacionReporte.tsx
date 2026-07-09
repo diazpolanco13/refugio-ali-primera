@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export type AcentoBloqueReporte = "teal" | "sky" | "amber" | "violet";
+export type AcentoBloqueReporte = "teal" | "sky" | "amber" | "violet" | "rose";
 
 const ESTILOS_ACENTO: Record<
   AcentoBloqueReporte,
@@ -29,6 +29,11 @@ const ESTILOS_ACENTO: Record<
     borde: "border-violet-500/35 bg-violet-500/5",
     fondo: "border-violet-500/35 bg-violet-500/5",
     icono: "text-violet-400",
+  },
+  rose: {
+    borde: "border-rose-500/35 bg-rose-500/5",
+    fondo: "border-rose-500/35 bg-rose-500/5",
+    icono: "text-rose-400",
   },
 };
 

@@ -278,7 +278,12 @@ function TarjetaReporteDia({
               </div>
             )}
 
-            <BloqueReporte icono={<Stethoscope className="size-3.5 text-rose-400" />} titulo="Incidencias salud" listo={parteNumerico} onClick={onAbrirFase ? () => onAbrirFase("parte") : undefined}>
+            <BloqueReporte
+              icono={<Stethoscope className="size-3.5 text-rose-400" />}
+              titulo="Incidencias salud"
+              listo={Boolean(reporte?.salud_reportada) || (snapshot?.incidencias_salud ?? 0) > 0 || casosSaludAbiertos.length > 0}
+              onClick={onAbrirFase ? () => onAbrirFase("salud") : undefined}
+            >
               <p className="text-[11px] text-muted-foreground">
                 <span className="font-bold tabular-nums text-foreground">
                   {Math.max(
@@ -653,6 +658,8 @@ function ReporteCompacto({ centro, puedeEditar, onAbrirReporte }: Props) {
 
   const completo = reporteCompleto(reporte, {
     parteNumerico: parteHoy,
+    saludReportada:
+      reporte?.salud_reportada === true || (snapHoy?.incidencias_salud ?? 0) > 0,
     controlRevisado: controlReportado(controlHoy),
     trabajosRevisados: reporte?.trabajos_revisados ?? false,
     requerimientosRevisados: reporte?.requerimientos_revisados ?? false,

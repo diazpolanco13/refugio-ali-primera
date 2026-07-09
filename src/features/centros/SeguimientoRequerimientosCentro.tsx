@@ -31,6 +31,8 @@ interface Props {
   centroId: string;
   puedeEditar?: boolean;
   onIrAReporte?: (fase?: string) => void;
+  /** Sin card ni cabecera duplicada (dentro de sub-pestaña Infraestructura). */
+  integrado?: boolean;
 }
 
 function SelectorEstatus({
@@ -72,11 +74,11 @@ function SelectorEstatus({
   );
 }
 
-/** Seguimiento de requerimientos logísticos (tabla `requerimientos_seguimiento`). */
-export function SeguimientoRequerimientosCentro({
+function ContenidoSeguimiento({
   centroId,
-  puedeEditar = false,
+  puedeEditar,
   onIrAReporte,
+  integrado,
 }: Props) {
   const { requerimientos: items } = useRequerimientosSeguimiento({
     centroId,
@@ -101,6 +103,137 @@ export function SeguimientoRequerimientosCentro({
     { id: "entregados", label: "Entregados", count: entregados.length },
     { id: "todos", label: "Todos", count: items.length },
   ];
+
+  const vacioLista = (
+    <p className="text-xs text-muted-foreground">
+      {filtro === "pendientes"
+        ? "No hay requerimientos pendientes."
+        : filtro === "entregados"
+          ? "Aún no hay entregas registradas."
+          : "Sin requerimientos en seguimiento."}
+      {!integrado && puedeEditar && onIrAReporte && (
+        <>
+          {" "}
+          Regístralos en el{" "}
+          <button
+            type="button"
+            className="font-medium text-teal-400 underline-offset-2 hover:underline"
+            onClick={() => onIrAReporte("requerimientos")}
+          >
+            reporte del día
+          </button>
+          .
+        </>
+      )}
+    </p>
+  );
+
+  const cuerpo = (
+    <div className={cn("space-y-4", integrado ? "" : "px-4 py-4")}>
+      {integrado && (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <p className="text-xs text-muted-foreground">
+            Seguimiento de entregas: se registran en el reporte del día y se actualizan aquí.
+          </p>
+          {onIrAReporte && puedeEditar && items.length > 0 && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5"
+              onClick={() => onIrAReporte("requerimientos")}
+            >
+              <ClipboardCheck className="size-3.5" />
+              Registrar en reporte
+            </Button>
+          )}
+        </div>
+      )}
+
+      {items.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
+          <Package className="mx-auto size-10 text-muted-foreground/40" />
+          <p className="mt-3 text-sm font-medium text-foreground">
+            Sin requerimientos en seguimiento
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Regístralos en la fase Requerimientos del reporte del día.
+          </p>
+          {puedeEditar && onIrAReporte && (
+            <Button
+              type="button"
+              size="sm"
+              className="mt-4 gap-1.5"
+              onClick={() => onIrAReporte("requerimientos")}
+            >
+              <ClipboardCheck className="size-3.5" />
+              Registrar en reporte
+            </Button>
+          )}
+        </div>
+      ) : (
+        <>
+          <ResumenRequerimientosSeguimiento items={items} />
+
+          <div className="flex flex-wrap gap-2 text-[10px]">
+            {chips.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className={cn(
+                  "rounded-full border px-2.5 py-0.5 transition-colors",
+                  filtro === c.id
+                    ? "border-amber-500/50 bg-amber-500/10 font-medium text-foreground"
+                    : "border-border text-muted-foreground hover:bg-muted/50",
+                )}
+                onClick={() => setFiltro(c.id)}
+              >
+                {c.label} ({c.count})
+              </button>
+            ))}
+          </div>
+
+          <ListaRequerimientosSeguimiento
+            items={visibles}
+            vacio={vacioLista}
+            renderItem={(item) => (
+              <TarjetaRequerimientoSeguimiento
+                item={item}
+                accionesExtra={
+                  puedeEditar ? (
+                    <SelectorEstatus item={item} />
+                  ) : (
+                    <BadgeEstatusCompacto estatus={item.estatus} />
+                  )
+                }
+              />
+            )}
+          />
+        </>
+      )}
+    </div>
+  );
+
+  return cuerpo;
+}
+
+/** Seguimiento de requerimientos logísticos (tabla `requerimientos_seguimiento`). */
+export function SeguimientoRequerimientosCentro({
+  centroId,
+  puedeEditar = false,
+  onIrAReporte,
+  integrado = false,
+}: Props) {
+  if (integrado) {
+    return (
+      <ContenidoSeguimiento
+        centroId={centroId}
+        puedeEditar={puedeEditar}
+        onIrAReporte={onIrAReporte}
+        integrado
+      />
+    );
+  }
 
   return (
     <Card className="overflow-hidden">
@@ -129,66 +262,11 @@ export function SeguimientoRequerimientosCentro({
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 px-4 py-4">
-        <ResumenRequerimientosSeguimiento items={items} />
-
-        {items.length > 0 && (
-          <div className="flex flex-wrap gap-2 text-[10px]">
-            {chips.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={cn(
-                  "rounded-full border px-2.5 py-0.5 transition-colors",
-                  filtro === c.id
-                    ? "border-amber-500/50 bg-amber-500/10 font-medium text-foreground"
-                    : "border-border text-muted-foreground hover:bg-muted/50",
-                )}
-                onClick={() => setFiltro(c.id)}
-              >
-                {c.label} ({c.count})
-              </button>
-            ))}
-          </div>
-        )}
-
-        <ListaRequerimientosSeguimiento
-          items={visibles}
-          vacio={
-            <p className="text-xs text-muted-foreground">
-              {filtro === "pendientes"
-                ? "No hay requerimientos pendientes."
-                : filtro === "entregados"
-                  ? "Aún no hay entregas registradas."
-                  : "Sin requerimientos en seguimiento."}
-              {puedeEditar && onIrAReporte && (
-                <>
-                  {" "}
-                  Regístralos en el{" "}
-                  <button
-                    type="button"
-                    className="font-medium text-teal-400 underline-offset-2 hover:underline"
-                    onClick={() => onIrAReporte("requerimientos")}
-                  >
-                    reporte del día
-                  </button>
-                  .
-                </>
-              )}
-            </p>
-          }
-          renderItem={(item) => (
-            <TarjetaRequerimientoSeguimiento
-              item={item}
-              accionesExtra={
-                puedeEditar ? (
-                  <SelectorEstatus item={item} />
-                ) : (
-                  <BadgeEstatusCompacto estatus={item.estatus} />
-                )
-              }
-            />
-          )}
+      <CardContent className="p-0">
+        <ContenidoSeguimiento
+          centroId={centroId}
+          puedeEditar={puedeEditar}
+          onIrAReporte={onIrAReporte}
         />
       </CardContent>
     </Card>

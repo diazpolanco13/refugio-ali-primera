@@ -568,6 +568,7 @@ function BuscadorNombreCampamento({
 type DatosCompletitudReporte = {
   estado: EstadoReporteDia;
   parte: boolean;
+  saludReportada: boolean;
   controlRevisado: boolean;
   trabajosRevisados: boolean;
   requerimientosRevisados: boolean;
@@ -581,6 +582,12 @@ const BLOQUES_COMPLETITUD_REPORTE: {
   listo: (datos: DatosCompletitudReporte) => boolean;
 }[] = [
   { fase: "parte", label: "Parte numérico", labelCorto: "Parte", listo: (d) => d.parte },
+  {
+    fase: "salud",
+    label: "Incidencias de salud",
+    labelCorto: "Salud",
+    listo: (d) => d.saludReportada,
+  },
   {
     fase: "control",
     label: "Control operativo",
@@ -837,7 +844,10 @@ export function ReportesDiariosRedView() {
     const reporte = reportesPorCentroDia.get(`${centroId}:${dia}`);
     const tieneParte = diasConPartePorCentro.get(centroId)?.has(dia) ?? false;
     const key = `${centroId}:${dia}`;
+    const snap = snapshots.find((s) => s.centro_id === centroId && s.dia === dia);
     return estadoReporteDia(reporte, tieneParte, {
+      saludReportada:
+        reporte?.salud_reportada === true || (snap?.incidencias_salud ?? 0) > 0,
       controlRevisado: controlesPorCentroDia.has(key),
       trabajosRevisados:
         reportesRepPorCentroDia.has(key) || reporte?.trabajos_revisados === true,
@@ -885,6 +895,7 @@ export function ReportesDiariosRedView() {
           estado,
           marcadorOcupacion,
           parte,
+          saludReportada: reporte?.salud_reportada === true || (snap?.incidencias_salud ?? 0) > 0,
           controlRevisado: controlOk,
           trabajosRevisados:
             reportesRepPorCentroDia.has(key) || reporte?.trabajos_revisados === true,
@@ -1534,6 +1545,7 @@ export function ReportesDiariosRedView() {
                     estado,
                     marcadorOcupacion,
                     parte,
+                    saludReportada,
                     controlRevisado,
                     trabajosRevisados,
                     requerimientosRevisados,
@@ -1548,6 +1560,7 @@ export function ReportesDiariosRedView() {
                     const datosCompletitud: DatosCompletitudReporte = {
                       estado,
                       parte,
+                      saludReportada,
                       controlRevisado,
                       trabajosRevisados,
                       requerimientosRevisados,

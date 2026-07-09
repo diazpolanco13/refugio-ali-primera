@@ -182,7 +182,7 @@ export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabil
   const prevIncidenciasRef = useRef(incidenciasSalud);
   const primeraRenderRef = useRef(true);
 
-  const mostrar = incidenciasSalud > 0 || casosActivos.length > 0;
+  const mostrar = true;
   const puedeAnadir =
     incidenciasSalud > 0 && casosSeguimiento.length < incidenciasSalud && !editandoId;
   const limiteAlcanzado =

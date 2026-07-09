@@ -43,10 +43,11 @@ export function NavegacionFasesReporteMovil({ fases, faseActiva }: Props) {
 
         <TabsList
           className={cn(
-            "relative z-10 !grid w-full grid-cols-5 gap-0",
+            "relative z-10 !grid w-full gap-0",
             "rounded-none border-0 bg-transparent p-0",
             "!inline-grid",
           )}
+          style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}
         >
           {fases.map((fase) => {
             const activa = fase.value === faseActiva;
