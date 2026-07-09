@@ -86,6 +86,9 @@ export function TerrenoView() {
   // a la planilla o a la ficha del reporte).
   const centro = token ? centros[0] : centros.find((c) => c.id === centroParam);
   const centroValido = centro?.id ?? "";
+  // Terminó la carga y no hay ningún campamento accesible: ni token válido ni
+  // sesión autorizada. Desde este dispositivo no hay tarea posible.
+  const accesoDenegado = !cargandoCentros && centros.length === 0;
   const urlCenso = token
     ? `/censo?t=${encodeURIComponent(token)}`
     : centroValido
@@ -231,49 +234,77 @@ export function TerrenoView() {
               </span>
             </div>
           )}
-          {!cargandoCentros && errorCentros && !centro && (
-            <p className="max-w-xs text-xs leading-snug text-destructive">{errorCentros}</p>
-          )}
           {errorEntrar && (
             <p className="max-w-xs text-xs leading-snug text-destructive">{errorEntrar}</p>
           )}
         </header>
 
-        <nav aria-label="Tareas de terreno" className="grid w-full grid-cols-2 gap-4">
-          <button
-            type="button"
-            onClick={abrirReporte}
-            disabled={entrando}
-            className={cn(CLASE_BOTON_CUADRADO, entrando && "pointer-events-none opacity-70")}
+        {accesoDenegado ? (
+          // Sin token válido y sin sesión no hay a dónde avanzar: en lugar de
+          // botones que terminan en pantallas vacías, se explica cómo entrar.
+          <section
+            aria-label="Acceso restringido"
+            className="w-full space-y-3 rounded-2xl border border-border bg-card p-6 text-center"
           >
-            {entrando ? (
-              <Loader2 className="size-10 animate-spin text-primary" aria-hidden="true" />
-            ) : (
-              <ClipboardList className="size-10 text-primary" aria-hidden="true" />
+            <LockKeyhole className="mx-auto size-10 text-muted-foreground" aria-hidden="true" />
+            <p className="text-sm font-semibold">Acceso con código QR</p>
+            {errorCentros && (
+              <p className="text-xs leading-snug text-destructive">{errorCentros}</p>
             )}
-            <span className="text-sm font-semibold">Reporte diario</span>
-            <span className="flex items-center gap-1 text-[0.6875rem] leading-tight text-muted-foreground">
-              <LockKeyhole className="size-3 shrink-0" aria-hidden="true" />
-              {entrando
-                ? "Entrando al campamento…"
-                : token && centro
-                  ? "Parte del día · entra con el QR"
-                  : "Parte del día · con usuario"}
-            </span>
-          </button>
-          <a href={urlCenso} className={CLASE_BOTON_CUADRADO}>
-            <Users className="size-10 text-primary" aria-hidden="true" />
-            <span className="text-sm font-semibold">Censo</span>
-            <span className="text-[0.6875rem] leading-tight text-muted-foreground">
-              Registro de damnificados · sin clave
-            </span>
-          </a>
-        </nav>
+            <p className="text-xs leading-snug text-muted-foreground">
+              Cada campamento tiene su propio enlace y código QR. Solicítelo a la coordinación de
+              la red (o al supervisor de su campamento) y vuelva a abrirlo desde ahí. Si es
+              personal de coordinación, entre a la aplicación con su usuario.
+            </p>
+          </section>
+        ) : (
+          <nav aria-label="Tareas de terreno" className="grid w-full grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={abrirReporte}
+              disabled={entrando || cargandoCentros}
+              className={cn(
+                CLASE_BOTON_CUADRADO,
+                (entrando || cargandoCentros) && "pointer-events-none opacity-70",
+              )}
+            >
+              {entrando ? (
+                <Loader2 className="size-10 animate-spin text-primary" aria-hidden="true" />
+              ) : (
+                <ClipboardList className="size-10 text-primary" aria-hidden="true" />
+              )}
+              <span className="text-sm font-semibold">Reporte diario</span>
+              <span className="flex items-center gap-1 text-[0.6875rem] leading-tight text-muted-foreground">
+                <LockKeyhole className="size-3 shrink-0" aria-hidden="true" />
+                {entrando
+                  ? "Entrando al campamento…"
+                  : cargandoCentros
+                    ? "Verificando acceso…"
+                    : token && centro
+                      ? "Parte del día · entra con el QR"
+                      : "Parte del día · con usuario"}
+              </span>
+            </button>
+            <a
+              href={urlCenso}
+              className={cn(CLASE_BOTON_CUADRADO, cargandoCentros && "pointer-events-none opacity-70")}
+            >
+              <Users className="size-10 text-primary" aria-hidden="true" />
+              <span className="text-sm font-semibold">Censo</span>
+              <span className="text-[0.6875rem] leading-tight text-muted-foreground">
+                {cargandoCentros ? "Verificando acceso…" : "Registro de damnificados · sin clave"}
+              </span>
+            </a>
+          </nav>
+        )}
 
-        <p className="max-w-xs text-center text-xs text-muted-foreground">
-          Guarde esta página en la pantalla de inicio para acceder más rápido durante la jornada.
-        </p>
+        {!accesoDenegado && (
+          <p className="max-w-xs text-center text-xs text-muted-foreground">
+            Guarde esta página en la pantalla de inicio para acceder más rápido durante la jornada.
+          </p>
+        )}
 
+        {!accesoDenegado && (
         <section
           aria-label="Instrucciones de las planillas"
           className="w-full space-y-2 rounded-xl border border-border bg-card/60 px-4 py-3"
@@ -304,6 +335,7 @@ export function TerrenoView() {
             </button>
           )}
         </section>
+        )}
       </main>
     </div>
   );
