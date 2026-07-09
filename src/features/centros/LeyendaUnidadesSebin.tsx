@@ -1,8 +1,6 @@
 import { cn } from "@/lib/utils";
-import {
-  CATALOGO_UNIDADES_SEBIN,
-  type ClaveUnidadSebin,
-} from "@/domain/centrosTransitorios";
+import { useCatalogoUnidadesSebinActivas } from "@/data/useUnidadesSebin";
+import type { ClaveUnidadSebin } from "@/domain/centrosTransitorios";
 
 interface Props {
   unidadesPresentes: Set<ClaveUnidadSebin>;
@@ -18,7 +16,8 @@ export function LeyendaUnidadesSebin({
   onSeleccionarUnidad,
   className,
 }: Props) {
-  const items = CATALOGO_UNIDADES_SEBIN.filter(
+  const catalogo = useCatalogoUnidadesSebinActivas();
+  const items = catalogo.filter(
     (u) => u.clave !== "sin_asignar" && unidadesPresentes.has(u.clave),
   );
 

@@ -134,6 +134,15 @@ export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle 
             </p>
           )}
 
+          {centroNormalizado.supervision.supervisor_sebin.trim() ? (
+            <p className="shrink-0 text-[10px] leading-snug text-muted-foreground">
+              <span className="text-muted-foreground/80">Revista: </span>
+              <span className="font-medium text-foreground/90">
+                {centroNormalizado.supervision.supervisor_sebin.trim()}
+              </span>
+            </p>
+          ) : null}
+
           {ubicacion ? (
             <p className="shrink-0 text-[10px] leading-snug break-words text-muted-foreground">
               {ubicacion}

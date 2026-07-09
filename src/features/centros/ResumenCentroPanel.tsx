@@ -2,7 +2,7 @@
 // identificación, acceso de terreno y alertas de servicios.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Camera, ImagePlus, Loader2, Trash2 } from "lucide-react";
+import { AlertTriangle, Camera, ImagePlus, Loader2, Pencil, Trash2 } from "lucide-react";
 import { claveDia, guardarCentro } from "@/data/reposSupabase";
 import { subirFotoCentro, supabaseDisponible } from "@/data/supabase";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
@@ -30,6 +30,8 @@ interface Props {
   centro: CentroTransitorio;
   puedeEditar?: boolean;
   onIrAPestana: (vista: VistaFichaCentro) => void;
+  /** Abre el formulario completo de edición del campamento. */
+  onEditar?: () => void;
 }
 
 /** Variación vs día anterior: verde +N, rojo -N. */
@@ -337,7 +339,12 @@ function FotoCentroEditable({
 }
 
 /** Composición de la pestaña Resumen. */
-export function ResumenCentroPanel({ centro, puedeEditar = false, onIrAPestana }: Props) {
+export function ResumenCentroPanel({
+  centro,
+  puedeEditar = false,
+  onIrAPestana,
+  onEditar,
+}: Props) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-4 sm:items-stretch">
@@ -357,7 +364,28 @@ export function ResumenCentroPanel({ centro, puedeEditar = false, onIrAPestana }
           <AlertasDelDiaCentro centro={centro} onIrAPestana={onIrAPestana} />
         </div>
       </div>
-      <SeccionIdentificacionCentro centro={centro} />
+
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Identificación y asignación
+          </p>
+          {puedeEditar && onEditar && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5"
+              onClick={onEditar}
+            >
+              <Pencil className="size-3.5" />
+              Editar campamento
+            </Button>
+          )}
+        </div>
+        <SeccionIdentificacionCentro centro={centro} />
+      </div>
+
       <AccesoTerrenoCentro centro={centro} />
       <ChipAlertaServicios centro={centro} onIrAPestana={onIrAPestana} />
     </div>

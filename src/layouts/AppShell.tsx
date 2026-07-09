@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import type { Sesion } from "@/data/authSupabase";
+import { useBootstrapUnidadesSebin } from "@/data/useUnidadesSebin";
 import { MapaCentrosProvider } from "@/contexts/MapaCentrosContext";
 import { AppSidebar } from "@/components/AppSidebar";
 import { TopBar } from "@/components/TopBar";
@@ -18,6 +19,7 @@ interface Props {
 
 function AppShellInner({ sesion }: Props) {
   const [online, setOnline] = useState(() => navigator.onLine);
+  useBootstrapUnidadesSebin();
 
   useEffect(() => {
     const up = () => setOnline(true);

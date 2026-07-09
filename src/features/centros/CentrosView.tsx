@@ -20,7 +20,6 @@ import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
 import {
-  CATALOGO_UNIDADES_SEBIN,
   type CentroTransitorio,
   type ClaveUnidadSebin,
   unidadSebinDe,
@@ -73,9 +72,6 @@ export function CentrosView() {
     () => cargarMostrarCintaTotales() ?? true,
   );
   const [unidadFiltroMapa, setUnidadFiltroMapa] = useState<ClaveUnidadSebin | null>(null);
-  const [unidadesVisibles, setUnidadesVisibles] = useState<Set<ClaveUnidadSebin>>(
-    () => new Set(CATALOGO_UNIDADES_SEBIN.map((u) => u.clave)),
-  );
   const [expandidos, setExpandidos] = useState<Set<ClaveUnidadSebin>>(() => new Set());
   const [exportando, setExportando] = useState(false);
   const mapaRef = useRef<CentrosMapHandle>(null);
@@ -149,24 +145,10 @@ export function CentrosView() {
     }
   }
 
-  const centrosVisibles = useMemo(
-    () => centros.filter((c) => unidadesVisibles.has(unidadSebinDe(c))),
-    [centros, unidadesVisibles],
-  );
-
   const centroSel = useMemo(
     () => centros.find((c) => c.id === seleccionado) ?? null,
     [centros, seleccionado],
   );
-
-  function toggleUnidad(clave: ClaveUnidadSebin) {
-    setUnidadesVisibles((prev) => {
-      const s = new Set(prev);
-      if (s.has(clave)) s.delete(clave);
-      else s.add(clave);
-      return s;
-    });
-  }
 
   function setExpandido(clave: ClaveUnidadSebin, abierto: boolean) {
     setExpandidos((prev) => {
@@ -179,8 +161,6 @@ export function CentrosView() {
 
   function seleccionarDesdeLista(centro: CentroTransitorio) {
     if (!centro.geom) return;
-    const clave = unidadSebinDe(centro);
-    setUnidadesVisibles((prev) => (prev.has(clave) ? prev : new Set(prev).add(clave)));
     setSeleccionado(centro.id);
     setDetalleAbierto(false);
   }
@@ -224,7 +204,7 @@ export function CentrosView() {
           <>
             <CentrosMap
               ref={mapaRef}
-              centros={centrosVisibles}
+              centros={centros}
               baseMapa={baseMapa}
               onCambiarBase={setBaseMapa}
               seleccionado={seleccionado}
@@ -262,8 +242,8 @@ export function CentrosView() {
 
             <PanelCentros
               centros={centros}
-              unidadesVisibles={unidadesVisibles}
-              onToggleUnidad={toggleUnidad}
+              unidadFiltro={unidadFiltroMapa}
+              onSeleccionarUnidad={setUnidadFiltroMapa}
               expandidos={expandidos}
               onSetExpandido={setExpandido}
               seleccionado={seleccionado}

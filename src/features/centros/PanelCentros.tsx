@@ -16,13 +16,13 @@ import {
 import { cn } from "@/lib/utils";
 import { LogoCuerpo } from "@/components/LogoCuerpo";
 import {
-  CATALOGO_UNIDADES_SEBIN,
   LOGO_SEBIN,
   metaUnidadSebinCentro,
   unidadSebinDe,
   type CentroTransitorio,
   type ClaveUnidadSebin,
 } from "@/domain/centrosTransitorios";
+import { useCatalogoUnidadesSebinActivas } from "@/data/useUnidadesSebin";
 import {
   ESTADO_FILA_VACIO,
   FilaCentroLista,
@@ -32,8 +32,9 @@ import {
 
 interface Props {
   centros: CentroTransitorio[];
-  unidadesVisibles: Set<ClaveUnidadSebin>;
-  onToggleUnidad: (clave: ClaveUnidadSebin) => void;
+  /** Dirección SEBIN activa en el mapa (`null` = ver todas). */
+  unidadFiltro: ClaveUnidadSebin | null;
+  onSeleccionarUnidad: (clave: ClaveUnidadSebin | null) => void;
   expandidos: Set<ClaveUnidadSebin>;
   onSetExpandido: (clave: ClaveUnidadSebin, abierto: boolean) => void;
   seleccionado: string | null;
@@ -43,13 +44,13 @@ interface Props {
 }
 
 /**
- * Panel lateral del mapa: búsqueda, listado por dirección interna SEBIN,
- * toggles de visibilidad y semáforos.
+ * Panel lateral del mapa: búsqueda, listado por dirección interna SEBIN
+ * y filtro exclusivo (opaca el resto en el mapa).
  */
 export function PanelCentros({
   centros,
-  unidadesVisibles,
-  onToggleUnidad,
+  unidadFiltro,
+  onSeleccionarUnidad,
   expandidos,
   onSetExpandido,
   seleccionado,
@@ -59,6 +60,7 @@ export function PanelCentros({
 }: Props) {
   const [busqueda, setBusqueda] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const catalogoUnidades = useCatalogoUnidadesSebinActivas();
 
   const estados = useMemo(() => calcularEstadosFilas(centros), [centros]);
 
@@ -91,9 +93,17 @@ export function PanelCentros({
     if (window.innerWidth < 640) onCambiarAbierto(false);
   }
 
-  const unidadesConCampamentos = CATALOGO_UNIDADES_SEBIN.filter(
+  /** Clic en una dirección: filtra el mapa (toggle si ya estaba activa). */
+  function elegirUnidad(clave: ClaveUnidadSebin) {
+    const siguiente = unidadFiltro === clave ? null : clave;
+    onSeleccionarUnidad(siguiente);
+    if (siguiente) onSetExpandido(clave, true);
+  }
+
+  const unidadesConCampamentos = catalogoUnidades.filter(
     (u) => u.clave !== "sin_asignar" && (centrosPorUnidad.get(u.clave)?.length ?? 0) > 0,
   );
+  const hayFiltro = unidadFiltro != null;
 
   return (
     <div
@@ -170,7 +180,8 @@ export function PanelCentros({
         ) : (
           <div className="space-y-0.5">
             {unidadesConCampamentos.map((u) => {
-              const activo = unidadesVisibles.has(u.clave);
+              const activa = unidadFiltro === u.clave;
+              const atenuada = hayFiltro && !activa;
               const centrosUnidad = centrosPorUnidad.get(u.clave) ?? [];
               const grupoAbierto = expandidos.has(u.clave);
               const alertasGrupo = centrosUnidad.reduce(
@@ -184,13 +195,25 @@ export function PanelCentros({
                   open={grupoAbierto}
                   onOpenChange={(o) => onSetExpandido(u.clave, o)}
                 >
-                  <div className="flex items-center gap-0.5">
+                  <div
+                    className={cn(
+                      "flex items-center gap-0.5 rounded-lg transition-opacity",
+                      activa && "bg-primary/10 ring-1 ring-primary/40",
+                      atenuada && "opacity-35",
+                    )}
+                  >
                     <button
-                      onClick={() => onToggleUnidad(u.clave)}
-                      title="Mostrar/ocultar en el mapa"
+                      type="button"
+                      onClick={() => elegirUnidad(u.clave)}
+                      title={
+                        activa
+                          ? "Quitar filtro (ver todas las direcciones)"
+                          : "Filtrar mapa: opacar el resto y marcar esta dirección"
+                      }
+                      aria-pressed={activa}
                       className={cn(
                         "flex flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs transition-colors hover:bg-muted/60",
-                        !activo && "opacity-40",
+                        activa && "font-semibold text-primary",
                       )}
                     >
                       <span
@@ -198,7 +221,11 @@ export function PanelCentros({
                         style={{ borderColor: u.color }}
                         aria-hidden
                       >
-                        <LogoCuerpo src={LOGO_SEBIN} priority="low" />
+                        {activa ? (
+                          <span className="text-sm font-bold leading-none text-foreground">?</span>
+                        ) : (
+                          <LogoCuerpo src={LOGO_SEBIN} priority="low" />
+                        )}
                       </span>
                       <span className="flex-1 truncate text-foreground">{u.label}</span>
                       {alertasGrupo > 0 && (
@@ -251,12 +278,22 @@ export function PanelCentros({
                 open={expandidos.has("sin_asignar")}
                 onOpenChange={(o) => onSetExpandido("sin_asignar", o)}
               >
-                <div className="flex items-center gap-0.5">
+                <div
+                  className={cn(
+                    "flex items-center gap-0.5 rounded-lg transition-opacity",
+                    unidadFiltro === "sin_asignar" && "bg-primary/10 ring-1 ring-primary/40",
+                    hayFiltro && unidadFiltro !== "sin_asignar" && "opacity-35",
+                  )}
+                >
                   <button
-                    onClick={() => onToggleUnidad("sin_asignar")}
+                    type="button"
+                    onClick={() => elegirUnidad("sin_asignar")}
+                    aria-pressed={unidadFiltro === "sin_asignar"}
                     className={cn(
-                      "flex flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs opacity-60",
-                      !unidadesVisibles.has("sin_asignar") && "opacity-30",
+                      "flex flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs",
+                      unidadFiltro === "sin_asignar"
+                        ? "font-semibold text-primary"
+                        : "opacity-80",
                     )}
                   >
                     <span className="text-foreground">Sin unidad asignada</span>
@@ -264,8 +301,45 @@ export function PanelCentros({
                       {centrosPorUnidad.get("sin_asignar")!.length}
                     </Badge>
                   </button>
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      title="Ver campamentos sin unidad"
+                      className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                    >
+                      <ChevronDown
+                        className={cn(
+                          "size-3.5 transition-transform",
+                          expandidos.has("sin_asignar") && "rotate-180",
+                        )}
+                      />
+                    </button>
+                  </CollapsibleTrigger>
                 </div>
+                <CollapsibleContent>
+                  <div className="ml-3 mb-1 mt-0.5 space-y-0.5 border-l border-border pl-2">
+                    {(centrosPorUnidad.get("sin_asignar") ?? []).map((centro) => (
+                      <FilaCentroLista
+                        key={centro.id}
+                        centro={centro}
+                        estado={estados.get(centro.id) ?? ESTADO_FILA_VACIO}
+                        seleccionado={seleccionado === centro.id}
+                        onSeleccionar={elegirCentro}
+                      />
+                    ))}
+                  </div>
+                </CollapsibleContent>
               </Collapsible>
+            )}
+
+            {hayFiltro && (
+              <button
+                type="button"
+                onClick={() => onSeleccionarUnidad(null)}
+                className="mt-2 w-full rounded-md border border-border/60 px-2 py-1.5 text-[10px] text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              >
+                Ver todas las direcciones
+              </button>
             )}
 
             {sinUbicar.length > 0 && (
@@ -279,10 +353,9 @@ export function PanelCentros({
       </div>
 
       <div className="shrink-0 border-t border-border px-3 py-1.5 text-[9.5px] leading-snug text-muted-foreground/80">
-        Anillo de color = dirección SEBIN. Íconos{" "}
+        Tocá una dirección para filtrar el mapa (? = seleccionados; el resto se opaca). Íconos{" "}
         <span className="font-semibold text-red-500">rojos</span> /{" "}
-        <span className="font-semibold text-amber-400">ámbar</span>: servicios en déficit según
-        Esfera.
+        <span className="font-semibold text-amber-400">ámbar</span>: déficit Esfera.
       </div>
     </div>
   );

@@ -6,7 +6,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ClipboardCheck, LayoutGrid, SearchX, UserPlus } from "lucide-react";
+import {
+  ArrowLeft,
+  ClipboardCheck,
+  LayoutGrid,
+  Pencil,
+  SearchX,
+  UserPlus,
+} from "lucide-react";
 import { useAlojamientosCentro } from "@/data/useAlojamientosCentro";
 import { RefugiadoForm } from "@/features/refugiados/RefugiadoForm";
 import { FichaRefugiadoView } from "@/features/refugiados/FichaRefugiadoView";
@@ -21,6 +28,7 @@ import type { Sesion } from "@/data/authSupabase";
 import {
   SECCIONES_FICHA_TERRENO,
   esRolTerreno,
+  puedeCrearCentros,
   puedeEditarCentro,
   puedeEditarReportesPasados,
   puedeVerBuzonCentro,
@@ -59,6 +67,7 @@ import {
 } from "./seccionesFichaCentro";
 import { CensoCentroPanel } from "@/features/censo/CensoCentroPanel";
 import { cn } from "@/lib/utils";
+import { CentroForm } from "./CentroForm";
 import { ReporteDiarioForm } from "./ReporteDiarioForm";
 import { VisorFechaReporte } from "./VisorFechaReporte";
 
@@ -106,6 +115,7 @@ export function FichaCentroView({ sesion }: Props) {
     : "reporte";
   const modoReporte = searchParams.get("reportar") === "1";
   const modoRegistrar = searchParams.get("registrar") === "1";
+  const modoEditar = searchParams.get("editar") === "1";
   const refugiadoId = searchParams.get("refugiado");
 
   const hoyClave = useMemo(() => claveDia(Date.now()), []);
@@ -138,6 +148,7 @@ export function FichaCentroView({ sesion }: Props) {
 
   const puedeEditar = centro != null && puedeEditarCentro(sesion.user, centro.id);
   const puedeEditarPasado = puedeEditarReportesPasados(sesion.user);
+  const puedeEliminar = puedeCrearCentros(sesion.user.rol);
 
   const reportesHoy = useReportesCentros({
     centroId: centro?.id,
@@ -270,6 +281,14 @@ export function FichaCentroView({ sesion }: Props) {
     setSearchParams({ vista: "reporte" }, { replace: true });
   }
 
+  function abrirEdicion() {
+    setSearchParams({ vista: "resumen", editar: "1" }, { replace: true });
+  }
+
+  function cerrarEdicion() {
+    setSearchParams({ vista: "resumen" }, { replace: true });
+  }
+
   function volverPoblacion() {
     setSearchParams({ vista: "poblacion" }, { replace: true });
   }
@@ -299,22 +318,14 @@ export function FichaCentroView({ sesion }: Props) {
     }
   }, [seccionParam, setSearchParams]);
 
-  // Limpiar ?editar=1 de URLs antiguas (edición ahora es in-place por pestaña).
-  useEffect(() => {
-    if (searchParams.get("editar") === "1") {
-      const next = new URLSearchParams(searchParams);
-      next.delete("editar");
-      setSearchParams(next, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
-
   // Si no puede editar, no mantener modos de edición en la URL.
   useEffect(() => {
     if (centro && !puedeEditar) {
       if (modoReporte) cerrarReporte();
       if (modoRegistrar) volverPoblacion();
+      if (modoEditar) cerrarEdicion();
     }
-  }, [modoReporte, modoRegistrar, centro, puedeEditar]);
+  }, [modoReporte, modoRegistrar, modoEditar, centro, puedeEditar]);
 
   if (!centro) {
     return (
@@ -387,6 +398,43 @@ export function FichaCentroView({ sesion }: Props) {
           nombresCentros={nombresCentros}
           onCancelar={volverPoblacion}
           onRegistrado={abrirFichaRefugiado}
+        />
+      </MarcoVista>
+    );
+  }
+
+  if (modoEditar && puedeEditar && centro) {
+    return (
+      <MarcoVista
+        ancho={ANCHO_VISTA_PRINCIPAL}
+        rellenarAltura
+        className="overflow-hidden"
+        marcoClassName="flex min-h-0 flex-col text-foreground"
+      >
+        <VistaEncabezado
+          icono={Pencil}
+          acento="sky"
+          titulo={`Editar · ${titulo}`}
+          descripcion="Identificación, asignación operativa, capacidad y contactos"
+          acciones={
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0 gap-1.5 px-2"
+              onClick={cerrarEdicion}
+            >
+              <ArrowLeft className="size-3.5" />
+              <span className="hidden sm:inline">Volver a la ficha</span>
+              <span className="sm:hidden">Volver</span>
+            </Button>
+          }
+        />
+        <CentroForm
+          centro={centro}
+          puedeEliminar={puedeEliminar}
+          variant="integrado"
+          onCerrar={cerrarEdicion}
+          onGuardado={() => cerrarEdicion()}
         />
       </MarcoVista>
     );
@@ -496,6 +544,18 @@ export function FichaCentroView({ sesion }: Props) {
               <div className="hidden shrink-0 sm:block">
                 <BadgesEstadoCentro centro={centro} />
               </div>
+              {puedeEditar && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 shrink-0 gap-1.5 px-3"
+                  onClick={abrirEdicion}
+                >
+                  <Pencil className="size-3.5" />
+                  <span className="hidden sm:inline">Editar campamento</span>
+                  <span className="sm:hidden">Editar</span>
+                </Button>
+              )}
               {puedeEditar && hoyEstado !== "completo" && (
                 <Button
                   size="sm"
@@ -579,6 +639,7 @@ export function FichaCentroView({ sesion }: Props) {
                 centro={centro}
                 puedeEditar={puedeEditar}
                 onIrAPestana={(vista) => cambiarSeccion(vista)}
+                onEditar={puedeEditar ? abrirEdicion : undefined}
               />
             </TabsContent>
 

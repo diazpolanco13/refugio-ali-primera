@@ -42,13 +42,14 @@ export function NuevoCentroView({ sesion }: Props) {
       nro,
       nombre: "",
       grupo: "Área Metropolitana",
-      cuerpo: "",
+      cuerpo: "SEBIN",
       parroquia: "",
       direccion: "",
       mapsUrl: "",
       geom: null,
       notas: "",
       estado: "preparacion",
+      supervision: { unidad_sebin: "", supervisor_sebin: "" },
     };
   }, [centros]);
 

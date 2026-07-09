@@ -9,6 +9,7 @@ import {
   MonitorPlay,
   ScrollText,
   Settings,
+  Shield,
   Siren,
   Trash2,
   Truck,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
 import {
+  puedeGestionarUnidadesSebin,
   puedeGestionarUsuarios,
   puedeVerBuzonCentro,
   puedeVerCensoCentro,
@@ -228,6 +230,7 @@ function NavContenido({ sesion }: Props) {
   const esCensoRapido = esRolCensoRapido(sesion.user.rol);
   const esTerreno = esRolTerreno(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
+  const gestionaUnidades = puedeGestionarUnidadesSebin(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
   const vePapeleraDenuncias = puedeVerPapeleraDenuncias(sesion.user.rol);
   const veCensoRed = puedeVerCensoRapidoRed(sesion.user.rol);
@@ -385,7 +388,7 @@ function NavContenido({ sesion }: Props) {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      {(esAdmin || veLogs) && (
+      {(esAdmin || gestionaUnidades || veLogs) && (
         <SidebarGroup>
           <SidebarGroupLabel>Configuración</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -398,6 +401,14 @@ function NavContenido({ sesion }: Props) {
                   activo={rutaActiva(pathname, "/usuarios")}
                 />
               )}
+              {gestionaUnidades && (
+                <ItemMenu
+                  to="/config/unidades-sebin"
+                  icono={Shield}
+                  label="Unidades SEBIN"
+                  activo={rutaActiva(pathname, "/config/unidades-sebin")}
+                />
+              )}
               {veLogs && (
                 <ItemMenu
                   to="/logs"
@@ -407,7 +418,6 @@ function NavContenido({ sesion }: Props) {
                 />
               )}
               <ItemEnDesarrollo icono={Settings} label="Preferencias de cuenta" />
-              <ItemEnDesarrollo icono={Settings} label="Catálogos / parámetros" />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

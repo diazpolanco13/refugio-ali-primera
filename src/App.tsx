@@ -28,6 +28,8 @@ const importIncidenciasRefugiadosView = () =>
 const importDenunciasEliminadasView = () =>
   import("./features/incidencias/DenunciasEliminadasView");
 const importGestionUsuarios = () => import("./features/usuarios/GestionUsuarios");
+const importGestionUnidadesSebin = () =>
+  import("./features/config/GestionUnidadesSebin");
 const importLogsView = () => import("./features/logs/LogsView");
 const importReportesDiariosRedView = () => import("./features/centros/ReportesDiariosRedView");
 const importRefugiadosRedView = () => import("./features/refugiados/RefugiadosRedView");
@@ -72,6 +74,9 @@ const HojaQrsTerrenoView = lazy(() =>
 );
 const GestionUsuarios = lazy(() =>
   importGestionUsuarios().then((m) => ({ default: m.GestionUsuarios })),
+);
+const GestionUnidadesSebin = lazy(() =>
+  importGestionUnidadesSebin().then((m) => ({ default: m.GestionUnidadesSebin })),
 );
 const LogsView = lazy(() => importLogsView().then((m) => ({ default: m.LogsView })));
 const ReportesDiariosRedView = lazy(() =>
@@ -119,6 +124,7 @@ function precargarRutaInicial(pathname: string): Promise<unknown> {
   if (pathname.startsWith("/incidencias"))
     return Promise.all([importIncidenciasLayout(), importIncidenciasRedirect()]);
   if (pathname.startsWith("/usuarios")) return importGestionUsuarios();
+  if (pathname.startsWith("/config/unidades-sebin")) return importGestionUnidadesSebin();
   if (pathname.startsWith("/logs")) return importLogsView();
   return importCentrosView();
 }
@@ -244,6 +250,10 @@ export function App() {
             </Route>
             <Route path="/qrs-terreno" element={<HojaQrsTerrenoView sesion={sesion} />} />
             <Route path="/usuarios" element={<GestionUsuarios sesion={sesion} />} />
+            <Route
+              path="/config/unidades-sebin"
+              element={<GestionUnidadesSebin sesion={sesion} />}
+            />
             <Route path="/logs" element={<LogsView sesion={sesion} />} />
             <Route
               path="/config/perfil"
@@ -256,12 +266,7 @@ export function App() {
             />
             <Route
               path="/config/sistema"
-              element={
-                <EnDesarrollo
-                  titulo="Catálogos y parámetros"
-                  descripcion="Administración de cuerpos, categorías de incidencias y umbrales Esfera."
-                />
-              }
+              element={<Navigate to="/config/unidades-sebin" replace />}
             />
             <Route path="*" element={<Navigate to="/centros/mapa" replace />} />
           </Route>

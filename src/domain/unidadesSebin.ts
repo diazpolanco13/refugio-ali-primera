@@ -1,18 +1,12 @@
-/** Clave canónica de una dirección/unidad interna del SEBIN asignada a un campamento. */
-export type ClaveUnidadSebin =
-  | "dir_reg"
-  | "dir_educacion"
-  | "dai"
-  | "int_financ"
-  | "dir_secretaria"
-  | "dir_patrullaje"
-  | "dir_control_adm"
-  | "dir_ciber_int"
-  | "dir_contra_int"
-  | "dir_contra_int_ortega"
-  | "dir_int"
-  | "control_educativo"
-  | "sin_asignar";
+/**
+ * Catálogo de direcciones/unidades internas del SEBIN.
+ * Fuente de verdad: tabla `unidades_sebin` en Supabase.
+ * Este módulo mantiene un fallback estático (seed jul-2026) y un caché en
+ * memoria que el hook `useUnidadesSebin` refresca con Realtime.
+ */
+
+/** Clave canónica de una unidad (slug: `dir_reg`, `dai`, …). */
+export type ClaveUnidadSebin = string;
 
 export interface MetaUnidadSebin {
   clave: ClaveUnidadSebin;
@@ -20,99 +14,211 @@ export interface MetaUnidadSebin {
   label: string;
   /** Valor almacenado en `supervision.unidad_sebin`. */
   valorDb: string;
-  /** Color del anillo del marcador (SEBIN comparte logo; el color distingue la unidad). */
+  /** Color del anillo del marcador. */
   color: string;
+  /** Orden de presentación (menor = primero). */
+  orden?: number;
+  /** Si false, no aparece en selectores nuevos (sigue resolviendo datos viejos). */
+  activo?: boolean;
 }
 
-/** Catálogo de direcciones internas SEBIN (distribución jul-2026). */
-export const CATALOGO_UNIDADES_SEBIN: MetaUnidadSebin[] = [
-  { clave: "dir_reg", label: "DIR. REG", valorDb: "DIR. REG - SEBIN", color: "#2563eb" },
+/** Fila tipada de la tabla `unidades_sebin`. */
+export interface UnidadSebinFila {
+  clave: string;
+  label: string;
+  valor_db: string;
+  color: string;
+  orden: number;
+  activo: boolean;
+  updated_at?: number;
+  updated_by?: string | null;
+}
+
+/** Seed / fallback si aún no cargó Supabase. */
+export const CATALOGO_UNIDADES_SEBIN_FALLBACK: MetaUnidadSebin[] = [
+  { clave: "dir_reg", label: "DIR. REG", valorDb: "DIR. REG - SEBIN", color: "#2563eb", orden: 10 },
   {
     clave: "dir_educacion",
     label: "DIR. EDUCACIÓN",
     valorDb: "DIR. EDUCACION - SEBIN",
     color: "#0891b2",
+    orden: 20,
   },
-  { clave: "dai", label: "DAI", valorDb: "DAI - SEBIN", color: "#0d9488" },
+  { clave: "dai", label: "DAI", valorDb: "DAI - SEBIN", color: "#0d9488", orden: 30 },
   {
     clave: "int_financ",
     label: "INT. FINANC.",
     valorDb: "INT. FINANC. - SEBIN",
     color: "#059669",
+    orden: 40,
   },
   {
     clave: "dir_secretaria",
     label: "DIR. SECRETARÍA",
     valorDb: "DIR. SECRETARIA - SEBIN",
     color: "#ca8a04",
+    orden: 50,
   },
   {
     clave: "dir_patrullaje",
     label: "DIR. PATRULLAJE",
     valorDb: "DIR. PATRULLAJE - SEBIN",
     color: "#d97706",
+    orden: 60,
   },
   {
     clave: "dir_control_adm",
     label: "DIR. CONTROL ADM.",
     valorDb: "DIR. CONTROL ADM. - SEBIN",
     color: "#ea580c",
+    orden: 70,
   },
   {
     clave: "dir_ciber_int",
     label: "DIR. CIBER INT.",
     valorDb: "DIR. CIBER INT. - SEBIN",
     color: "#7c3aed",
+    orden: 80,
   },
   {
     clave: "dir_contra_int",
     label: "DIR. CONTRA INT.",
     valorDb: "DIR. CONTRA INT. - SEBIN",
     color: "#db2777",
+    orden: 90,
   },
   {
     clave: "dir_contra_int_ortega",
     label: "DIR. CONTRA INT. (ORTEGA)",
     valorDb: "DIR. CONTRA INT. (ORTEGA) - SEBIN",
     color: "#e11d48",
+    orden: 100,
   },
-  { clave: "dir_int", label: "DIR. INT.", valorDb: "DIR. INT. - SEBIN", color: "#4f46e5" },
+  { clave: "dir_int", label: "DIR. INT.", valorDb: "DIR. INT. - SEBIN", color: "#4f46e5", orden: 110 },
   {
     clave: "control_educativo",
     label: "CONTROL EDUCATIVO",
     valorDb: "CONTROL EDUCATIVO - SEBIN",
     color: "#65a30d",
+    orden: 120,
   },
-  { clave: "sin_asignar", label: "Sin unidad", valorDb: "", color: "#64748b" },
+  { clave: "sin_asignar", label: "Sin unidad", valorDb: "", color: "#64748b", orden: 999 },
 ];
 
-export const META_UNIDAD_SEBIN: Record<ClaveUnidadSebin, MetaUnidadSebin> = Object.fromEntries(
-  CATALOGO_UNIDADES_SEBIN.map((u) => [u.clave, u]),
-) as Record<ClaveUnidadSebin, MetaUnidadSebin>;
+/** @deprecated Usar `getCatalogoUnidadesSebin()`. Se mantiene por compatibilidad. */
+export const CATALOGO_UNIDADES_SEBIN = CATALOGO_UNIDADES_SEBIN_FALLBACK;
 
-const MAPA_VALOR_DB: Record<string, ClaveUnidadSebin> = Object.fromEntries(
-  CATALOGO_UNIDADES_SEBIN.filter((u) => u.valorDb).map((u) => [
-    u.valorDb.trim().toLowerCase().replace(/\s+/g, " "),
-    u.clave,
-  ]),
-) as Record<string, ClaveUnidadSebin>;
+const META_SIN_ASIGNAR: MetaUnidadSebin = {
+  clave: "sin_asignar",
+  label: "Sin unidad",
+  valorDb: "",
+  color: "#64748b",
+  orden: 999,
+  activo: true,
+};
+
+let catalogoVivo: MetaUnidadSebin[] = [...CATALOGO_UNIDADES_SEBIN_FALLBACK];
+const listeners = new Set<() => void>();
+
+function notificar() {
+  for (const l of listeners) l();
+}
+
+/** Catálogo actual (vivo o fallback). Incluye inactivas para resolver datos viejos. */
+export function getCatalogoUnidadesSebin(): MetaUnidadSebin[] {
+  return catalogoVivo;
+}
+
+/** Solo unidades activas (selectores de asignación). Siempre incluye `sin_asignar`. */
+export function getCatalogoUnidadesSebinActivas(): MetaUnidadSebin[] {
+  const activas = catalogoVivo.filter((u) => u.activo !== false);
+  if (!activas.some((u) => u.clave === "sin_asignar")) {
+    return [...activas, META_SIN_ASIGNAR];
+  }
+  return activas;
+}
+
+/** Actualiza el caché en memoria (lo llama el hook tras leer Supabase). */
+export function setCatalogoUnidadesSebin(filas: MetaUnidadSebin[]): void {
+  const ordenadas = [...filas].sort(
+    (a, b) => (a.orden ?? 100) - (b.orden ?? 100) || a.label.localeCompare(b.label, "es"),
+  );
+  if (!ordenadas.some((u) => u.clave === "sin_asignar")) {
+    ordenadas.push(META_SIN_ASIGNAR);
+  }
+  catalogoVivo = ordenadas;
+  notificar();
+}
+
+/** Suscripción para que React re-renderice al cambiar el catálogo. */
+export function suscribirCatalogoUnidadesSebin(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function filaAMetaUnidad(f: UnidadSebinFila): MetaUnidadSebin {
+  return {
+    clave: f.clave,
+    label: f.label,
+    valorDb: f.valor_db ?? "",
+    color: f.color || "#64748b",
+    orden: f.orden ?? 100,
+    activo: f.activo !== false,
+  };
+}
+
+export const META_UNIDAD_SEBIN: Record<string, MetaUnidadSebin> = Object.fromEntries(
+  CATALOGO_UNIDADES_SEBIN_FALLBACK.map((u) => [u.clave, u]),
+);
 
 /** Normaliza el texto de unidad SEBIN a clave canónica. */
 export function normalizarUnidadSebin(raw: string | undefined | null): ClaveUnidadSebin {
   if (!raw?.trim()) return "sin_asignar";
   const limpio = raw.trim().toLowerCase().replace(/\s+/g, " ");
-  if (MAPA_VALOR_DB[limpio]) return MAPA_VALOR_DB[limpio];
+  const catalogo = getCatalogoUnidadesSebin();
+
+  // Match exacto por clave.
+  const porClave = catalogo.find((u) => u.clave === limpio || u.clave === raw.trim());
+  if (porClave) return porClave.clave;
+
+  // Match por valor_db.
+  for (const u of catalogo) {
+    if (!u.valorDb) continue;
+    const valor = u.valorDb.trim().toLowerCase().replace(/\s+/g, " ");
+    if (valor === limpio) return u.clave;
+  }
+
   const sinGuion = limpio.replace(/\s*-\s*sebin\s*$/, "").trim();
-  for (const u of CATALOGO_UNIDADES_SEBIN) {
+  for (const u of catalogo) {
     if (!u.valorDb) continue;
     const base = u.valorDb.toLowerCase().replace(/\s*-\s*sebin\s*$/, "").trim();
     if (sinGuion === base || limpio.includes(base)) return u.clave;
+    if (u.label.toLowerCase().replace(/\s+/g, " ") === sinGuion) return u.clave;
   }
   return "sin_asignar";
 }
 
 export function metaUnidadSebinDe(raw: string | undefined | null): MetaUnidadSebin {
-  return META_UNIDAD_SEBIN[normalizarUnidadSebin(raw)];
+  const clave = normalizarUnidadSebin(raw);
+  return (
+    getCatalogoUnidadesSebin().find((u) => u.clave === clave) ??
+    META_UNIDAD_SEBIN[clave] ??
+    META_SIN_ASIGNAR
+  );
+}
+
+/** Slug seguro para clave nueva a partir de una etiqueta. */
+export function slugUnidadSebin(label: string): string {
+  return label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_+/g, "_")
+    .slice(0, 62) || "unidad";
 }
 
 /** Logo SEBIN compartido por todas las unidades internas. */

@@ -1,0 +1,205 @@
+[
+  {
+    "id": "centro-67",
+    "nro": 67,
+    "origen": "CLM-01",
+    "nombre": "Escuela de Grumetes (Canes)",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-68",
+    "nro": 68,
+    "origen": "CLM-02",
+    "nombre": "Universidad Marítima del Caribe",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-69",
+    "nro": 69,
+    "origen": "CLM-03",
+    "nombre": "C.E.I. Manuel Gual",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-70",
+    "nro": 70,
+    "origen": "CLM-04",
+    "nombre": "U.E.N. Narciso Gonell",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-71",
+    "nro": 71,
+    "origen": "CLM-05",
+    "nombre": "Escuela Ángel Valero Hostos",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-72",
+    "nro": 72,
+    "origen": "CLM-06",
+    "nombre": "Complejo Educativo Antonio José de Sucre",
+    "tiene_coords": false
+  },
+  {
+    "id": "centro-73",
+    "nro": 73,
+    "origen": "CLM-07",
+    "nombre": "Campamento César Nieves",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-74",
+    "nro": 74,
+    "origen": "CLM-08",
+    "nombre": "U.E.N. Gustavo Olivares Bosques",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-75",
+    "nro": 75,
+    "origen": "URI-01",
+    "nombre": "Liceo Armando Reverón",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-76",
+    "nro": 76,
+    "origen": "URI-02",
+    "nombre": "Refugio para Niños y Niñas",
+    "tiene_coords": false
+  },
+  {
+    "id": "centro-77",
+    "nro": 77,
+    "origen": "URI-03",
+    "nombre": "Refugio para Adultos y Adultas Mayores (Escuela Santa Eduvigis)",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-78",
+    "nro": 78,
+    "origen": "URI-04",
+    "nombre": "E.N.B. Juan de Urpín",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-79",
+    "nro": 79,
+    "origen": "URI-05",
+    "nombre": "Estadio Miguel Montes",
+    "tiene_coords": false
+  },
+  {
+    "id": "centro-80",
+    "nro": 80,
+    "origen": "CSO-01",
+    "nombre": "Liceo Lorenzo González",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-81",
+    "nro": 81,
+    "origen": "CSO-02",
+    "nombre": "Unidad Educativa 10 de Marzo",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-82",
+    "nro": 82,
+    "origen": "CSO-03",
+    "nombre": "Polideportivo José María Vargas",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-83",
+    "nro": 83,
+    "origen": "MAI-01",
+    "nombre": "U.E.N. Juan Germán Roscio",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-84",
+    "nro": 84,
+    "origen": "MAI-02",
+    "nombre": "Liceo Licenciado Aranda",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-85",
+    "nro": 85,
+    "origen": "MAI-03",
+    "nombre": "E.B.E. Juan Aranaga",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-86",
+    "nro": 86,
+    "origen": "MAI-04",
+    "nombre": "E.N.B. Manuel Segundo Sánchez",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-87",
+    "nro": 87,
+    "origen": "LGU-01",
+    "nombre": "Complejo Educativo República de Panamá",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-88",
+    "nro": 88,
+    "origen": "LGU-02",
+    "nombre": "Escuela Estadal La Guaira",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-89",
+    "nro": 89,
+    "origen": "CAR-01",
+    "nombre": "Fundación Sol de Vargas",
+    "tiene_coords": false
+  },
+  {
+    "id": "centro-90",
+    "nro": 90,
+    "origen": "MAC-01",
+    "nombre": "Escuela Integral Básica Guaicamacuto",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-91",
+    "nro": 91,
+    "origen": "NAI-01",
+    "nombre": "Ciudad Vacacional Los Caracas",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-92",
+    "nro": 92,
+    "origen": "NAI-02",
+    "nombre": "Universidad Simón Bolívar – Sede Litoral (Camurí Grande)",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-93",
+    "nro": 93,
+    "origen": "CCS-01",
+    "nombre": "E.T.I. Rafael Vegas",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-94",
+    "nro": 94,
+    "origen": "CCS-02",
+    "nombre": "Escuela Nuestra América",
+    "tiene_coords": true
+  },
+  {
+    "id": "centro-95",
+    "nro": 95,
+    "origen": "CCS-03",
+    "nombre": "C.E.I. Paula María Nieves",
+    "tiene_coords": true
+  }
+]

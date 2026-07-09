@@ -175,16 +175,16 @@ export function migasPanDeRuta(
     return [INICIO, { label: "Gestión de usuarios" }];
   }
 
+  if (pathname === "/config/unidades-sebin" || pathname === "/config/sistema") {
+    return [INICIO, { label: "Unidades SEBIN" }];
+  }
+
   if (pathname === "/logs") {
     return [INICIO, { label: "Bitácora de acciones" }];
   }
 
   if (pathname === "/config/perfil") {
     return [INICIO, { label: "Preferencias de cuenta" }];
-  }
-
-  if (pathname === "/config/sistema") {
-    return [INICIO, { label: "Catálogos y parámetros" }];
   }
 
   return [INICIO];

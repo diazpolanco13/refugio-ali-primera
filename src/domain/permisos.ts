@@ -152,6 +152,11 @@ export function puedeCrearCentros(rol: Rol): boolean {
   return permisosDeRol(rol).puedeCrearCentros;
 }
 
+/** Catálogo de unidades internas SEBIN (crear/editar/eliminar). */
+export function puedeGestionarUnidadesSebin(rol: Rol): boolean {
+  return rol === "admin" || rol === "analista_sae";
+}
+
 /** Rol con centros asignados como ámbito operativo o de monitoreo. */
 export function rolUsaCentrosAsignados(rol: Rol): boolean {
   return rol === "analista_sae" || rol === "supervisor" || rol === "operador";

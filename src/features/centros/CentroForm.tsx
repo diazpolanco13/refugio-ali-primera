@@ -17,23 +17,29 @@ import {
 } from "lucide-react";
 import { nuevoId, guardarCentro, eliminarCentro } from "@/data/reposSupabase";
 import { subirFotoCentro, supabaseDisponible } from "@/data/supabase";
+import { useSupervisoresSebin } from "@/data/useSupervisoresSebin";
+import { useCatalogoUnidadesSebinActivas } from "@/data/useUnidadesSebin";
 import {
   CATALOGO_CUERPOS,
   ESTADOS_CENTRO,
+  META_CUERPO,
   normalizarCentro,
   normalizarCuerpo,
+  normalizarUnidadSebin,
   poblacionCentro,
   totalPersonalOperativo,
   personasLogistica,
   type CapacidadCentro,
   type CentroTransitorio,
   type ClaveCuerpo,
+  type ClaveUnidadSebin,
   type ContactoReporte,
   type EstadoCentro,
   type ItemRequerimiento,
   type PersonalCentro,
   type SeguridadCentro,
   type ServiciosCentro,
+  type SupervisionCentro,
 } from "@/domain/centrosTransitorios";
 import {
   CATEGORIAS_RESPONSABLE,
@@ -80,8 +86,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumInput } from "@/components/ui/num-input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+
+/** Valor sentinela de Select (Radix no admite value=""). */
+const SIN_ASIGNAR = "__sin_asignar__";
 
 interface Props {
   centro: CentroTransitorio;
@@ -98,7 +114,7 @@ interface Props {
 }
 
 /** Grupos logísticos válidos del listado de la red. */
-const GRUPOS_CENTRO = ["Área Metropolitana", "Gran Caracas"] as const;
+const GRUPOS_CENTRO = ["Área Metropolitana", "Gran Caracas", "La Guaira"] as const;
 
 type Pestana =
   | "identificacion"
@@ -159,12 +175,19 @@ export function CentroForm({
   onGuardado,
 }: Props) {
   const base = normalizarCentro(centro);
+  const { supervisores, cargando: cargandoSupervisores } = useSupervisoresSebin();
+  const catalogoUnidades = useCatalogoUnidadesSebinActivas();
 
   const [pestana, setPestana] = useState<Pestana>("identificacion");
   const [estado, setEstado] = useState<EstadoCentro>(base.estado);
   const [nombre, setNombre] = useState(base.nombre);
-  const [grupo, setGrupo] = useState(base.grupo || GRUPOS_CENTRO[0]);
+  const [grupo, setGrupo] = useState(
+    GRUPOS_CENTRO.includes(base.grupo as (typeof GRUPOS_CENTRO)[number])
+      ? base.grupo
+      : GRUPOS_CENTRO[0],
+  );
   const [cuerpo, setCuerpo] = useState(base.cuerpo ?? "");
+  const [supervision, setSupervision] = useState<SupervisionCentro>(base.supervision);
   const [parroquia, setParroquia] = useState(base.parroquia ?? "");
   const [direccion, setDireccion] = useState(base.direccion ?? "");
   const [mapsUrl, setMapsUrl] = useState(base.mapsUrl ?? "");
@@ -301,6 +324,10 @@ export function CentroForm({
         nombre: nombre.trim(),
         grupo,
         cuerpo,
+        supervision: {
+          unidad_sebin: supervision.unidad_sebin.trim(),
+          supervisor_sebin: supervision.supervisor_sebin.trim(),
+        },
         parroquia: parroquia.trim(),
         direccion: direccion.trim(),
         mapsUrl: mapsUrl.trim(),
@@ -634,42 +661,152 @@ export function CentroForm({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="centro-grupo">Grupo</Label>
-                <select
-                  id="centro-grupo"
-                  className="mt-1.5 h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30"
-                  value={grupo}
-                  disabled={soloLectura}
-                  onChange={(e) => setGrupo(e.target.value)}
-                >
+            <div>
+              <Label htmlFor="centro-grupo">Grupo</Label>
+              <Select
+                value={grupo}
+                disabled={soloLectura}
+                onValueChange={setGrupo}
+              >
+                <SelectTrigger id="centro-grupo" className="mt-1.5 w-full">
+                  <SelectValue placeholder="Grupo logístico" />
+                </SelectTrigger>
+                <SelectContent>
                   {GRUPOS_CENTRO.map((g) => (
-                    <option key={g} value={g}>
+                    <SelectItem key={g} value={g}>
                       {g}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
-              </div>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
               <div>
-                <Label htmlFor="centro-cuerpo">Cuerpo asignado</Label>
-                <select
-                  id="centro-cuerpo"
-                  className="mt-1.5 h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30"
+                <p className="text-xs font-semibold text-foreground">Asignación operativa</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Cuerpo → unidad interna SEBIN → funcionario de revista rotatoria
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="centro-cuerpo">1 · Cuerpo policial</Label>
+                <Select
                   value={normalizarCuerpo(cuerpo)}
                   disabled={soloLectura}
-                  onChange={(e) => {
-                    const clave = e.target.value as ClaveCuerpo;
-                    const meta = CATALOGO_CUERPOS.find((c) => c.clave === clave);
+                  onValueChange={(clave) => {
+                    const meta = META_CUERPO[clave as ClaveCuerpo];
                     setCuerpo(clave === "sin_asignar" ? "" : meta?.label ?? "");
                   }}
                 >
-                  {CATALOGO_CUERPOS.map((c) => (
-                    <option key={c.clave} value={c.clave}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="centro-cuerpo" className="mt-1.5 w-full">
+                    <SelectValue placeholder="Sin asignar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATALOGO_CUERPOS.map((c) => (
+                      <SelectItem key={c.clave} value={c.clave}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="centro-unidad-sebin">2 · Unidad interna SEBIN</Label>
+                <Select
+                  value={normalizarUnidadSebin(supervision.unidad_sebin)}
+                  disabled={soloLectura}
+                  onValueChange={(clave) => {
+                    const meta = catalogoUnidades.find(
+                      (u) => u.clave === (clave as ClaveUnidadSebin),
+                    );
+                    setSupervision((prev) => ({
+                      ...prev,
+                      unidad_sebin: meta?.valorDb ?? "",
+                    }));
+                  }}
+                >
+                  <SelectTrigger id="centro-unidad-sebin" className="mt-1.5 w-full">
+                    <SelectValue placeholder="Sin unidad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {catalogoUnidades.map((u) => (
+                      <SelectItem key={u.clave} value={u.clave}>
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="size-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: u.color }}
+                            aria-hidden
+                          />
+                          {u.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Catálogo en Configuración → Unidades SEBIN.
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="centro-supervisor">3 · Funcionario SEBIN (revista)</Label>
+                <Select
+                  value={
+                    supervision.supervisor_sebin.trim()
+                      ? supervision.supervisor_sebin.trim()
+                      : SIN_ASIGNAR
+                  }
+                  disabled={soloLectura || cargandoSupervisores}
+                  onValueChange={(valor) => {
+                    if (valor === SIN_ASIGNAR) {
+                      setSupervision((prev) => ({ ...prev, supervisor_sebin: "" }));
+                      return;
+                    }
+                    const elegido = supervisores.find(
+                      (s) => s.username === valor || s.nombre === valor,
+                    );
+                    setSupervision((prev) => ({
+                      ...prev,
+                      supervisor_sebin: elegido?.nombre ?? valor,
+                    }));
+                  }}
+                >
+                  <SelectTrigger id="centro-supervisor" className="mt-1.5 w-full">
+                    <SelectValue
+                      placeholder={
+                        cargandoSupervisores ? "Cargando supervisores…" : "Sin asignar"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={SIN_ASIGNAR}>Sin asignar</SelectItem>
+                    {(() => {
+                      const actual = supervision.supervisor_sebin.trim();
+                      const enLista =
+                        !actual ||
+                        supervisores.some(
+                          (s) => s.nombre === actual || s.username === actual,
+                        );
+                      return (
+                        <>
+                          {!enLista && actual && (
+                            <SelectItem value={actual}>{actual} (actual)</SelectItem>
+                          )}
+                          {supervisores.map((s) => (
+                            <SelectItem key={s.username} value={s.nombre}>
+                              {s.nombre}
+                            </SelectItem>
+                          ))}
+                        </>
+                      );
+                    })()}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Usuarios con rol supervisor. Si no aparece, créalo en Gestión de usuarios.
+                </p>
               </div>
             </div>
 

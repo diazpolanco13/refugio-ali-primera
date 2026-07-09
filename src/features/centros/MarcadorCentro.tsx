@@ -14,6 +14,11 @@ interface Props {
   seleccionado: boolean;
   /** Si false, el marcador se muestra gris (filtro por otra dirección). */
   resaltado?: boolean;
+  /**
+   * Cuando hay un filtro de dirección activo y este marcador está resaltado,
+   * el núcleo muestra "?" en lugar del N.°.
+   */
+  simboloFiltro?: boolean;
   mostrarParte: boolean;
   /** Damnificados alojados. */
   refugiados?: number;
@@ -59,17 +64,19 @@ function SemaforoEstado({ color }: { color: string }) {
   );
 }
 
-/** Núcleo circular con el N.° del campamento. */
+/** Núcleo circular con el N.° del campamento (o "?" si hay filtro activo). */
 function NucleoNumero({
   nro,
   color,
   resaltado,
   seleccionado,
+  simboloFiltro = false,
 }: {
   nro: number;
   color: string;
   resaltado: boolean;
   seleccionado: boolean;
+  simboloFiltro?: boolean;
 }) {
   return (
     <span
@@ -80,8 +87,13 @@ function NucleoNumero({
       )}
       style={{ backgroundColor: color }}
     >
-      <span className="text-[9px] font-bold leading-none tabular-nums text-white">
-        {nro}
+      <span
+        className={cn(
+          "font-bold leading-none text-white",
+          simboloFiltro ? "text-[11px]" : "text-[9px] tabular-nums",
+        )}
+      >
+        {simboloFiltro ? "?" : nro}
       </span>
     </span>
   );
@@ -96,6 +108,7 @@ export function MarcadorCentro({
   color,
   seleccionado,
   resaltado = true,
+  simboloFiltro = false,
   mostrarParte,
   refugiados = 0,
   personalTotal = 0,
@@ -103,6 +116,7 @@ export function MarcadorCentro({
   onClick,
 }: Props) {
   const colorMarcador = resaltado ? color : COLOR_MARCADOR_ATENUADO;
+  const mostrarSimbolo = simboloFiltro && resaltado;
   const titulo =
     `N.° ${nro} · ${refugiados.toLocaleString("es")} damnificados · ${personalTotal.toLocaleString("es")} personal operativo`;
 
@@ -117,7 +131,7 @@ export function MarcadorCentro({
         className={cn(
           "relative cursor-pointer select-none transition-all duration-300",
           seleccionado && resaltado && "scale-125",
-          !resaltado && "scale-90 opacity-50",
+          !resaltado && "scale-90 opacity-25",
         )}
         title={titulo}
         onClick={manejarClick}
@@ -136,6 +150,7 @@ export function MarcadorCentro({
               color={colorMarcador}
               resaltado={resaltado}
               seleccionado={seleccionado}
+              simboloFiltro={mostrarSimbolo}
             />
           </div>
           {mostrarParte && resaltado && (
@@ -170,8 +185,13 @@ export function MarcadorCentro({
         style={{ backgroundColor: colorMarcador }}
         aria-hidden
       >
-        <span className="text-[8px] font-bold leading-none tabular-nums text-white">
-          {nro}
+        <span
+          className={cn(
+            "font-bold leading-none text-white",
+            mostrarSimbolo ? "text-[9px]" : "text-[8px] tabular-nums",
+          )}
+        >
+          {mostrarSimbolo ? "?" : nro}
         </span>
       </span>
     </span>
@@ -183,7 +203,7 @@ export function MarcadorCentro({
         className={cn(
           "relative cursor-pointer select-none transition-all duration-300",
           seleccionado && resaltado && "scale-110",
-          !resaltado && "scale-90 opacity-45 grayscale",
+          !resaltado && "scale-90 opacity-25 grayscale",
         )}
         title={titulo}
         onClick={manejarClick}
@@ -207,7 +227,7 @@ export function MarcadorCentro({
       className={cn(
         "relative cursor-pointer select-none transition-all duration-300",
         seleccionado && resaltado && "scale-110",
-        !resaltado && "scale-90 opacity-45 grayscale",
+        !resaltado && "scale-90 opacity-25 grayscale",
       )}
       title={titulo}
       onClick={manejarClick}

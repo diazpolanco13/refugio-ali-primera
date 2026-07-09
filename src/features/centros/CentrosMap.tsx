@@ -346,8 +346,8 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       vistos.add(c.id);
       const metaUnidad = metaUnidadSebinCentro(c);
       const claveUnidad = unidadSebinDe(c);
-      const resaltado =
-        cbRef.current.unidadFiltro == null || cbRef.current.unidadFiltro === claveUnidad;
+      const hayFiltro = cbRef.current.unidadFiltro != null;
+      const resaltado = !hayFiltro || cbRef.current.unidadFiltro === claveUnidad;
       let marcador = marcadores.current.get(c.id);
       if (!marcador) {
         const anchor = document.createElement("div");
@@ -359,6 +359,10 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
         marcador.addTo(map);
         marcadores.current.set(c.id, marcador);
       }
+      // Los atenuados van detrás para que la dirección filtrada quede al frente.
+      const el = marcador.getElement();
+      el.style.zIndex = resaltado ? "2" : "1";
+      el.style.pointerEvents = resaltado || !hayFiltro ? "auto" : "none";
       const analisis = analisisCentro(c);
       const refugiados = poblacionCentro(c);
       const personalTotal = totalPersonalOperativo(normalizarCentro(c).personal);
@@ -371,6 +375,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
           color={metaUnidad.color}
           seleccionado={cbRef.current.seleccionado === c.id}
           resaltado={resaltado}
+          simboloFiltro={hayFiltro && resaltado}
           mostrarParte={cbRef.current.mostrarParteMarcador}
           refugiados={refugiados}
           personalTotal={personalTotal}

@@ -256,6 +256,14 @@ export function SeccionIdentificacionCentro({ centro }: SeccionProps) {
             <span className="text-[11px] font-medium text-foreground">{metaUnidad.label}</span>
           </div>
         )}
+        {c.supervision.supervisor_sebin.trim() && (
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5">
+            <span className="text-[11px] text-muted-foreground">Revista:</span>
+            <span className="text-[11px] font-medium text-foreground">
+              {c.supervision.supervisor_sebin.trim()}
+            </span>
+          </div>
+        )}
       </div>
       <div className="space-y-0.5 text-xs text-muted-foreground">
         {ubicacion && <p>{ubicacion}</p>}
