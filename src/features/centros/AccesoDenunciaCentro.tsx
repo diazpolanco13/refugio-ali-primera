@@ -1,6 +1,7 @@
 // QR y enlace público de denuncias/sugerencias del campamento (token tipo
-// `publico` → /denuncia). Solo lo ven admin/analista_sae: la RLS de
-// `tokens_centros` oculta el token al resto. El QR se genera en el navegador.
+// `publico` → /denuncia). Lo ven admin, analista SAE y supervisores (estos
+// últimos solo en sus campamentos asignados vía RLS). El QR se genera en el
+// navegador.
 
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";

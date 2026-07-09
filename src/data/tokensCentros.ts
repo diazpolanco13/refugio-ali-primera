@@ -1,6 +1,7 @@
 // Tokens de terreno por campamento (tabla `tokens_centros`, ver
-// supabase/tokens_terreno.sql). La RLS solo deja leerlos a admin/analista_sae:
-// para el resto de roles el select devuelve vacío y la UI oculta la sección.
+// supabase/tokens_terreno.sql). Admin/analista_sae leen todos; el supervisor
+// solo el token 'publico' de sus campamentos (QR de denuncias). Para el resto
+// el select devuelve vacío y la UI oculta la sección.
 
 import { supabase } from "./supabaseClient";
 
