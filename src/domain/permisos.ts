@@ -219,6 +219,11 @@ export function puedeVerSaludMental(rol: Rol): boolean {
   return rol !== "autoridad";
 }
 
+/** Vista global /centros/refugiados (población nominal de la red). */
+export function puedeVerPoblacionRed(rol: Rol): boolean {
+  return rol !== "supervisor" && rol !== "operador" && rol !== "censo_rapido";
+}
+
 /** Rol restringido a mapa + censo rápido (sin resto del menú). */
 export function esRolCensoRapido(rol: Rol): boolean {
   return rol === "censo_rapido";
@@ -247,7 +252,7 @@ export function rutaInicialDeRol(rol: Rol): string {
   return esRolTerreno(rol) ? "/centros/reportes" : "/centros/mapa";
 }
 
-/** Rutas permitidas para los roles restringidos (censo_rapido y operador). */
+/** Rutas permitidas para los roles restringidos (censo_rapido, operador, supervisor). */
 export function rutaPermitidaParaRol(pathname: string, rol: Rol): boolean {
   if (esRolCensoRapido(rol)) {
     return (
@@ -262,6 +267,9 @@ export function rutaPermitidaParaRol(pathname: string, rol: Rol): boolean {
       pathname === "/centros/reportes" ||
       pathname.startsWith("/centros/reportes/")
     );
+  }
+  if (rol === "supervisor" && pathname.startsWith("/centros/refugiados")) {
+    return false;
   }
   return true;
 }

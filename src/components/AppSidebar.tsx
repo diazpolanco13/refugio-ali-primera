@@ -23,6 +23,7 @@ import {
   puedeVerCensoRapidoRed,
   puedeVerLogs,
   puedeVerPapeleraDenuncias,
+  puedeVerPoblacionRed,
   esRolCensoRapido,
   esRolTerreno,
 } from "@/domain/permisos";
@@ -230,6 +231,7 @@ function NavContenido({ sesion }: Props) {
   const veLogs = puedeVerLogs(sesion.user.rol);
   const vePapeleraDenuncias = puedeVerPapeleraDenuncias(sesion.user.rol);
   const veCensoRed = puedeVerCensoRapidoRed(sesion.user.rol);
+  const vePoblacionRed = puedeVerPoblacionRed(sesion.user.rol);
   const centroIdRuta = centroIdDePathname(location.pathname);
   const veCensoFicha =
     centroIdRuta != null && puedeVerCensoCentro(sesion.user, centroIdRuta);
@@ -340,12 +342,14 @@ function NavContenido({ sesion }: Props) {
                 activo={rutaActiva(pathname, "/centros/censo-rapido")}
               />
             )}
-            <ItemMenu
-              to="/centros/refugiados"
-              icono={Users}
-              label="Población (red)"
-              activo={rutaActiva(pathname, "/centros/refugiados")}
-            />
+            {vePoblacionRed && (
+              <ItemMenu
+                to="/centros/refugiados"
+                icono={Users}
+                label="Población (red)"
+                activo={rutaActiva(pathname, "/centros/refugiados")}
+              />
+            )}
             <ItemEnDesarrollo icono={Truck} label="Traslados entre campamentos" />
           </SidebarMenu>
         </SidebarGroupContent>
