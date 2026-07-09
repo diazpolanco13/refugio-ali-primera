@@ -77,7 +77,11 @@ function formatearDia(dia: string): string {
 
 type Vista = "red" | "grupos";
 
-export function GraficoOcupacionRed() {
+/**
+ * @param flexible Si es true, el gráfico llena la altura disponible del
+ * contenedor (para la sala situacional sin scroll) en vez de la altura fija.
+ */
+export function GraficoOcupacionRed({ flexible = false }: { flexible?: boolean } = {}) {
   const snapshots = useOcupacionesCentros();
   const filasCentros = useSupabaseQuery<FilaCentroBlob>("centros");
   const centros = useMemo(() => desenredarCentros(filasCentros), [filasCentros]);
@@ -110,9 +114,11 @@ export function GraficoOcupacionRed() {
 
   const ultimo = serieRed[serieRed.length - 1];
 
+  const claseChart = flexible ? "min-h-0 w-full flex-1" : "h-[220px] w-full";
+
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className={cn(flexible ? "flex h-full min-h-0 flex-col gap-3" : "space-y-3")}>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           <span>
             Último:{" "}
@@ -159,7 +165,7 @@ export function GraficoOcupacionRed() {
       </div>
 
       {vista === "red" ? (
-        <ChartContainer config={configRed} className="h-[220px] w-full">
+        <ChartContainer config={configRed} className={claseChart}>
           <AreaChart data={serieRed} margin={{ left: 4, right: 12, top: 8, bottom: 0 }}>
             <defs>
               <linearGradient id="gradOcupRed" x1="0" y1="0" x2="0" y2="1">
@@ -202,7 +208,7 @@ export function GraficoOcupacionRed() {
           </AreaChart>
         </ChartContainer>
       ) : (
-        <ChartContainer config={configGrupo} className="h-[220px] w-full">
+        <ChartContainer config={configGrupo} className={claseChart}>
           <LineChart data={serieGrupos} margin={{ left: 4, right: 12, top: 8, bottom: 0 }}>
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
             <XAxis
