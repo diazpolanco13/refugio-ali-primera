@@ -1,14 +1,21 @@
-// Tarjetas de alerta del día: reporte, incidencias del reporte y agua.
+// Tarjetas de seguimiento del día: reporte, salud, trabajos y déficit de infraestructura.
 
 import { useMemo } from "react";
-import { ClipboardCheck, Droplets, Stethoscope } from "lucide-react";
+import {
+  ClipboardCheck,
+  HardHat,
+  Stethoscope,
+  TriangleAlert,
+  Wrench,
+} from "lucide-react";
 import { claveDia } from "@/data/reposSupabase";
 import { useReportesCentros } from "@/data/useReportesCentros";
 import { useReportesControlDia } from "@/data/useReportesControlDia";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
-import { analisisCentro, COLOR_ESTADO_AGUA } from "@/domain/capacidadCentros";
+import { useReparacionesCentros } from "@/data/useReparacionesCentros";
+import { alertasCentro } from "@/domain/capacidadCentros";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { controlReportado, reporteControlDelDia } from "@/domain/controlReporte";
 import {
@@ -17,6 +24,7 @@ import {
   META_ESTADO_REPORTE,
   reporteDelDia,
 } from "@/domain/reporteDiario";
+import { reparacionesPendientes } from "@/domain/reparaciones";
 import { casosSaludPendientes } from "@/domain/seguimientoReportes";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +76,7 @@ function TarjetaAlerta({
       </div>
       <p
         className={cn(
-          "mt-1 truncate text-[11px]",
+          "mt-1 line-clamp-2 text-[11px]",
           alerta ? "text-foreground" : "text-muted-foreground",
         )}
         style={alerta && colorAlerta ? { color: colorAlerta } : undefined}
@@ -79,7 +87,7 @@ function TarjetaAlerta({
   );
 }
 
-/** Tres alertas clicables del día: reporte, incidencias del reporte y agua. */
+/** Cuatro alertas clicables: reporte hoy, salud, trabajos y déficit de infraestructura. */
 export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
   const hoy = useMemo(() => claveDia(Date.now()), []);
   const desde = useMemo(() => {
@@ -94,13 +102,13 @@ export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
   const { eventos } = useEventosReportes({ centroId: centro.id, desde });
   const snapshots = useOcupacionesCentros({ centroId: centro.id, desde });
   const { casos } = useCasosSaludCentros({ centroId: centro.id, soloActivos: true });
+  const { trabajos } = useReparacionesCentros({ centroId: centro.id, soloActivos: true });
 
   const reporteHoy = reporteDelDia(reportes, centro.id, hoy);
   const snapshotHoy = snapshots.find((s) => s.dia === hoy);
   const parteNumerico = Boolean(snapshotHoy);
   const controlHoy = reporteControlDelDia(controles, centro.id, hoy);
   const eventosHoy = eventos.filter((e) => e.dia === hoy);
-  const negativasHoy = eventosHoy.filter((e) => e.tipo === "negativo").length;
   const estadoReporte = estadoReporteDia(reporteHoy, parteNumerico, {
     controlRevisado: controlReportado(controlHoy),
     trabajosRevisados: reporteHoy?.trabajos_revisados ?? false,
@@ -128,32 +136,34 @@ export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
   }
 
   const casosActivos = casosSaludPendientes(casos);
-  const incidenciasAlerta = casosActivos.length > 0 || negativasHoy > 0;
-  const detalleIncidencias =
+  const saludAlerta = casosActivos.length > 0;
+  const detalleSalud =
     casosActivos.length > 0
-      ? `${casosActivos.length} caso${casosActivos.length === 1 ? "" : "s"} de salud activo${casosActivos.length === 1 ? "" : "s"}`
-      : negativasHoy > 0
-        ? `${negativasHoy} novedad${negativasHoy === 1 ? "" : "es"} negativa${negativasHoy === 1 ? "" : "s"} hoy`
-        : eventosHoy.length > 0
-          ? `${eventosHoy.length} novedad${eventosHoy.length === 1 ? "" : "es"} hoy`
-          : "Sin incidencias activas";
+      ? `${casosActivos.length} caso${casosActivos.length === 1 ? "" : "s"} activo${casosActivos.length === 1 ? "" : "s"}`
+      : "Sin casos activos";
 
-  const analisis = analisisCentro(centro);
-  const agua = analisis.agua;
-  const aguaAlerta =
-    !agua.medido || agua.estado === "critico" || agua.estado === "atencion";
-  const colorAgua = COLOR_ESTADO_AGUA[agua.estado];
-  let detalleAgua = agua.recomendacion;
-  if (agua.medido && agua.autonomiaDias != null) {
-    const dias =
-      agua.autonomiaDias < 1
-        ? "< 1 día"
-        : `~${Math.floor(agua.autonomiaDias)} día${Math.floor(agua.autonomiaDias) === 1 ? "" : "s"}`;
-    detalleAgua = `Autonomía ${dias} · ${agua.recomendacion}`;
+  const trabajosPendientes = reparacionesPendientes(trabajos);
+  const trabajosAlerta = trabajosPendientes.length > 0;
+  const detalleTrabajos =
+    trabajosPendientes.length > 0
+      ? `${trabajosPendientes.length} trabajo${trabajosPendientes.length === 1 ? "" : "s"} pendiente${trabajosPendientes.length === 1 ? "" : "s"}`
+      : "Sin trabajos pendientes";
+
+  const deficits = alertasCentro(centro);
+  const deficitsRojos = deficits.filter((d) => d.severidad === "rojo");
+  const deficitAlerta = deficits.length > 0;
+  const colorDeficit = deficitsRojos.length > 0 ? "#ef4444" : "#f59e0b";
+  let detalleDeficit = "Sin déficits de infraestructura";
+  if (deficits.length > 0) {
+    const etiquetas = deficits.slice(0, 3).map((d) => d.label);
+    detalleDeficit =
+      deficits.length <= 3
+        ? etiquetas.join(" · ")
+        : `${etiquetas.join(" · ")} · +${deficits.length - 3}`;
   }
 
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
       <TarjetaAlerta
         titulo="Reporte hoy"
         icono={<ClipboardCheck className="size-4" />}
@@ -163,19 +173,27 @@ export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
         onClick={onIrAPestana ? () => onIrAPestana("reporte") : undefined}
       />
       <TarjetaAlerta
-        titulo="Seguimiento"
+        titulo="Casos de salud"
         icono={<Stethoscope className="size-4" />}
-        detalle={detalleIncidencias}
-        alerta={incidenciasAlerta}
-        colorAlerta={casosActivos.length > 0 ? "#ef4444" : "#f59e0b"}
+        detalle={detalleSalud}
+        alerta={saludAlerta}
+        colorAlerta="#ef4444"
         onClick={onIrAPestana ? () => onIrAPestana("incidencias") : undefined}
       />
       <TarjetaAlerta
-        titulo="Agua"
-        icono={<Droplets className="size-4" />}
-        detalle={detalleAgua}
-        alerta={aguaAlerta}
-        colorAlerta={colorAgua}
+        titulo="Trabajos"
+        icono={<Wrench className="size-4" />}
+        detalle={detalleTrabajos}
+        alerta={trabajosAlerta}
+        colorAlerta="#f59e0b"
+        onClick={onIrAPestana ? () => onIrAPestana("infraestructura") : undefined}
+      />
+      <TarjetaAlerta
+        titulo="Déficit infra."
+        icono={deficitAlerta ? <TriangleAlert className="size-4" /> : <HardHat className="size-4" />}
+        detalle={detalleDeficit}
+        alerta={deficitAlerta}
+        colorAlerta={colorDeficit}
         onClick={onIrAPestana ? () => onIrAPestana("infraestructura") : undefined}
       />
     </div>

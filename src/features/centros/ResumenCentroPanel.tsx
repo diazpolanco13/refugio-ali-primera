@@ -1,17 +1,10 @@
-// Pestaña Resumen de la ficha del centro: KPIs, alertas del día, identificación,
-// novedades/notas y accesos rápidos a otras pestañas.
+// Pestaña Resumen de la ficha del centro: foto compacta, KPIs, seguimiento del día,
+// identificación, acceso de terreno y alertas de servicios.
 
-import { useMemo } from "react";
-import {
-  AlertTriangle,
-  BarChart3,
-  ClipboardList,
-  HardHat,
-  Siren,
-  Users,
-  UtensilsCrossed,
-} from "lucide-react";
-import { claveDia } from "@/data/reposSupabase";
+import { useMemo, useRef, useState } from "react";
+import { AlertTriangle, Camera, ImagePlus, Loader2, Trash2 } from "lucide-react";
+import { claveDia, guardarCentro } from "@/data/reposSupabase";
+import { subirFotoCentro, supabaseDisponible } from "@/data/supabase";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import {
   normalizarCentro,
@@ -27,7 +20,6 @@ import { cn } from "@/lib/utils";
 import {
   SeccionFotoCentro,
   SeccionIdentificacionCentro,
-  SeccionNovedadesNotasCentro,
 } from "./DetalleCentro";
 import { AlertasDelDiaCentro, type VistaFichaCentro } from "./AlertasDelDiaCentro";
 import { AccesoTerrenoCentro } from "./AccesoTerrenoCentro";
@@ -36,6 +28,7 @@ import { ultimoSnapshotAntes } from "./ParteNumericoResumen";
 
 interface Props {
   centro: CentroTransitorio;
+  puedeEditar?: boolean;
   onIrAPestana: (vista: VistaFichaCentro) => void;
 }
 
@@ -98,17 +91,17 @@ function KpisResumen({ centro }: { centro: CentroTransitorio }) {
   ];
 
   return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="min-w-0 space-y-2">
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
         {items.map((item) => (
           <div
             key={item.etiqueta}
-            className="rounded-xl border border-border bg-card px-3 py-2.5 text-center"
+            className="rounded-lg border border-border bg-card px-2 py-2 text-center sm:px-3 sm:py-2.5"
           >
             <div className="flex items-baseline justify-center gap-1">
               <div
                 className={cn(
-                  "text-xl font-bold tabular-nums leading-none text-foreground",
+                  "text-lg font-bold tabular-nums leading-none text-foreground sm:text-xl",
                   item.clase,
                 )}
                 style={item.esCupo ? { color: item.color } : undefined}
@@ -129,16 +122,6 @@ function KpisResumen({ centro }: { centro: CentroTransitorio }) {
         <Badge variant="outline" className="border-amber-500/40 text-[10px] text-amber-500">
           Censo demográfico en proceso
         </Badge>
-      )}
-      {(analisis.refugiados > 0 || analisis.personal > 0) && (
-        <p className="text-center text-[10px] text-muted-foreground">
-          {analisis.refugiados.toLocaleString("es")} damnificados
-          {analisis.personal > 0 && (
-            <> + {analisis.personal.toLocaleString("es")} personal</>
-          )}
-          {" · "}
-          {analisis.personasLogistica.toLocaleString("es")} total logístico
-        </p>
       )}
     </div>
   );
@@ -188,62 +171,173 @@ function ChipAlertaServicios({
   );
 }
 
-const ENLACES: {
-  vista: VistaFichaCentro;
-  label: string;
-  icono: React.ReactNode;
-}[] = [
-  { vista: "coordinacion", label: "Coordinación", icono: <ClipboardList className="size-3.5" /> },
-  { vista: "poblacion", label: "Población", icono: <Users className="size-3.5" /> },
-  { vista: "reporte", label: "Reporte", icono: <UtensilsCrossed className="size-3.5" /> },
-  { vista: "incidencias", label: "Seguimiento", icono: <Siren className="size-3.5" /> },
-  { vista: "infraestructura", label: "Infraestructura", icono: <HardHat className="size-3.5" /> },
-];
-
-/** Botones de acceso rápido al resto de pestañas. */
-function EnlacesRapidos({
-  onIrAPestana,
+/** Foto editable desde Resumen: clic para subir/cambiar, se guarda al instante. */
+function FotoCentroEditable({
+  centro,
+  puedeEditar,
 }: {
-  onIrAPestana: (vista: VistaFichaCentro) => void;
+  centro: CentroTransitorio;
+  puedeEditar: boolean;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [subiendo, setSubiendo] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const c = normalizarCentro(centro);
+  const hayFoto = Boolean(c.foto_url);
+  const hayStorage = supabaseDisponible();
+  const editable = puedeEditar && hayStorage && !subiendo;
+
+  async function persistirFoto(url: string) {
+    await guardarCentro({ ...centro, foto_url: url });
+  }
+
+  async function onArchivo(file: File) {
+    if (!editable) return;
+    setError(null);
+    setSubiendo(true);
+    try {
+      const url = await subirFotoCentro(centro.id, file);
+      await persistirFoto(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo subir la foto.");
+    } finally {
+      setSubiendo(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  async function quitarFoto() {
+    if (!puedeEditar || subiendo) return;
+    setError(null);
+    setSubiendo(true);
+    try {
+      await persistirFoto("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo quitar la foto.");
+    } finally {
+      setSubiendo(false);
+    }
+  }
+
   return (
-    <div className="rounded-xl border border-border bg-muted/20 p-3">
-      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-foreground">
-        <BarChart3 className="size-3.5" />
-        Accesos rápidos
-      </p>
-      <div className="flex flex-wrap gap-2">
-        {ENLACES.map(({ vista, label, icono }) => (
-          <Button
-            key={vista}
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1.5 text-xs"
-            onClick={() => onIrAPestana(vista)}
-          >
-            {icono}
-            {label}
-          </Button>
-        ))}
+    <div className="flex h-full min-h-0 flex-col gap-1.5">
+      <div
+        className={cn(
+          "relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/20",
+          editable && "group",
+        )}
+      >
+        {hayFoto ? (
+          <img
+            src={c.foto_url}
+            alt={centro.nombre}
+            className="size-full object-cover"
+          />
+        ) : (
+          <div className="flex size-full flex-col items-center justify-center gap-1.5 px-2 text-center">
+            {subiendo ? (
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            ) : (
+              <ImagePlus className="size-5 text-muted-foreground/70" />
+            )}
+            <span className="text-[10px] leading-tight text-muted-foreground sm:text-xs">
+              {subiendo ? "Subiendo…" : "Sin foto"}
+            </span>
+          </div>
+        )}
+
+        {subiendo && hayFoto && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/45">
+            <Loader2 className="size-5 animate-spin text-white" />
+          </div>
+        )}
+
+        {editable && (
+          <>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void onArchivo(file);
+              }}
+            />
+            <button
+              type="button"
+              className={cn(
+                "absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/0 text-white transition-colors",
+                "hover:bg-black/45 focus-visible:bg-black/45 focus-visible:outline-none",
+                !hayFoto && "bg-transparent hover:bg-black/25",
+              )}
+              onClick={() => inputRef.current?.click()}
+              aria-label={hayFoto ? "Cambiar foto del campamento" : "Añadir foto del campamento"}
+            >
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-medium backdrop-blur-sm",
+                  hayFoto
+                    ? "opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                    : "opacity-100",
+                )}
+              >
+                <Camera className="size-3.5" />
+                {hayFoto ? "Cambiar foto" : "Añadir foto"}
+              </span>
+            </button>
+            {hayFoto && (
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="secondary"
+                className="absolute right-1.5 top-1.5 z-10 size-7 bg-black/55 text-white hover:bg-black/70"
+                title="Quitar foto"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void quitarFoto();
+                }}
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            )}
+          </>
+        )}
       </div>
+      {!hayStorage && puedeEditar && (
+        <p className="text-[10px] text-amber-400">
+          Subida desactivada: falta configurar Supabase.
+        </p>
+      )}
+      {error && <p className="text-[10px] text-destructive">{error}</p>}
     </div>
   );
 }
 
 /** Composición de la pestaña Resumen. */
-export function ResumenCentroPanel({ centro, onIrAPestana }: Props) {
+export function ResumenCentroPanel({ centro, puedeEditar = false, onIrAPestana }: Props) {
   return (
     <div className="space-y-4">
-      <SeccionFotoCentro centro={centro} />
-      <KpisResumen centro={centro} />
-      <ProgresoCensoPoblacion centro={centro} />
-      <AlertasDelDiaCentro centro={centro} onIrAPestana={onIrAPestana} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4 sm:items-stretch">
+        <div className="sm:col-span-1">
+          {puedeEditar ? (
+            <FotoCentroEditable centro={centro} puedeEditar />
+          ) : (
+            <SeccionFotoCentro
+              centro={centro}
+              className="h-full max-h-40 sm:max-h-none sm:aspect-auto"
+            />
+          )}
+        </div>
+        <div className="flex min-w-0 flex-col gap-2 sm:col-span-3">
+          <KpisResumen centro={centro} />
+          <ProgresoCensoPoblacion centro={centro} compacto />
+          <AlertasDelDiaCentro centro={centro} onIrAPestana={onIrAPestana} />
+        </div>
+      </div>
       <SeccionIdentificacionCentro centro={centro} />
       <AccesoTerrenoCentro centro={centro} />
       <ChipAlertaServicios centro={centro} onIrAPestana={onIrAPestana} />
-      <SeccionNovedadesNotasCentro centro={centro} />
-      <EnlacesRapidos onIrAPestana={onIrAPestana} />
     </div>
   );
 }

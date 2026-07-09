@@ -183,16 +183,28 @@ export function BadgesEstadoCentro({ centro }: SeccionProps) {
   );
 }
 
-/** Foto del centro (o placeholder si no hay). */
-export function SeccionFotoCentro({ centro }: SeccionProps) {
+/** Foto del centro: llena su columna (cuadrado) sin estirarse a todo el ancho. */
+export function SeccionFotoCentro({
+  centro,
+  className,
+}: SeccionProps & { className?: string }) {
   const c = normalizarCentro(centro);
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-muted/20">
+    <div
+      className={cn(
+        "aspect-square w-full overflow-hidden rounded-xl border border-border bg-muted/20",
+        className,
+      )}
+    >
       {c.foto_url ? (
-        <img src={c.foto_url} alt={centro.nombre} className="h-44 w-full object-cover" />
+        <img
+          src={c.foto_url}
+          alt={centro.nombre}
+          className="size-full object-cover"
+        />
       ) : (
-        <div className="flex h-24 items-center justify-center text-xs text-muted-foreground">
-          Sin foto del campamento
+        <div className="flex size-full items-center justify-center px-2 text-center text-[10px] leading-tight text-muted-foreground sm:text-xs">
+          Sin foto
         </div>
       )}
     </div>

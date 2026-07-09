@@ -567,6 +567,7 @@ export function FichaCentroView({ sesion }: Props) {
             <TabsContent value="resumen" className="mt-0">
               <ResumenCentroPanel
                 centro={centro}
+                puedeEditar={puedeEditar}
                 onIrAPestana={(vista) => cambiarSeccion(vista)}
               />
             </TabsContent>
