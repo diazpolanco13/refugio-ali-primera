@@ -25,6 +25,8 @@ const importIncidenciasFuncionariosView = () =>
   import("./features/incidencias/IncidenciasFuncionariosView");
 const importIncidenciasRefugiadosView = () =>
   import("./features/incidencias/IncidenciasRefugiadosView");
+const importDenunciasEliminadasView = () =>
+  import("./features/incidencias/DenunciasEliminadasView");
 const importGestionUsuarios = () => import("./features/usuarios/GestionUsuarios");
 const importLogsView = () => import("./features/logs/LogsView");
 const importReportesDiariosRedView = () => import("./features/centros/ReportesDiariosRedView");
@@ -59,6 +61,9 @@ const IncidenciasFuncionariosView = lazy(() =>
 );
 const IncidenciasRefugiadosView = lazy(() =>
   importIncidenciasRefugiadosView().then((m) => ({ default: m.IncidenciasRefugiadosView })),
+);
+const DenunciasEliminadasView = lazy(() =>
+  importDenunciasEliminadasView().then((m) => ({ default: m.DenunciasEliminadasView })),
 );
 const HojaQrsTerrenoView = lazy(() =>
   import("./features/centros/HojaQrsTerrenoView").then((m) => ({
@@ -110,6 +115,7 @@ function precargarRutaInicial(pathname: string): Promise<unknown> {
     return importDotacionesPendientesView();
   if (pathname.startsWith("/centro/nuevo")) return importNuevoCentroView();
   if (pathname.startsWith("/centro/")) return importFichaCentroView();
+  if (pathname.startsWith("/incidencias/eliminadas")) return importDenunciasEliminadasView();
   if (pathname.startsWith("/incidencias"))
     return Promise.all([importIncidenciasLayout(), importIncidenciasRedirect()]);
   if (pathname.startsWith("/usuarios")) return importGestionUsuarios();
@@ -215,6 +221,10 @@ export function App() {
             <Route path="/centros/dotaciones-pendientes" element={<DotacionesPendientesView />} />
             <Route path="/centro/nuevo" element={<NuevoCentroView sesion={sesion} />} />
             <Route path="/centro/:id" element={<FichaCentroView sesion={sesion} />} />
+            <Route
+              path="/incidencias/eliminadas"
+              element={<DenunciasEliminadasView sesion={sesion} />}
+            />
             <Route path="/incidencias" element={<IncidenciasLayout sesion={sesion} />}>
               <Route index element={<IncidenciasRedirect sesion={sesion} />} />
               <Route

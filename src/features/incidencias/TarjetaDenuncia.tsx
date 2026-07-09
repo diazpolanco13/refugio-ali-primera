@@ -1,10 +1,10 @@
 // Tarjeta de una denuncia/sugerencia del canal público (QR). Se usa en la
-// bandeja global de damnificados y en el Buzón de cada campamento.
-// La telemetría de origen (IP / huella) es solo para detectar abuso; no se
-// muestra al denunciante. La MAC no es accesible desde el navegador.
+// bandeja global de damnificados, en el Buzón de cada campamento y en la
+// papelera (admin). La telemetría de origen (IP / huella) es solo para
+// detectar abuso; no se muestra al denunciante.
 
 import { useState } from "react";
-import { CheckCircle2, Phone, ShieldAlert } from "lucide-react";
+import { CheckCircle2, Pencil, Phone, RotateCcw, ShieldAlert, Trash2 } from "lucide-react";
 import {
   CATEGORIAS_DENUNCIA,
   labelCategoriaDenuncia,
@@ -31,6 +31,15 @@ export function TarjetaDenuncia({
   onResolver,
   resolviendo,
   ocultarCentro = false,
+  puedeGestionar = false,
+  onEditar,
+  onEliminar,
+  eliminando = false,
+  modoPapelera = false,
+  onRestaurar,
+  onPurgar,
+  restaurando = false,
+  purgando = false,
 }: {
   denuncia: Denuncia;
   nombreCentro: string;
@@ -39,6 +48,17 @@ export function TarjetaDenuncia({
   resolviendo: boolean;
   /** En el Buzón del centro el nombre ya está en el contexto. */
   ocultarCentro?: boolean;
+  /** Admin / analista SAE: editar y soft-delete. */
+  puedeGestionar?: boolean;
+  onEditar?: () => void;
+  onEliminar?: () => void;
+  eliminando?: boolean;
+  /** Vista de papelera (solo admin). */
+  modoPapelera?: boolean;
+  onRestaurar?: () => void;
+  onPurgar?: () => void;
+  restaurando?: boolean;
+  purgando?: boolean;
 }) {
   const [resolviendoAbierto, setResolviendoAbierto] = useState(false);
   const [nota, setNota] = useState("");
@@ -50,7 +70,7 @@ export function TarjetaDenuncia({
   );
 
   return (
-    <Card className={cn(!abierta && "opacity-75")}>
+    <Card className={cn((!abierta || denuncia.deleted) && "opacity-75")}>
       <CardContent className="space-y-2 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="gap-1">
@@ -61,17 +81,26 @@ export function TarjetaDenuncia({
             <span className="text-xs font-medium">{nombreCentro}</span>
           )}
           <span className="text-xs text-muted-foreground">{fechaCorta(denuncia.ts)}</span>
-          <Badge
-            variant="outline"
-            className={cn(
-              "ml-auto",
-              abierta
-                ? "border-amber-500/40 text-amber-500"
-                : "border-emerald-500/40 text-emerald-500",
-            )}
-          >
-            {abierta ? "Abierta" : "Resuelta"}
-          </Badge>
+          {denuncia.deleted ? (
+            <Badge
+              variant="outline"
+              className="ml-auto border-destructive/40 text-destructive"
+            >
+              Eliminada
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className={cn(
+                "ml-auto",
+                abierta
+                  ? "border-amber-500/40 text-amber-500"
+                  : "border-emerald-500/40 text-emerald-500",
+              )}
+            >
+              {abierta ? "Abierta" : "Resuelta"}
+            </Badge>
+          )}
         </div>
 
         {denuncia.titulo ? (
@@ -128,7 +157,7 @@ export function TarjetaDenuncia({
           </div>
         )}
 
-        {!abierta && (
+        {!abierta && !denuncia.deleted && (
           <p className="text-xs text-muted-foreground">
             Resuelta por <span className="text-foreground">{denuncia.resuelta_por}</span>
             {denuncia.resuelta_ts ? ` · ${fechaCorta(denuncia.resuelta_ts)}` : ""}
@@ -136,49 +165,137 @@ export function TarjetaDenuncia({
           </p>
         )}
 
-        {abierta && puedeResolver && (
-          <div className="space-y-2 pt-1">
-            {resolviendoAbierto ? (
-              <>
-                <textarea
-                  value={nota}
-                  onChange={(e) => setNota(e.target.value.slice(0, 500))}
-                  rows={2}
-                  placeholder="¿Qué se hizo? (opcional, queda en el registro)"
-                  className="w-full resize-y rounded-md border border-border bg-card px-2.5 py-2 text-sm outline-none focus:border-primary"
-                />
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={resolviendo}
-                    onClick={() => onResolver(nota)}
-                  >
-                    <CheckCircle2 className="size-4" />
-                    Confirmar resolución
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setResolviendoAbierto(false)}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setResolviendoAbierto(true)}
-              >
-                <CheckCircle2 className="size-4" />
-                Resolver
-              </Button>
-            )}
+        {denuncia.deleted && (
+          <p className="text-xs text-muted-foreground">
+            Eliminada por{" "}
+            <span className="text-foreground">{denuncia.deleted_by ?? "—"}</span>
+            {denuncia.deleted_at ? ` · ${fechaCorta(denuncia.deleted_at)}` : ""}
+          </p>
+        )}
+
+        {modoPapelera ? (
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={restaurando || purgando}
+              onClick={onRestaurar}
+            >
+              <RotateCcw className="size-4" />
+              Restaurar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              disabled={restaurando || purgando}
+              onClick={onPurgar}
+            >
+              <Trash2 className="size-4" />
+              Borrar definitivo
+            </Button>
           </div>
+        ) : (
+          <>
+            {abierta && puedeResolver && (
+              <div className="space-y-2 pt-1">
+                {resolviendoAbierto ? (
+                  <>
+                    <textarea
+                      value={nota}
+                      onChange={(e) => setNota(e.target.value.slice(0, 500))}
+                      rows={2}
+                      placeholder="¿Qué se hizo? (opcional, queda en el registro)"
+                      className="w-full resize-y rounded-md border border-border bg-card px-2.5 py-2 text-sm outline-none focus:border-primary"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={resolviendo}
+                        onClick={() => onResolver(nota)}
+                      >
+                        <CheckCircle2 className="size-4" />
+                        Confirmar resolución
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setResolviendoAbierto(false)}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setResolviendoAbierto(true)}
+                    >
+                      <CheckCircle2 className="size-4" />
+                      Resolver
+                    </Button>
+                    {puedeGestionar && (
+                      <>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={eliminando}
+                          onClick={onEditar}
+                        >
+                          <Pencil className="size-4" />
+                          Editar
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          disabled={eliminando}
+                          onClick={onEliminar}
+                        >
+                          <Trash2 className="size-4" />
+                          Eliminar
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {(!abierta || !puedeResolver) && puedeGestionar && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={eliminando}
+                  onClick={onEditar}
+                >
+                  <Pencil className="size-4" />
+                  Editar
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive"
+                  disabled={eliminando}
+                  onClick={onEliminar}
+                >
+                  <Trash2 className="size-4" />
+                  Eliminar
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

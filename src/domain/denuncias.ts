@@ -58,6 +58,10 @@ export interface Denuncia {
   /** Hash corto de señales del dispositivo (no es MAC). */
   dispositivo_huella: string | null;
   dispositivo_meta: DispositivoMeta | null;
+  /** Borrado suave (papelera); solo admin ve estas filas. */
+  deleted: boolean;
+  deleted_at: number | null;
+  deleted_by: string | null;
 }
 
 export const CATEGORIAS_DENUNCIA: { valor: CategoriaDenuncia; label: string; emoji: string }[] = [
@@ -93,5 +97,8 @@ export function normalizarDenuncia(fila: Partial<Denuncia> & { id: string }): De
     user_agent: fila.user_agent ?? null,
     dispositivo_huella: fila.dispositivo_huella ?? null,
     dispositivo_meta: (fila.dispositivo_meta as DispositivoMeta | null) ?? null,
+    deleted: fila.deleted === true,
+    deleted_at: fila.deleted_at ?? null,
+    deleted_by: fila.deleted_by ?? null,
   };
 }

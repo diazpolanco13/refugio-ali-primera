@@ -63,7 +63,112 @@ export async function resolverDenuncia(
       updated_at: ahora,
       updated_by: usuario,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("deleted", false);
   if (error) throw new Error(error.message);
   registrarHistorial("resolver_denuncia", "denuncia", id, { centro_id: centroId });
+}
+
+export interface DatosEdicionDenuncia {
+  categoria: string;
+  titulo: string;
+  texto: string;
+  contacto: string;
+}
+
+/** Edita el contenido de una denuncia (admin / analista SAE). */
+export async function editarDenuncia(
+  id: string,
+  centroId: string,
+  usuario: string,
+  datos: DatosEdicionDenuncia,
+): Promise<void> {
+  const titulo = datos.titulo.trim();
+  const texto = datos.texto.trim();
+  const contacto = datos.contacto.trim();
+  if (titulo.length < 3 || titulo.length > 120) {
+    throw new Error("El título debe tener entre 3 y 120 caracteres");
+  }
+  if (texto.length < 10 || texto.length > 1200) {
+    throw new Error("El texto debe tener entre 10 y 1200 caracteres");
+  }
+  if (contacto.length > 120) {
+    throw new Error("El contacto no puede superar 120 caracteres");
+  }
+  const ahora = Date.now();
+  const { error } = await supabase
+    .from("denuncias_centros")
+    .update({
+      categoria: datos.categoria,
+      titulo,
+      texto,
+      contacto: contacto || null,
+      updated_at: ahora,
+      updated_by: usuario,
+    })
+    .eq("id", id)
+    .eq("deleted", false);
+  if (error) throw new Error(error.message);
+  registrarHistorial("editar_denuncia", "denuncia", id, { centro_id: centroId });
+}
+
+/** Borrado suave: la denuncia sale de las bandejas y queda en la papelera. */
+export async function softDeleteDenuncia(
+  id: string,
+  centroId: string,
+  usuario: string,
+): Promise<void> {
+  const ahora = Date.now();
+  const { error } = await supabase
+    .from("denuncias_centros")
+    .update({
+      deleted: true,
+      deleted_at: ahora,
+      deleted_by: usuario,
+      updated_at: ahora,
+      updated_by: usuario,
+    })
+    .eq("id", id)
+    .eq("deleted", false);
+  if (error) throw new Error(error.message);
+  registrarHistorial("eliminar_denuncia", "denuncia", id, {
+    centro_id: centroId,
+    soft: true,
+  });
+}
+
+/** Restaura una denuncia desde la papelera (solo admin). */
+export async function restaurarDenuncia(
+  id: string,
+  centroId: string,
+  usuario: string,
+): Promise<void> {
+  const ahora = Date.now();
+  const { error } = await supabase
+    .from("denuncias_centros")
+    .update({
+      deleted: false,
+      deleted_at: null,
+      deleted_by: null,
+      updated_at: ahora,
+      updated_by: usuario,
+    })
+    .eq("id", id)
+    .eq("deleted", true);
+  if (error) throw new Error(error.message);
+  registrarHistorial("restaurar_denuncia", "denuncia", id, { centro_id: centroId });
+}
+
+/** Purga definitiva desde la papelera (solo admin). */
+export async function purgarDenuncia(
+  id: string,
+  centroId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("denuncias_centros")
+    .delete()
+    .eq("id", id)
+    .eq("deleted", true);
+  if (error) throw new Error(error.message);
+  registrarHistorial("purgar_denuncia", "denuncia", id, { centro_id: centroId });
 }

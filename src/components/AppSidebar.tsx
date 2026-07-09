@@ -9,6 +9,7 @@ import {
   ScrollText,
   Settings,
   Siren,
+  Trash2,
   Truck,
   UserRound,
   Users,
@@ -16,9 +17,11 @@ import {
 import type { Sesion } from "@/data/authSupabase";
 import {
   puedeGestionarUsuarios,
+  puedeVerBuzonCentro,
   puedeVerCensoCentro,
   puedeVerCensoRapidoRed,
   puedeVerLogs,
+  puedeVerPapeleraDenuncias,
   esRolCensoRapido,
   esRolTerreno,
 } from "@/domain/permisos";
@@ -107,10 +110,12 @@ function ItemMenuReportesDiarios({
   pathname,
   veCensoRapido,
   veCensoFicha,
+  veBuzonFicha,
 }: {
   pathname: string;
   veCensoRapido: boolean;
   veCensoFicha: boolean;
+  veBuzonFicha: boolean;
 }) {
   const [searchParams] = useSearchParams();
   const enReportesRed = esRutaReportesRed(pathname);
@@ -124,9 +129,11 @@ function ItemMenuReportesDiarios({
   const enListadoReportes = pathname === "/centros/reportes";
   const activo = enReportesRed || esFichaCentro;
   const enCampamento = centroId != null && (esReportesCentro || esFichaCentro);
-  const seccionesSubmenu = SECCIONES_FICHA_CENTRO.filter(
-    (s) => s.id !== "censo_rapido" || veCensoFicha || veCensoRapido,
-  );
+  const seccionesSubmenu = SECCIONES_FICHA_CENTRO.filter((s) => {
+    if (s.id === "censo_rapido") return veCensoFicha || veCensoRapido;
+    if (s.id === "buzon") return veBuzonFicha;
+    return true;
+  });
 
   if (!enReportesRed && !esFichaCentro) {
     return (
@@ -220,10 +227,13 @@ function NavContenido({ sesion }: Props) {
   const esTerreno = esRolTerreno(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
+  const vePapeleraDenuncias = puedeVerPapeleraDenuncias(sesion.user.rol);
   const veCensoRed = puedeVerCensoRapidoRed(sesion.user.rol);
   const centroIdRuta = centroIdDePathname(location.pathname);
   const veCensoFicha =
     centroIdRuta != null && puedeVerCensoCentro(sesion.user, centroIdRuta);
+  const veBuzonFicha =
+    centroIdRuta != null && puedeVerBuzonCentro(sesion.user, centroIdRuta);
   const { casos: casosSalud } = useCasosSaludCentros({ soloActivos: true });
   const abiertas = esCensoRapido ? 0 : totalCasosSaludActivosRed(casosSalud);
   const urgentes = esCensoRapido
@@ -319,6 +329,7 @@ function NavContenido({ sesion }: Props) {
               pathname={pathname}
               veCensoRapido={veCensoRed}
               veCensoFicha={veCensoFicha}
+              veBuzonFicha={veBuzonFicha}
             />
             {veCensoRed && (
               <ItemMenu
@@ -351,7 +362,20 @@ function NavContenido({ sesion }: Props) {
               badge={abiertas}
               badgeClassName={cn(urgentes > 0 && "bg-red-500/20 text-red-400")}
             />
-            <ItemEnDesarrollo icono={UserRound} label="Bandeja damnificados" />
+            <ItemMenu
+              to="/incidencias/refugiados"
+              icono={UserRound}
+              label="Bandeja damnificados"
+              activo={rutaActiva(pathname, "/incidencias/refugiados")}
+            />
+            {vePapeleraDenuncias && (
+              <ItemMenu
+                to="/incidencias/eliminadas"
+                icono={Trash2}
+                label="Denuncias eliminadas"
+                activo={rutaActiva(pathname, "/incidencias/eliminadas")}
+              />
+            )}
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>

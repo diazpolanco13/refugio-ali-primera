@@ -5,13 +5,27 @@ import { useMemo, useState } from "react";
 import { FilterX } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
 import { useDenuncias } from "@/data/useDenuncias";
-import { resolverDenuncia } from "@/data/reposDenuncias";
+import {
+  editarDenuncia,
+  resolverDenuncia,
+  softDeleteDenuncia,
+} from "@/data/reposDenuncias";
 import { CATEGORIAS_DENUNCIA, type Denuncia } from "@/domain/denuncias";
-import { puedeEditarCentro } from "@/domain/permisos";
+import { puedeEditarCentro, puedeGestionarDenuncias } from "@/domain/permisos";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -22,6 +36,10 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { TarjetaDenuncia } from "@/features/incidencias/TarjetaDenuncia";
+import {
+  DialogoEdicionDenuncia,
+  type DatosFormularioDenuncia,
+} from "@/features/incidencias/DialogoEdicionDenuncia";
 import { AccesoDenunciaCentro } from "./AccesoDenunciaCentro";
 
 type FiltroEstado = "todas" | "abiertas" | "resueltas";
@@ -53,10 +71,16 @@ export function BuzonCentroPanel({ centro, sesion }: Props) {
   const [estado, setEstado] = useState<FiltroEstado>("abiertas");
   const [categoria, setCategoria] = useState("todas");
   const [resolviendoId, setResolviendoId] = useState<string | null>(null);
-  const [errorResolver, setErrorResolver] = useState("");
+  const [errorAccion, setErrorAccion] = useState("");
+  const [editando, setEditando] = useState<Denuncia | null>(null);
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+  const [errorEdicion, setErrorEdicion] = useState<string | null>(null);
+  const [eliminarTarget, setEliminarTarget] = useState<Denuncia | null>(null);
+  const [eliminando, setEliminando] = useState(false);
 
   const hayFiltroCategoria = categoria !== "todas";
   const puedeResolver = puedeEditarCentro(sesion.user, centro.id);
+  const puedeGestionar = puedeGestionarDenuncias(sesion.user.rol);
 
   const conteos = useMemo(() => {
     let abiertas = 0;
@@ -81,13 +105,45 @@ export function BuzonCentroPanel({ centro, sesion }: Props) {
 
   async function resolver(denuncia: Denuncia, nota: string) {
     setResolviendoId(denuncia.id);
-    setErrorResolver("");
+    setErrorAccion("");
     try {
       await resolverDenuncia(denuncia.id, denuncia.centro_id, sesion.user.username, nota);
     } catch (err) {
-      setErrorResolver(err instanceof Error ? err.message : "No se pudo resolver la denuncia");
+      setErrorAccion(err instanceof Error ? err.message : "No se pudo resolver la denuncia");
     } finally {
       setResolviendoId(null);
+    }
+  }
+
+  async function guardarEdicion(datos: DatosFormularioDenuncia) {
+    if (!editando) return;
+    setGuardandoEdicion(true);
+    setErrorEdicion(null);
+    try {
+      await editarDenuncia(editando.id, editando.centro_id, sesion.user.username, datos);
+      setEditando(null);
+    } catch (err) {
+      setErrorEdicion(err instanceof Error ? err.message : "No se pudo guardar");
+    } finally {
+      setGuardandoEdicion(false);
+    }
+  }
+
+  async function confirmarEliminar() {
+    if (!eliminarTarget) return;
+    setEliminando(true);
+    setErrorAccion("");
+    try {
+      await softDeleteDenuncia(
+        eliminarTarget.id,
+        eliminarTarget.centro_id,
+        sesion.user.username,
+      );
+      setEliminarTarget(null);
+    } catch (err) {
+      setErrorAccion(err instanceof Error ? err.message : "No se pudo eliminar");
+    } finally {
+      setEliminando(false);
     }
   }
 
@@ -158,7 +214,7 @@ export function BuzonCentroPanel({ centro, sesion }: Props) {
           )}
         </div>
 
-        {errorResolver && <p className="text-sm text-destructive">{errorResolver}</p>}
+        {errorAccion && <p className="text-sm text-destructive">{errorAccion}</p>}
 
         {filtradas.length === 0 ? (
           <Card>
@@ -179,11 +235,59 @@ export function BuzonCentroPanel({ centro, sesion }: Props) {
                 puedeResolver={puedeResolver}
                 onResolver={(nota) => void resolver(d, nota)}
                 resolviendo={resolviendoId === d.id}
+                puedeGestionar={puedeGestionar}
+                onEditar={() => {
+                  setErrorEdicion(null);
+                  setEditando(d);
+                }}
+                onEliminar={() => setEliminarTarget(d)}
+                eliminando={eliminando && eliminarTarget?.id === d.id}
               />
             ))}
           </div>
         )}
       </div>
+
+      <DialogoEdicionDenuncia
+        denuncia={editando}
+        abierto={editando != null}
+        guardando={guardandoEdicion}
+        error={errorEdicion}
+        onCerrar={() => {
+          if (!guardandoEdicion) setEditando(null);
+        }}
+        onGuardar={(datos) => void guardarEdicion(datos)}
+      />
+
+      <AlertDialog
+        open={eliminarTarget != null}
+        onOpenChange={(abierto) => {
+          if (!abierto && !eliminando) setEliminarTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta denuncia?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se moverá a la papelera (borrado suave). Solo el administrador podrá
+              verla o restaurarla después.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={eliminando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={eliminando}
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmarEliminar();
+              }}
+            >
+              {eliminando ? "Eliminando…" : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,23 +1,42 @@
 // Bandeja de denuncias y sugerencias de los damnificados (canal público por
 // QR, tabla `denuncias_centros`). La ven quienes vigilan los campamentos:
-// admin/analista_sae (toda la red, resuelven), autoridad (toda la red, solo
-// lectura) y supervisor (SOLO sus campamentos — pasa revista y acciona). El
-// operador de terreno no llega aquí: la RLS le devuelve vacío.
+// admin/analista_sae (toda la red, resuelven/editan/eliminan), autoridad
+// (toda la red, solo lectura) y supervisor (SOLO sus campamentos — pasa
+// revista y acciona). El operador de terreno no llega aquí: la RLS le
+// devuelve vacío.
 
 import { useMemo, useState } from "react";
 import { FilterX, Printer } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Sesion } from "@/data/authSupabase";
 import { useDenuncias } from "@/data/useDenuncias";
-import { resolverDenuncia } from "@/data/reposDenuncias";
+import {
+  editarDenuncia,
+  resolverDenuncia,
+  softDeleteDenuncia,
+} from "@/data/reposDenuncias";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { CATEGORIAS_DENUNCIA, type Denuncia } from "@/domain/denuncias";
-import { puedeCrearCentros, puedeEditarCentro } from "@/domain/permisos";
+import {
+  puedeCrearCentros,
+  puedeEditarCentro,
+  puedeGestionarDenuncias,
+} from "@/domain/permisos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -26,6 +45,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TarjetaDenuncia } from "./TarjetaDenuncia";
+import {
+  DialogoEdicionDenuncia,
+  type DatosFormularioDenuncia,
+} from "./DialogoEdicionDenuncia";
 
 type FiltroEstado = "abiertas" | "resueltas" | "todas";
 
@@ -36,6 +59,7 @@ interface Props {
 /** Bandeja del canal público de denuncias de damnificados (QR por campamento). */
 export function IncidenciasRefugiadosView({ sesion }: Props) {
   const denuncias = useDenuncias();
+  const puedeGestionar = puedeGestionarDenuncias(sesion.user.rol);
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
   const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>("centros", {
@@ -51,7 +75,12 @@ export function IncidenciasRefugiadosView({ sesion }: Props) {
   const [centroId, setCentroId] = useState("todos");
   const [categoria, setCategoria] = useState("todas");
   const [resolviendoId, setResolviendoId] = useState<string | null>(null);
-  const [errorResolver, setErrorResolver] = useState("");
+  const [errorAccion, setErrorAccion] = useState("");
+  const [editando, setEditando] = useState<Denuncia | null>(null);
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+  const [errorEdicion, setErrorEdicion] = useState<string | null>(null);
+  const [eliminarTarget, setEliminarTarget] = useState<Denuncia | null>(null);
+  const [eliminando, setEliminando] = useState(false);
 
   const hayFiltros = estado !== "abiertas" || centroId !== "todos" || categoria !== "todas";
 
@@ -75,13 +104,45 @@ export function IncidenciasRefugiadosView({ sesion }: Props) {
 
   async function resolver(denuncia: Denuncia, nota: string) {
     setResolviendoId(denuncia.id);
-    setErrorResolver("");
+    setErrorAccion("");
     try {
       await resolverDenuncia(denuncia.id, denuncia.centro_id, sesion.user.username, nota);
     } catch (err) {
-      setErrorResolver(err instanceof Error ? err.message : "No se pudo resolver la denuncia");
+      setErrorAccion(err instanceof Error ? err.message : "No se pudo resolver la denuncia");
     } finally {
       setResolviendoId(null);
+    }
+  }
+
+  async function guardarEdicion(datos: DatosFormularioDenuncia) {
+    if (!editando) return;
+    setGuardandoEdicion(true);
+    setErrorEdicion(null);
+    try {
+      await editarDenuncia(editando.id, editando.centro_id, sesion.user.username, datos);
+      setEditando(null);
+    } catch (err) {
+      setErrorEdicion(err instanceof Error ? err.message : "No se pudo guardar");
+    } finally {
+      setGuardandoEdicion(false);
+    }
+  }
+
+  async function confirmarEliminar() {
+    if (!eliminarTarget) return;
+    setEliminando(true);
+    setErrorAccion("");
+    try {
+      await softDeleteDenuncia(
+        eliminarTarget.id,
+        eliminarTarget.centro_id,
+        sesion.user.username,
+      );
+      setEliminarTarget(null);
+    } catch (err) {
+      setErrorAccion(err instanceof Error ? err.message : "No se pudo eliminar");
+    } finally {
+      setEliminando(false);
     }
   }
 
@@ -160,7 +221,7 @@ export function IncidenciasRefugiadosView({ sesion }: Props) {
         )}
       </div>
 
-      {errorResolver && <p className="text-sm text-destructive">{errorResolver}</p>}
+      {errorAccion && <p className="text-sm text-destructive">{errorAccion}</p>}
 
       {filtradas.length === 0 ? (
         <Card>
@@ -180,10 +241,58 @@ export function IncidenciasRefugiadosView({ sesion }: Props) {
               puedeResolver={puedeEditarCentro(sesion.user, d.centro_id)}
               onResolver={(nota) => void resolver(d, nota)}
               resolviendo={resolviendoId === d.id}
+              puedeGestionar={puedeGestionar}
+              onEditar={() => {
+                setErrorEdicion(null);
+                setEditando(d);
+              }}
+              onEliminar={() => setEliminarTarget(d)}
+              eliminando={eliminando && eliminarTarget?.id === d.id}
             />
           ))}
         </div>
       )}
+
+      <DialogoEdicionDenuncia
+        denuncia={editando}
+        abierto={editando != null}
+        guardando={guardandoEdicion}
+        error={errorEdicion}
+        onCerrar={() => {
+          if (!guardandoEdicion) setEditando(null);
+        }}
+        onGuardar={(datos) => void guardarEdicion(datos)}
+      />
+
+      <AlertDialog
+        open={eliminarTarget != null}
+        onOpenChange={(abierto) => {
+          if (!abierto && !eliminando) setEliminarTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta denuncia?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se moverá a la papelera (borrado suave). Solo el administrador podrá
+              verla o restaurarla después.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={eliminando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={eliminando}
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmarEliminar();
+              }}
+            >
+              {eliminando ? "Eliminando…" : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

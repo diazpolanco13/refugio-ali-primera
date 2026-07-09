@@ -3,14 +3,14 @@ import type { Rol, Usuario } from "../data/authSupabase";
 /**
  * Metadatos y matriz de permisos de cada rol (ver docs/sistema-usuarios.md).
  *
- * | Rol          | Usuarios | Ver centros | Escribir     | Incidencias                    | Logs | Censo red | Censo ficha |
- * |--------------|----------|-------------|--------------|--------------------------------|------|-----------|-------------|
- * | admin        | Sí       | Todos       | Todos        | Abrir/resolver en todos        | Sí   | Sí        | Sí (editar) |
- * | analista_sae | No       | Todos       | Todos        | Abrir/resolver en todos        | No   | Sí        | Sí (editar) |
- * | autoridad    | No       | Todos       | No           | No                             | Sí   | Sí        | Solo lectura|
- * | supervisor   | No       | Asignados   | Asignados    | Abrir/resolver en asignados    | No   | No        | Asignados (editar) |
- * | operador     | No       | Asignados   | Asignados    | Abrir; resolver solo las suyas | No   | No        | No          |
- * | censo_rapido | No       | Todos       | No           | No                             | No   | Sí        | Solo lectura|
+ * | Rol          | Usuarios | Ver centros | Escribir     | Incidencias                    | Logs | Censo red | Censo ficha | Buzón        |
+ * |--------------|----------|-------------|--------------|--------------------------------|------|-----------|-------------|--------------|
+ * | admin        | Sí       | Todos       | Todos        | Abrir/resolver en todos        | Sí   | Sí        | Sí (editar) | Todos        |
+ * | analista_sae | No       | Todos       | Todos        | Abrir/resolver en todos        | No   | Sí        | Sí (editar) | Todos        |
+ * | autoridad    | No       | Todos       | No           | No                             | Sí   | Sí        | Solo lectura| Todos (leer) |
+ * | supervisor   | No       | Asignados   | Asignados    | Abrir/resolver en asignados    | No   | No        | Asignados (editar) | Asignados |
+ * | operador     | No       | Asignados   | Asignados    | Abrir; resolver solo las suyas | No   | No        | No          | No           |
+ * | censo_rapido | No       | Todos       | No           | No                             | No   | Sí        | Solo lectura| No           |
  *
  * La RLS de Supabase aplica esta misma matriz en el servidor (migración
  * `sistema_usuarios_5_roles`); estos helpers solo controlan la UI.
@@ -187,6 +187,32 @@ export function puedeVerCensoCentro(usuario: Usuario, centroId: string): boolean
 export function puedeEditarCensoCentro(usuario: Usuario, centroId: string): boolean {
   if (puedeEditarCensoRapidoRed(usuario.rol)) return true;
   return usuario.rol === "supervisor" && puedeEditarCentro(usuario, centroId);
+}
+
+/**
+ * Pestaña Buzón (canal de denuncias del campamento): admin, analista SAE y
+ * autoridad ven toda la red; el supervisor solo en sus campamentos asignados.
+ * Alineado con la RLS de `denuncias_centros`.
+ */
+export function puedeVerBuzonCentro(usuario: Usuario, centroId: string): boolean {
+  if (
+    usuario.rol === "admin" ||
+    usuario.rol === "analista_sae" ||
+    usuario.rol === "autoridad"
+  ) {
+    return true;
+  }
+  return usuario.rol === "supervisor" && puedeEditarCentro(usuario, centroId);
+}
+
+/** Editar o soft-deletear denuncias de damnificados (sala: admin / analista SAE). */
+export function puedeGestionarDenuncias(rol: Rol): boolean {
+  return rol === "admin" || rol === "analista_sae";
+}
+
+/** Papelera de denuncias eliminadas (solo admin). */
+export function puedeVerPapeleraDenuncias(rol: Rol): boolean {
+  return rol === "admin";
 }
 
 export function puedeVerSaludMental(rol: Rol): boolean {

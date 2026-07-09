@@ -23,6 +23,7 @@ import {
   esRolTerreno,
   puedeEditarCentro,
   puedeEditarReportesPasados,
+  puedeVerBuzonCentro,
   puedeVerCensoCentro,
 } from "@/domain/permisos";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
@@ -84,6 +85,7 @@ export function FichaCentroView({ sesion }: Props) {
   // sus campamentos asignados.
   const esTerreno = esRolTerreno(sesion.user.rol);
   const veCensoFicha = id != null && puedeVerCensoCentro(sesion.user, id);
+  const veBuzonFicha = id != null && puedeVerBuzonCentro(sesion.user, id);
   const seccionesVisibles = useMemo(
     () =>
       SECCIONES_FICHA_CENTRO.filter((s) => {
@@ -91,9 +93,10 @@ export function FichaCentroView({ sesion }: Props) {
           return false;
         }
         if (s.id === "censo_rapido" && !veCensoFicha) return false;
+        if (s.id === "buzon" && !veBuzonFicha) return false;
         return true;
       }),
-    [esTerreno, veCensoFicha],
+    [esTerreno, veCensoFicha, veBuzonFicha],
   );
   const seccionNormalizada = normalizarSeccionFichaCentro(seccionParam);
   const seccionActiva: SeccionFichaCentro = seccionesVisibles.some(
@@ -635,9 +638,11 @@ export function FichaCentroView({ sesion }: Props) {
               />
             </TabsContent>
 
-            <TabsContent value="buzon" className="mt-0">
-              <BuzonCentroPanel centro={centro} sesion={sesion} />
-            </TabsContent>
+            {veBuzonFicha && (
+              <TabsContent value="buzon" className="mt-0">
+                <BuzonCentroPanel centro={centro} sesion={sesion} />
+              </TabsContent>
+            )}
           </div>
         </div>
       </Tabs>
