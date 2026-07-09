@@ -16,14 +16,27 @@ function formatearDia(dia: string | null): string {
   });
 }
 
-function BarraComparativa({ meta, actual }: { meta: number; actual: number }) {
+function BarraComparativa({
+  meta,
+  actual,
+  compacto,
+}: {
+  meta: number;
+  actual: number;
+  compacto?: boolean;
+}) {
   const escala = Math.max(meta, actual, 1);
   const pctParte = (meta / escala) * 100;
   const pctCenso = (actual / escala) * 100;
   const excede = actual > meta;
 
   return (
-    <div className="relative mt-3 h-3 overflow-hidden rounded-full bg-muted/80">
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-full bg-muted/80",
+        compacto ? "mt-2 h-1.5" : "mt-3 h-3",
+      )}
+    >
       <div
         className={cn(
           "absolute inset-y-0 left-0 rounded-full transition-all",
@@ -92,17 +105,33 @@ function MensajeContraste({
   return null;
 }
 
-export function ContrasteCensoParte({ resumen }: { resumen: ResumenCensoCentro }) {
+export function ContrasteCensoParte({
+  resumen,
+  compacto = false,
+}: {
+  resumen: ResumenCensoCentro;
+  compacto?: boolean;
+}) {
   const avance = progresoCensoVsParte(resumen);
+  const cifraClase = compacto
+    ? "mt-0.5 text-xl font-bold tabular-nums leading-none"
+    : "mt-0.5 text-3xl font-bold tabular-nums leading-none";
 
   if (!avance.tieneParte) {
     return (
-      <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 px-3 py-2.5">
+      <div
+        className={cn(
+          "rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20",
+          compacto ? "px-2.5 py-2" : "px-3 py-2.5",
+        )}
+      >
         <p className="text-[11px] font-medium text-muted-foreground">Sin parte numérico</p>
-        <p className="mt-0.5 text-2xl font-bold tabular-nums">
+        <p className={cn(cifraClase, "text-foreground")}>
           {avance.actual.toLocaleString("es")}
         </p>
-        <p className="text-[10px] text-muted-foreground">personas en censo · sin referencia de revista</p>
+        <p className="text-[10px] text-muted-foreground">
+          personas en censo · sin referencia de revista
+        </p>
       </div>
     );
   }
@@ -115,17 +144,23 @@ export function ContrasteCensoParte({ resumen }: { resumen: ResumenCensoCentro }
         : "border-sky-500/35 bg-sky-500/[0.06]";
 
   return (
-    <div className={cn("rounded-lg border px-3 py-2.5", panelClase)}>
-      <div className="grid grid-cols-2 gap-3">
+    <div
+      className={cn(
+        "rounded-lg border",
+        compacto ? "px-2.5 py-2" : "px-3 py-2.5",
+        panelClase,
+      )}
+    >
+      <div className={cn("grid grid-cols-2", compacto ? "gap-2" : "gap-3")}>
         <div className="min-w-0">
           <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
             <ClipboardList className="size-3" />
             Parte (revista)
           </p>
-          <p className="mt-0.5 text-3xl font-bold tabular-nums leading-none text-foreground/90">
+          <p className={cn(cifraClase, "text-foreground/90")}>
             {avance.meta.toLocaleString("es")}
           </p>
-          <p className="mt-1 text-[10px] text-muted-foreground">
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
             {resumen.parteDia ? `Del ${formatearDia(resumen.parteDia)}` : "Último reporte"}
             {resumen.parteFamilias != null && resumen.parteFamilias > 0 && (
               <span> · {resumen.parteFamilias.toLocaleString("es")} fam.</span>
@@ -138,7 +173,7 @@ export function ContrasteCensoParte({ resumen }: { resumen: ResumenCensoCentro }
           </p>
           <p
             className={cn(
-              "mt-0.5 text-3xl font-bold tabular-nums leading-none",
+              cifraClase,
               avance.contraste === "excede_parte" && "text-red-500",
               avance.contraste === "cuadra" && "text-emerald-600 dark:text-emerald-400",
               avance.contraste === "en_progreso" && "text-sky-600 dark:text-sky-400",
@@ -146,7 +181,7 @@ export function ContrasteCensoParte({ resumen }: { resumen: ResumenCensoCentro }
           >
             {avance.actual.toLocaleString("es")}
           </p>
-          <p className="mt-1 text-[10px] text-muted-foreground">
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
             {avance.contraste === "excede_parte" && (
               <span className="font-semibold text-red-600 dark:text-red-400">
                 +{avance.excedente.toLocaleString("es")} sobre el parte
@@ -164,16 +199,21 @@ export function ContrasteCensoParte({ resumen }: { resumen: ResumenCensoCentro }
         </div>
       </div>
 
-      <BarraComparativa meta={avance.meta} actual={avance.actual} />
+      <BarraComparativa meta={avance.meta} actual={avance.actual} compacto={compacto} />
 
-      <div className="mt-2 flex items-center justify-between gap-2 text-[9px] text-muted-foreground">
+      <div
+        className={cn(
+          "flex items-center justify-between gap-2 text-[9px] text-muted-foreground",
+          compacto ? "mt-1.5" : "mt-2",
+        )}
+      >
         <span>Línea = parte de referencia</span>
         <span className="tabular-nums">
           {avance.actual.toLocaleString("es")} / {avance.meta.toLocaleString("es")}
         </span>
       </div>
 
-      <div className="mt-2">
+      <div className={compacto ? "mt-1.5" : "mt-2"}>
         <MensajeContraste
           faltan={avance.faltan}
           contraste={avance.contraste}

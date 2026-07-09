@@ -1,5 +1,5 @@
 // Vista completa de un campamento (`/centro/:id`): segmentada por pestañas
-// (Resumen, Coordinación, Población, Reporte, Incidencias, Infraestructura).
+// (Resumen, Coordinación, Población, Censo rápido, Reporte, Seguimiento, Infraestructura).
 // Las mismas secciones también aparecen en el submenú del sidebar bajo Reportes diarios.
 // El reporte diario y la edición del campamento se abren integrados en el mismo marco.
 // Vive dentro del AppShell global, con sidebar y TopBar compartidos.
@@ -23,6 +23,7 @@ import {
   esRolTerreno,
   puedeEditarCentro,
   puedeEditarReportesPasados,
+  puedeVerCensoRapidoRed,
 } from "@/domain/permisos";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
 import { controlReportado, reporteControlDelDia } from "@/domain/controlReporte";
@@ -54,6 +55,7 @@ import {
   normalizarSeccionFichaCentro,
   type SeccionFichaCentro,
 } from "./seccionesFichaCentro";
+import { CensoCentroPanel } from "@/features/censo/CensoCentroPanel";
 import { cn } from "@/lib/utils";
 import { ReporteDiarioForm } from "./ReporteDiarioForm";
 import { VisorFechaReporte } from "./VisorFechaReporte";
@@ -77,16 +79,19 @@ export function FichaCentroView({ sesion }: Props) {
   const seccionParam = searchParams.get("vista");
   // Sesión del QR de terreno: la ficha se reduce a sus pestañas operativas
   // (resumen, población, reporte, infraestructura). Una vista oculta en la
-  // URL cae al reporte.
+  // URL cae al reporte. «Censo rápido» solo para roles con acceso a la red.
   const esTerreno = esRolTerreno(sesion.user.rol);
+  const veCensoRapido = puedeVerCensoRapidoRed(sesion.user.rol);
   const seccionesVisibles = useMemo(
     () =>
-      esTerreno
-        ? SECCIONES_FICHA_CENTRO.filter((s) =>
-            (SECCIONES_FICHA_TERRENO as readonly string[]).includes(s.id),
-          )
-        : SECCIONES_FICHA_CENTRO,
-    [esTerreno],
+      SECCIONES_FICHA_CENTRO.filter((s) => {
+        if (esTerreno && !(SECCIONES_FICHA_TERRENO as readonly string[]).includes(s.id)) {
+          return false;
+        }
+        if (s.id === "censo_rapido" && !veCensoRapido) return false;
+        return true;
+      }),
+    [esTerreno, veCensoRapido],
   );
   const seccionNormalizada = normalizarSeccionFichaCentro(seccionParam);
   const seccionActiva: SeccionFichaCentro = seccionesVisibles.some(
@@ -586,6 +591,17 @@ export function FichaCentroView({ sesion }: Props) {
                 onAbrirRefugiado={abrirFichaRefugiado}
               />
             </TabsContent>
+
+            {veCensoRapido && (
+              <TabsContent value="censo_rapido" className="mt-0">
+                <CensoCentroPanel
+                  centroId={centro.id}
+                  centroNombre={centro.nombre}
+                  centro={centro}
+                  sesion={sesion}
+                />
+              </TabsContent>
+            )}
 
             <TabsContent value="reporte" className="mt-0">
               <SeccionReporteDiarioCentro

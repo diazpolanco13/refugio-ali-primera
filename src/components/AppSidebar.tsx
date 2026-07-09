@@ -102,7 +102,13 @@ function ItemMenu({
   );
 }
 
-function ItemMenuReportesDiarios({ pathname }: { pathname: string }) {
+function ItemMenuReportesDiarios({
+  pathname,
+  veCensoRapido,
+}: {
+  pathname: string;
+  veCensoRapido: boolean;
+}) {
   const [searchParams] = useSearchParams();
   const enReportesRed = esRutaReportesRed(pathname);
   const esFichaCentro = esFichaCentroPathname(pathname);
@@ -115,6 +121,9 @@ function ItemMenuReportesDiarios({ pathname }: { pathname: string }) {
   const enListadoReportes = pathname === "/centros/reportes";
   const activo = enReportesRed || esFichaCentro;
   const enCampamento = centroId != null && (esReportesCentro || esFichaCentro);
+  const seccionesSubmenu = SECCIONES_FICHA_CENTRO.filter(
+    (s) => s.id !== "censo_rapido" || veCensoRapido,
+  );
 
   if (!enReportesRed && !esFichaCentro) {
     return (
@@ -162,7 +171,7 @@ function ItemMenuReportesDiarios({ pathname }: { pathname: string }) {
               </SidebarMenuSubButton>
             </SidebarMenuSubItem>
             {enCampamento &&
-              SECCIONES_FICHA_CENTRO.map((seccion) => (
+              seccionesSubmenu.map((seccion) => (
                 <SidebarMenuSubItem key={seccion.id}>
                   <SidebarMenuSubButton
                     asChild
@@ -300,7 +309,7 @@ function NavContenido({ sesion }: Props) {
               label="Campamentos"
               activo={esSeccionCampamentos}
             />
-            <ItemMenuReportesDiarios pathname={pathname} />
+            <ItemMenuReportesDiarios pathname={pathname} veCensoRapido={veCensoRed} />
             {veCensoRed && (
               <ItemMenu
                 to="/centros/censo-rapido"

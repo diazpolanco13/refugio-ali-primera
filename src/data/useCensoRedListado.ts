@@ -15,11 +15,15 @@ export interface FiltrosCensoRedListado {
   orden: OrdenRegistrosCenso;
 }
 
-export function useCensoRedListado(filtros: FiltrosCensoRedListado) {
+export function useCensoRedListado(
+  filtros: FiltrosCensoRedListado,
+  opciones: { enabled?: boolean } = {},
+) {
+  const enabled = opciones.enabled !== false;
   const [registros, setRegistros] = useState<RegistroCensoRed[]>([]);
   const [total, setTotal] = useState(0);
   const [pagina, setPagina] = useState(0);
-  const [cargando, setCargando] = useState(true);
+  const [cargando, setCargando] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
   const busquedaDebounced = useDebouncedValue(filtros.busqueda, 350);
   const filtrosApi = useMemo<FiltrosListadoCensoRed>(
@@ -43,6 +47,10 @@ export function useCensoRedListado(filtros: FiltrosCensoRedListado) {
   }, [filtrosKey]);
 
   const refrescar = useCallback(async () => {
+    if (!enabled) {
+      setCargando(false);
+      return;
+    }
     setCargando(true);
     setError(null);
     const paginaActual = paginaRef.current;
@@ -60,7 +68,7 @@ export function useCensoRedListado(filtros: FiltrosCensoRedListado) {
     } finally {
       setCargando(false);
     }
-  }, [filtrosApi]);
+  }, [enabled, filtrosApi]);
 
   useEffect(() => {
     void refrescar();

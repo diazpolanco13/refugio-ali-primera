@@ -326,6 +326,15 @@ export async function completarCenso(
   return data as number;
 }
 
+/** Anula el cierre declarado y deja el censo en curso / sin iniciar según registros. */
+export async function reabrirCenso(centroId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("censo_reabrir", {
+    p_centro_id: centroId,
+  });
+  if (error) throw new Error(error.message);
+  return Number(data ?? 0);
+}
+
 /** Último cierre declarado del censo de un refugio (null si nunca se completó). */
 export async function obtenerCierreCenso(centroId: string): Promise<CierreCenso | null> {
   const { data, error } = await supabase.rpc("censo_cierre", {

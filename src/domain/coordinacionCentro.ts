@@ -59,14 +59,79 @@ export const CATEGORIAS_RESPONSABILIDAD_COORDINACION: {
   label: string;
   color: string;
 }[] = [
+  { valor: "supervision_rotatoria", label: "Supervisión rotatoria", color: "#ca8a04" },
+  { valor: "analista_sae", label: "Analista de la SAE", color: "#0d9488" },
   { valor: "politica", label: "Responsabilidad política", color: "#3b82f6" },
   { valor: "seguridad", label: "Seguridad física", color: "#4d7c0f" },
   { valor: "salud", label: "Coordinación de salud", color: "#e11d48" },
   { valor: "justicia", label: "Coordinación de justicia", color: "#d97706" },
-  { valor: "supervision_rotatoria", label: "Supervisión rotatoria", color: "#ca8a04" },
   { valor: "comunitaria", label: "Responsabilidad comunitaria", color: "#a855f7" },
-  { valor: "analista_sae", label: "Analista de la SAE", color: "#0d9488" },
 ];
+
+/**
+ * Pestañas de la UI de Coordinación. Supervisión agrupa supervisión rotatoria
+ * + analista SAE (ya no hay pestaña SAE aparte).
+ */
+export const PESTANAS_COORDINACION: {
+  id: CategoriaResponsabilidadCoordinacion;
+  label: string;
+  labelCorto: string;
+  color: string;
+  categorias: CategoriaResponsabilidadCoordinacion[];
+}[] = [
+  {
+    id: "supervision_rotatoria",
+    label: "Supervisión",
+    labelCorto: "Supervisión",
+    color: "#ca8a04",
+    categorias: ["supervision_rotatoria", "analista_sae"],
+  },
+  {
+    id: "politica",
+    label: "Responsabilidad política",
+    labelCorto: "Política",
+    color: "#3b82f6",
+    categorias: ["politica"],
+  },
+  {
+    id: "seguridad",
+    label: "Seguridad física",
+    labelCorto: "Seguridad",
+    color: "#4d7c0f",
+    categorias: ["seguridad"],
+  },
+  {
+    id: "salud",
+    label: "Coordinación de salud",
+    labelCorto: "Salud",
+    color: "#e11d48",
+    categorias: ["salud"],
+  },
+  {
+    id: "justicia",
+    label: "Coordinación de justicia",
+    labelCorto: "Justicia",
+    color: "#d97706",
+    categorias: ["justicia"],
+  },
+  {
+    id: "comunitaria",
+    label: "Responsabilidad comunitaria",
+    labelCorto: "Comunitaria",
+    color: "#a855f7",
+    categorias: ["comunitaria"],
+  },
+];
+
+/** Pestaña UI que contiene una categoría de responsabilidad. */
+export function pestanaDeCategoria(
+  categoria: CategoriaResponsabilidadCoordinacion,
+): (typeof PESTANAS_COORDINACION)[number] {
+  return (
+    PESTANAS_COORDINACION.find((p) => p.categorias.includes(categoria)) ??
+    PESTANAS_COORDINACION[0]
+  );
+}
 
 export const ETIQUETA_SUBTIPO: Record<SubtipoPersonalCoordinacion, string> = {
   medico: "Médico",

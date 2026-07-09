@@ -28,13 +28,13 @@ function CeldaSexo({
 }) {
   if (!siempre && !hombres && !mujeres) return null;
   return (
-    <div className="flex items-center justify-between gap-2 text-xs">
+    <div className="flex items-center justify-between gap-2 text-[11px] leading-tight">
       <span className="text-muted-foreground">{etiqueta}</span>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1">
         <Badge
           variant="outline"
           className={cn(
-            "gap-0.5 px-1.5",
+            "h-5 gap-0.5 px-1 text-[10px]",
             hombres > 0 ? "border-sky-500/30 text-sky-300" : "text-muted-foreground",
           )}
         >
@@ -43,7 +43,7 @@ function CeldaSexo({
         <Badge
           variant="outline"
           className={cn(
-            "gap-0.5 px-1.5",
+            "h-5 gap-0.5 px-1 text-[10px]",
             mujeres > 0 ? "border-pink-500/30 text-pink-300" : "text-muted-foreground",
           )}
         >
@@ -81,8 +81,8 @@ export function DemografiaResumen({
   return (
     <div
       className={cn(
-        "space-y-1.5",
-        compacto && "rounded-lg border border-border bg-muted/20 p-2",
+        "space-y-1",
+        compacto && "rounded-md border border-border bg-muted/20 p-1.5",
         className,
       )}
     >

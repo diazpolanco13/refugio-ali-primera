@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  ChartBar,
   ClipboardList,
   Landmark,
   Loader2,
@@ -15,7 +14,8 @@ import { guardarCentro } from "@/data/reposSupabase";
 import { normalizarCentro, type CentroTransitorio } from "@/domain/centrosTransitorios";
 import {
   asegurarIdsResponsablesCoordinacion,
-  CATEGORIAS_RESPONSABILIDAD_COORDINACION,
+  pestanaDeCategoria,
+  PESTANAS_COORDINACION,
   prepararResponsablesCoordinacionParaGuardar,
   responsableCoordinacionTieneDatos,
   syncCentroDesdeCoordinacion,
@@ -34,43 +34,56 @@ interface Props {
   puedeEditar: boolean;
 }
 
-const ICONO_CATEGORIA: Record<CategoriaResponsabilidadCoordinacion, React.ReactNode> = {
+type IdPestana = (typeof PESTANAS_COORDINACION)[number]["id"];
+
+const ICONO_PESTANA: Record<IdPestana, React.ReactNode> = {
+  supervision_rotatoria: <RotateCw className="size-3.5 shrink-0" />,
   politica: <Landmark className="size-3.5 shrink-0" />,
   seguridad: <Shield className="size-3.5 shrink-0" />,
   salud: <Stethoscope className="size-3.5 shrink-0" />,
   justicia: <Scale className="size-3.5 shrink-0" />,
-  supervision_rotatoria: <RotateCw className="size-3.5 shrink-0" />,
   comunitaria: <Users className="size-3.5 shrink-0" />,
-  analista_sae: <ChartBar className="size-3.5 shrink-0" />,
 };
 
-const ETIQUETA_CORTA: Partial<Record<CategoriaResponsabilidadCoordinacion, string>> = {
-  politica: "Política",
-  seguridad: "Seguridad",
-  salud: "Salud",
-  justicia: "Justicia",
-  supervision_rotatoria: "Supervisión",
-  comunitaria: "Comunitaria",
-  analista_sae: "SAE",
-};
-
-function contarPorCategoria(
+function contarPorPestana(
   responsables: ResponsableCoordinacion[],
-): Record<CategoriaResponsabilidadCoordinacion, number> {
+): Record<IdPestana, number> {
   const counts = Object.fromEntries(
-    CATEGORIAS_RESPONSABILIDAD_COORDINACION.map((c) => [c.valor, 0]),
-  ) as Record<CategoriaResponsabilidadCoordinacion, number>;
+    PESTANAS_COORDINACION.map((p) => [p.id, 0]),
+  ) as Record<IdPestana, number>;
   for (const r of responsables.filter(responsableCoordinacionTieneDatos)) {
-    counts[r.categoria] += 1;
+    const pestana = pestanaDeCategoria(r.categoria);
+    counts[pestana.id] += 1;
   }
   return counts;
 }
 
-function categoriaInicial(responsables: ResponsableCoordinacion[]): CategoriaResponsabilidadCoordinacion {
-  const primeraConDatos = CATEGORIAS_RESPONSABILIDAD_COORDINACION.find(
-    (c) => responsables.some((r) => r.categoria === c.valor && responsableCoordinacionTieneDatos(r)),
+function pestanaInicial(responsables: ResponsableCoordinacion[]): IdPestana {
+  const primeraConDatos = PESTANAS_COORDINACION.find((p) =>
+    responsables.some(
+      (r) => p.categorias.includes(r.categoria) && responsableCoordinacionTieneDatos(r),
+    ),
   );
-  return primeraConDatos?.valor ?? "politica";
+  return primeraConDatos?.id ?? "supervision_rotatoria";
+}
+
+function descripcionPestana(id: IdPestana): string {
+  switch (id) {
+    case "supervision_rotatoria":
+      return "Supervisión rotatoria y analista SAE asignado al campamento.";
+    case "politica":
+      return "Coordinación política e institucional del campamento.";
+    case "seguridad":
+      return "Seguridad física, organismo y personal desplegado.";
+    case "salud":
+      return "Personal médico, psicosocial y logística sanitaria.";
+    case "justicia":
+      return "TJS, Ministerio Público y Defensoría del Pueblo.";
+    case "comunitaria":
+      return "Coordinación comunitaria y funcionarios de apoyo.";
+    default:
+      return "";
+  }
 }
 
 /** Pestaña Coordinación: sub-pestañas por ámbito + diálogo para crear/editar responsables. */
@@ -80,18 +93,21 @@ export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
     () => c.responsables_coordinacion.filter(responsableCoordinacionTieneDatos),
     [c.responsables_coordinacion],
   );
-  const conteos = useMemo(() => contarPorCategoria(c.responsables_coordinacion), [c.responsables_coordinacion]);
+  const conteos = useMemo(
+    () => contarPorPestana(c.responsables_coordinacion),
+    [c.responsables_coordinacion],
+  );
   const personalTotal = useMemo(
     () => visibles.reduce((sum, r) => sum + r.personal_mando, 0),
     [visibles],
   );
   const categoriasActivas = useMemo(
-    () => CATEGORIAS_RESPONSABILIDAD_COORDINACION.filter((cat) => conteos[cat.valor] > 0).length,
+    () => PESTANAS_COORDINACION.filter((p) => conteos[p.id] > 0).length,
     [conteos],
   );
 
-  const [subTab, setSubTab] = useState<CategoriaResponsabilidadCoordinacion>(() =>
-    categoriaInicial(c.responsables_coordinacion),
+  const [subTab, setSubTab] = useState<IdPestana>(() =>
+    pestanaInicial(c.responsables_coordinacion),
   );
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [responsableEditando, setResponsableEditando] = useState<ResponsableCoordinacion | null>(
@@ -103,7 +119,7 @@ export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const categoriaActiva = CATEGORIAS_RESPONSABILIDAD_COORDINACION.find((c) => c.valor === subTab)!;
+  const pestanaActiva = PESTANAS_COORDINACION.find((p) => p.id === subTab)!;
 
   async function persistir(lista: ResponsableCoordinacion[]) {
     setError(null);
@@ -136,7 +152,7 @@ export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
 
   function abrirNuevo(categoria?: CategoriaResponsabilidadCoordinacion) {
     setResponsableEditando(null);
-    setCategoriaInicialDialogo(categoria ?? subTab);
+    setCategoriaInicialDialogo(categoria ?? pestanaActiva.categorias[0]);
     setError(null);
     setDialogoAbierto(true);
   }
@@ -164,7 +180,7 @@ export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
       : [...actual, responsable];
     const ok = await persistir(lista);
     if (ok) {
-      setSubTab(responsable.categoria);
+      setSubTab(pestanaDeCategoria(responsable.categoria).id);
     }
   }
 
@@ -185,14 +201,11 @@ export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Franja resumen */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-border bg-muted/20 px-4 py-2.5 text-xs">
         <span className="text-muted-foreground">
           Responsables:{" "}
           <span className="font-medium text-foreground">
-            {visibles.length > 0
-              ? visibles.length
-              : "sin registrar"}
+            {visibles.length > 0 ? visibles.length : "sin registrar"}
           </span>
         </span>
         <span className="hidden text-border sm:inline">·</span>
@@ -213,7 +226,7 @@ export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
 
       <Tabs
         value={subTab}
-        onValueChange={(v) => setSubTab(v as CategoriaResponsabilidadCoordinacion)}
+        onValueChange={(v) => setSubTab(v as IdPestana)}
         className="gap-0"
       >
         <div className="border-b border-border">
@@ -221,26 +234,26 @@ export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
             variant="line"
             className="!flex h-10 w-full justify-start gap-0 overflow-x-auto rounded-none bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {CATEGORIAS_RESPONSABILIDAD_COORDINACION.map((cat) => (
+            {PESTANAS_COORDINACION.map((pestana) => (
               <TabsTrigger
-                key={cat.valor}
-                value={cat.valor}
-                title={cat.label}
+                key={pestana.id}
+                value={pestana.id}
+                title={pestana.label}
                 className={tabTriggerClass}
                 style={
-                  subTab === cat.valor
-                    ? { borderBottomColor: cat.color, color: cat.color }
+                  subTab === pestana.id
+                    ? { borderBottomColor: pestana.color, color: pestana.color }
                     : undefined
                 }
               >
-                {ICONO_CATEGORIA[cat.valor]}
-                <span className="truncate">{ETIQUETA_CORTA[cat.valor] ?? cat.label}</span>
-                {conteos[cat.valor] > 0 && (
+                {ICONO_PESTANA[pestana.id]}
+                <span className="truncate">{pestana.labelCorto}</span>
+                {conteos[pestana.id] > 0 && (
                   <Badge
                     variant="secondary"
                     className="h-4 min-w-4 px-1 text-[9px] tabular-nums"
                   >
-                    {conteos[cat.valor]}
+                    {conteos[pestana.id]}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -248,27 +261,24 @@ export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
           </TabsList>
         </div>
 
-        {CATEGORIAS_RESPONSABILIDAD_COORDINACION.map((cat) => (
-          <TabsContent key={cat.valor} value={cat.valor} className="mt-4 space-y-4">
+        {PESTANAS_COORDINACION.map((pestana) => (
+          <TabsContent key={pestana.id} value={pestana.id} className="mt-4 space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p
-                  className="text-sm font-semibold"
-                  style={{ color: cat.color }}
-                >
-                  {cat.label}
+                <p className="text-sm font-semibold" style={{ color: pestana.color }}>
+                  {pestana.label}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {descripcionCategoria(cat.valor)}
+                  {descripcionPestana(pestana.id)}
                 </p>
               </div>
-              {puedeEditar && (
+              {puedeEditar && pestana.categorias.length === 1 && (
                 <Button
                   type="button"
                   size="sm"
                   className="h-8 gap-1.5 bg-teal-600 hover:bg-teal-500"
                   disabled={guardando}
-                  onClick={() => abrirNuevo(cat.valor)}
+                  onClick={() => abrirNuevo(pestana.categorias[0])}
                 >
                   {guardando && !dialogoAbierto ? (
                     <Loader2 className="size-3.5 animate-spin" />
@@ -282,31 +292,43 @@ export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
 
             <ListaResponsablesCoordinacion
               responsables={c.responsables_coordinacion}
-              categoria={cat.valor}
+              categoriasFiltro={pestana.categorias}
               integrado
               modoEdicion={puedeEditar}
-              ocultarBadgeCategoria
+              ocultarBadgeCategoria={pestana.categorias.length === 1}
               onEditar={abrirEditar}
               onEliminar={(id) => void eliminarResponsable(id)}
+              onAgregarCategoria={puedeEditar ? abrirNuevo : undefined}
               vacio={
                 <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
                   <ClipboardList className="mx-auto size-10 text-muted-foreground/40" />
                   <p className="mt-3 text-sm font-medium text-foreground">
-                    Sin datos en {cat.label.toLowerCase()}
+                    Sin datos en {pestana.label.toLowerCase()}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Registra el responsable, contacto y personal desplegado de este ámbito.
+                    {pestana.categorias.length > 1
+                      ? "Registra la supervisión rotatoria y/o el analista SAE del campamento."
+                      : "Registra el responsable, contacto y personal desplegado de este ámbito."}
                   </p>
                   {puedeEditar && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="mt-4 gap-1.5"
-                      onClick={() => abrirNuevo(cat.valor)}
-                    >
-                      <Plus className="size-3.5" />
-                      Agregar responsable
-                    </Button>
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                      {pestana.categorias.map((cat) => (
+                        <Button
+                          key={cat}
+                          type="button"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => abrirNuevo(cat)}
+                        >
+                          <Plus className="size-3.5" />
+                          {cat === "analista_sae"
+                            ? "Analista SAE"
+                            : cat === "supervision_rotatoria"
+                              ? "Supervisión rotatoria"
+                              : "Agregar responsable"}
+                        </Button>
+                      ))}
+                    </div>
                   )}
                 </div>
               }
@@ -319,32 +341,11 @@ export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
         abierto={dialogoAbierto}
         onCerrar={cerrarDialogo}
         responsable={responsableEditando}
-        categoriaInicial={categoriaInicialDialogo ?? categoriaActiva.valor}
+        categoriaInicial={categoriaInicialDialogo ?? pestanaActiva.categorias[0]}
         guardando={guardando}
         error={error}
         onGuardar={(r) => void guardarResponsable(r)}
       />
     </div>
   );
-}
-
-function descripcionCategoria(categoria: CategoriaResponsabilidadCoordinacion): string {
-  switch (categoria) {
-    case "politica":
-      return "Coordinación política e institucional del campamento.";
-    case "seguridad":
-      return "Seguridad física, organismo y personal desplegado.";
-    case "salud":
-      return "Personal médico, psicosocial y logística sanitaria.";
-    case "justicia":
-      return "TJS, Ministerio Público y Defensoría del Pueblo.";
-    case "supervision_rotatoria":
-      return "Supervisión rotatoria del ámbito territorial.";
-    case "comunitaria":
-      return "Coordinación comunitaria y funcionarios de apoyo.";
-    case "analista_sae":
-      return "Analista de la SAE asignado al campamento.";
-    default:
-      return "";
-  }
 }

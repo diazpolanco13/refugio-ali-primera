@@ -20,6 +20,7 @@ function formatearCantidad(n: number): string {
 export function ListaResponsablesCoordinacion({
   responsables,
   categoria,
+  categoriasFiltro,
   integrado = false,
   modoEdicion = false,
   ocultarBadgeCategoria = false,
@@ -31,6 +32,8 @@ export function ListaResponsablesCoordinacion({
   responsables: ResponsableCoordinacion[];
   /** Si se indica, solo muestra esta categoría (modo sub-pestaña). */
   categoria?: CategoriaResponsabilidadCoordinacion;
+  /** Varias categorías en una misma vista (p. ej. Supervisión + Analista SAE). */
+  categoriasFiltro?: CategoriaResponsabilidadCoordinacion[];
   integrado?: boolean;
   modoEdicion?: boolean;
   ocultarBadgeCategoria?: boolean;
@@ -40,13 +43,17 @@ export function ListaResponsablesCoordinacion({
   vacio?: React.ReactNode;
 }) {
   const visibles = responsables.filter(responsableCoordinacionTieneDatos);
-  const categorias = categoria
-    ? CATEGORIAS_RESPONSABILIDAD_COORDINACION.filter((c) => c.valor === categoria)
+  const filtro =
+    categoriasFiltro ??
+    (categoria ? [categoria] : undefined);
+  const categorias = filtro
+    ? CATEGORIAS_RESPONSABILIDAD_COORDINACION.filter((c) => filtro.includes(c.valor))
     : CATEGORIAS_RESPONSABILIDAD_COORDINACION;
 
-  if (integrado && categoria) {
-    const grupo = visibles.filter((r) => r.categoria === categoria);
-    const config = CONFIG_CATEGORIA_COORDINACION[categoria];
+  if (integrado && filtro && filtro.length === 1) {
+    const catUnica = filtro[0];
+    const grupo = visibles.filter((r) => r.categoria === catUnica);
+    const config = CONFIG_CATEGORIA_COORDINACION[catUnica];
     const logisticaAgregada = agregarLogisticaCategoria(grupo);
     const vehiculosTotal = grupo.reduce((sum, r) => sum + (r.transporte?.vehiculos ?? 0), 0);
     const tieneDatos =
@@ -73,6 +80,76 @@ export function ListaResponsablesCoordinacion({
         {config.transporte && vehiculosTotal > 0 && (
           <BloqueTransporte vehiculos={vehiculosTotal} />
         )}
+      </div>
+    );
+  }
+
+  if (integrado && filtro && filtro.length > 1) {
+    const grupos = categorias.map((cat) => {
+      const grupo = visibles.filter((r) => r.categoria === cat.valor);
+      const config = CONFIG_CATEGORIA_COORDINACION[cat.valor];
+      const logisticaAgregada = agregarLogisticaCategoria(grupo);
+      const vehiculosTotal = grupo.reduce((sum, r) => sum + (r.transporte?.vehiculos ?? 0), 0);
+      return { cat, grupo, config, logisticaAgregada, vehiculosTotal };
+    });
+    const tieneDatos = grupos.some(
+      (g) =>
+        g.grupo.length > 0 ||
+        g.logisticaAgregada.some((i) => i.disponible || i.cantidad > 0) ||
+        g.vehiculosTotal > 0,
+    );
+
+    if (!tieneDatos) {
+      return vacio ?? (
+        <p className="text-xs text-muted-foreground">Sin datos registrados.</p>
+      );
+    }
+
+    return (
+      <div className="space-y-5">
+        {grupos.map(({ cat, grupo, config, logisticaAgregada, vehiculosTotal }) => (
+          <section key={cat.valor} className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p
+                className="text-[11px] font-semibold uppercase tracking-wide"
+                style={{ color: cat.color }}
+              >
+                {cat.label}
+              </p>
+              {modoEdicion && onAgregarCategoria && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  className="h-6 gap-1 px-1.5 text-[10px]"
+                  onClick={() => onAgregarCategoria(cat.valor)}
+                >
+                  <Plus className="size-3" />
+                  Agregar
+                </Button>
+              )}
+            </div>
+            {grupo.length === 0 &&
+            !logisticaAgregada.some((i) => i.disponible || i.cantidad > 0) &&
+            vehiculosTotal === 0 ? (
+              <p className="text-xs text-muted-foreground">Sin datos registrados.</p>
+            ) : (
+              <div className="space-y-3">
+                <BloquePersonal
+                  grupo={grupo}
+                  modoEdicion={modoEdicion}
+                  ocultarBadgeCategoria={false}
+                  onEditar={onEditar}
+                  onEliminar={onEliminar}
+                />
+                {config.logistica.length > 0 && <BloqueLogistica items={logisticaAgregada} />}
+                {config.transporte && vehiculosTotal > 0 && (
+                  <BloqueTransporte vehiculos={vehiculosTotal} />
+                )}
+              </div>
+            )}
+          </section>
+        ))}
       </div>
     );
   }

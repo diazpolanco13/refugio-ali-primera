@@ -32,6 +32,7 @@ export type VistaFichaCentro =
   | "resumen"
   | "coordinacion"
   | "poblacion"
+  | "censo_rapido"
   | "reporte"
   | "incidencias"
   | "infraestructura";
