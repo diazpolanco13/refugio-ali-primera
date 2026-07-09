@@ -20,6 +20,7 @@ import {
   responsableCoordinacionTieneDatos,
   syncCentroDesdeCoordinacion,
   type CategoriaResponsabilidadCoordinacion,
+  type IdPestanaCoordinacion,
   type ResponsableCoordinacion,
 } from "@/domain/coordinacionCentro";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +43,7 @@ function firmaResponsables(lista: ResponsableCoordinacion[]): string {
     .join("|");
 }
 
-type IdPestana = (typeof PESTANAS_COORDINACION)[number]["id"];
+type IdPestana = IdPestanaCoordinacion;
 
 const ICONO_PESTANA: Record<IdPestana, React.ReactNode> = {
   supervision_rotatoria: <RotateCw className="size-3.5 shrink-0" />,

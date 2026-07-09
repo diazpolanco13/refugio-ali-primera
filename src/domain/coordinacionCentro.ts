@@ -72,8 +72,13 @@ export const CATEGORIAS_RESPONSABILIDAD_COORDINACION: {
  * Pestañas de la UI de Coordinación. Supervisión agrupa supervisión rotatoria
  * + analista SAE (ya no hay pestaña SAE aparte).
  */
+export type IdPestanaCoordinacion = Exclude<
+  CategoriaResponsabilidadCoordinacion,
+  "analista_sae"
+>;
+
 export const PESTANAS_COORDINACION: {
-  id: CategoriaResponsabilidadCoordinacion;
+  id: IdPestanaCoordinacion;
   label: string;
   labelCorto: string;
   color: string;
