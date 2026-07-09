@@ -1,11 +1,19 @@
-// Censo rápido en terreno (sin login): RPCs públicas censo_centros /
-// censo_registrar / censo_actualizar / censo_eliminar / censo_listado.
-// La escritura pasa por funciones security definer en Supabase; el rol anon
-// no tiene acceso directo a las tablas.
+// Censo rápido en terreno (sin login): RPCs censo_registrar /
+// censo_actualizar / censo_eliminar / censo_listado / censo_completar /
+// censo_cierre. La escritura pasa por funciones security definer en Supabase;
+// el rol anon no tiene acceso directo a las tablas y, desde la migración
+// tokens_terreno_censo, sin sesión cada RPC exige el token de terreno del
+// campamento (?t= del QR). Con sesión autenticada el token es irrelevante.
 
 import type { PostgrestSingleResponse } from "@supabase/supabase-js";
 import type { ResumenCensoCentro } from "@/domain/censoResumen";
+import { tokenTerrenoActual } from "@/lib/tokenTerreno";
 import { supabase } from "./supabaseClient";
+
+/** Token de terreno a adjuntar en las RPC (null si el dispositivo no tiene). */
+function tokenActual(): string | null {
+  return tokenTerrenoActual() || null;
+}
 
 /** PostgREST/Supabase devuelve como máximo 1000 filas por petición RPC. */
 const LIMITE_FILAS_RPC = 1000;
@@ -233,11 +241,19 @@ export function registroDesdeGuardado(fila: RegistroCensoGuardado): RegistroCens
   };
 }
 
-/** Lista de refugios activos (id + nombre) para el selector público. */
+/** Lista de refugios activos (id + nombre). Requiere sesión autenticada. */
 export async function listarCentrosCenso(): Promise<CentroCenso[]> {
   const { data, error } = await supabase.rpc("censo_centros");
   if (error) throw new Error(error.message);
   return (data ?? []) as CentroCenso[];
+}
+
+/** Campamento asociado a un token de terreno (null si es inválido o fue revocado). */
+export async function obtenerCentroTerreno(token: string): Promise<CentroCenso | null> {
+  const { data, error } = await supabase.rpc("terreno_centro", { p_token: token });
+  if (error) throw new Error(error.message);
+  const filas = (data ?? []) as CentroCenso[];
+  return filas[0] ?? null;
 }
 
 /** Registra una persona en el censo rápido. Devuelve el id del registro. */
@@ -260,6 +276,7 @@ export async function registrarCenso(
       precision: ubicacion?.precision ?? null,
     },
     p_registro: payloadRegistro(registro),
+    p_token: tokenActual(),
   });
   if (error) throw new Error(error.message);
   return data as string;
@@ -270,20 +287,23 @@ export async function actualizarCenso(id: string, registro: RegistroCenso): Prom
   const { error } = await supabase.rpc("censo_actualizar", {
     p_id: id,
     p_registro: payloadRegistro(registro),
+    p_token: tokenActual(),
   });
   if (error) throw new Error(error.message);
 }
 
 /** Elimina un registro del censo (irreversible). */
 export async function eliminarCenso(id: string): Promise<void> {
-  const { error } = await supabase.rpc("censo_eliminar", { p_id: id });
+  const { error } = await supabase.rpc("censo_eliminar", { p_id: id, p_token: tokenActual() });
   if (error) throw new Error(error.message);
 }
 
 /** Registros del censo de un refugio (vista de estadística del operador). */
 export async function listarRegistrosCenso(centroId: string): Promise<RegistroCensoGuardado[]> {
   return rpcSetofPaginado<RegistroCensoGuardado>((desde, hasta) =>
-    supabase.rpc("censo_listado", { p_centro_id: centroId }).range(desde, hasta),
+    supabase
+      .rpc("censo_listado", { p_centro_id: centroId, p_token: tokenActual() })
+      .range(desde, hasta),
   );
 }
 
@@ -300,6 +320,7 @@ export async function completarCenso(
       institucion: funcionario.institucion.trim(),
       telefono: funcionario.telefono.trim(),
     },
+    p_token: tokenActual(),
   });
   if (error) throw new Error(error.message);
   return data as number;
@@ -307,7 +328,10 @@ export async function completarCenso(
 
 /** Último cierre declarado del censo de un refugio (null si nunca se completó). */
 export async function obtenerCierreCenso(centroId: string): Promise<CierreCenso | null> {
-  const { data, error } = await supabase.rpc("censo_cierre", { p_centro_id: centroId });
+  const { data, error } = await supabase.rpc("censo_cierre", {
+    p_centro_id: centroId,
+    p_token: tokenActual(),
+  });
   if (error) throw new Error(error.message);
   const filas = (data ?? []) as CierreCenso[];
   return filas[0] ?? null;

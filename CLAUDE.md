@@ -98,8 +98,36 @@ datos viven en Postgres.
  snapshot (`soloSnapshot`), nunca el estado vigente del centro.
 - ✅ **Portal público de terreno `/terreno`** (bootstrap ligero compartido con
  `/censo`, `src/features/terreno/`): dos botones (Reporte diario / Censo),
- `?centro=<id>` para llegar apuntado, pantallas de instrucciones una-vez con
- toggle de reset (`src/lib/instruccionesCampo.ts`).
+ pantallas de instrucciones una-vez con toggle de reset
+ (`src/lib/instruccionesCampo.ts`). Desde el 09-jul el acceso público va por
+ **token de terreno** `?t=<token>` (ver siguiente punto); `?centro=<id>` solo
+ sigue funcionando con sesión autenticada.
+- ✅ **Tokens de terreno por campamento (09-jul, Fase 1 del plan de acceso de
+ campo):** tabla `tokens_centros` (token secreto revocable por centro, tipos
+ `personal`/`publico`, RLS solo admin/analista) + helpers `centro_de_token()`
+ y `acceso_censo_centro()` + RPC pública `terreno_centro(p_token)`. Las RPC
+ del censo (`censo_registrar/actualizar/eliminar/listado/completar/cierre`)
+ ganaron `p_token default null`: con sesión autenticada nada cambia; sin
+ sesión exigen token `personal` vigente y limitan todo al centro del token.
+ Se **cerró la fuga anon**: `censo_listado_red*`, `censo_resumen_red`,
+ `censo_centros`, `censo_error_cedula_duplicada` y `censo_normalizar_jefe_doc`
+ quedaron solo para `authenticated`, y los buckets `centros-fotos`/
+ `infraestructura-fotos`/`reparaciones-fotos` ya no aceptan escritura anon.
+ ⚠️ Al recrear cualquiera de esas funciones, Postgres re-otorga EXECUTE a
+ PUBLIC: repetir los revoke (ver `supabase/tokens_terreno.sql`). Frontend:
+ `src/lib/tokenTerreno.ts` (lee `?t=` con respaldo en localStorage),
+ `reposCenso` adjunta `p_token` automáticamente, `/terreno` y `/censo`
+ resuelven el campamento vía `obtenerCentroTerreno()`. Hay 61 tokens
+ `personal` + 61 `publico` activos (los `publico` los usará el canal de
+ denuncias de la Fase 3). **Ficha del campamento:** sección "Acceso de
+ terreno" en la pestaña Resumen (`AccesoTerrenoCentro.tsx`, solo la ven
+ admin/analista por RLS) con el enlace `?t=`, QR generado en el navegador
+ (lib `qrcode`), copiar y descargar PNG; los enlaces usan
+ `URL_PORTAL_TERRENO` (dominio de producción, nunca el dev server). Un
+ **trigger** (`centros_generar_tokens`, migración `tokens_centro_auto`) crea
+ los tokens automáticamente al registrar un campamento nuevo. Pendientes: Fase 2 (login de terreno con operador
+ por campamento vía token), Fase 3 (denuncias QR), Fase 4 (subdominio +
+ cerrar :5173 del VPS).
 - ✅ **Partes en formato Telegram** (negritas `**…**`, pie `REF: <centro_id> |
  <dia>` parseable por un bot futuro): botón "Copiar parte" por campamento
  (`src/domain/reporteTelegramCentro.ts`) y menú **Compartir** en

@@ -14,7 +14,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { SelectorCentroLista } from "@/features/censo/SelectorCentroLista";
 import { ReporteInstrucciones } from "@/features/terreno/ReporteInstrucciones";
-import { listarCentrosCenso, type CentroCenso } from "@/data/reposCenso";
+import { listarCentrosCenso, obtenerCentroTerreno, type CentroCenso } from "@/data/reposCenso";
+import { tokenTerrenoActual } from "@/lib/tokenTerreno";
 import {
   INSTRUCCIONES_REPORTE_KEY,
   debeMostrarInstrucciones,
@@ -40,6 +41,9 @@ type Pantalla = "menu" | "instrucciones-reporte" | "selector-reporte";
 
 export function TerrenoView() {
   const centroParam = useMemo(centroDeLaUrl, []);
+  // Token de terreno del QR (?t=): identifica y autoriza el campamento sin
+  // usuario. Sin token, la lista completa solo carga si hay sesión (admin).
+  const token = useMemo(tokenTerrenoActual, []);
   const [pantalla, setPantalla] = useState<Pantalla>("menu");
   const [centros, setCentros] = useState<CentroCenso[]>([]);
   const [cargandoCentros, setCargandoCentros] = useState(true);
@@ -50,14 +54,22 @@ export function TerrenoView() {
 
   useEffect(() => {
     let cancelado = false;
-    listarCentrosCenso()
-      .then((lista) => {
-        if (!cancelado) setCentros(lista);
-      })
+    const carga = token
+      ? obtenerCentroTerreno(token).then((centroDelToken) => {
+          if (cancelado) return;
+          if (centroDelToken) setCentros([centroDelToken]);
+          else setErrorCentros("El enlace o código QR no es válido o fue revocado. Solicite el vigente de su campamento.");
+        })
+      : listarCentrosCenso().then((lista) => {
+          if (!cancelado) setCentros(lista);
+        });
+    carga
       .catch((err) => {
         if (!cancelado)
           setErrorCentros(
-            err instanceof Error ? err.message : "No se pudo cargar la lista de campamentos",
+            err instanceof Error && !err.message.includes("permission denied")
+              ? err.message
+              : "Acceso restringido: entre con el enlace o código QR de su campamento.",
           );
       })
       .finally(() => {
@@ -66,13 +78,18 @@ export function TerrenoView() {
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [token]);
 
-  const centro = centros.find((c) => c.id === centroParam);
-  // El enlace solo arrastra el centro si existe en la red (evita propagar un
-  // id malformado a la planilla o a la ficha del reporte).
-  const centroValido = centro ? centroParam : "";
-  const urlCenso = centroValido ? `/censo?centro=${encodeURIComponent(centroValido)}` : "/censo";
+  // Con token, el campamento es el del token; sin token, el enlace solo
+  // arrastra el centro si existe en la red (evita propagar un id malformado
+  // a la planilla o a la ficha del reporte).
+  const centro = token ? centros[0] : centros.find((c) => c.id === centroParam);
+  const centroValido = centro?.id ?? "";
+  const urlCenso = token
+    ? `/censo?t=${encodeURIComponent(token)}`
+    : centroValido
+      ? `/censo?centro=${encodeURIComponent(centroValido)}`
+      : "/censo";
 
   /** Tras las instrucciones (o si ya se vieron): al reporte del centro del enlace, o al selector. */
   function seguirAlReporte() {
@@ -165,7 +182,7 @@ export function TerrenoView() {
               Campamentos Transitorios — Caracas
             </p>
           </div>
-          {centroParam !== "" && (
+          {(token !== "" || centroParam !== "") && (
             <div
               className={cn(
                 "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs",
@@ -185,6 +202,9 @@ export function TerrenoView() {
                   : (centro?.nombre ?? "Campamento no reconocido")}
               </span>
             </div>
+          )}
+          {!cargandoCentros && errorCentros && !centro && (
+            <p className="max-w-xs text-xs leading-snug text-destructive">{errorCentros}</p>
           )}
         </header>
 

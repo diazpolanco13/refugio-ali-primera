@@ -30,6 +30,7 @@ import {
   SeccionNovedadesNotasCentro,
 } from "./DetalleCentro";
 import { AlertasDelDiaCentro, type VistaFichaCentro } from "./AlertasDelDiaCentro";
+import { AccesoTerrenoCentro } from "./AccesoTerrenoCentro";
 import { ProgresoCensoPoblacion } from "@/features/refugiados/ProgresoCensoPoblacion";
 import { ultimoSnapshotAntes } from "./ParteNumericoResumen";
 
@@ -239,6 +240,7 @@ export function ResumenCentroPanel({ centro, onIrAPestana }: Props) {
       <ProgresoCensoPoblacion centro={centro} />
       <AlertasDelDiaCentro centro={centro} onIrAPestana={onIrAPestana} />
       <SeccionIdentificacionCentro centro={centro} />
+      <AccesoTerrenoCentro centro={centro} />
       <ChipAlertaServicios centro={centro} onIrAPestana={onIrAPestana} />
       <SeccionNovedadesNotasCentro centro={centro} />
       <EnlacesRapidos onIrAPestana={onIrAPestana} />

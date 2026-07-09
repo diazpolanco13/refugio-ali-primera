@@ -73,6 +73,7 @@ import {
   eliminarCenso,
   listarCentrosCenso,
   listarRegistrosCenso,
+  obtenerCentroTerreno,
   obtenerCierreCenso,
   registrarCenso,
   registroDesdeGuardado,
@@ -92,6 +93,7 @@ import {
   debeMostrarInstrucciones,
   marcarInstruccionesVistas,
 } from "@/lib/instruccionesCampo";
+import { tokenTerrenoActual } from "@/lib/tokenTerreno";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "censo_funcionario_v1";
@@ -265,13 +267,16 @@ export function CensoView() {
     () => new URLSearchParams(window.location.search).get("centro")?.trim() ?? "",
     [],
   );
+  // Token de terreno del QR (?t=): fija y autoriza el campamento sin sesión.
+  // Sin token, la planilla solo funciona con sesión autenticada (admin).
+  const token = useMemo(tokenTerrenoActual, []);
 
   const [mostrarInstrucciones, setMostrarInstrucciones] = useState(() =>
     debeMostrarInstrucciones(INSTRUCCIONES_CENSO_KEY),
   );
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
   const [paso1Seccion, setPaso1Seccion] = useState<"centro" | "funcionario">(
-    centroParam || guardada?.centroId ? "funcionario" : "centro",
+    token || centroParam || guardada?.centroId ? "funcionario" : "centro",
   );
   const [centros, setCentros] = useState<CentroCenso[]>([]);
   const [cargandoCentros, setCargandoCentros] = useState(true);
@@ -299,31 +304,52 @@ export function CensoView() {
 
   useEffect(() => {
     let cancelado = false;
-    listarCentrosCenso()
-      .then((lista) => {
-        if (cancelado) return;
-        setCentros(lista);
-        setCargandoCentros(false);
-        // Enlace con un centro que no existe en la red: se descarta la
-        // preselección y el funcionario elige manualmente.
-        if (centroParam && !lista.some((c) => c.id === centroParam)) {
-          setCentroId((actual) => {
-            if (actual !== centroParam) return actual;
-            const respaldo = guardada?.centroId ?? "";
-            if (!respaldo) setPaso1Seccion("centro");
-            return respaldo;
-          });
-        }
-      })
-      .catch((err) => {
-        if (cancelado) return;
-        setErrorCentros(err instanceof Error ? err.message : "No se pudo cargar la lista de campamentos");
-        setCargandoCentros(false);
-      });
+    const carga = token
+      ? // Con token del QR el campamento queda fijado por el servidor: no hay
+        // lista que elegir y el token autoriza las RPC del censo.
+        obtenerCentroTerreno(token).then((centroDelToken) => {
+          if (cancelado) return;
+          setCargandoCentros(false);
+          if (centroDelToken) {
+            setCentros([centroDelToken]);
+            setCentroId(centroDelToken.id);
+          } else {
+            setErrorCentros(
+              "El enlace o código QR no es válido o fue revocado. Solicite el vigente de su campamento.",
+            );
+            setCentroId("");
+            setPaso1Seccion("centro");
+          }
+        })
+      : listarCentrosCenso().then((lista) => {
+          if (cancelado) return;
+          setCentros(lista);
+          setCargandoCentros(false);
+          // Enlace con un centro que no existe en la red: se descarta la
+          // preselección y el funcionario elige manualmente.
+          if (centroParam && !lista.some((c) => c.id === centroParam)) {
+            setCentroId((actual) => {
+              if (actual !== centroParam) return actual;
+              const respaldo = guardada?.centroId ?? "";
+              if (!respaldo) setPaso1Seccion("centro");
+              return respaldo;
+            });
+          }
+        });
+    carga.catch((err) => {
+      if (cancelado) return;
+      setErrorCentros(
+        err instanceof Error && !err.message.includes("permission denied")
+          ? err.message
+          : "Acceso restringido: entre con el enlace o código QR de su campamento.",
+      );
+      setCargandoCentros(false);
+      setPaso1Seccion("centro");
+    });
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [token]);
 
   const centroNombre = centros.find((c) => c.id === centroId)?.nombre ?? "";
 
@@ -640,15 +666,17 @@ export function CensoView() {
                     </p>
                     <p className="truncate text-sm font-medium">{centroNombre}</p>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => setPaso1Seccion("centro")}
-                  >
-                    Cambiar
-                  </Button>
+                  {!token && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => setPaso1Seccion("centro")}
+                    >
+                      Cambiar
+                    </Button>
+                  )}
                 </div>
 
                 <Separator />
