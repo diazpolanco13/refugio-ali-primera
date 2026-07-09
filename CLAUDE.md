@@ -119,15 +119,27 @@ datos viven en Postgres.
  `reposCenso` adjunta `p_token` automáticamente, `/terreno` y `/censo`
  resuelven el campamento vía `obtenerCentroTerreno()`. Hay 61 tokens
  `personal` + 61 `publico` activos (los `publico` los usará el canal de
- denuncias de la Fase 3). **Ficha del campamento:** sección "Acceso de
+ denuncias de la Fase 3 — pendiente, junto con la Fase 4: subdominio +
+ cerrar :5173 del VPS). **Ficha del campamento:** sección "Acceso de
  terreno" en la pestaña Resumen (`AccesoTerrenoCentro.tsx`, solo la ven
  admin/analista por RLS) con el enlace `?t=`, QR generado en el navegador
  (lib `qrcode`), copiar y descargar PNG; los enlaces usan
  `URL_PORTAL_TERRENO` (dominio de producción, nunca el dev server). Un
  **trigger** (`centros_generar_tokens`, migración `tokens_centro_auto`) crea
- los tokens automáticamente al registrar un campamento nuevo. Pendientes: Fase 2 (login de terreno con operador
- por campamento vía token), Fase 3 (denuncias QR), Fase 4 (subdominio +
- cerrar :5173 del VPS).
+ los tokens automáticamente al registrar un campamento nuevo.
+- ✅ **Login de terreno por QR (Fase 2, 09-jul):** Edge Function
+ **`login-terreno`** (referencia en `supabase/functions/login-terreno/`):
+ valida el token `personal`, **crea sobre la marcha** el usuario compartido
+ `operador-<centro_id>` (email sintético, SIN contraseña, rol `operador` con
+ ese único centro asignado, hash_id de servidor) y devuelve el
+ `hashed_token` de un magiclink que el frontend canjea con
+ `supabase.auth.verifyOtp` → sesión real y la RLS de siempre. El QR es la
+ única credencial y es revocable. Frontend: `src/data/loginTerreno.ts`
+ (`asegurarSesionTerreno`: respeta sesiones personales, re-loguea si el
+ dispositivo cambia de campamento) y el botón "Reporte diario" de `/terreno`
+ entra directo autenticado. Registra `crear_usuario_terreno` y
+ `login_terreno` en `historial`. Verificado E2E contra producción: la sesión
+ emitida solo ve/escribe su centro.
 - ✅ **Partes en formato Telegram** (negritas `**…**`, pie `REF: <centro_id> |
  <dia>` parseable por un bot futuro): botón "Copiar parte" por campamento
  (`src/domain/reporteTelegramCentro.ts`) y menú **Compartir** en

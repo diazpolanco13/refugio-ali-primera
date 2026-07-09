@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { SelectorCentroLista } from "@/features/censo/SelectorCentroLista";
 import { ReporteInstrucciones } from "@/features/terreno/ReporteInstrucciones";
 import { listarCentrosCenso, obtenerCentroTerreno, type CentroCenso } from "@/data/reposCenso";
+import { asegurarSesionTerreno } from "@/data/loginTerreno";
 import { tokenTerrenoActual } from "@/lib/tokenTerreno";
 import {
   INSTRUCCIONES_REPORTE_KEY,
@@ -91,10 +92,37 @@ export function TerrenoView() {
       ? `/censo?centro=${encodeURIComponent(centroValido)}`
       : "/censo";
 
-  /** Tras las instrucciones (o si ya se vieron): al reporte del centro del enlace, o al selector. */
-  function seguirAlReporte() {
-    if (centroValido) window.location.href = urlReporteCentro(centroValido);
-    else setPantalla("selector-reporte");
+  const [entrando, setEntrando] = useState(false);
+  const [errorEntrar, setErrorEntrar] = useState("");
+
+  /**
+   * Tras las instrucciones (o si ya se vieron): al reporte del centro del
+   * enlace, o al selector. Con token del QR primero se canjea por la sesión
+   * del operador del campamento (Edge Function `login-terreno`); así el
+   * funcionario entra directo, sin usuario ni contraseña.
+   */
+  async function seguirAlReporte() {
+    if (!centroValido) {
+      setPantalla("selector-reporte");
+      return;
+    }
+    const destino = urlReporteCentro(centroValido);
+    if (!token) {
+      window.location.href = destino;
+      return;
+    }
+    setEntrando(true);
+    setErrorEntrar("");
+    try {
+      await asegurarSesionTerreno(token, centroValido);
+      window.location.href = destino;
+    } catch (err) {
+      setErrorEntrar(
+        err instanceof Error ? err.message : "No se pudo entrar al reporte. Intente de nuevo.",
+      );
+      setEntrando(false);
+      setPantalla("menu");
+    }
   }
 
   function abrirReporte() {
@@ -206,15 +234,31 @@ export function TerrenoView() {
           {!cargandoCentros && errorCentros && !centro && (
             <p className="max-w-xs text-xs leading-snug text-destructive">{errorCentros}</p>
           )}
+          {errorEntrar && (
+            <p className="max-w-xs text-xs leading-snug text-destructive">{errorEntrar}</p>
+          )}
         </header>
 
         <nav aria-label="Tareas de terreno" className="grid w-full grid-cols-2 gap-4">
-          <button type="button" onClick={abrirReporte} className={CLASE_BOTON_CUADRADO}>
-            <ClipboardList className="size-10 text-primary" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={abrirReporte}
+            disabled={entrando}
+            className={cn(CLASE_BOTON_CUADRADO, entrando && "pointer-events-none opacity-70")}
+          >
+            {entrando ? (
+              <Loader2 className="size-10 animate-spin text-primary" aria-hidden="true" />
+            ) : (
+              <ClipboardList className="size-10 text-primary" aria-hidden="true" />
+            )}
             <span className="text-sm font-semibold">Reporte diario</span>
             <span className="flex items-center gap-1 text-[0.6875rem] leading-tight text-muted-foreground">
               <LockKeyhole className="size-3 shrink-0" aria-hidden="true" />
-              Parte del día · con usuario
+              {entrando
+                ? "Entrando al campamento…"
+                : token && centro
+                  ? "Parte del día · entra con el QR"
+                  : "Parte del día · con usuario"}
             </span>
           </button>
           <a href={urlCenso} className={CLASE_BOTON_CUADRADO}>
