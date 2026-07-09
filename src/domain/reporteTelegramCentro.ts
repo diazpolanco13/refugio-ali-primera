@@ -112,7 +112,7 @@ export function textoReporteTelegramCentro({
       [
         "**RELACIÓN GENERAL EN EL CAMPAMENTO:**",
         "",
-        `- CANTIDAD DE REFUGIADOS: ${snapshot.total_afectados.toLocaleString("es")}`,
+        `- CANTIDAD DE DAMNIFICADOS: ${snapshot.total_afectados.toLocaleString("es")}`,
         `- NRO. DE FAMILIAS: ${snapshot.familias.toLocaleString("es")}`,
         `- HOMBRES: ${n2(v.adultos_h)}`,
         `- MUJERES: ${n2(v.adultos_m)}`,

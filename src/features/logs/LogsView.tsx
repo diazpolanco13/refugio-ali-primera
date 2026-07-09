@@ -62,6 +62,21 @@ const META_ACCION: Record<
     icono: KeyRound,
     clase: "text-amber-400",
   },
+  registrar_refugiado: {
+    label: "Registró damnificado",
+    icono: Plus,
+    clase: "text-emerald-400",
+  },
+  editar_refugiado: {
+    label: "Editó damnificado",
+    icono: Pencil,
+    clase: "text-sky-400",
+  },
+  egreso_refugiado: {
+    label: "Egreso de damnificado",
+    icono: ClipboardCheck,
+    clase: "text-amber-400",
+  },
 };
 
 const ETIQUETA_ENTIDAD: Record<string, string> = {
@@ -69,6 +84,8 @@ const ETIQUETA_ENTIDAD: Record<string, string> = {
   incidencia: "Incidencia",
   reporte: "Reporte diario",
   usuario: "Usuario",
+  refugiado: "Damnificado",
+  alojamiento: "Alojamiento",
 };
 
 type FiltroRango = "hoy" | "7d" | "30d" | "todo";

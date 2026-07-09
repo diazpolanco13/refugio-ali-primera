@@ -529,7 +529,7 @@ export function poblacionCentro(c: CentroTransitorio): number {
   return norm.total_afectados;
 }
 
-/** Presencia de refugiados en el campamento (derivado de la población reportada). */
+/** Presencia de damnificados en el campamento (derivado de la población reportada). */
 export type MarcadorOcupacionCentro = "activo" | "sin_refugiados";
 
 export const META_MARCADOR_OCUPACION: Record<
@@ -537,7 +537,7 @@ export const META_MARCADOR_OCUPACION: Record<
   { label: string; color: string }
 > = {
   activo: { label: "Activo", color: "#22c55e" },
-  sin_refugiados: { label: "Sin refugiados", color: "#64748b" },
+  sin_refugiados: { label: "Sin damnificados", color: "#64748b" },
 };
 
 export const ORDEN_MARCADOR_OCUPACION: MarcadorOcupacionCentro[] = [

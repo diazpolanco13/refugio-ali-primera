@@ -1,5 +1,5 @@
 // Denuncias y sugerencias de los damnificados (canal público por QR, tabla
-// `denuncias_centros`). Las escriben los refugiados de forma anónima vía la
+// `denuncias_centros`). Las escriben los damnificados de forma anónima vía la
 // RPC `denuncia_registrar` (token 'publico' del campamento); las gestionan
 // quienes vigilan el centro (admin/analista toda la red, autoridad lectura,
 // supervisor sus campamentos). El operador de terreno no las ve.

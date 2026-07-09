@@ -1764,7 +1764,7 @@ function PasoRegistrados({
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Si el campamento no tiene personas refugiadas todavía (vacío o en adecuación), puede
+                Si el campamento no tiene personas damnificadas todavía (vacío o en adecuación), puede
                 declarar el censo completado con 0 ocupantes.
               </p>
             )}
@@ -1782,7 +1782,7 @@ function PasoRegistrados({
               }}
             >
               <Flag className="size-4" />
-              {filas.length === 0 ? "Completado (sin refugiados)" : "Censo completado"}
+              {filas.length === 0 ? "Completado (sin damnificados)" : "Censo completado"}
             </Button>
           </CardContent>
         </Card>
@@ -1852,7 +1852,7 @@ function PasoRegistrados({
             <AlertDialogDescription>
               {stats.total === 0 ? (
                 <>
-                  Declara que en <strong>{centroNombre}</strong> no hay personas refugiadas por
+                  Declara que en <strong>{centroNombre}</strong> no hay personas damnificadas por
                   censar (campamento vacío o en adecuación). Podrá registrar personas después si
                   llegan.
                 </>

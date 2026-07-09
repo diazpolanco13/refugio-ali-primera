@@ -85,7 +85,7 @@ export const PARENTESCOS_MENOR = [
   "Otro familiar",
 ] as const;
 
-/** Datos de la persona refugiada capturados en terreno (planilla física). */
+/** Datos de la persona damnificada capturados en terreno (planilla física). */
 export interface RegistroCenso {
   primer_nombre: string;
   segundo_nombre: string;

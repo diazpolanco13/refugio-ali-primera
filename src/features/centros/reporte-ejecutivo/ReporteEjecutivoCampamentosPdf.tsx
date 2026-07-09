@@ -904,7 +904,7 @@ function DonutOcupacion({
             Activo: {n(activo)} ({Math.round(fActivo * 100)}%)
           </Text>
           <Text style={[styles.donutLinea, { color: grisOcupacion }]}>
-            Sin refugiados: {n(sinRefugiados)} ({Math.round((sinRefugiados / suma) * 100)}%)
+            Sin damnificados: {n(sinRefugiados)} ({Math.round((sinRefugiados / suma) * 100)}%)
           </Text>
         </View>
       ) : null}
@@ -1175,7 +1175,7 @@ export function ReporteEjecutivoCampamentosPdf({
                     color={verdeOcupacion}
                   />
                   <Barra
-                    label="Sin refugiados"
+                    label="Sin damnificados"
                     value={reporte.ocupacionRed.sinRefugiados}
                     total={reporte.kpis.centrosTotal}
                     color={grisOcupacion}

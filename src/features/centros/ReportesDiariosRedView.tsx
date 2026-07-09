@@ -141,7 +141,7 @@ const OPCIONES_ORDEN: { valor: OrdenReportes; label: string }[] = [
   { valor: "nro_desc", label: "N.° descendente" },
   { valor: "nombre_asc", label: "Nombre A → Z" },
   { valor: "nombre_desc", label: "Nombre Z → A" },
-  { valor: "refugiados", label: "Más refugiados" },
+  { valor: "refugiados", label: "Más damnificados" },
   { valor: "raciones", label: "Más raciones" },
   { valor: "atenciones", label: "Más atenciones" },
 ];
@@ -1270,7 +1270,7 @@ export function ReportesDiariosRedView() {
 
                 <div className="grid grid-cols-2 gap-1.5 sm:gap-2 lg:grid-cols-3 xl:grid-cols-5">
                   <TarjetaTotalIndicadorReporte
-                    titulo="Total refugiados"
+                    titulo="Total damnificados"
                     icono={<Users className="size-3 shrink-0 text-sky-400" />}
                     valor={totalesIndicadoresDia.refugiados.toLocaleString("es")}
                     completados={totalesIndicadoresDia.partes}

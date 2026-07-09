@@ -386,7 +386,7 @@ export function CensoCentroPanel({
             <p className="text-xs opacity-90">
               {formatearFecha(resumen.cierreEn)}
               {estado === "sin_ocupantes"
-                ? " · sin personas refugiadas / en adecuación"
+                ? " · sin personas damnificadas / en adecuación"
                 : resumen.cierreTotal != null
                   ? ` · ${resumen.cierreTotal.toLocaleString("es")} persona${resumen.cierreTotal === 1 ? "" : "s"} al cierre`
                   : ""}

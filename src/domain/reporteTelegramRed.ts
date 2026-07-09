@@ -107,7 +107,7 @@ export function textoParteGeneralRed({
     [
       "**RELACIÓN GENERAL DE LA RED:**",
       "",
-      `- CANTIDAD DE REFUGIADOS: ${refugiados.toLocaleString("es")}`,
+      `- CANTIDAD DE DAMNIFICADOS: ${refugiados.toLocaleString("es")}`,
       `- NRO. DE FAMILIAS: ${familias.toLocaleString("es")}`,
       `- HOMBRES: ${vuln.adultos_h.toLocaleString("es")}`,
       `- MUJERES: ${vuln.adultos_m.toLocaleString("es")}`,

@@ -4,7 +4,7 @@ export type EstadoCensoCentro =
   | "sin_iniciar"
   | "en_curso"
   | "completado_declarado"
-  /** Cierre declarado con 0 personas (sin refugiados / en adecuación). */
+  /** Cierre declarado con 0 personas (sin damnificados / en adecuación). */
   | "sin_ocupantes";
 
 /** Resumen agregado del censo rápido de una escuela/campamento. */

@@ -186,11 +186,11 @@ function analizarAgua(
 export type SemaforoCentro = "verde" | "amarillo" | "rojo" | "sin_datos";
 
 export interface AnalisisCentro {
-  /** Refugiados / población afectada alojada. */
+  /** Damnificados / población afectada alojada. */
   refugiados: number;
   /** Personal operativo desplegado (funcionarios, salud, justicia). */
   personal: number;
-  /** Refugiados + personal → demanda real de agua, comida y baños. */
+  /** Damnificados + personal → demanda real de agua, comida y baños. */
   personasLogistica: number;
   /** @deprecated Alias de `refugiados` (compatibilidad con UI existente). */
   ocupados: number;
@@ -209,7 +209,7 @@ export interface AnalisisCentro {
   semaforo: SemaforoCentro;
 }
 
-/** Refugiados alojados en el centro (sin contar personal operativo). */
+/** Damnificados alojados en el centro (sin contar personal operativo). */
 export function ocupadosDe(centro: CentroTransitorio): number {
   return poblacionCentro(centro);
 }
@@ -232,7 +232,7 @@ export function analisisCentro(centro: CentroTransitorio): AnalisisCentro {
   const logistica = personasLogistica(centro);
   const familias = c.familias_ocupadas;
 
-  // Unidades que DEBERÍAN existir para refugiados + personal (Esfera).
+  // Unidades que DEBERÍAN existir para damnificados + personal (Esfera).
   const reqCamas = logistica;
   const reqPocetas = logistica > 0 ? Math.ceil(logistica / PERSONAS_POR_POCETA) : 0;
   const reqDuchas = logistica > 0 ? Math.ceil(logistica / PERSONAS_POR_DUCHA) : 0;

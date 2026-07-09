@@ -27,7 +27,7 @@ export interface SnapshotOcupacion {
 }
 
 /**
- * Refugiados en un snapshot diario: personas alojadas, sin personal operativo
+ * Damnificados en un snapshot diario: personas alojadas, sin personal operativo
  * ni mascotas. Las embarazadas ya están en `adultos_m` del desglose etario;
  * no se suman aparte.
  */
