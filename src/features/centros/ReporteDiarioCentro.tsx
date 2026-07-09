@@ -399,7 +399,7 @@ function ReporteExpandido({
 
   const reportes = useReportesCentros({ centroId: centro.id, desde });
   const controles = useReportesControlDia({ centroId: centro.id, desde });
-  const eventos = useEventosReportes({ centroId: centro.id, desde });
+  const { eventos } = useEventosReportes({ centroId: centro.id, desde });
   const { trabajos } = useReparacionesCentros({ centroId: centro.id, soloActivos: true });
   const snapshots = useOcupacionesCentros({ centroId: centro.id, desde });
 
@@ -459,7 +459,7 @@ function ReporteExpandido({
     centroId: centro.id,
     soloActivos: true,
   });
-  const casosSalud = useCasosSaludCentros({ centroId: centro.id, soloActivos: true });
+  const { casos: casosSalud } = useCasosSaludCentros({ centroId: centro.id, soloActivos: true });
   const casosSaludAbiertos = casosAbiertosSeguimiento(casosSalud);
   const [estadoCopia, setEstadoCopia] = useState<"idle" | "ok" | "error">("idle");
 
@@ -646,7 +646,7 @@ function ReporteCompacto({ centro, puedeEditar, onAbrirReporte }: Props) {
 
   const reportes = useReportesCentros({ centroId: centro.id, dia: hoy });
   const controles = useReportesControlDia({ centroId: centro.id, dia: hoy });
-  const eventos = useEventosReportes({ centroId: centro.id, dia: hoy });
+  const { eventos } = useEventosReportes({ centroId: centro.id, dia: hoy });
   const { trabajos } = useReparacionesCentros({ centroId: centro.id, soloActivos: true });
   const controlHoy = reporteControlDelDia(controles, centro.id, hoy);
   const reporte = reporteDelDia(reportes, centro.id, hoy);

@@ -91,9 +91,9 @@ export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
 
   const reportes = useReportesCentros({ centroId: centro.id, desde });
   const controles = useReportesControlDia({ centroId: centro.id, desde });
-  const eventos = useEventosReportes({ centroId: centro.id, desde });
+  const { eventos } = useEventosReportes({ centroId: centro.id, desde });
   const snapshots = useOcupacionesCentros({ centroId: centro.id, desde });
-  const casos = useCasosSaludCentros({ centroId: centro.id, soloActivos: true });
+  const { casos } = useCasosSaludCentros({ centroId: centro.id, soloActivos: true });
 
   const reporteHoy = reporteDelDia(reportes, centro.id, hoy);
   const snapshotHoy = snapshots.find((s) => s.dia === hoy);

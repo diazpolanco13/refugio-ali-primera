@@ -1,6 +1,5 @@
 // Seguimiento de incidencias de salud y novedades del reporte diario.
-// Los registros se crean en el reporte (fases Parte y Novedades); aquí se
-// administran y dan seguimiento.
+// Casos de salud y novedades se pueden crear aquí o en el reporte.
 
 import { useMemo, useState } from "react";
 import {
@@ -14,6 +13,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
+  Plus,
   Stethoscope,
   ThumbsDown,
   ThumbsUp,
@@ -23,9 +23,14 @@ import {
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
-import { actualizarCasoSalud, archivarCasoSalud } from "@/data/reposCasosSalud";
+import {
+  actualizarCasoSalud,
+  archivarCasoSalud,
+  crearCasoSalud,
+} from "@/data/reposCasosSalud";
 import {
   actualizarEventoReporte,
+  crearEventoReporte,
   eliminarEventoReporte,
 } from "@/data/reposEventosReportes";
 import { claveDia } from "@/data/reposSupabase";
@@ -611,8 +616,8 @@ function SeguimientoExpandido({
 
   const [verNovedadesAnteriores, setVerNovedadesAnteriores] = useState(false);
 
-  const todosCasos = useCasosSaludCentros({ centroId: centro.id });
-  const eventos = useEventosReportes({
+  const { casos: todosCasos, recargar: recargarCasos } = useCasosSaludCentros({ centroId: centro.id });
+  const { eventos, recargar: recargarEventos } = useEventosReportes({
     centroId: centro.id,
     desde: verNovedadesAnteriores ? undefined : desde,
   });
@@ -646,6 +651,13 @@ function SeguimientoExpandido({
     descripcion: "",
     estatus: "activo" as EstatusCasoSalud,
   });
+  const [formularioNuevoCaso, setFormularioNuevoCaso] = useState(false);
+  const [nuevoCaso, setNuevoCaso] = useState({
+    titulo: "",
+    descripcion: "",
+    estatus: "activo" as EstatusCasoSalud,
+  });
+  const [guardandoNuevoCaso, setGuardandoNuevoCaso] = useState(false);
 
   const [editandoNovedadId, setEditandoNovedadId] = useState<string | null>(null);
   const [borradorNovedad, setBorradorNovedad] = useState({
@@ -654,6 +666,14 @@ function SeguimientoExpandido({
     titulo: "",
     descripcion: "",
   });
+  const [formularioNuevaNovedad, setFormularioNuevaNovedad] = useState(false);
+  const [nuevaNovedad, setNuevaNovedad] = useState({
+    tipo: "positivo" as TipoEventoReporte,
+    hora: "",
+    titulo: "",
+    descripcion: "",
+  });
+  const [guardandoNuevaNovedad, setGuardandoNuevaNovedad] = useState(false);
   const [guardandoNovedadId, setGuardandoNovedadId] = useState<string | null>(null);
   const [eliminandoNovedadId, setEliminandoNovedadId] = useState<string | null>(null);
 
@@ -716,6 +736,7 @@ function SeguimientoExpandido({
     setCambiandoId(id);
     try {
       await actualizarCasoSalud(id, { estatus });
+      await recargarCasos();
     } finally {
       setCambiandoId(null);
     }
@@ -725,6 +746,7 @@ function SeguimientoExpandido({
     setArchivandoId(id);
     try {
       await archivarCasoSalud(id);
+      await recargarCasos();
       if (editandoCasoId === id) cancelarEdicionCaso();
     } finally {
       setArchivandoId(null);
@@ -736,8 +758,22 @@ function SeguimientoExpandido({
     setBorradorCaso({ titulo: "", descripcion: "", estatus: "activo" });
   }
 
+  function cancelarNuevoCaso() {
+    setFormularioNuevoCaso(false);
+    setNuevoCaso({ titulo: "", descripcion: "", estatus: "activo" });
+  }
+
+  function abrirNuevoCaso() {
+    cancelarEdicionCaso();
+    cancelarNuevaNovedad();
+    setEditandoNovedadId(null);
+    setSubSalud("seguimiento");
+    setFormularioNuevoCaso(true);
+  }
+
   function iniciarEdicionCaso(caso: CasoSaludCentro) {
     setEditandoNovedadId(null);
+    cancelarNuevoCaso();
     setEditandoCasoId(caso.id);
     setBorradorCaso({
       titulo: caso.titulo,
@@ -751,9 +787,28 @@ function SeguimientoExpandido({
     setGuardandoCasoId(id);
     try {
       await actualizarCasoSalud(id, borradorCaso);
+      await recargarCasos();
       cancelarEdicionCaso();
     } finally {
       setGuardandoCasoId(null);
+    }
+  }
+
+  async function guardarNuevoCaso() {
+    if (!nuevoCaso.titulo.trim()) return;
+    setGuardandoNuevoCaso(true);
+    try {
+      await crearCasoSalud({
+        centro_id: centro.id,
+        titulo: nuevoCaso.titulo,
+        descripcion: nuevoCaso.descripcion,
+        estatus: nuevoCaso.estatus,
+        reportado_dia: diaSel ?? hoyClave,
+      });
+      await recargarCasos();
+      cancelarNuevoCaso();
+    } finally {
+      setGuardandoNuevoCaso(false);
     }
   }
 
@@ -761,6 +816,7 @@ function SeguimientoExpandido({
     setEliminandoCasoId(id);
     try {
       await archivarCasoSalud(id);
+      await recargarCasos();
       if (editandoCasoId === id) cancelarEdicionCaso();
     } finally {
       setEliminandoCasoId(null);
@@ -772,8 +828,22 @@ function SeguimientoExpandido({
     setBorradorNovedad({ tipo: "positivo", hora: "", titulo: "", descripcion: "" });
   }
 
+  function cancelarNuevaNovedad() {
+    setFormularioNuevaNovedad(false);
+    setNuevaNovedad({ tipo: "positivo", hora: "", titulo: "", descripcion: "" });
+  }
+
+  function abrirNuevaNovedad() {
+    cancelarEdicionCaso();
+    cancelarNuevoCaso();
+    cancelarEdicionNovedad();
+    setFormularioNuevaNovedad(true);
+  }
+
   function iniciarEdicionNovedad(evento: EventoReporte) {
     setEditandoCasoId(null);
+    cancelarNuevoCaso();
+    cancelarNuevaNovedad();
     setEditandoNovedadId(evento.id);
     setBorradorNovedad({
       tipo: evento.tipo,
@@ -793,9 +863,30 @@ function SeguimientoExpandido({
         descripcion: borradorNovedad.descripcion,
         ts: tsDesdeHora(borradorNovedad.hora, evento.dia),
       });
+      await recargarEventos();
       cancelarEdicionNovedad();
     } finally {
       setGuardandoNovedadId(null);
+    }
+  }
+
+  async function guardarNuevaNovedad() {
+    if (!nuevaNovedad.titulo.trim()) return;
+    const dia = diaSel ?? hoyClave;
+    setGuardandoNuevaNovedad(true);
+    try {
+      await crearEventoReporte({
+        centro_id: centro.id,
+        dia,
+        tipo: nuevaNovedad.tipo,
+        titulo: nuevaNovedad.titulo,
+        descripcion: nuevaNovedad.descripcion,
+        ts: tsDesdeHora(nuevaNovedad.hora, dia),
+      });
+      await recargarEventos();
+      cancelarNuevaNovedad();
+    } finally {
+      setGuardandoNuevaNovedad(false);
     }
   }
 
@@ -803,6 +894,7 @@ function SeguimientoExpandido({
     setEliminandoNovedadId(id);
     try {
       await eliminarEventoReporte(id);
+      await recargarEventos();
       if (editandoNovedadId === id) cancelarEdicionNovedad();
     } finally {
       setEliminandoNovedadId(null);
@@ -845,17 +937,17 @@ function SeguimientoExpandido({
               Sin casos de salud en seguimiento
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Regístralos en la fase Parte del reporte del día.
+              Añade un caso aquí o desde el reporte del día.
             </p>
-            {puedeEditar && onIrAReporte && (
+            {puedeEditar && (
               <Button
                 type="button"
                 size="sm"
                 className="mt-4 gap-1.5"
-                onClick={() => onIrAReporte("salud")}
+                onClick={abrirNuevoCaso}
               >
-                <Stethoscope className="size-3.5" />
-                Registrar en reporte
+                <Plus className="size-3.5" />
+                Añadir caso
               </Button>
             )}
           </div>
@@ -892,17 +984,17 @@ function SeguimientoExpandido({
           <CalendarPlus className="mx-auto size-10 text-muted-foreground/40" />
           <p className="mt-3 text-sm font-medium text-foreground">{vacioTitulo}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Regístralas en la fase Novedades del reporte del día.
+            Añade una novedad aquí o desde el reporte del día.
           </p>
-          {puedeEditar && onIrAReporte && (
+          {puedeEditar && (
             <Button
               type="button"
               size="sm"
               className="mt-4 gap-1.5"
-              onClick={() => onIrAReporte("novedades")}
+              onClick={abrirNuevaNovedad}
             >
-              <CalendarPlus className="size-3.5" />
-              Registrar en reporte
+              <Plus className="size-3.5" />
+              Añadir novedad
             </Button>
           )}
         </div>
@@ -1123,18 +1215,103 @@ function SeguimientoExpandido({
                 </button>
               ))}
             </div>
-            {puedeEditar && onIrAReporte && (
-              <Button
-                type="button"
-                size="sm"
-                className="h-8 gap-1.5 bg-teal-600 hover:bg-teal-500"
-                onClick={() => onIrAReporte("salud")}
-              >
-                <Stethoscope className="size-3.5" />
-                Registrar en reporte
-              </Button>
+            {puedeEditar && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 gap-1.5 bg-teal-600 hover:bg-teal-500"
+                  disabled={formularioNuevoCaso}
+                  onClick={abrirNuevoCaso}
+                >
+                  <Plus className="size-3.5" />
+                  Añadir caso
+                </Button>
+                {onIrAReporte && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1.5"
+                    onClick={() => onIrAReporte("salud")}
+                  >
+                    <Stethoscope className="size-3.5" />
+                    Ir al reporte
+                  </Button>
+                )}
+              </div>
             )}
           </div>
+          {puedeEditar && formularioNuevoCaso && (
+            <div className="rounded-lg border border-teal-500/40 bg-teal-500/5 px-3 py-3 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-foreground">Nuevo caso de salud</p>
+                <Badge variant="outline" className="text-[10px] tabular-nums">
+                  {formatearDiaCalendario(diaSel ?? hoyClave)}
+                </Badge>
+              </div>
+              <Input
+                className="h-10 text-sm"
+                value={nuevoCaso.titulo}
+                disabled={guardandoNuevoCaso}
+                onChange={(e) => setNuevoCaso({ ...nuevoCaso, titulo: e.target.value })}
+                placeholder="Título del caso (obligatorio)"
+                autoFocus
+              />
+              <Textarea
+                className="min-h-[4rem] text-sm"
+                rows={2}
+                value={nuevoCaso.descripcion}
+                disabled={guardandoNuevoCaso}
+                onChange={(e) => setNuevoCaso({ ...nuevoCaso, descripcion: e.target.value })}
+                placeholder="Detalle del caso (opcional)"
+              />
+              <Select
+                value={nuevoCaso.estatus}
+                onValueChange={(v) =>
+                  setNuevoCaso({ ...nuevoCaso, estatus: v as EstatusCasoSalud })
+                }
+                disabled={guardandoNuevoCaso}
+              >
+                <SelectTrigger className={cn(claseSelectReporte, "mt-0")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ESTATUS_CASO_SALUD.filter((e) => e.valor !== "archivado").map((e) => (
+                    <SelectItem key={e.valor} value={e.valor}>
+                      {e.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="sm:flex-1"
+                  disabled={!nuevoCaso.titulo.trim() || guardandoNuevoCaso}
+                  onClick={() => void guardarNuevoCaso()}
+                >
+                  {guardandoNuevoCaso ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Check className="size-4" />
+                  )}
+                  Guardar caso
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={guardandoNuevoCaso}
+                  onClick={cancelarNuevoCaso}
+                >
+                  <X className="size-4" />
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
           {subSalud === "seguimiento" ? (
             renderListaSalud(listaCasos, saludSinDetalleVisibles)
           ) : listaCasos.length === 0 ? (
@@ -1174,18 +1351,122 @@ function SeguimientoExpandido({
                 ? "Todas las novedades registradas del campamento."
                 : "Novedades positivas y negativas de los últimos 30 días."}
             </p>
-            {puedeEditar && onIrAReporte && (
-              <Button
-                type="button"
-                size="sm"
-                className="h-8 gap-1.5 bg-teal-600 hover:bg-teal-500"
-                onClick={() => onIrAReporte("novedades")}
-              >
-                <CalendarPlus className="size-3.5" />
-                Registrar en reporte
-              </Button>
+            {puedeEditar && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 gap-1.5 bg-teal-600 hover:bg-teal-500"
+                  disabled={formularioNuevaNovedad}
+                  onClick={abrirNuevaNovedad}
+                >
+                  <Plus className="size-3.5" />
+                  Añadir novedad
+                </Button>
+                {onIrAReporte && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1.5"
+                    onClick={() => onIrAReporte("novedades")}
+                  >
+                    <CalendarPlus className="size-3.5" />
+                    Ir al reporte
+                  </Button>
+                )}
+              </div>
             )}
           </div>
+          {puedeEditar && formularioNuevaNovedad && (
+            <div className="space-y-3 rounded-lg border border-teal-500/40 bg-teal-500/5 px-3 py-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-foreground">Nueva novedad</p>
+                <Badge variant="outline" className="text-[10px] tabular-nums">
+                  {formatearDiaCalendario(diaSel ?? hoyClave)}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[140px_minmax(0,1fr)]">
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Tipo</Label>
+                  <Select
+                    value={nuevaNovedad.tipo}
+                    disabled={guardandoNuevaNovedad}
+                    onValueChange={(v) =>
+                      setNuevaNovedad({ ...nuevaNovedad, tipo: v as TipoEventoReporte })
+                    }
+                  >
+                    <SelectTrigger className={claseSelectReporte}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATALOGO_TIPOS_EVENTO_REPORTE.map((t) => (
+                        <SelectItem key={t.valor} value={t.valor}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Hora</Label>
+                  <Input
+                    type="time"
+                    className="mt-1"
+                    disabled={guardandoNuevaNovedad}
+                    value={nuevaNovedad.hora}
+                    onChange={(e) =>
+                      setNuevaNovedad({ ...nuevaNovedad, hora: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <Input
+                value={nuevaNovedad.titulo}
+                disabled={guardandoNuevaNovedad}
+                onChange={(e) =>
+                  setNuevaNovedad({ ...nuevaNovedad, titulo: e.target.value })
+                }
+                placeholder="Título de la novedad (obligatorio)"
+                autoFocus
+              />
+              <Textarea
+                rows={3}
+                value={nuevaNovedad.descripcion}
+                disabled={guardandoNuevaNovedad}
+                onChange={(e) =>
+                  setNuevaNovedad({ ...nuevaNovedad, descripcion: e.target.value })
+                }
+                placeholder="Descripción (opcional)"
+              />
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="sm:flex-1"
+                  disabled={!nuevaNovedad.titulo.trim() || guardandoNuevaNovedad}
+                  onClick={() => void guardarNuevaNovedad()}
+                >
+                  {guardandoNuevaNovedad ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Check className="size-4" />
+                  )}
+                  Guardar novedad
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={guardandoNuevaNovedad}
+                  onClick={cancelarNuevaNovedad}
+                >
+                  <X className="size-4" />
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
           {renderListaNovedades(
             listaNovedades,
             diaSel ? "Sin novedades este día" : "Sin novedades registradas",
@@ -1218,8 +1499,8 @@ function SeguimientoCompacto({
   onIrAReporte?: (fase?: string) => void;
 }) {
   const hoyClave = useMemo(() => claveDia(Date.now()), []);
-  const casos = useCasosSaludCentros({ centroId: centro.id, soloActivos: true });
-  const eventos = useEventosReportes({ centroId: centro.id, dia: hoyClave });
+  const { casos } = useCasosSaludCentros({ centroId: centro.id, soloActivos: true });
+  const { eventos } = useEventosReportes({ centroId: centro.id, dia: hoyClave });
   const pendientes = useMemo(() => casosSaludPendientes(casos), [casos]);
   const contadores = useMemo(
     () => contadoresSeguimientoCentro(casos, eventos, hoyClave),

@@ -242,8 +242,8 @@ export function ReporteDiarioForm({
   const controles = useReportesControlDia({ centroId: centro.id });
   const { trabajos } = useReparacionesCentros({ centroId: centro.id });
   const { requerimientos } = useRequerimientosSeguimiento({ centroId: centro.id });
-  const casosSalud = useCasosSaludCentros({ centroId: centro.id });
-  const eventosExistentes = useEventosReportes({ centroId: centro.id, dia: diaReporte });
+  const { casos: casosSalud } = useCasosSaludCentros({ centroId: centro.id });
+  const { eventos: eventosExistentes } = useEventosReportes({ centroId: centro.id, dia: diaReporte });
 
   // Al corregir un día pasado, el parte se precarga desde el snapshot de ESE
   // día (no desde el estado vigente del centro).

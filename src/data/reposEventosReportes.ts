@@ -81,6 +81,44 @@ export async function guardarEventosReporteDia(datos: {
   });
 }
 
+/** Crea una novedad del reporte diario (`eventos_reportes`). */
+export async function crearEventoReporte(datos: {
+  centro_id: string;
+  dia: string;
+  tipo?: EventoReporte["tipo"];
+  titulo: string;
+  descripcion?: string;
+  ts?: number;
+  participantes?: EventoReporte["participantes"];
+}): Promise<string> {
+  const now = Date.now();
+  const id = nuevoId();
+  const fila = {
+    id,
+    centro_id: datos.centro_id,
+    dia: datos.dia,
+    ts: datos.ts ?? now,
+    tipo: normalizarTipoEventoReporte(datos.tipo),
+    titulo: datos.titulo.trim(),
+    descripcion: (datos.descripcion ?? "").trim(),
+    participantes: normalizarParticipantesEvento(datos.participantes ?? []),
+    creada_por: usuarioActual(),
+    updated_at: now,
+    updated_by: usuarioActual(),
+  };
+  if (!fila.titulo) {
+    throw new Error("[reposEventosReportes] crear: título obligatorio");
+  }
+  const { error } = await supabase.from("eventos_reportes").insert(fila);
+  if (error) throw new Error(`[reposEventosReportes] insert: ${error.message}`);
+  registrarHistorial("crear_evento_reporte", "evento_reporte", id, {
+    centro_id: fila.centro_id,
+    dia: fila.dia,
+    titulo: fila.titulo,
+  });
+  return id;
+}
+
 /** Actualiza una novedad existente (`eventos_reportes`). */
 export async function actualizarEventoReporte(
   id: string,

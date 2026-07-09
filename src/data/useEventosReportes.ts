@@ -1,7 +1,7 @@
 // Hook para leer eventos del reporte diario (`eventos_reportes`) con Realtime.
 // Permite consultar un centro, un día exacto o un rango `dia >= desde`.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   normalizarEventoReporte,
   type EventoReporte,
@@ -27,15 +27,20 @@ function ordenarEventos(eventos: EventoReporte[]): EventoReporte[] {
   );
 }
 
-export function useEventosReportes(opts: Opciones = {}): EventoReporte[] {
+export function useEventosReportes(opts: Opciones = {}): {
+  eventos: EventoReporte[];
+  /** Refetch silencioso; llamar tras una mutación local (crear/editar/eliminar). */
+  recargar: () => Promise<void>;
+} {
   const { centroId, dia, desde } = opts;
   const [eventos, setEventos] = useState<EventoReporte[]>([]);
+  const recargarRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
     let cancelado = false;
     const channelName = `useEventosReportes:${centroId ?? "all"}:${dia ?? "all"}:${desde ?? "all"}:${Math.random().toString(36).slice(2)}`;
 
-    (async () => {
+    async function cargar() {
       let q = supabase.from("eventos_reportes").select("*");
       if (centroId) q = q.eq("centro_id", centroId);
       if (dia) q = q.eq("dia", dia);
@@ -47,32 +52,19 @@ export function useEventosReportes(opts: Opciones = {}): EventoReporte[] {
         return;
       }
       setEventos(ordenarEventos(((data ?? []) as FilaEvento[]).map(normalizarEventoReporte)));
-    })();
+    }
+
+    recargarRef.current = cargar;
+    void cargar();
 
     const channel = supabase
       .channel(channelName)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "eventos_reportes" },
-        (payload) => {
-          if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-            const cruda = payload.new as unknown as FilaEvento;
-            if (centroId && cruda.centro_id !== centroId) return;
-            if (dia && cruda.dia !== dia) return;
-            if (desde && cruda.dia < desde) return;
-            const fila = normalizarEventoReporte(cruda);
-            setEventos((prev) =>
-              ordenarEventos(
-                prev.some((e) => e.id === fila.id)
-                  ? prev.map((e) => (e.id === fila.id ? fila : e))
-                  : [...prev, fila],
-              ),
-            );
-          } else if (payload.eventType === "DELETE") {
-            const fila = payload.old as unknown as Partial<EventoReporte>;
-            setEventos((prev) => prev.filter((e) => e.id !== fila.id));
-          }
-        },
+        // Refetch completo: el payload DELETE a veces no trae `id` usable
+        // (REPLICA IDENTITY) y la UI quedaba desactualizada tras eliminar.
+        () => void cargar(),
       )
       .subscribe((status) => {
         if (status === "CHANNEL_ERROR") {
@@ -86,5 +78,7 @@ export function useEventosReportes(opts: Opciones = {}): EventoReporte[] {
     };
   }, [centroId, dia, desde]);
 
-  return eventos;
+  const recargar = useCallback(() => recargarRef.current(), []);
+
+  return { eventos, recargar };
 }

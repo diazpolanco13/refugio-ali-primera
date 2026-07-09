@@ -695,11 +695,11 @@ export function ReportesDiariosRedView() {
 
   const reportes = useReportesCentros({ desde });
   const controles = useReportesControlDia({ desde });
-  const eventos = useEventosReportes({ desde });
+  const { eventos } = useEventosReportes({ desde });
   const snapshots = useOcupacionesCentros({ desde });
   const { trabajos: trabajosRed } = useReparacionesCentros({ soloActivos: true });
   const { requerimientos: requerimientosRed } = useRequerimientosSeguimiento({ soloActivos: true });
-  const casosSaludRed = useCasosSaludCentros({ soloActivos: true });
+  const { casos: casosSaludRed } = useCasosSaludCentros({ soloActivos: true });
   const { resumenes: censoResumenes } = useCensoRedResumen();
   const censoEstados = useMemo(() => {
     if (!censoResumenes.length) return null;

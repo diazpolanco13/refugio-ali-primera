@@ -108,7 +108,7 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
   const maxParroquia = parroquias[0]?.refugiados ?? 1;
 
   // Casos de salud activos en la red (Realtime).
-  const casosSalud = useCasosSaludCentros({ soloActivos: true });
+  const { casos: casosSalud } = useCasosSaludCentros({ soloActivos: true });
   const casosActivos = useMemo(() => totalCasosSaludActivosRed(casosSalud), [casosSalud]);
   const casosEnProceso = useMemo(
     () => casosSalud.filter((c) => c.estatus === "en_proceso").length,

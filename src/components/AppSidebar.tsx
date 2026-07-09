@@ -209,7 +209,7 @@ function NavContenido({ sesion }: Props) {
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
   const veCensoRed = puedeVerCensoRapidoRed(sesion.user.rol);
-  const casosSalud = useCasosSaludCentros({ soloActivos: true });
+  const { casos: casosSalud } = useCasosSaludCentros({ soloActivos: true });
   const abiertas = esCensoRapido ? 0 : totalCasosSaludActivosRed(casosSalud);
   const urgentes = esCensoRapido
     ? 0

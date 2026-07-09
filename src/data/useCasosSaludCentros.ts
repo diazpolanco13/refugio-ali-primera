@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { normalizarCasoSalud, type CasoSaludCentro } from "../domain/casosSalud";
 
@@ -9,15 +9,20 @@ interface Opciones {
 
 type Fila = Partial<CasoSaludCentro> & { id: string; centro_id: string };
 
-export function useCasosSaludCentros(opts: Opciones = {}): CasoSaludCentro[] {
+export function useCasosSaludCentros(opts: Opciones = {}): {
+  casos: CasoSaludCentro[];
+  /** Refetch silencioso; llamar tras una mutación local (crear/editar/archivar). */
+  recargar: () => Promise<void>;
+} {
   const { centroId, soloActivos = false } = opts;
   const [casos, setCasos] = useState<CasoSaludCentro[]>([]);
+  const recargarRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
     let cancelado = false;
     const channelName = `useCasosSaludCentros:${centroId ?? "all"}:${Math.random().toString(36).slice(2)}`;
 
-    (async () => {
+    async function cargar() {
       let q = supabase.from("casos_salud_centros").select("*");
       if (centroId) q = q.eq("centro_id", centroId);
       if (soloActivos) q = q.neq("estatus", "archivado");
@@ -28,32 +33,17 @@ export function useCasosSaludCentros(opts: Opciones = {}): CasoSaludCentro[] {
         return;
       }
       setCasos(((data ?? []) as Fila[]).map(normalizarCasoSalud));
-    })();
+    }
+
+    recargarRef.current = cargar;
+    void cargar();
 
     const channel = supabase
       .channel(channelName)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "casos_salud_centros" },
-        (payload) => {
-          if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-            const cruda = payload.new as unknown as Fila;
-            if (centroId && cruda.centro_id !== centroId) return;
-            const fila = normalizarCasoSalud(cruda);
-            if (soloActivos && fila.estatus === "archivado") {
-              setCasos((prev) => prev.filter((c) => c.id !== fila.id));
-              return;
-            }
-            setCasos((prev) =>
-              prev.some((c) => c.id === fila.id)
-                ? prev.map((c) => (c.id === fila.id ? fila : c))
-                : [fila, ...prev],
-            );
-          } else if (payload.eventType === "DELETE") {
-            const fila = payload.old as unknown as { id: string };
-            setCasos((prev) => prev.filter((c) => c.id !== fila.id));
-          }
-        },
+        () => void cargar(),
       )
       .subscribe();
 
@@ -63,5 +53,7 @@ export function useCasosSaludCentros(opts: Opciones = {}): CasoSaludCentro[] {
     };
   }, [centroId, soloActivos]);
 
-  return casos;
+  const recargar = useCallback(() => recargarRef.current(), []);
+
+  return { casos, recargar };
 }

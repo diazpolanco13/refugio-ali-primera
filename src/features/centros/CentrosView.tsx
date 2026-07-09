@@ -273,12 +273,7 @@ export function CentrosView() {
             />
           </>
         ) : (
-          <MarcoVista
-            ancho={ANCHO_VISTA_PRINCIPAL}
-            rellenarAltura
-            className="overflow-hidden"
-            marcoClassName="min-h-0"
-          >
+          <MarcoVista ancho={ANCHO_VISTA_PRINCIPAL}>
             <TableroCentros
               centros={centros}
               onSeleccionar={(id) => navigate(`/centro/${id}`)}

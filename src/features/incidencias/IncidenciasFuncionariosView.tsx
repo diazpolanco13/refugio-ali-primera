@@ -54,8 +54,8 @@ export function IncidenciasFuncionariosView({ sesion }: { sesion: Sesion }) {
     return claveDia(dt.getTime());
   }, [hoy]);
 
-  const casos = useCasosSaludCentros();
-  const eventos = useEventosReportes({ desde });
+  const { casos } = useCasosSaludCentros();
+  const { eventos } = useEventosReportes({ desde });
   const snapshots = useOcupacionesCentros({ desde });
 
   type CentroFila = CentroTransitorio & { deleted: boolean };

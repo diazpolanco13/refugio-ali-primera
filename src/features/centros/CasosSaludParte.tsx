@@ -155,7 +155,7 @@ function TarjetaCaso({
 }
 
 export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabilitado }: Props) {
-  const casosActivos = useCasosSaludCentros({ centroId, soloActivos: true });
+  const { casos: casosActivos } = useCasosSaludCentros({ centroId, soloActivos: true });
 
   const casosSeguimiento = useMemo(
     () => casosAbiertosSeguimiento(casosActivos),

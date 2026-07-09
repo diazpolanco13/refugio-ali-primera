@@ -137,7 +137,7 @@ export function FichaCentroView({ sesion }: Props) {
     centroId: centro?.id,
     dia: hoyClave,
   });
-  const eventosHoy = useEventosReportes({
+  const { eventos: eventosHoy } = useEventosReportes({
     centroId: centro?.id,
     dia: hoyClave,
   });
@@ -164,7 +164,7 @@ export function FichaCentroView({ sesion }: Props) {
   const desdeMarcas = useMemo(() => ultimosDiasReporte(30, hoyClave)[0], [hoyClave]);
   const reportesMarcas = useReportesCentros({ centroId: centro?.id, desde: desdeMarcas });
   const controlesMarcas = useReportesControlDia({ centroId: centro?.id, desde: desdeMarcas });
-  const eventosMarcas = useEventosReportes({ centroId: centro?.id, desde: desdeMarcas });
+  const { eventos: eventosMarcas } = useEventosReportes({ centroId: centro?.id, desde: desdeMarcas });
   const snapshotsMarcas = useOcupacionesCentros({ centroId: centro?.id, desde: desdeMarcas });
 
   const marcasPorDia = useMemo(() => {
@@ -206,7 +206,7 @@ export function FichaCentroView({ sesion }: Props) {
 
   const reportesDiaReporte = useReportesCentros({ centroId: centro?.id, dia: diaReporte });
   const controlesDiaReporte = useReportesControlDia({ centroId: centro?.id, dia: diaReporte });
-  const eventosDiaReporte = useEventosReportes({ centroId: centro?.id, dia: diaReporte });
+  const { eventos: eventosDiaReporte } = useEventosReportes({ centroId: centro?.id, dia: diaReporte });
   const snapshotsDiaReporte = useMemo(
     () => snapshotsMarcas.filter((s) => s.dia === diaReporte),
     [snapshotsMarcas, diaReporte],
