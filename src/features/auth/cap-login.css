@@ -1,0 +1,34 @@
+/* Cap widget — integrado al login shadcn (login-03). */
+.cap-login cap-widget {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+
+  --cap-widget-width: 100%;
+  --cap-widget-height: 2.25rem;
+  --cap-widget-padding: 0.5rem 0.75rem;
+  --cap-border-radius: var(--radius-lg);
+  --cap-gap: 0.625rem;
+
+  --cap-background: transparent;
+  --cap-border-color: transparent;
+  --cap-color: var(--foreground);
+
+  --cap-checkbox-size: 1.125rem;
+  --cap-checkbox-border-radius: calc(var(--radius) * 0.55);
+  --cap-checkbox-border: 1px solid color-mix(in oklch, var(--border) 90%, transparent);
+  --cap-checkbox-background: color-mix(in oklch, var(--background) 60%, var(--muted));
+  --cap-checkbox-margin: 0;
+
+  --cap-font: var(--font-sans, system-ui, sans-serif);
+  --cap-spinner-color: var(--primary);
+  --cap-spinner-background-color: color-mix(in oklch, var(--muted) 70%, transparent);
+  --cap-spinner-thickness: 2px;
+}
+
+/* Oculta el wordmark “Cap” en el login institucional. */
+.cap-login cap-widget::part(footer),
+.cap-login cap-widget [class*="footer"],
+.cap-login cap-widget a[href*="cap"] {
+  display: none !important;
+}

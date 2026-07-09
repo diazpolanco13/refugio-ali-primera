@@ -3,7 +3,6 @@ import {
   BedDouble,
   Building2,
   ClipboardList,
-  Droplets,
   HeartPulse,
   Loader2,
   LocateFixed,
@@ -13,10 +12,7 @@ import {
   Phone,
   Plus,
   Shield,
-  Shirt,
-  ShowerHead,
   Trash2,
-  Trash,
   Users,
 } from "lucide-react";
 import { nuevoId, guardarCentro, eliminarCentro } from "@/data/reposSupabase";
@@ -53,6 +49,7 @@ import {
   FormularioServicios,
 } from "@/features/centros/LevantamientoCentro";
 import { FormularioRequerimientos } from "@/features/centros/RequerimientosCentro";
+import { FormularioCapacidadCentro } from "@/features/centros/FormularioCapacidadCentro";
 import { InfraestructuraCentro } from "@/features/centros/InfraestructuraCentro";
 import { AccionesContacto } from "@/components/AccionesContacto";
 import { ZonaSubidaImagen } from "@/components/ZonaSubidaImagen";
@@ -111,7 +108,6 @@ type Pestana =
   | "poblacion"
   | "novedades"
   | "requerimientos"
-  | "capacidad"
   | "infraestructura"
   | "contactos";
 
@@ -128,8 +124,7 @@ const PESTANAS: {
   { valor: "poblacion", numero: "V", titulo: "Población", icono: Users },
   { valor: "novedades", numero: "VI", titulo: "Novedades", icono: ClipboardList },
   { valor: "requerimientos", titulo: "Requerimientos", icono: Package },
-  { valor: "capacidad", titulo: "Capacidad", icono: BedDouble },
-  { valor: "infraestructura", titulo: "Infraestructura", icono: Building2 },
+  { valor: "infraestructura", titulo: "Infraestructura y capacidad", icono: Building2 },
   { valor: "contactos", titulo: "Otros contactos", icono: Phone },
 ];
 
@@ -224,11 +219,6 @@ export function CentroForm({
     personal,
   });
   const hayStorage = supabaseDisponible();
-
-  const setCap =
-    (campo: keyof CapacidadCentro) =>
-    (valor: number | boolean) =>
-      setCapacidad((prev) => ({ ...prev, [campo]: valor }));
 
   /**
    * Convierte los textos de lat/lng al GeoJSON Point del centro. Devuelve
@@ -1005,116 +995,24 @@ export function CentroForm({
           />
           )}
 
-          {/* Capacidad instalada vs. operativa */}
-          {pestana === "capacidad" && (
-          <div className="space-y-5">
-            {/* Capacidad */}
+          {pestana === "infraestructura" && (
+          <div className="space-y-6">
             <div>
               <Label className="text-sm font-semibold">Capacidad (instalada / operativa)</Label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Registra lo instalado y cuánto está operativo ahora. La diferencia revela qué
-                recurso limita el ingreso (ej. muchas camas pero pocas pocetas).
-              </p>
-              <div className="mt-2 space-y-2">
-                <ParRecurso
-                  icono={<BedDouble className="size-4 text-primary" />}
-                  label="Camas"
-                  instaladas={capacidad.camas_instaladas}
-                  operativas={capacidad.camas_operativas}
-                  onInstaladas={(n) => setCap("camas_instaladas")(n)}
-                  onOperativas={(n) => setCap("camas_operativas")(n)}
+              <div className="mt-2">
+                <FormularioCapacidadCentro
+                  capacidad={capacidad}
+                  onChange={setCapacidad}
                   deshabilitado={soloLectura}
                 />
-                <ParRecurso
-                  icono={<span className="text-base leading-none">🚽</span>}
-                  label="Pocetas / baños"
-                  instaladas={capacidad.pocetas_instaladas}
-                  operativas={capacidad.pocetas_operativas}
-                  onInstaladas={(n) => setCap("pocetas_instaladas")(n)}
-                  onOperativas={(n) => setCap("pocetas_operativas")(n)}
-                  deshabilitado={soloLectura}
-                />
-                <ParRecurso
-                  icono={<ShowerHead className="size-4 text-cyan-400" />}
-                  label="Duchas"
-                  instaladas={capacidad.duchas_instaladas}
-                  operativas={capacidad.duchas_operativas}
-                  onInstaladas={(n) => setCap("duchas_instaladas")(n)}
-                  onOperativas={(n) => setCap("duchas_operativas")(n)}
-                  deshabilitado={soloLectura}
-                />
-                <ParRecurso
-                  icono={<Shirt className="size-4 text-violet-400" />}
-                  label="Lavaderos de ropa"
-                  instaladas={capacidad.lavaderos_instalados}
-                  operativas={capacidad.lavaderos_operativos}
-                  onInstaladas={(n) => setCap("lavaderos_instalados")(n)}
-                  onOperativas={(n) => setCap("lavaderos_operativos")(n)}
-                  deshabilitado={soloLectura}
-                />
-                <ParRecurso
-                  icono={<Trash className="size-4 text-lime-500" />}
-                  label="Contenedores de basura"
-                  instaladas={capacidad.contenedores_instalados}
-                  operativas={capacidad.contenedores_operativos}
-                  onInstaladas={(n) => setCap("contenedores_instalados")(n)}
-                  onOperativas={(n) => setCap("contenedores_operativos")(n)}
-                  deshabilitado={soloLectura}
-                />
-
-                {/* Agua potable */}
-                <Card size="sm" className="py-2">
-                  <CardContent className="space-y-2 px-3">
-                    <div className="flex items-center gap-2 text-xs font-medium text-foreground">
-                      <Droplets className="size-4 text-sky-400" />
-                      Agua potable
-                    </div>
-                    <div className="flex flex-wrap items-center gap-4">
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <input
-                          type="checkbox"
-                          className="size-4 accent-sky-500"
-                          checked={capacidad.agua_tanque}
-                          disabled={soloLectura}
-                          onChange={(e) => setCap("agua_tanque")(e.target.checked)}
-                        />
-                        Hay tanque
-                      </label>
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <input
-                          type="checkbox"
-                          className="size-4 accent-emerald-500"
-                          checked={capacidad.agua_operativa}
-                          disabled={soloLectura}
-                          onChange={(e) => setCap("agua_operativa")(e.target.checked)}
-                        />
-                        Suministro operativo
-                      </label>
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-muted-foreground">
-                        Capacidad del tanque (litros)
-                      </Label>
-                      <NumInput
-                        className="mt-1 w-40"
-                        value={capacidad.agua_litros}
-                        disabled={soloLectura}
-                        onChange={(n) => setCap("agua_litros")(n)}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             </div>
-          </div>
-          )}
-
-          {pestana === "infraestructura" && (
             <InfraestructuraCentro
               centroId={base.id}
               puedeEditar={!soloLectura}
               esNuevo={esNuevo}
             />
+          </div>
           )}
 
           {/* Otros contactos adicionales */}
@@ -1284,54 +1182,5 @@ export function CentroForm({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function ParRecurso({
-  icono,
-  label,
-  instaladas,
-  operativas,
-  onInstaladas,
-  onOperativas,
-  deshabilitado,
-}: {
-  icono: React.ReactNode;
-  label: string;
-  instaladas: number;
-  operativas: number;
-  onInstaladas: (n: number) => void;
-  onOperativas: (n: number) => void;
-  deshabilitado?: boolean;
-}) {
-  return (
-    <Card size="sm" className="py-2">
-      <CardContent className="px-3">
-        <div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-foreground">
-          {icono}
-          {label}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label className="text-[11px] text-muted-foreground">Instaladas</Label>
-            <NumInput
-              className="mt-1"
-              value={instaladas}
-              disabled={deshabilitado}
-              onChange={onInstaladas}
-            />
-          </div>
-          <div>
-            <Label className="text-[11px] text-muted-foreground">Operativas</Label>
-            <NumInput
-              className="mt-1"
-              value={operativas}
-              disabled={deshabilitado}
-              onChange={onOperativas}
-            />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }

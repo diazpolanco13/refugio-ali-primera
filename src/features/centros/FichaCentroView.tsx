@@ -1,5 +1,5 @@
 // Vista completa de un campamento (`/centro/:id`): segmentada por pestañas
-// (Resumen, Coordinación, Población, Reporte, Incidencias, Capacidad).
+// (Resumen, Coordinación, Población, Reporte, Incidencias, Infraestructura).
 // Las mismas secciones también aparecen en el submenú del sidebar bajo Reportes diarios.
 // El reporte diario y la edición del campamento se abren integrados en el mismo marco.
 // Vive dentro del AppShell global, con sidebar y TopBar compartidos.
@@ -37,18 +37,16 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BadgesEstadoCentro,
-  SeccionCapacidadCentro,
-  SeccionRequerimientosCentro,
 } from "./DetalleCentro";
 import { CoordinacionCentroPanel } from "./CoordinacionCentroPanel";
 import { PoblacionCentroPanel } from "./PoblacionCentroPanel";
 import { ResumenCentroPanel } from "./ResumenCentroPanel";
 import { SeccionReporteDiarioCentro, BadgeEstadoReporte } from "./ReporteDiarioCentro";
 import { SeccionSeguimientoReportesCentro } from "./SeguimientoReportesCentro";
-import { SeccionInfraestructuraCentro } from "./InfraestructuraCentro";
+import { InfraestructuraCapacidadPanel } from "./InfraestructuraCapacidadPanel";
 import {
   SECCIONES_FICHA_CENTRO,
-  esSeccionFichaCentro,
+  normalizarSeccionFichaCentro,
   type SeccionFichaCentro,
 } from "./seccionesFichaCentro";
 import { cn } from "@/lib/utils";
@@ -72,9 +70,7 @@ export function FichaCentroView({ sesion }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const seccionParam = searchParams.get("vista");
-  const seccionActiva: SeccionFichaCentro = esSeccionFichaCentro(seccionParam)
-    ? seccionParam
-    : "resumen";
+  const seccionActiva: SeccionFichaCentro = normalizarSeccionFichaCentro(seccionParam);
   const modoReporte = searchParams.get("reportar") === "1";
   const modoRegistrar = searchParams.get("registrar") === "1";
   const refugiadoId = searchParams.get("refugiado");
@@ -262,6 +258,13 @@ export function FichaCentroView({ sesion }: Props) {
     if (seccionActiva !== "reporte" && !modoReporte) return;
     setDiaReporte(diaDesdeParam(searchParams.get("dia"), hoyClave));
   }, [seccionActiva, modoReporte, searchParams, hoyClave]);
+
+  // Redirigir ?vista=capacidad (URL antigua) a la pestaña unificada.
+  useEffect(() => {
+    if (seccionParam === "capacidad") {
+      setSearchParams({ vista: "infraestructura" }, { replace: true });
+    }
+  }, [seccionParam, setSearchParams]);
 
   // Limpiar ?editar=1 de URLs antiguas (edición ahora es in-place por pestaña).
   useEffect(() => {
@@ -583,16 +586,11 @@ export function FichaCentroView({ sesion }: Props) {
             </TabsContent>
 
             <TabsContent value="infraestructura" className="mt-0">
-              <SeccionInfraestructuraCentro
+              <InfraestructuraCapacidadPanel
                 centro={centro}
                 puedeEditar={puedeEditar}
-                variant="expandido"
+                onIrAReporte={puedeEditar ? abrirReporte : undefined}
               />
-            </TabsContent>
-
-            <TabsContent value="capacidad" className="mt-0 space-y-4">
-              <SeccionCapacidadCentro centro={centro} />
-              <SeccionRequerimientosCentro centro={centro} />
             </TabsContent>
           </div>
         </div>

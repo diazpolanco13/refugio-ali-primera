@@ -7,7 +7,6 @@ export const SECCIONES_FICHA_CENTRO = [
   { id: "reporte", label: "Reporte" },
   { id: "incidencias", label: "Incidencias" },
   { id: "infraestructura", label: "Infraestructura" },
-  { id: "capacidad", label: "Capacidad" },
 ] as const;
 
 export type SeccionFichaCentro = (typeof SECCIONES_FICHA_CENTRO)[number]["id"];
@@ -20,6 +19,13 @@ export const ETIQUETAS_SECCION_FICHA: Record<SeccionFichaCentro, string> =
 
 export function esSeccionFichaCentro(v: string | null): v is SeccionFichaCentro {
   return SECCIONES_FICHA_CENTRO.some((s) => s.id === v);
+}
+
+/** Compatibilidad con enlaces antiguos (`?vista=capacidad`). */
+export function normalizarSeccionFichaCentro(v: string | null): SeccionFichaCentro {
+  if (v === "capacidad") return "infraestructura";
+  if (esSeccionFichaCentro(v)) return v;
+  return "resumen";
 }
 
 export function esRutaReportesRed(pathname: string): boolean {

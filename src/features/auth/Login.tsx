@@ -1,6 +1,10 @@
-import { useState } from "react";
-import { Loader2, Tent } from "lucide-react";
+import { useRef, useState } from "react";
+import { AlertCircle, Loader2, ShieldCheck, Tent } from "lucide-react";
+import "cap-widget";
+import "./cap-login.css";
 import { login } from "@/data/authSupabase";
+import { capApiEndpoint, capHabilitado } from "@/data/capConfig";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,101 +13,181 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 export function Login() {
   const [usuario, setUsuario] = useState("");
   const [password, setPassword] = useState("");
+  const [capToken, setCapToken] = useState("");
+  const [capKey, setCapKey] = useState(0);
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
+  const widgetRef = useRef<HTMLElement & { tokenValue?: string | null }>(null);
+
+  function reiniciarCap(): void {
+    setCapToken("");
+    setCapKey((k) => k + 1);
+  }
 
   async function entrar(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setCargando(true);
     try {
-      // `login` de `authSupabase` Internamente usa `supabase.auth.signInWithPassword`
-      // con el email sintético `<username>@refugio.app` y publica el cambio de
-      // sesión vía `onAuthStateChange`, así que no hace falta setear nada aquí.
-      await login(usuario.trim(), password);
+      const tokenCap =
+        widgetRef.current?.tokenValue?.trim() || capToken.trim() || undefined;
+      await login(usuario.trim(), password, tokenCap);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo iniciar sesión");
+      if (capHabilitado) reiniciarCap();
     } finally {
       setCargando(false);
     }
   }
 
+  const puedeEnviar =
+    Boolean(usuario && password) && (!capHabilitado || Boolean(capToken));
+
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm shadow-2xl">
-        <CardHeader className="pb-4 text-center">
-          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            <Tent className="size-6" />
+    <div className="relative flex min-h-[100dvh] flex-col items-center justify-center bg-muted p-6 md:p-10">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,color-mix(in_oklch,var(--primary)_12%,transparent),transparent_55%)]"
+      />
+
+      <div className="relative flex w-full max-w-sm flex-col gap-6">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <Tent className="size-5" aria-hidden />
           </div>
-          <CardTitle>Campamentos Transitorios</CardTitle>
-          <CardDescription>Área Metropolitana de Caracas</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={entrar} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="login-usuario">Usuario</Label>
-              <Input
-                id="login-usuario"
-                value={usuario}
-                onChange={(e) => setUsuario(e.target.value)}
-                autoFocus
-                autoComplete="username"
-                disabled={cargando}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="login-password">Contraseña</Label>
-              <Input
-                id="login-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                disabled={cargando}
-              />
-            </div>
-
-            {error && (
-              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                {error}
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={cargando || !usuario || !password}
-            >
-              {cargando ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Entrando…
-                </>
-              ) : (
-                "Entrar"
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {cargando && (
-        <div
-          className={cn(
-            "fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm",
-          )}
-          aria-hidden
-        >
-          <Loader2 className="size-8 animate-spin text-primary" />
+          <div>
+            <p className="font-heading text-sm font-semibold tracking-tight">
+              Campamentos Transitorios
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Área Metropolitana de Caracas
+            </p>
+          </div>
         </div>
-      )}
+
+        <Card className="border-border/80 shadow-md shadow-black/20">
+          <CardHeader className="pb-2 text-center">
+            <CardTitle className="text-xl font-semibold">Iniciar sesión</CardTitle>
+            <CardDescription>
+              Acceso restringido al personal autorizado de la red
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={entrar}>
+              <FieldGroup className="gap-4">
+                <Field>
+                  <FieldLabel htmlFor="login-usuario">Usuario</FieldLabel>
+                  <Input
+                    id="login-usuario"
+                    value={usuario}
+                    onChange={(e) => setUsuario(e.target.value)}
+                    autoFocus
+                    autoComplete="username"
+                    placeholder="tu.usuario"
+                    disabled={cargando}
+                    className="h-9 bg-background/80"
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="login-password">Contraseña</FieldLabel>
+                  <Input
+                    id="login-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    placeholder="••••••••"
+                    disabled={cargando}
+                    className="h-9 bg-background/80"
+                  />
+                </Field>
+
+                {capHabilitado && (
+                  <Field>
+                    <FieldLabel className="flex items-center gap-1.5">
+                      <ShieldCheck className="size-3.5 text-muted-foreground" />
+                      Verificación de seguridad
+                    </FieldLabel>
+                    <div
+                      className={cn(
+                        "cap-login rounded-lg border border-border/70 bg-background/50 px-1 py-1",
+                        capToken && "border-primary/30 bg-primary/5",
+                      )}
+                    >
+                      <cap-widget
+                        ref={widgetRef}
+                        key={capKey}
+                        data-cap-api-endpoint={capApiEndpoint()}
+                        data-cap-i18n-initial-state="No soy un robot"
+                        data-cap-i18n-verifying-label="Comprobando…"
+                        data-cap-i18n-solved-label="Verificado"
+                        data-cap-i18n-error-label="Error"
+                        data-cap-i18n-required-label="Completa la verificación"
+                        data-cap-i18n-verify-aria-label="Verificar que eres humano"
+                        data-cap-i18n-verified-aria-label="Verificación completada"
+                        onsolve={(e) => setCapToken(e.detail.token)}
+                        onerror={() => {
+                          setCapToken("");
+                          setError("Error en la verificación de seguridad");
+                        }}
+                        onreset={() => setCapToken("")}
+                      />
+                    </div>
+                    {!capToken && (
+                      <FieldDescription>
+                        Marca la casilla para continuar.
+                      </FieldDescription>
+                    )}
+                  </Field>
+                )}
+
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertCircle />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                <Field>
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full"
+                    disabled={cargando || !puedeEnviar}
+                  >
+                    {cargando ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        Entrando…
+                      </>
+                    ) : (
+                      "Entrar"
+                    )}
+                  </Button>
+                </Field>
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
+
+        <p className="px-4 text-center text-xs leading-relaxed text-muted-foreground">
+          Plataforma de gestión humanitaria CCCM. Uso exclusivo de coordinación
+          operativa.
+        </p>
+      </div>
     </div>
   );
 }

@@ -108,6 +108,26 @@ export function requerimientosActivos(items: RequerimientoSeguimiento[]): Requer
   return items.filter((r) => r.estatus !== "archivado");
 }
 
+export function requerimientosPendientes(
+  items: RequerimientoSeguimiento[],
+): RequerimientoSeguimiento[] {
+  return items.filter((r) => r.estatus !== "entregado" && r.estatus !== "archivado");
+}
+
+export function totalesRequerimientosSeguimiento(items: RequerimientoSeguimiento[]): {
+  lineas: number;
+  unidades: number;
+  pendientes: number;
+} {
+  const activos = requerimientosActivos(items);
+  const validos = activos.filter((r) => r.concepto.trim() && r.cantidad > 0);
+  return {
+    lineas: validos.length,
+    unidades: validos.reduce((s, r) => s + r.cantidad, 0),
+    pendientes: requerimientosPendientes(activos).length,
+  };
+}
+
 export function puedeArchivarRequerimiento(estatus: EstatusRequerimientoSeguimiento): boolean {
   return estatus === "entregado";
 }

@@ -26,7 +26,7 @@ export type VistaFichaCentro =
   | "poblacion"
   | "reporte"
   | "incidencias"
-  | "capacidad";
+  | "infraestructura";
 
 interface Props {
   centro: CentroTransitorio;
@@ -176,7 +176,7 @@ export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
         detalle={detalleAgua}
         alerta={aguaAlerta}
         colorAlerta={colorAgua}
-        onClick={onIrAPestana ? () => onIrAPestana("capacidad") : undefined}
+        onClick={onIrAPestana ? () => onIrAPestana("infraestructura") : undefined}
       />
     </div>
   );

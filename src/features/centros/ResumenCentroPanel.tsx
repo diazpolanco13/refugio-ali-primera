@@ -196,7 +196,7 @@ const ENLACES: {
   { vista: "poblacion", label: "Población", icono: <Users className="size-3.5" /> },
   { vista: "reporte", label: "Reporte", icono: <UtensilsCrossed className="size-3.5" /> },
   { vista: "incidencias", label: "Incidencias", icono: <Siren className="size-3.5" /> },
-  { vista: "capacidad", label: "Capacidad", icono: <HardHat className="size-3.5" /> },
+  { vista: "infraestructura", label: "Infraestructura", icono: <HardHat className="size-3.5" /> },
 ];
 
 /** Botones de acceso rápido al resto de pestañas. */

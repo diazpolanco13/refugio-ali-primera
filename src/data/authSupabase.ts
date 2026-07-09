@@ -11,6 +11,8 @@
 
 import { useSyncExternalStore } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { FunctionsHttpError } from "@supabase/supabase-js";
+import { capHabilitado } from "./capConfig";
 import { supabase } from "./supabaseClient";
 
 export type Rol =
@@ -186,13 +188,69 @@ export function usuarioActual(): Usuario | null {
  * cada fetch (supabase-js lo adjunta solo). `onAuthStateChange` actualiza el
  * estado de esta capa.
  */
-export async function login(username: string, password: string): Promise<Sesion> {
+export async function login(
+  username: string,
+  password: string,
+  capToken?: string,
+): Promise<Sesion> {
+  if (capHabilitado) {
+    if (!capToken?.trim()) {
+      throw new Error("Completa la verificación de seguridad");
+    }
+    return loginConCap(username, password, capToken.trim());
+  }
+
   const email = `${username.trim()}@refugio.app`;
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw new Error(error.message);
   if (!data.session) throw new Error("Login sin sesión devuelta");
   const perfil = await cargarPerfil(data.session.user.id);
   estado = { token: data.session.access_token, user: mapearUsuario(data.session, perfil) };
+  emitir();
+  return estado;
+}
+
+/** Login vía Edge Function que verifica Cap antes de autenticar. */
+async function loginConCap(
+  username: string,
+  password: string,
+  capToken: string,
+): Promise<Sesion> {
+  const { data, error } = await supabase.functions.invoke<{
+    access_token?: string;
+    refresh_token?: string;
+    error?: string;
+  }>("login-with-cap", {
+    body: { username: username.trim(), password, capToken },
+  });
+
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      const detalle = (await error.context.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      throw new Error(detalle?.error || "No se pudo iniciar sesión");
+    }
+    throw new Error(error.message || "No se pudo iniciar sesión");
+  }
+
+  if (data?.error) throw new Error(data.error);
+  if (!data?.access_token || !data.refresh_token) {
+    throw new Error("Login sin sesión devuelta");
+  }
+
+  const { data: sesionData, error: sesionErr } = await supabase.auth.setSession({
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+  });
+  if (sesionErr) throw new Error(sesionErr.message);
+  if (!sesionData.session) throw new Error("Login sin sesión devuelta");
+
+  const perfil = await cargarPerfil(sesionData.session.user.id);
+  estado = {
+    token: sesionData.session.access_token,
+    user: mapearUsuario(sesionData.session, perfil),
+  };
   emitir();
   return estado;
 }

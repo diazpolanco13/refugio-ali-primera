@@ -52,7 +52,7 @@ import {
   esFichaCentroPathname,
   esReportesCentroPathname,
   esRutaReportesRed,
-  esSeccionFichaCentro,
+  normalizarSeccionFichaCentro,
   rutaSeccionFichaCentro,
   rutaSeccionReportesCentro,
 } from "@/features/centros/seccionesFichaCentro";
@@ -112,7 +112,7 @@ function ItemMenuReportesDiarios({ pathname }: { pathname: string }) {
   const [submenuAbierto, setSubmenuAbierto] = useState(true);
 
   const seccionParam = searchParams.get("vista");
-  const seccionActiva = esSeccionFichaCentro(seccionParam) ? seccionParam : "resumen";
+  const seccionActiva = normalizarSeccionFichaCentro(seccionParam);
   const enListadoReportes = pathname === "/centros/reportes";
   const activo = enReportesRed || esFichaCentro;
   const enCampamento = centroId != null && (esReportesCentro || esFichaCentro);

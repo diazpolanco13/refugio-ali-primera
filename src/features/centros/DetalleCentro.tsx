@@ -449,13 +449,18 @@ export function SeccionRequerimientosCentro({ centro }: SeccionProps) {
 }
 
 /** Capacidad vs. ocupación: cupo real, cuello de botella y barras Esfera. */
-export function SeccionCapacidadCentro({ centro }: SeccionProps) {
+export function SeccionCapacidadCentro({
+  centro,
+  integrado = false,
+}: SeccionProps & { integrado?: boolean }) {
   const analisis = analisisCentro(centro);
   const colorSemaforo = COLOR_SEMAFORO[analisis.semaforo];
   return (
-    <div className="rounded-xl border border-border bg-card p-3">
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-xs font-semibold text-foreground">Capacidad vs. ocupación</p>
+    <div className={integrado ? "space-y-3" : "rounded-xl border border-border bg-card p-3"}>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-foreground">
+          {integrado ? "Recursos vs. población" : "Capacidad vs. ocupación"}
+        </p>
         <span className="text-[11px] text-muted-foreground">
           {analisis.refugiados.toLocaleString("es")} damnificados
           {analisis.personal > 0 && (
@@ -466,9 +471,9 @@ export function SeccionCapacidadCentro({ centro }: SeccionProps) {
         </span>
       </div>
 
-      {analisis.cupoReal != null ? (
+      {!integrado && analisis.cupoReal != null ? (
         <div
-          className="mb-3 rounded-lg px-3 py-2 text-center"
+          className="rounded-lg px-3 py-2 text-center"
           style={{ background: `${colorSemaforo}1a` }}
         >
           <div className="text-2xl font-bold" style={{ color: colorSemaforo }}>
@@ -487,11 +492,22 @@ export function SeccionCapacidadCentro({ centro }: SeccionProps) {
             </div>
           )}
         </div>
-      ) : (
-        <p className="mb-3 text-[11px] text-muted-foreground">
+      ) : !integrado ? (
+        <p className="text-[11px] text-muted-foreground">
           Aún no hay datos de capacidad. Registra camas, pocetas o duchas para calcular el cupo
           real.
         </p>
+      ) : (
+        analisis.cuelloBotella &&
+        analisis.cupoReal != null &&
+        analisis.cupoReal >= 0 && (
+          <p className="text-[11px] text-muted-foreground">
+            Recurso que fija el límite:{" "}
+            <span className="font-semibold text-foreground">
+              {analisis.cuelloBotella.label}
+            </span>
+          </p>
+        )
       )}
 
       <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">

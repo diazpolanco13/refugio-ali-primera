@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Archive,
   Check,
   Loader2,
   Package,
-  Pencil,
   Plus,
-  Trash2,
 } from "lucide-react";
 import { useRequerimientosSeguimiento } from "@/data/useRequerimientosSeguimiento";
 import {
@@ -15,10 +12,10 @@ import {
   crearRequerimientoSeguimiento,
   eliminarRequerimientoSeguimiento,
 } from "@/data/reposRequerimientosSeguimiento";
+import { CONCEPTOS_REQUERIMIENTO_COMUNES } from "@/domain/centrosTransitorios";
 import {
   CATEGORIAS_REQUERIMIENTO,
   ESTATUS_REQUERIMIENTO,
-  META_ESTATUS_REQUERIMIENTO,
   puedeArchivarRequerimiento,
   type CategoriaRequerimientoSeguimiento,
   type EstatusRequerimientoSeguimiento,
@@ -26,20 +23,13 @@ import {
 } from "@/domain/requerimientosSeguimiento";
 import { BloqueConfirmacionReporte } from "@/features/centros/BloqueConfirmacionReporte";
 import { claseSelectReporte } from "@/features/centros/clasesReporte";
-import { BadgeAntiguedad } from "@/components/ui/badge-antiguedad";
+import {
+  ListaRequerimientosSeguimiento,
+  ResumenRequerimientosSeguimiento,
+  TarjetaRequerimientoSeguimiento,
+} from "@/features/centros/RequerimientosSeguimientoUi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,89 +53,6 @@ interface Props {
   guardando?: boolean;
 }
 
-function TarjetaRequerimiento({
-  item,
-  onEditar,
-  onArchivar,
-  onEliminar,
-  eliminando,
-  deshabilitado,
-}: {
-  item: RequerimientoSeguimiento;
-  onEditar: () => void;
-  onArchivar: () => void;
-  onEliminar: () => void;
-  eliminando?: boolean;
-  deshabilitado?: boolean;
-}) {
-  const meta = META_ESTATUS_REQUERIMIENTO[item.estatus];
-  const catLabel =
-    CATEGORIAS_REQUERIMIENTO.find((c) => c.valor === item.categoria)?.label ?? item.categoria;
-  return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2.5">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-sm font-medium">{item.concepto}</span>
-            <Badge variant="outline" className="text-[10px]" style={{ borderColor: `${meta.color}66`, color: meta.color }}>
-              {meta.label}
-            </Badge>
-            <Badge variant="secondary" className="text-[10px]">
-              {catLabel}
-            </Badge>
-            <BadgeAntiguedad reportadoDia={item.reportado_dia} resueltaTs={item.resuelta_ts} creadaTs={item.creada_ts} />
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Cantidad: <span className="font-semibold tabular-nums text-foreground">{item.cantidad}</span>
-          </p>
-          {item.notas && <p className="text-xs text-muted-foreground">{item.notas}</p>}
-        </div>
-        <div className="flex shrink-0 gap-0.5">
-          <Button type="button" size="icon-xs" variant="ghost" disabled={deshabilitado || eliminando} onClick={onEditar}>
-            <Pencil className="size-3.5" />
-          </Button>
-          {puedeArchivarRequerimiento(item.estatus) && (
-            <Button type="button" size="icon-xs" variant="ghost" disabled={deshabilitado || eliminando} onClick={onArchivar} aria-label="Archivar">
-              <Archive className="size-3.5" />
-            </Button>
-          )}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                type="button"
-                size="icon-xs"
-                variant="ghost"
-                className="text-destructive hover:text-destructive"
-                disabled={deshabilitado || eliminando}
-                aria-label="Eliminar requerimiento"
-              >
-                {eliminando ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Eliminar requerimiento?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Se borrará «{item.concepto}» de forma permanente. Esta acción no se puede deshacer.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={onEliminar}
-                >
-                  Eliminar
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function RequerimientosReporteTab({
   centroId,
   hoyClave,
@@ -167,7 +74,6 @@ export function RequerimientosReporteTab({
   const [estatus, setEstatus] = useState<EstatusRequerimientoSeguimiento>("solicitado");
   const [guardandoItem, setGuardandoItem] = useState(false);
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
-  /** Cambios en ítems ya guardados (editar estatus, archivar, etc.) pendientes de confirmar bloque. */
   const [listadoModificado, setListadoModificado] = useState(false);
   const revisadoPrevio = useRef(revisado);
 
@@ -194,6 +100,19 @@ export function RequerimientosReporteTab({
     setCategoria(r.categoria);
     setNotas(r.notas);
     setEstatus(r.estatus);
+  }
+
+  function agregarConceptoRapido(texto: string) {
+    const existente = items.find(
+      (i) => i.concepto.trim().toLowerCase() === texto.toLowerCase(),
+    );
+    if (existente) {
+      cargarEdicion(existente);
+      return;
+    }
+    resetForm();
+    setConcepto(texto);
+    setCantidad(1);
   }
 
   async function guardarItem() {
@@ -255,6 +174,10 @@ export function RequerimientosReporteTab({
       : "Guarda el requerimiento en edición antes de guardar todos los cambios."
     : undefined;
 
+  const conceptosUsados = new Set(
+    items.map((i) => i.concepto.trim().toLowerCase()).filter(Boolean),
+  );
+
   return (
     <div className="space-y-4">
       <BloqueConfirmacionReporte
@@ -281,21 +204,65 @@ export function RequerimientosReporteTab({
         }
       />
 
+      <ResumenRequerimientosSeguimiento items={items} />
+
+      {!deshabilitado && (
+        <div>
+          <p className="mb-2 text-[11px] font-medium text-muted-foreground">Agregar rápido</p>
+          <div className="flex flex-wrap gap-1.5">
+            {CONCEPTOS_REQUERIMIENTO_COMUNES.map((texto) => {
+              const yaEsta = conceptosUsados.has(texto.toLowerCase());
+              return (
+                <Button
+                  key={texto}
+                  type="button"
+                  size="xs"
+                  variant={yaEsta ? "secondary" : "outline"}
+                  className="h-auto max-w-full py-1 whitespace-normal"
+                  onClick={() => agregarConceptoRapido(texto)}
+                >
+                  <Plus className="size-3 shrink-0" />
+                  {texto}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <Card size="sm" className="border-border/80">
-        <CardContent className="space-y-2 px-3 py-3">
-          <p className="text-xs font-medium">{editandoId ? "Editar requerimiento" : "Nuevo requerimiento"}</p>
+        <CardContent className="space-y-3 px-3 py-3">
+          <p className="text-xs font-medium">
+            {editandoId ? "Editar requerimiento" : "Nuevo requerimiento"}
+          </p>
           <div>
-            <Label className="text-[11px] text-muted-foreground">Concepto</Label>
-            <Input className="mt-1" value={concepto} disabled={deshabilitado} onChange={(e) => setConcepto(e.target.value)} />
+            <Label className="text-[11px] text-muted-foreground">Qué se necesita</Label>
+            <Input
+              className="mt-1"
+              list="conceptos-requerimiento-reporte"
+              value={concepto}
+              disabled={deshabilitado}
+              onChange={(e) => setConcepto(e.target.value)}
+              placeholder="Ej. Camas, cocina, tanques…"
+            />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label className="text-[11px] text-muted-foreground">Cantidad</Label>
-              <NumInput className="mt-1" value={cantidad} disabled={deshabilitado} onChange={setCantidad} />
+              <NumInput
+                className="mt-1"
+                value={cantidad}
+                disabled={deshabilitado}
+                onChange={setCantidad}
+              />
             </div>
             <div>
               <Label className="text-[11px] text-muted-foreground">Categoría</Label>
-              <Select value={categoria} onValueChange={(v) => setCategoria(v as CategoriaRequerimientoSeguimiento)} disabled={deshabilitado}>
+              <Select
+                value={categoria}
+                onValueChange={(v) => setCategoria(v as CategoriaRequerimientoSeguimiento)}
+                disabled={deshabilitado}
+              >
                 <SelectTrigger className={claseSelectReporte}>
                   <SelectValue />
                 </SelectTrigger>
@@ -312,7 +279,11 @@ export function RequerimientosReporteTab({
           {editandoId && (
             <div>
               <Label className="text-[11px] text-muted-foreground">Estatus</Label>
-              <Select value={estatus} onValueChange={(v) => setEstatus(v as EstatusRequerimientoSeguimiento)} disabled={deshabilitado}>
+              <Select
+                value={estatus}
+                onValueChange={(v) => setEstatus(v as EstatusRequerimientoSeguimiento)}
+                disabled={deshabilitado}
+              >
                 <SelectTrigger className={claseSelectReporte}>
                   <SelectValue />
                 </SelectTrigger>
@@ -328,14 +299,32 @@ export function RequerimientosReporteTab({
           )}
           <div>
             <Label className="text-[11px] text-muted-foreground">Notas (opcional)</Label>
-            <Textarea className="mt-1 min-h-[3rem]" rows={2} value={notas} disabled={deshabilitado} onChange={(e) => setNotas(e.target.value)} />
+            <Textarea
+              className="mt-1 min-h-[3rem]"
+              rows={2}
+              value={notas}
+              disabled={deshabilitado}
+              onChange={(e) => setNotas(e.target.value)}
+              placeholder="Urgencia, ubicación, observación…"
+            />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" disabled={!concepto.trim() || guardandoItem || deshabilitado} onClick={() => void guardarItem()}>
-              {guardandoItem ? <Loader2 className="size-3.5 animate-spin" /> : editandoId ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
-              {editandoId ? "Actualizar" : "Guardar este requerimiento"}
+            <Button
+              type="button"
+              size="sm"
+              disabled={!concepto.trim() || guardandoItem || deshabilitado}
+              onClick={() => void guardarItem()}
+            >
+              {guardandoItem ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : editandoId ? (
+                <Check className="size-3.5" />
+              ) : (
+                <Plus className="size-3.5" />
+              )}
+              {editandoId ? "Actualizar" : "Guardar requerimiento"}
             </Button>
-            {editandoId && (
+            {(editandoId || formularioPendiente) && (
               <Button type="button" size="sm" variant="outline" onClick={resetForm}>
                 Cancelar
               </Button>
@@ -344,29 +333,40 @@ export function RequerimientosReporteTab({
         </CardContent>
       </Card>
 
-      {items.length > 0 ? (
-        <ul className="space-y-2">
-          {items.map((r) => (
-            <li key={r.id}>
-              <TarjetaRequerimiento
-                item={r}
-                deshabilitado={deshabilitado}
-                eliminando={eliminandoId === r.id}
-                onEditar={() => cargarEdicion(r)}
-                onArchivar={() => {
-                  void archivarRequerimientoSeguimiento(r.id).then(async () => {
-                    setListadoModificado(true);
-                    await recargarRequerimientos();
-                  });
-                }}
-                onEliminar={() => void eliminarItem(r.id)}
-              />
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-xs text-muted-foreground">Sin requerimientos abiertos.</p>
-      )}
+      <datalist id="conceptos-requerimiento-reporte">
+        {CONCEPTOS_REQUERIMIENTO_COMUNES.map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
+
+      <ListaRequerimientosSeguimiento
+        items={items}
+        vacio={
+          <p className="text-xs text-muted-foreground">
+            Sin requerimientos abiertos. Usa una sugerencia rápida o agrega uno personalizado.
+          </p>
+        }
+        renderItem={(r) => (
+          <TarjetaRequerimientoSeguimiento
+            item={r}
+            modo="reporte"
+            deshabilitado={deshabilitado}
+            eliminando={eliminandoId === r.id}
+            onEditar={() => cargarEdicion(r)}
+            onArchivar={
+              puedeArchivarRequerimiento(r.estatus)
+                ? () => {
+                    void archivarRequerimientoSeguimiento(r.id).then(async () => {
+                      setListadoModificado(true);
+                      await recargarRequerimientos();
+                    });
+                  }
+                : undefined
+            }
+            onEliminar={() => void eliminarItem(r.id)}
+          />
+        )}
+      />
     </div>
   );
 }
