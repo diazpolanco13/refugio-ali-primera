@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
-import { Document, Page, Path, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, Path, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
 import type { ReporteEjecutivoCampamentos } from "@/domain/reporteEjecutivoCampamentos";
 
 const azul = "#0f2f3f";
+const azulInstitucional = "#0b1c2e";
+const oroInstitucional = "#d4af37";
 const verdeOcupacion = "#22c55e";
 const grisOcupacion = "#64748b";
 const teal = "#0f766e";
@@ -13,16 +15,134 @@ const gris = "#64748b";
 const borde = "#d8e2ea";
 const fondoSuave = "#f4f8fb";
 
+const LOGO_SEBIN = "/logos/logo-sebin.png";
+const LOGO_SAE = "/logos/logo-sae.png";
+
+function urlPublica(ruta: string): string {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}${ruta}`;
+  }
+  return ruta;
+}
+
+const MESES_MILITAR = [
+  "JAN",
+  "FEB",
+  "MAR",
+  "APR",
+  "MAY",
+  "JUN",
+  "JUL",
+  "AUG",
+  "SEP",
+  "OCT",
+  "NOV",
+  "DEC",
+] as const;
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 12,
-    paddingHorizontal: 14,
+    paddingTop: 0,
+    paddingHorizontal: 0,
     paddingBottom: 26,
     backgroundColor: "#ffffff",
     color: "#10212b",
     fontFamily: "Helvetica",
     fontSize: 7.5,
+  },
+  contenido: {
+    paddingHorizontal: 14,
+    paddingTop: 6,
+  },
+  franja: {
+    backgroundColor: azulInstitucional,
+    borderTopWidth: 3,
+    borderTopColor: oroInstitucional,
+    borderBottomWidth: 1.5,
+    borderBottomColor: oroInstitucional,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  franjaLado: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1.15,
+    minWidth: 0,
+  },
+  franjaLadoDerecho: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    flex: 1.15,
+    minWidth: 0,
+  },
+  franjaCentro: {
+    flex: 0.9,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  logoSebin: {
+    width: 48,
+    height: 32,
+    objectFit: "contain",
+  },
+  logoSae: {
+    width: 34,
+    height: 34,
+    objectFit: "contain",
+  },
+  franjaTextoIzq: {
+    marginLeft: 8,
+    color: "#ffffff",
+    fontSize: 7.5,
+    fontWeight: 700,
+    lineHeight: 1.25,
+  },
+  franjaTextoDer: {
+    marginRight: 8,
+    color: "#ffffff",
+    fontSize: 7.5,
+    fontWeight: 700,
+    textAlign: "right",
+    lineHeight: 1.25,
+  },
+  franjaSubrayado: {
+    marginTop: 3,
+    height: 1,
+    backgroundColor: oroInstitucional,
+    width: "100%",
+  },
+  dtgCaja: {
+    borderWidth: 1,
+    borderColor: "#ffffff",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  dtgTexto: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: 1.2,
+    textAlign: "center",
+  },
+  tituloBloque: {
+    marginTop: 4,
+    marginBottom: 2,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 4,
+    backgroundColor: azulInstitucional,
+  },
+  tituloBloqueTexto: {
+    color: oroInstitucional,
+    fontSize: 9,
+    fontWeight: 700,
+    letterSpacing: 0.6,
+    textAlign: "center",
   },
   header: {
     flexDirection: "row",
@@ -43,11 +163,6 @@ const styles = StyleSheet.create({
     color: azul,
     fontSize: 14,
     fontWeight: 700,
-  },
-  subtitle: {
-    marginTop: 2,
-    color: gris,
-    fontSize: 7.5,
   },
   headerRight: {
     alignItems: "flex-end",
@@ -117,26 +232,26 @@ const styles = StyleSheet.create({
   },
   kpiLabel: {
     color: gris,
-    fontSize: 6.5,
+    fontSize: 7.5,
     fontWeight: 700,
   },
   kpiValue: {
     marginTop: 2,
     color: azul,
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 700,
   },
   kpiValueCompact: {
     marginTop: 1,
-    fontSize: 11,
+    fontSize: 13,
   },
   kpiSub: {
     marginTop: 1,
     color: gris,
-    fontSize: 6,
+    fontSize: 6.5,
   },
   kpiSubCompact: {
-    fontSize: 5.8,
+    fontSize: 6.2,
   },
   body: {
     flexDirection: "row",
@@ -411,6 +526,58 @@ const styles = StyleSheet.create({
     color: "#334155",
     fontSize: 6.2,
   },
+  serieChart: {
+    marginTop: 2,
+    height: 78,
+    flexDirection: "row",
+    alignItems: "flex-end",
+  },
+  serieEjeY: {
+    width: 28,
+    height: 78,
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    paddingRight: 3,
+    paddingBottom: 14,
+  },
+  serieEjeYTexto: {
+    color: gris,
+    fontSize: 5.5,
+  },
+  serieBarras: {
+    flex: 1,
+    height: 78,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    borderLeftWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: borde,
+    paddingLeft: 2,
+  },
+  serieCol: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    height: "100%",
+    paddingHorizontal: 1,
+  },
+  serieValor: {
+    color: azul,
+    fontSize: 5.2,
+    fontWeight: 700,
+    marginBottom: 1,
+  },
+  serieBarra: {
+    width: "72%",
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+  },
+  serieDia: {
+    marginTop: 2,
+    color: gris,
+    fontSize: 5.2,
+    textAlign: "center",
+  },
   footer: {
     position: "absolute",
     left: 14,
@@ -434,23 +601,98 @@ function pct(valor: number): string {
   return `${Math.max(0, Math.min(100, valor))}%`;
 }
 
-function fechaCorte(dia: string): string {
-  const [year, month, day] = dia.split("-").map(Number);
-  return new Intl.DateTimeFormat("es-VE", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(year, month - 1, day, 12));
+/** Fecha-hora militar: DDHHMMMONYY (ej. 091430JUL26). */
+function fechaHoraMilitar(ts: number): string {
+  const d = new Date(ts);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const mon = MESES_MILITAR[d.getMonth()];
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${dd}${hh}${mm}${mon}${yy}`;
 }
 
-function horaGeneracion(ts: number): string {
-  return new Intl.DateTimeFormat("es-VE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(ts));
+function fechaEtiquetaCorta(dia: string): string {
+  const [, m, d] = dia.split("-");
+  const meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  const mes = meses[Number(m) - 1] ?? m;
+  return `${Number(d)}-${mes}`;
+}
+
+function GraficoSerieSemanal({
+  puntos,
+  diaActivo,
+}: {
+  puntos: { dia: string; total: number }[];
+  diaActivo: string;
+}) {
+  const max = Math.max(1, ...puntos.map((p) => p.total));
+  const tope = Math.ceil(max / 1000) * 1000 || 1000;
+  const ticks = [tope, Math.round(tope / 2), 0];
+  const alturaMax = 52;
+
+  return (
+    <View style={styles.serieChart} wrap={false}>
+      <View style={styles.serieEjeY}>
+        {ticks.map((t) => (
+          <Text key={t} style={styles.serieEjeYTexto}>
+            {t >= 1000 ? `${(t / 1000).toFixed(t % 1000 === 0 ? 0 : 1)}k` : String(t)}
+          </Text>
+        ))}
+      </View>
+      <View style={styles.serieBarras}>
+        {puntos.map((p) => {
+          const h = Math.max(2, Math.round((p.total / tope) * alturaMax));
+          const esHoy = p.dia === diaActivo;
+          return (
+            <View key={p.dia} style={styles.serieCol}>
+              <Text style={styles.serieValor}>{n(p.total)}</Text>
+              <View
+                style={[
+                  styles.serieBarra,
+                  {
+                    height: h,
+                    backgroundColor: esHoy ? ambar : "#2563eb",
+                  },
+                ]}
+              />
+              <Text style={styles.serieDia}>{fechaEtiquetaCorta(p.dia)}</Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function EncabezadoInstitucional({ generadoTs }: { generadoTs: number }) {
+  return (
+    <View style={styles.franja} fixed>
+      <View style={styles.franjaLado}>
+        <Image src={urlPublica(LOGO_SEBIN)} style={styles.logoSebin} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.franjaTextoIzq}>Servicio Bolivariano de</Text>
+          <Text style={styles.franjaTextoIzq}>Inteligencia Nacional</Text>
+          <View style={styles.franjaSubrayado} />
+        </View>
+      </View>
+
+      <View style={styles.franjaCentro}>
+        <View style={styles.dtgCaja}>
+          <Text style={styles.dtgTexto}>{fechaHoraMilitar(generadoTs)}</Text>
+        </View>
+      </View>
+
+      <View style={styles.franjaLadoDerecho}>
+        <View style={{ flex: 1, minWidth: 0, alignItems: "flex-end" }}>
+          <Text style={styles.franjaTextoDer}>Sala de Análisis</Text>
+          <Text style={styles.franjaTextoDer}>Estratégico</Text>
+          <View style={styles.franjaSubrayado} />
+        </View>
+        <Image src={urlPublica(LOGO_SAE)} style={styles.logoSae} />
+      </View>
+    </View>
+  );
 }
 
 /** Primera letra en mayúscula y el resto en minúsculas (español). */
@@ -749,20 +991,14 @@ export function ReporteEjecutivoCampamentosPdf({
       language="es-VE"
     >
       <Page size="LETTER" orientation="landscape" style={styles.page} wrap={false}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.eyebrow}>SALA SITUACIONAL - CORTE EJECUTIVO</Text>
-            <Text style={styles.title}>Parte Global de Campamentos Transitorios</Text>
-            <Text style={styles.subtitle}>
-              Área Metropolitana de Caracas · {fechaCorte(reporte.dia)}
+        <EncabezadoInstitucional generadoTs={reporte.generadoTs} />
+
+        <View style={styles.contenido}>
+          <View style={styles.tituloBloque}>
+            <Text style={styles.tituloBloqueTexto}>
+              SALA SITUACIONAL — PARTE GLOBAL DE CAMPAMENTOS TRANSITORIOS
             </Text>
           </View>
-          <View style={styles.headerRight}>
-            <Text style={styles.pill}>Reporte del día</Text>
-            <Text style={styles.smallMuted}>Generado: {horaGeneracion(reporte.generadoTs)}</Text>
-            <Text style={styles.smallMuted}>Responsable: {reporte.generadoPor}</Text>
-          </View>
-        </View>
 
         <View style={styles.kpiRow}>
           <Kpi label="Campamentos" value={reporte.kpis.centrosTotal} sub={`${reporte.kpis.centrosConDatos} con datos`} />
@@ -842,15 +1078,8 @@ export function ReporteEjecutivoCampamentosPdf({
               </View>
             </Section>
 
-            <Section title="Personal desplegado" hint={`${n(reporte.personal.total)} pers.`} fixed>
-              <View style={styles.miniGrid}>
-                <MiniDato label="Func." value={reporte.personal.funcionarios} />
-                <MiniDato label="Trab." value={reporte.personal.trabajadores} />
-                <MiniDato label="Méd." value={reporte.personal.medicos} />
-                <MiniDato label="Psic." value={reporte.personal.psicologos} />
-                <MiniDato label="Just." value={reporte.personal.justicia} />
-                <MiniDato label="Total" value={reporte.personal.total} />
-              </View>
+            <Section title="Total de personas (7 días)" hint="evolución diaria" tint fixed>
+              <GraficoSerieSemanal puntos={reporte.serieSemanal} diaActivo={reporte.dia} />
             </Section>
           </View>
 
@@ -956,28 +1185,27 @@ export function ReporteEjecutivoCampamentosPdf({
             </View>
           </View>
         </View>
-
-        <View style={styles.footer}>
-          <Text>Fuente: Supabase - datos operativos de campamentos en tiempo real.</Text>
-          <Text>Uso institucional - no contiene datos nominales de población.</Text>
         </View>
       </Page>
 
       {/* ===== Tabla de la red, un campamento por fila ===== */}
       <Page size="LETTER" orientation="landscape" style={styles.page}>
-        <View style={styles.header} fixed>
-          <View>
-            <Text style={styles.eyebrow}>SALA SITUACIONAL - DETALLE POR CAMPAMENTO</Text>
-            <Text style={[styles.title, { fontSize: 15 }]}>Situación de la red · {fechaCorte(reporte.dia)}</Text>
+        <EncabezadoInstitucional generadoTs={reporte.generadoTs} />
+
+        <View style={styles.contenido}>
+          <View style={[styles.header, { marginBottom: 2 }]} fixed>
+            <View>
+              <Text style={styles.eyebrow}>SALA SITUACIONAL - DETALLE POR CAMPAMENTO</Text>
+              <Text style={[styles.title, { fontSize: 13 }]}>Situación de la red</Text>
+            </View>
+            <View style={styles.headerRight}>
+              <Text style={styles.pill}>{n(reporte.filasRed.length)} campamentos</Text>
+              <Text
+                style={styles.smallMuted}
+                render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}
+              />
+            </View>
           </View>
-          <View style={styles.headerRight}>
-            <Text style={styles.pill}>{n(reporte.filasRed.length)} campamentos</Text>
-            <Text
-              style={styles.smallMuted}
-              render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}
-            />
-          </View>
-        </View>
 
         <View style={styles.tablaHeader} fixed>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.nro }]}>N°</Text>
@@ -1071,6 +1299,7 @@ export function ReporteEjecutivoCampamentosPdf({
             </View>
           </View>
         ))}
+        </View>
 
         <View style={styles.footer} fixed>
           <Text>Ordenado por N° de campamento · Control según revisión del día · Trabajos con días abiertos.</Text>

@@ -187,7 +187,10 @@ export function serieDiariaOcupacionCentro(
 }
 
 /** Últimos N días calendario terminando en `hoyClave` (YYYY-MM-DD). */
-export function ultimosDiasSerie(cantidad: VentanaSeriePoblacion, hoyClave: string): string[] {
+export function ultimosDiasSerie(
+  cantidad: VentanaSeriePoblacion | number,
+  hoyClave: string,
+): string[] {
   const [hy, hm, hd] = hoyClave.split("-").map(Number);
   const fin = new Date(hy, hm - 1, hd);
   const out: string[] = [];
@@ -200,6 +203,31 @@ export function ultimosDiasSerie(cantidad: VentanaSeriePoblacion, hoyClave: stri
     out.push(`${y}-${m}-${day}`);
   }
   return out;
+}
+
+/**
+ * Serie agregada de la red para una ventana fija de N días terminando en
+ * `diaCorte`, con carry-forward por campamento.
+ */
+export function serieOcupacionRedVentana(
+  snapshots: SnapshotOcupacion[],
+  centros: CentroParaAgregado[],
+  ventana: number,
+  diaCorte: string,
+): PuntoSerie[] {
+  const dias = ultimosDiasSerie(ventana, diaCorte);
+  const porCentro = indexarPorCentro(snapshots);
+  return dias.map((dia) => {
+    const snapsDelDia: SnapshotOcupacion[] = [];
+    for (const c of centros) {
+      const arr = porCentro.get(c.id);
+      if (!arr) continue;
+      const ult = ultimoHasta(arr, dia);
+      if (ult) snapsDelDia.push(ult);
+    }
+    const tot = sumarSnapshots(snapsDelDia);
+    return { dia, ...tot };
+  });
 }
 
 /**

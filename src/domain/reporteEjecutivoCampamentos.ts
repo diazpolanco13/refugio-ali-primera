@@ -34,7 +34,10 @@ import { diasAbierto } from "./antiguedadSeguimiento";
 import { metaUnidadSebinDe } from "./unidadesSebin";
 import type { NivelPrioridad } from "./prioridadCentros";
 import type { TipoEventoReporte } from "./eventosReportes";
-import type { SnapshotOcupacion } from "./serieOcupacionCentros";
+import {
+  serieOcupacionRedVentana,
+  type SnapshotOcupacion,
+} from "./serieOcupacionCentros";
 import {
   totalHombres,
   totalMujeres,
@@ -235,6 +238,12 @@ export interface OcupacionRedEjecutiva {
   sinRefugiados: number;
 }
 
+/** Punto diario de la totalización semanal (últimos 7 días). */
+export interface PuntoSerieSemanalEjecutivo {
+  dia: string;
+  total: number;
+}
+
 export interface ReporteEjecutivoCampamentos {
   dia: string;
   generadoTs: number;
@@ -264,6 +273,8 @@ export interface ReporteEjecutivoCampamentos {
   unidadesSebin: UnidadSebinEjecutiva[];
   censo: CensoEstadosEjecutivo | null;
   ocupacionRed: OcupacionRedEjecutiva;
+  /** Total de personas (damnificados) por día, últimos 7 días hasta el corte. */
+  serieSemanal: PuntoSerieSemanalEjecutivo[];
 }
 
 function conteosOcupacionRed(
@@ -639,5 +650,11 @@ export function construirReporteEjecutivoCampamentos({
     unidadesSebin,
     censo: censoEstados,
     ocupacionRed: conteosOcupacionRed(centros, snapshots, dia),
+    serieSemanal: serieOcupacionRedVentana(
+      snapshots,
+      centros.map((c) => ({ id: c.id, grupo: c.grupo })),
+      7,
+      dia,
+    ).map((p) => ({ dia: p.dia, total: p.total })),
   };
 }
