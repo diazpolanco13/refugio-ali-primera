@@ -3,6 +3,7 @@ import { useState } from "react";
 import {
   ChevronRight,
   ClipboardList,
+  ContactRound,
   LayoutGrid,
   MapPinned,
   MonitorPlay,
@@ -276,7 +277,7 @@ function NavContenido({ sesion }: Props) {
             />
             <ItemMenu
               to="/centros/censo-rapido"
-              icono={ClipboardList}
+              icono={ContactRound}
               label="Censo rápido (red)"
               activo={rutaActiva(pathname, "/centros/censo-rapido")}
             />
@@ -334,7 +335,7 @@ function NavContenido({ sesion }: Props) {
             {veCensoRed && (
               <ItemMenu
                 to="/centros/censo-rapido"
-                icono={ClipboardList}
+                icono={ContactRound}
                 label="Censo rápido (red)"
                 activo={rutaActiva(pathname, "/centros/censo-rapido")}
               />
