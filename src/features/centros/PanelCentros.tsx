@@ -81,7 +81,7 @@ export function PanelCentros({
     return centros.filter((c) => {
       const meta = metaUnidadSebinCentro(c);
       return normalizarTextoBusqueda(
-        `${c.nombre} ${c.parroquia} ${c.direccion} ${meta.label} ${c.supervision?.unidad_sebin ?? ""}`,
+        `${c.nro} ${c.nombre} ${c.parroquia} ${c.direccion} ${meta.label} ${c.supervision?.unidad_sebin ?? ""}`,
       ).includes(termino);
     });
   }, [centros, termino]);

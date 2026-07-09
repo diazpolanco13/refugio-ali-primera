@@ -1,8 +1,7 @@
-import { LogoCuerpo } from "@/components/LogoCuerpo";
-import { MapPin, MapPinOff } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { MapPinOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  LOGO_SEBIN,
   metaUnidadSebinCentro,
   poblacionCentro,
   type CentroTransitorio,
@@ -67,7 +66,7 @@ export function FilaCentroLista({
   onSeleccionar: (centro: CentroTransitorio) => void;
 }) {
   const sinGeom = !centro.geom;
-  const metaUnidad = mostrarUnidad ? metaUnidadSebinCentro(centro) : null;
+  const metaUnidad = metaUnidadSebinCentro(centro);
   return (
     <button
       type="button"
@@ -85,18 +84,21 @@ export function FilaCentroLista({
       )}
     >
       <div className="flex items-center gap-1.5">
-        {metaUnidad ? (
-          <span
-            className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white text-[10px]"
-            style={{ borderColor: metaUnidad.color }}
-            aria-hidden
-          >
-            <LogoCuerpo src={LOGO_SEBIN} priority="low" />
-          </span>
-        ) : sinGeom ? (
-          <MapPinOff className="size-3 shrink-0 text-muted-foreground" />
+        {sinGeom ? (
+          <MapPinOff className="size-3.5 shrink-0 text-muted-foreground" />
         ) : (
-          <MapPin className="size-3 shrink-0 text-muted-foreground" />
+          <Badge
+            variant="outline"
+            className="h-5 min-w-5 justify-center rounded-full px-1 text-[10px] font-bold tabular-nums"
+            style={{
+              borderColor: metaUnidad.color,
+              color: metaUnidad.color,
+              backgroundColor: `${metaUnidad.color}18`,
+            }}
+            aria-label={`Campamento N.° ${centro.nro}`}
+          >
+            {centro.nro}
+          </Badge>
         )}
         <span
           className={cn(
@@ -116,8 +118,7 @@ export function FilaCentroLista({
       </div>
       <div className="mt-0.5 flex items-center gap-2 pl-[26px] text-[10px] text-muted-foreground">
         <span className="min-w-0 truncate">
-          {mostrarUnidad && metaUnidad ? `${metaUnidad.label} · ` : ""}
-          {mostrarUnidad && !metaUnidad && centro.parroquia ? `${centro.parroquia} · ` : ""}
+          {mostrarUnidad ? `${metaUnidad.label} · ` : ""}
           {estado.refugiados > 0
             ? `${estado.refugiados.toLocaleString("es")} pers.`
             : "sin ocupación"}

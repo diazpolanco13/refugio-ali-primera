@@ -51,7 +51,7 @@ export function BuscadorCompacto({
     return centros
       .filter((c) =>
         normalizarTextoBusqueda(
-          `${c.nombre} ${c.parroquia} ${c.direccion} ${c.cuerpo}`,
+          `${c.nro} ${c.nombre} ${c.parroquia} ${c.direccion} ${c.cuerpo}`,
         ).includes(termino),
       )
       .slice(0, 30);

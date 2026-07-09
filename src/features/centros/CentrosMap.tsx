@@ -340,6 +340,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       roots.current.get(c.id)?.render(
         <MarcadorCentro
           modo={cbRef.current.modoMarcador}
+          nro={c.nro}
           icono="🛡️"
           logo={LOGO_SEBIN}
           color={metaUnidad.color}

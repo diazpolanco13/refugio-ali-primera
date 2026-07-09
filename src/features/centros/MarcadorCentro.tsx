@@ -6,6 +6,8 @@ export type ModoMarcadorCentro = "logo" | "color";
 
 interface Props {
   modo: ModoMarcadorCentro;
+  /** Número de campamento (índice operativo). */
+  nro: number;
   icono: string;
   logo: string | null;
   color: string;
@@ -57,9 +59,38 @@ function SemaforoEstado({ color }: { color: string }) {
   );
 }
 
+/** Núcleo circular con el N.° del campamento. */
+function NucleoNumero({
+  nro,
+  color,
+  resaltado,
+  seleccionado,
+}: {
+  nro: number;
+  color: string;
+  resaltado: boolean;
+  seleccionado: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        "relative flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white px-1 shadow-md",
+        resaltado && "marcador-latido-nucleo",
+        seleccionado && resaltado && "ring-2 ring-white/90",
+      )}
+      style={{ backgroundColor: color }}
+    >
+      <span className="text-[9px] font-bold leading-none tabular-nums text-white">
+        {nro}
+      </span>
+    </span>
+  );
+}
+
 /** Marcador HTML del campamento: logo SEBIN o punto de color con latido. */
 export function MarcadorCentro({
   modo,
+  nro,
   icono,
   logo,
   color,
@@ -73,7 +104,7 @@ export function MarcadorCentro({
 }: Props) {
   const colorMarcador = resaltado ? color : COLOR_MARCADOR_ATENUADO;
   const titulo =
-    `${refugiados.toLocaleString("es")} damnificados · ${personalTotal.toLocaleString("es")} personal operativo`;
+    `N.° ${nro} · ${refugiados.toLocaleString("es")} damnificados · ${personalTotal.toLocaleString("es")} personal operativo`;
 
   function manejarClick(ev: React.MouseEvent) {
     ev.stopPropagation();
@@ -92,21 +123,19 @@ export function MarcadorCentro({
         onClick={manejarClick}
       >
         <div className="relative flex flex-col items-center">
-          <div className="relative flex size-5 items-center justify-center">
+          <div className="relative flex size-6 items-center justify-center">
             {resaltado && (
               <span
-                className="marcador-latido-aura absolute size-5 rounded-full"
+                className="marcador-latido-aura absolute size-6 rounded-full"
                 style={{ backgroundColor: colorMarcador }}
                 aria-hidden
               />
             )}
-            <span
-              className={cn(
-                "relative size-3.5 rounded-full border-2 border-white shadow-md",
-                resaltado && "marcador-latido-nucleo",
-                seleccionado && resaltado && "ring-2 ring-white/90",
-              )}
-              style={{ backgroundColor: colorMarcador, color: colorMarcador } as React.CSSProperties}
+            <NucleoNumero
+              nro={nro}
+              color={colorMarcador}
+              resaltado={resaltado}
+              seleccionado={seleccionado}
             />
           </div>
           {mostrarParte && resaltado && (
@@ -125,15 +154,26 @@ export function MarcadorCentro({
   }
 
   const iconoCuerpo = (
-    <span
-      className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white"
-      style={{ borderColor: colorMarcador }}
-    >
-      {logo ? (
-        <LogoCuerpo src={logo} priority="high" />
-      ) : (
-        <span className="text-sm leading-none">{icono}</span>
-      )}
+    <span className="relative flex size-7 shrink-0 items-center justify-center">
+      <span
+        className="flex size-7 items-center justify-center overflow-hidden rounded-full border-2 bg-white"
+        style={{ borderColor: colorMarcador }}
+      >
+        {logo ? (
+          <LogoCuerpo src={logo} priority="high" />
+        ) : (
+          <span className="text-sm leading-none">{icono}</span>
+        )}
+      </span>
+      <span
+        className="absolute -bottom-1 left-1/2 flex h-3.5 min-w-3.5 -translate-x-1/2 items-center justify-center rounded-full border border-white px-0.5 shadow"
+        style={{ backgroundColor: colorMarcador }}
+        aria-hidden
+      >
+        <span className="text-[8px] font-bold leading-none tabular-nums text-white">
+          {nro}
+        </span>
+      </span>
     </span>
   );
 
@@ -150,7 +190,7 @@ export function MarcadorCentro({
       >
         <div
           className={cn(
-            "rounded-full border-2 bg-background/95 p-0.5 shadow-lg",
+            "rounded-full border-2 bg-background/95 p-0.5 pb-1.5 shadow-lg",
             seleccionado && resaltado && "ring-2 ring-white/90",
           )}
           style={{ borderColor: colorMarcador }}
@@ -174,7 +214,7 @@ export function MarcadorCentro({
     >
       <div
         className={cn(
-          "flex items-center gap-1 rounded-full border-2 bg-background/95 py-0.5 pl-0.5 pr-2 shadow-lg",
+          "flex items-center gap-1 rounded-full border-2 bg-background/95 py-0.5 pl-0.5 pr-2 pb-1.5 shadow-lg",
           seleccionado && resaltado && "ring-2 ring-white/90",
         )}
         style={{ borderColor: colorMarcador }}
