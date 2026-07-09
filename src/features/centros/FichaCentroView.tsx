@@ -44,7 +44,7 @@ import { CoordinacionCentroPanel } from "./CoordinacionCentroPanel";
 import { PoblacionCentroPanel } from "./PoblacionCentroPanel";
 import { ResumenCentroPanel } from "./ResumenCentroPanel";
 import { SeccionReporteDiarioCentro, BadgeEstadoReporte } from "./ReporteDiarioCentro";
-import { SeccionIncidenciasCentro } from "./IncidenciasCentro";
+import { SeccionSeguimientoReportesCentro } from "./SeguimientoReportesCentro";
 import { SeccionInfraestructuraCentro } from "./InfraestructuraCentro";
 import {
   SECCIONES_FICHA_CENTRO,
@@ -574,10 +574,11 @@ export function FichaCentroView({ sesion }: Props) {
             </TabsContent>
 
             <TabsContent value="incidencias" className="mt-0">
-              <SeccionIncidenciasCentro
+              <SeccionSeguimientoReportesCentro
                 centro={centro}
                 puedeEditar={puedeEditar}
                 variant="expandido"
+                onIrAReporte={puedeEditar ? abrirReporte : undefined}
               />
             </TabsContent>
 

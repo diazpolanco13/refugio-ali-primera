@@ -1,15 +1,15 @@
-// Gráfico temporal de incidencias de UN campamento: conteo diario por severidad.
-// Ventana 7 / 15 / 30 días; línea vertical en el día seleccionado del calendario.
+// Gráfico temporal de seguimiento de UN campamento: incidencias de salud
+// (parte numérico) y novedades positivas/negativas del reporte diario.
 
 import { useMemo, useState, type ReactNode } from "react";
 import { Bar, BarChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
 import {
-  META_ETIQUETA,
-  serieIncidenciasCentroVentana,
-  ultimosDiasIncidencias,
-  type Incidencia,
-  type VentanaSerieIncidencias,
-} from "@/domain/incidencias";
+  serieSeguimientoCentroVentana,
+  ultimosDiasSeguimiento,
+  type VentanaSeguimiento,
+} from "@/domain/seguimientoReportes";
+import type { EventoReporte } from "@/domain/eventosReportes";
+import type { SnapshotOcupacion } from "@/domain/serieOcupacionCentros";
 import { claveDia } from "@/data/reposSupabase";
 import {
   ChartContainer,
@@ -23,77 +23,76 @@ import { cn } from "@/lib/utils";
 import { formatearDiaCalendario } from "./CalendarioSelectorDia";
 
 const COLORES = {
-  urgentes: META_ETIQUETA.urgente.color,
-  importantes: META_ETIQUETA.importante.color,
-  cotidianas: META_ETIQUETA.cotidiana.color,
+  incidenciasSalud: "#fb7185",
+  novedadesPositivas: "#22c55e",
+  novedadesNegativas: "#ef4444",
 } as const;
 
 const config: ChartConfig = {
-  urgentes: { label: "Urgentes", color: COLORES.urgentes },
-  importantes: { label: "Importantes", color: COLORES.importantes },
-  cotidianas: { label: "Cotidianas", color: COLORES.cotidianas },
+  incidenciasSalud: { label: "Incid. salud", color: COLORES.incidenciasSalud },
+  novedadesPositivas: { label: "Noved. positivas", color: COLORES.novedadesPositivas },
+  novedadesNegativas: { label: "Noved. negativas", color: COLORES.novedadesNegativas },
 };
 
-const VENTANAS: VentanaSerieIncidencias[] = [7, 15, 30];
+const VENTANAS: VentanaSeguimiento[] = [7, 15, 30];
 
 const SERIES = [
-  { key: "urgentes" as const },
-  { key: "importantes" as const },
-  { key: "cotidianas" as const },
+  { key: "incidenciasSalud" as const },
+  { key: "novedadesPositivas" as const },
+  { key: "novedadesNegativas" as const },
 ];
 
 interface Props {
-  incidencias: Incidencia[];
+  centroId: string;
+  snapshots: SnapshotOcupacion[];
+  eventos: EventoReporte[];
   diaMarcado?: string | null;
   accionCalendario?: ReactNode;
-  abiertas?: number;
+  casosAbiertos?: number;
 }
 
-export function GraficoIncidenciasCentro({
-  incidencias,
+export function GraficoSeguimientoCentro({
+  centroId,
+  snapshots,
+  eventos,
   diaMarcado,
   accionCalendario,
-  abiertas = 0,
+  casosAbiertos = 0,
 }: Props) {
-  const [ventana, setVentana] = useState<VentanaSerieIncidencias>(7);
+  const [ventana, setVentana] = useState<VentanaSeguimiento>(7);
   const hoyClave = useMemo(() => claveDia(Date.now()), []);
 
-  const ventanaSerie = useMemo((): VentanaSerieIncidencias => {
+  const ventanaSerie = useMemo((): VentanaSeguimiento => {
     if (!diaMarcado) return ventana;
-    if (ultimosDiasIncidencias(ventana, hoyClave).includes(diaMarcado)) return ventana;
-    if (ultimosDiasIncidencias(15, hoyClave).includes(diaMarcado)) return 15;
+    if (ultimosDiasSeguimiento(ventana, hoyClave).includes(diaMarcado)) return ventana;
+    if (ultimosDiasSeguimiento(15, hoyClave).includes(diaMarcado)) return 15;
     return 30;
   }, [ventana, diaMarcado, hoyClave]);
 
   const serie = useMemo(
-    () => serieIncidenciasCentroVentana(incidencias, ventanaSerie, hoyClave),
-    [incidencias, ventanaSerie, hoyClave],
+    () => serieSeguimientoCentroVentana(centroId, snapshots, eventos, ventanaSerie, hoyClave),
+    [centroId, snapshots, eventos, ventanaSerie, hoyClave],
   );
 
   const diaEnSerie = diaMarcado != null && serie.some((p) => p.dia === diaMarcado);
-
   const tieneDatos = useMemo(() => serie.some((p) => p.total > 0), [serie]);
-
-  const totalVentana = useMemo(
-    () => serie.reduce((acc, p) => acc + p.total, 0),
-    [serie],
-  );
+  const totalVentana = useMemo(() => serie.reduce((acc, p) => acc + p.total, 0), [serie]);
 
   return (
     <Card className="flex h-full flex-col gap-0 py-0">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1 px-3 py-2">
         <div className="min-w-0">
-          <CardTitle className="text-xs font-semibold">Evolución de incidencias</CardTitle>
+          <CardTitle className="text-xs font-semibold">Evolución diaria</CardTitle>
           <p className="text-[10px] text-muted-foreground">
             {tieneDatos
-              ? `${totalVentana} en ${ventanaSerie}d`
+              ? `${totalVentana} registro(s) en ${ventanaSerie}d`
               : "Sin registros en el periodo"}
-            {abiertas > 0 && (
+            {casosAbiertos > 0 && (
               <>
                 {" "}
                 ·{" "}
-                <span className={abiertas > 0 ? "text-amber-500" : undefined}>
-                  {abiertas} abierta{abiertas === 1 ? "" : "s"}
+                <span className="text-amber-500">
+                  {casosAbiertos} caso{casosAbiertos === 1 ? "" : "s"} en seguimiento
                 </span>
               </>
             )}
@@ -120,7 +119,7 @@ export function GraficoIncidenciasCentro({
       <CardContent className="flex min-h-0 flex-1 flex-col space-y-1.5 px-3 pb-2 pt-0">
         {!tieneDatos ? (
           <p className="flex flex-1 items-center justify-center py-6 text-center text-[11px] text-muted-foreground">
-            Sin incidencias en los últimos {ventanaSerie} días.
+            Sin incidencias de salud ni novedades en los últimos {ventanaSerie} días.
           </p>
         ) : (
           <>
@@ -150,7 +149,9 @@ export function GraficoIncidenciasCentro({
                   content={
                     <ChartTooltipContent
                       labelFormatter={(_, payload) => {
-                        const p = payload?.[0]?.payload as { dia?: string; total?: number } | undefined;
+                        const p = payload?.[0]?.payload as
+                          | { dia?: string; total?: number }
+                          | undefined;
                         return p?.dia
                           ? `Día ${formatearDiaCalendario(p.dia)} · ${p.total ?? 0} total`
                           : "";
@@ -177,7 +178,7 @@ export function GraficoIncidenciasCentro({
                     key={key}
                     dataKey={key}
                     name={config[key]?.label as string}
-                    stackId="incidencias"
+                    stackId="seguimiento"
                     fill={COLORES[key]}
                     isAnimationActive={false}
                   />

@@ -1,18 +1,15 @@
-// Calendario mensual de la red de centros: cada día con incidencias muestra un
-// punto del color de la **severidad máxima** registrada ese día (todos los
-// centros o los que pasen los filtros activos). Clic en un día filtra la lista
-// a ese día; clic en el día ya seleccionado quita el filtro.
+// Calendario mensual de la red: cada día con actividad muestra un punto de
+// color (salud, novedades negativas o positivas). Clic filtra la lista.
 
 import type { ComponentProps } from "react";
 import type { DayButton } from "react-day-picker";
 import { es } from "react-day-picker/locale";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { claveDia } from "@/data/reposSupabase";
-import { META_ETIQUETA, type EtiquetaIncidencia } from "@/domain/incidencias";
 
 interface Props {
-  /** YYYY-MM-DD → etiqueta más grave del día (de `severidadMaximaPorDia`). */
-  severidadPorDia: Map<string, EtiquetaIncidencia>;
+  /** YYYY-MM-DD → color hex del día (p. ej. de `severidadMaximaPorDiaSeguimiento`). */
+  severidadPorDia: Map<string, string>;
   /** Día seleccionado (YYYY-MM-DD) o null si no hay filtro por día. */
   diaSeleccionado: string | null;
   onSeleccionarDia: (dia: string | null) => void;
@@ -31,19 +28,16 @@ export function CalendarioIncidencias({
 }: Props) {
   const seleccionado = diaSeleccionado ? parsearDiaLocal(diaSeleccionado) : undefined;
 
-  // Botón de día con el punto de severidad superpuesto. El punto no altera el
-  // layout (posición absoluta) y fuerza opacity 1 porque el botón atenúa los
-  // spans hijos por defecto.
   function DiaConPunto(props: ComponentProps<typeof DayButton>) {
-    const sev = severidadPorDia.get(claveDia(props.day.date.getTime()));
+    const color = severidadPorDia.get(claveDia(props.day.date.getTime()));
     return (
       <CalendarDayButton {...props} locale={es}>
         {props.children}
-        {sev && (
+        {color && (
           <span
-            aria-label={`Incidencias: ${META_ETIQUETA[sev].label}`}
+            aria-label="Actividad del día"
             className="absolute bottom-0.5 left-1/2 size-1.5 -translate-x-1/2 rounded-full"
-            style={{ backgroundColor: META_ETIQUETA[sev].color, opacity: 1 }}
+            style={{ backgroundColor: color, opacity: 1 }}
           />
         )}
       </CalendarDayButton>

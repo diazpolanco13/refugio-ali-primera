@@ -62,7 +62,7 @@ export function IncidenciasLayout({ sesion: _sesion }: Props) {
         icono={Siren}
         acento="rojo"
         titulo="Incidencias de la red"
-        descripcion="Seguimiento operativo y análisis global"
+        descripcion="Seguimiento de salud y novedades del reporte diario"
         acciones={<IndicadorConexion conectado={conectado} />}
         debajo={
           <nav className="flex flex-wrap gap-1">

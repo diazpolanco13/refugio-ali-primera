@@ -11,7 +11,7 @@ import {
   Utensils,
 } from "lucide-react";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
-import { useIncidencias } from "@/data/useIncidencias";
+import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import { useReportesCentros } from "@/data/useReportesCentros";
 import { claveDia } from "@/data/reposSupabase";
 import { racionesDelDia } from "@/domain/reporteDiario";
@@ -26,6 +26,7 @@ import {
   topPrioridadCentros,
   totalVulnerables,
 } from "@/domain/redCentros";
+import { totalCasosSaludActivosRed } from "@/domain/seguimientoReportes";
 import { ORDEN_NIVELES, type NivelPrioridad } from "@/domain/prioridadCentros";
 import type { Sesion } from "@/data/authSupabase";
 import { useSupabaseConectado } from "@/data/useSupabaseConectado";
@@ -106,11 +107,12 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
   const conteoNivel = useMemo(() => conteoPorNivel(centros), [centros]);
   const maxParroquia = parroquias[0]?.refugiados ?? 1;
 
-  // Incidencias abiertas de toda la red (Realtime); las urgentes se destacan.
-  const abiertas = useIncidencias({ estado: "abierta" });
-  const urgentes = useMemo(
-    () => abiertas.filter((i) => i.etiqueta === "urgente").length,
-    [abiertas],
+  // Casos de salud activos en la red (Realtime).
+  const casosSalud = useCasosSaludCentros({ soloActivos: true });
+  const casosActivos = useMemo(() => totalCasosSaludActivosRed(casosSalud), [casosSalud]);
+  const casosEnProceso = useMemo(
+    () => casosSalud.filter((c) => c.estatus === "en_proceso").length,
+    [casosSalud],
   );
 
   // Raciones reportadas hoy (suma de las tres jornadas de todos los centros)
@@ -184,15 +186,15 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
             acento={kpis.centrosCriticos > 0 ? "text-red-300" : "text-emerald-300"}
           />
           <KpiGrande
-            label="Incidencias abiertas"
-            valor={abiertas.length}
-            sub={urgentes > 0 ? `${urgentes} urgente(s)` : "sin urgentes"}
-            subClassName={urgentes > 0 ? "font-semibold text-red-400" : undefined}
+            label="Salud activa"
+            valor={casosActivos}
+            sub={casosEnProceso > 0 ? `${casosEnProceso} en proceso` : "casos del reporte"}
+            subClassName={casosActivos > 0 ? "font-semibold text-rose-400" : undefined}
             icono={<Siren className="size-5" />}
             acento={
-              urgentes > 0
-                ? "text-red-300"
-                : abiertas.length > 0
+              casosActivos > 0
+                ? "text-rose-300"
+                : casosEnProceso > 0
                   ? "text-amber-300"
                   : "text-emerald-300"
             }

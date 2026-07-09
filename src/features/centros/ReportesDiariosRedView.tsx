@@ -33,7 +33,6 @@ import { useReportesCentros } from "@/data/useReportesCentros";
 import { useReportesControlDia } from "@/data/useReportesControlDia";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
-import { useIncidencias } from "@/data/useIncidencias";
 import { useReparacionesCentros } from "@/data/useReparacionesCentros";
 import { useRequerimientosSeguimiento } from "@/data/useRequerimientosSeguimiento";
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
@@ -690,7 +689,6 @@ export function ReportesDiariosRedView() {
   const reportes = useReportesCentros({ desde });
   const controles = useReportesControlDia({ desde });
   const eventos = useEventosReportes({ desde });
-  const incidencias = useIncidencias({ desde });
   const snapshots = useOcupacionesCentros({ desde });
   const { trabajos: trabajosRed } = useReparacionesCentros({ soloActivos: true });
   const { requerimientos: requerimientosRed } = useRequerimientosSeguimiento({ soloActivos: true });
@@ -747,7 +745,7 @@ export function ReportesDiariosRedView() {
         trabajosActivos: trabajosRed,
         requerimientosActivos: requerimientosRed,
         eventosDia: eventos.filter((e) => e.dia === diaActivo),
-        incidenciasAbiertas: incidencias.filter((i) => i.estado === "abierta").length,
+        incidenciasAbiertas: casosAbiertosSeguimiento(casosSaludRed).length,
       }),
     );
     setCopiadoDialogo(false);
@@ -1059,7 +1057,7 @@ export function ReportesDiariosRedView() {
         snapshots,
         reportes,
         eventos,
-        incidencias,
+        incidencias: [],
         controles,
         trabajosActivos: trabajosRed,
         requerimientosActivos: requerimientosRed,
@@ -1074,7 +1072,6 @@ export function ReportesDiariosRedView() {
       snapshots,
       reportes,
       eventos,
-      incidencias,
       controles,
       trabajosRed,
       requerimientosRed,

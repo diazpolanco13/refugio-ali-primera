@@ -630,7 +630,7 @@ function DonutOcupacion({
   const svgSize = mini ? 46 : 62;
   const cx = svgSize / 2;
   return (
-    <View style={[styles.donutBloque, mini ? { marginBottom: 0 } : null]} wrap={false}>
+    <View style={mini ? [styles.donutBloque, { marginBottom: 0 }] : styles.donutBloque} wrap={false}>
       <Svg width={svgSize} height={svgSize} viewBox={`0 0 ${svgSize} ${svgSize}`}>
         <Path
           d={arcoDonut(cx, cx, r, 0.9999)}

@@ -1,14 +1,13 @@
-// Tarjetas de alerta del día: reporte, incidencias y agua. Navegan a la
-// pestaña correspondiente de la ficha cuando se pasa `onIrAPestana`.
+// Tarjetas de alerta del día: reporte, incidencias del reporte y agua.
 
 import { useMemo } from "react";
-import { ClipboardCheck, Droplets, Siren } from "lucide-react";
+import { ClipboardCheck, Droplets, Stethoscope } from "lucide-react";
 import { claveDia } from "@/data/reposSupabase";
 import { useReportesCentros } from "@/data/useReportesCentros";
 import { useReportesControlDia } from "@/data/useReportesControlDia";
 import { useEventosReportes } from "@/data/useEventosReportes";
+import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
-import { useIncidencias } from "@/data/useIncidencias";
 import { analisisCentro, COLOR_ESTADO_AGUA } from "@/domain/capacidadCentros";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { controlReportado, reporteControlDelDia } from "@/domain/controlReporte";
@@ -18,7 +17,7 @@ import {
   META_ESTADO_REPORTE,
   reporteDelDia,
 } from "@/domain/reporteDiario";
-import { incidenciasAbiertas } from "@/domain/incidencias";
+import { casosSaludPendientes } from "@/domain/seguimientoReportes";
 import { cn } from "@/lib/utils";
 
 export type VistaFichaCentro =
@@ -57,17 +56,11 @@ function TarjetaAlerta({
       onClick={onClick}
       className={cn(
         "rounded-xl border bg-card px-3 py-2.5 text-left transition-colors",
-        alerta
-          ? "border-amber-500/50"
-          : "border-border",
+        alerta ? "border-amber-500/50" : "border-border",
         interactivo && "cursor-pointer hover:bg-muted/30 active:bg-muted/40",
         !interactivo && "cursor-default",
       )}
-      style={
-        alerta && colorAlerta
-          ? { borderColor: `${colorAlerta}66` }
-          : undefined
-      }
+      style={alerta && colorAlerta ? { borderColor: `${colorAlerta}66` } : undefined}
     >
       <div className="flex items-center gap-2">
         <span className="shrink-0 text-muted-foreground">{icono}</span>
@@ -86,7 +79,7 @@ function TarjetaAlerta({
   );
 }
 
-/** Tres alertas clicables del día: reporte, incidencias y agua. */
+/** Tres alertas clicables del día: reporte, incidencias del reporte y agua. */
 export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
   const hoy = useMemo(() => claveDia(Date.now()), []);
   const desde = useMemo(() => {
@@ -100,18 +93,19 @@ export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
   const controles = useReportesControlDia({ centroId: centro.id, desde });
   const eventos = useEventosReportes({ centroId: centro.id, desde });
   const snapshots = useOcupacionesCentros({ centroId: centro.id, desde });
-  const incidencias = useIncidencias({ centroId: centro.id, desde });
+  const casos = useCasosSaludCentros({ centroId: centro.id, soloActivos: true });
 
   const reporteHoy = reporteDelDia(reportes, centro.id, hoy);
   const snapshotHoy = snapshots.find((s) => s.dia === hoy);
   const parteNumerico = Boolean(snapshotHoy);
   const controlHoy = reporteControlDelDia(controles, centro.id, hoy);
-  const eventosHoy = eventos.filter((e) => e.dia === hoy).length;
+  const eventosHoy = eventos.filter((e) => e.dia === hoy);
+  const negativasHoy = eventosHoy.filter((e) => e.tipo === "negativo").length;
   const estadoReporte = estadoReporteDia(reporteHoy, parteNumerico, {
     controlRevisado: controlReportado(controlHoy),
     trabajosRevisados: reporteHoy?.trabajos_revisados ?? false,
     requerimientosRevisados: reporteHoy?.requerimientos_revisados ?? false,
-    eventosRevisados: eventosRevisados(reporteHoy, eventosHoy),
+    eventosRevisados: eventosRevisados(reporteHoy, eventosHoy.length),
   });
   const metaReporte = META_ESTADO_REPORTE[estadoReporte];
   const reporteAlerta = estadoReporte !== "completo";
@@ -123,7 +117,7 @@ export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
       controlReportado(controlHoy) ? "control" : null,
       reporteHoy?.trabajos_revisados ? "trabajos" : null,
       reporteHoy?.requerimientos_revisados ? "req." : null,
-      eventosRevisados(reporteHoy, eventosHoy) ? "novedades" : null,
+      eventosRevisados(reporteHoy, eventosHoy.length) ? "novedades" : null,
     ]
       .filter(Boolean)
       .join(" · ");
@@ -133,15 +127,16 @@ export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
     detalleReporte = "Sin reporte hoy";
   }
 
-  const abiertas = incidenciasAbiertas(incidencias);
-  const urgentes = abiertas.filter((i) => i.etiqueta === "urgente");
-  const incidenciasAlerta = urgentes.length > 0 || abiertas.length > 0;
+  const casosActivos = casosSaludPendientes(casos);
+  const incidenciasAlerta = casosActivos.length > 0 || negativasHoy > 0;
   const detalleIncidencias =
-    urgentes.length > 0
-      ? `${urgentes.length} urgente${urgentes.length === 1 ? "" : "s"} abierta${urgentes.length === 1 ? "" : "s"}`
-      : abiertas.length > 0
-        ? `${abiertas.length} abierta${abiertas.length === 1 ? "" : "s"}`
-        : "Sin incidencias abiertas";
+    casosActivos.length > 0
+      ? `${casosActivos.length} caso${casosActivos.length === 1 ? "" : "s"} de salud activo${casosActivos.length === 1 ? "" : "s"}`
+      : negativasHoy > 0
+        ? `${negativasHoy} novedad${negativasHoy === 1 ? "" : "es"} negativa${negativasHoy === 1 ? "" : "s"} hoy`
+        : eventosHoy.length > 0
+          ? `${eventosHoy.length} novedad${eventosHoy.length === 1 ? "" : "es"} hoy`
+          : "Sin incidencias activas";
 
   const analisis = analisisCentro(centro);
   const agua = analisis.agua;
@@ -169,10 +164,10 @@ export function AlertasDelDiaCentro({ centro, onIrAPestana }: Props) {
       />
       <TarjetaAlerta
         titulo="Incidencias"
-        icono={<Siren className="size-4" />}
+        icono={<Stethoscope className="size-4" />}
         detalle={detalleIncidencias}
         alerta={incidenciasAlerta}
-        colorAlerta={urgentes.length > 0 ? "#ef4444" : "#f59e0b"}
+        colorAlerta={casosActivos.length > 0 ? "#ef4444" : "#f59e0b"}
         onClick={onIrAPestana ? () => onIrAPestana("incidencias") : undefined}
       />
       <TarjetaAlerta

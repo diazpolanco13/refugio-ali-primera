@@ -1,16 +1,10 @@
 import { useMemo, useState } from "react";
 import { FilterX } from "lucide-react";
-import { useIncidencias } from "@/data/useIncidencias";
+import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
+import { useEventosReportes } from "@/data/useEventosReportes";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
-import {
-  CATEGORIAS_INCIDENCIA,
-  ETIQUETAS_INCIDENCIA,
-  compararSeveridad,
-  type CategoriaIncidencia,
-  type EtiquetaIncidencia,
-} from "@/domain/incidencias";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,65 +21,66 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ListaIncidencias } from "./ListaIncidencias";
+import { ListaSeguimientoReportes, type ItemSeguimiento } from "./ListaSeguimientoReportes";
 
-type FiltroEtiqueta = EtiquetaIncidencia | "todas";
-type FiltroCategoria = CategoriaIncidencia | "todas";
+type FiltroTipo = "todos" | "salud" | "novedades";
 
-/** Incidencias resueltas (archivadas). */
+/** Histórico archivado: casos de salud cerrados y novedades pasadas. */
 export function IncidenciasArchivadasView() {
-  const incidencias = useIncidencias({ estado: "resuelta" });
+  const casos = useCasosSaludCentros();
+  const eventos = useEventosReportes();
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
-  const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(
-    "centros",
-    {
-      transform: desenvolver as (raw: FilaSync<CentroTransitorio>) => CentroFila,
-      clientFilter: (c) => !c.deleted,
-    },
-  );
-  const centrosPorId = useMemo(
-    () =>
-      new Map<string, CentroTransitorio>(
-        [...filasCentros]
-          .filter((c) => !c.deleted)
-          .map((c) => [c.id, c]),
-      ),
+  const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>("centros", {
+    transform: desenvolver as (raw: FilaSync<CentroTransitorio>) => CentroFila,
+    clientFilter: (c) => !c.deleted,
+  });
+  const centros = useMemo(
+    () => [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
     [filasCentros],
   );
+  const centrosPorId = useMemo(
+    () => new Map<string, CentroTransitorio>(centros.map((c) => [c.id, c])),
+    [centros],
+  );
 
-  const [etiqueta, setEtiqueta] = useState<FiltroEtiqueta>("todas");
-  const [categoria, setCategoria] = useState<FiltroCategoria>("todas");
+  const [tipo, setTipo] = useState<FiltroTipo>("todos");
   const [centroId, setCentroId] = useState<string>("todos");
 
-  const hayFiltros =
-    etiqueta !== "todas" || categoria !== "todas" || centroId !== "todos";
+  const hayFiltros = tipo !== "todos" || centroId !== "todos";
 
   function limpiarFiltros() {
-    setEtiqueta("todas");
-    setCategoria("todas");
+    setTipo("todos");
     setCentroId("todos");
   }
 
-  const visibles = useMemo(() => {
-    const arr = incidencias.filter(
-      (i) =>
-        (etiqueta === "todas" || i.etiqueta === etiqueta) &&
-        (centroId === "todos" || i.centro_id === centroId) &&
-        (categoria === "todas" || i.categorias.includes(categoria)),
-    );
-    return [...arr].sort(
-      (a, b) =>
-        (b.resuelta_ts ?? 0) - (a.resuelta_ts ?? 0) ||
-        compararSeveridad(a.etiqueta, b.etiqueta) ||
-        b.dia.localeCompare(a.dia),
-    );
-  }, [incidencias, etiqueta, categoria, centroId]);
-
-  const centros = useMemo(
-    () => [...filasCentros].filter((c) => !c.deleted).sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
-    [filasCentros],
+  const casosArchivados = useMemo(
+    () => casos.filter((c) => c.estatus === "archivado"),
+    [casos],
   );
+
+  const visibles = useMemo((): ItemSeguimiento[] => {
+    const items: ItemSeguimiento[] = [];
+
+    if (tipo === "todos" || tipo === "salud") {
+      for (const c of casosArchivados) {
+        if (centroId !== "todos" && c.centro_id !== centroId) continue;
+        items.push({ tipo: "salud", item: c });
+      }
+    }
+    if (tipo === "todos" || tipo === "novedades") {
+      for (const e of eventos) {
+        if (centroId !== "todos" && e.centro_id !== centroId) continue;
+        items.push({ tipo: "novedad", item: e });
+      }
+    }
+
+    return items.sort((a, b) => {
+      const diaA = a.tipo === "salud" ? a.item.reportado_dia : a.item.dia;
+      const diaB = b.tipo === "salud" ? b.item.reportado_dia : b.item.dia;
+      return diaB.localeCompare(diaA);
+    });
+  }, [tipo, centroId, casosArchivados, eventos]);
 
   return (
     <div className="p-4 lg:p-6">
@@ -93,48 +88,23 @@ export function IncidenciasArchivadasView() {
         <Card className="lg:col-span-1">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Filtros</CardTitle>
-            <CardDescription>Incidencias resueltas</CardDescription>
+            <CardDescription>Casos archivados y novedades históricas</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <CampoFiltro label="Etiqueta">
-              <Select
-                value={etiqueta}
-                onValueChange={(v) => setEtiqueta(v as FiltroEtiqueta)}
-              >
+            <CampoFiltro label="Tipo">
+              <Select value={tipo} onValueChange={(v) => setTipo(v as FiltroTipo)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todas">Todas</SelectItem>
-                  {ETIQUETAS_INCIDENCIA.map((e) => (
-                    <SelectItem key={e.valor} value={e.valor}>
-                      {e.label}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="todos">Salud archivada + novedades</SelectItem>
+                  <SelectItem value="salud">Solo salud archivada</SelectItem>
+                  <SelectItem value="novedades">Solo novedades</SelectItem>
                 </SelectContent>
               </Select>
             </CampoFiltro>
 
-            <CampoFiltro label="Categoría">
-              <Select
-                value={categoria}
-                onValueChange={(v) => setCategoria(v as FiltroCategoria)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todas</SelectItem>
-                  {CATEGORIAS_INCIDENCIA.map((c) => (
-                    <SelectItem key={c.valor} value={c.valor}>
-                      {c.icono} {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CampoFiltro>
-
-              <CampoFiltro label="Campamento">
+            <CampoFiltro label="Campamento">
               <Select value={centroId} onValueChange={setCentroId}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -151,12 +121,7 @@ export function IncidenciasArchivadasView() {
             </CampoFiltro>
 
             {hayFiltros && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full gap-1.5"
-                onClick={limpiarFiltros}
-              >
+              <Button variant="outline" size="sm" className="w-full gap-1.5" onClick={limpiarFiltros}>
                 <FilterX className="size-3.5" />
                 Limpiar filtros
               </Button>
@@ -168,18 +133,18 @@ export function IncidenciasArchivadasView() {
           <CardHeader className="pb-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <CardTitle className="text-base lg:text-lg">Archivadas</CardTitle>
+                <CardTitle className="text-base lg:text-lg">Histórico</CardTitle>
                 <CardDescription>
-                  Resueltas, ordenadas por fecha de cierre
+                  Casos de salud archivados y novedades registradas en reportes
                 </CardDescription>
               </div>
               <Badge variant="outline" className="tabular-nums">
-                {visibles.length} resuelta(s)
+                {visibles.length} registro(s)
               </Badge>
             </div>
           </CardHeader>
           <CardContent>
-            <ListaIncidencias incidencias={visibles} centrosPorId={centrosPorId} />
+            <ListaSeguimientoReportes items={visibles} centrosPorId={centrosPorId} />
           </CardContent>
         </Card>
       </div>
@@ -187,13 +152,7 @@ export function IncidenciasArchivadasView() {
   );
 }
 
-function CampoFiltro({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function CampoFiltro({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
       <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">

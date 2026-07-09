@@ -47,7 +47,7 @@ import { ListaRequerimientos } from "@/features/centros/RequerimientosCentro";
 import { ListaResponsablesCoordinacion } from "@/features/centros/ResponsablesCoordinacion";
 import { GraficoOcupacionCentro } from "@/features/centros/GraficoOcupacionCentro";
 import { SeccionReporteDiarioCentro } from "@/features/centros/ReporteDiarioCentro";
-import { SeccionIncidenciasCentro } from "@/features/centros/IncidenciasCentro";
+import { SeccionSeguimientoReportesCentro } from "@/features/centros/SeguimientoReportesCentro";
 import { SeccionInfraestructuraCentro } from "@/features/centros/InfraestructuraCentro";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -638,7 +638,7 @@ export function DetalleCentro({ centro, puedeEditar, onEditar }: Props) {
       <SeccionPersonalCentro centro={centro} />
       <SeccionServiciosCentro centro={centro} />
       <SeccionReporteDiarioCentro centro={centro} puedeEditar={puedeEditar} />
-      <SeccionIncidenciasCentro centro={centro} puedeEditar={puedeEditar} />
+      <SeccionSeguimientoReportesCentro centro={centro} puedeEditar={puedeEditar} />
       <SeccionInfraestructuraCentro centro={centro} puedeEditar={puedeEditar} />
       <SeccionHistoricoCentro centro={centro} />
       <SeccionRequerimientosCentro centro={centro} />

@@ -22,8 +22,8 @@ import {
   puedeVerLogs,
   esRolCensoRapido,
 } from "@/domain/permisos";
-import { useIncidencias } from "@/data/useIncidencias";
-import { incidenciasAbiertas } from "@/domain/incidencias";
+import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
+import { totalCasosSaludActivosRed } from "@/domain/seguimientoReportes";
 import { BadgeEnDesarrollo } from "@/components/BadgeEnDesarrollo";
 import {
   Collapsible,
@@ -209,9 +209,11 @@ function NavContenido({ sesion }: Props) {
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
   const veCensoRed = puedeVerCensoRapidoRed(sesion.user.rol);
-  const incidencias = useIncidencias({ estado: "abierta" });
-  const abiertas = esCensoRapido ? 0 : incidenciasAbiertas(incidencias).length;
-  const urgentes = esCensoRapido ? 0 : incidencias.filter((i) => i.etiqueta === "urgente").length;
+  const casosSalud = useCasosSaludCentros({ soloActivos: true });
+  const abiertas = esCensoRapido ? 0 : totalCasosSaludActivosRed(casosSalud);
+  const urgentes = esCensoRapido
+    ? 0
+    : casosSalud.filter((c) => c.estatus === "activo").length;
 
   const pathname = location.pathname;
 

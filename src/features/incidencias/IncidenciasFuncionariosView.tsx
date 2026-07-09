@@ -1,19 +1,19 @@
 import { useMemo, useState } from "react";
 import { FilterX } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
-import { useIncidencias } from "@/data/useIncidencias";
+import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
+import { useEventosReportes } from "@/data/useEventosReportes";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
-import { resolverIncidencia } from "@/data/reposReportes";
+import { actualizarCasoSalud, archivarCasoSalud } from "@/data/reposCasosSalud";
+import { claveDia } from "@/data/reposSupabase";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import {
-  CATEGORIAS_INCIDENCIA,
-  ETIQUETAS_INCIDENCIA,
-  compararSeveridad,
-  type CategoriaIncidencia,
-  type EtiquetaIncidencia,
-} from "@/domain/incidencias";
-import { puedeResolverIncidencia } from "@/domain/permisos";
+  casosSaludPendientes,
+  type CasoSaludCentro,
+  type EstatusCasoSalud,
+} from "@/domain/seguimientoReportes";
+import { puedeEditarCentro } from "@/domain/permisos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,23 +30,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ListaIncidencias } from "./ListaIncidencias";
+import { ListaSeguimientoReportes, type ItemSeguimiento } from "./ListaSeguimientoReportes";
 
-type FiltroEtiqueta = EtiquetaIncidencia | "todas";
-type FiltroCategoria = CategoriaIncidencia | "todas";
+type FiltroTipo = "todos" | "salud" | "novedades";
 
-/** Bandeja operativa: incidencias abiertas con acción de resolver. */
+/** Bandeja operativa: casos de salud en seguimiento y novedades negativas recientes. */
 export function IncidenciasFuncionariosView({ sesion }: { sesion: Sesion }) {
-  const incidencias = useIncidencias({ estado: "abierta" });
+  const hoy = useMemo(() => claveDia(Date.now()), []);
+  const desde = useMemo(() => {
+    const [y, m, d] = hoy.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() - 14);
+    return claveDia(dt.getTime());
+  }, [hoy]);
+
+  const casos = useCasosSaludCentros();
+  const eventos = useEventosReportes({ desde });
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
-  const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(
-    "centros",
-    {
-      transform: desenvolver as (raw: FilaSync<CentroTransitorio>) => CentroFila,
-      clientFilter: (c) => !c.deleted,
-    },
-  );
+  const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>("centros", {
+    transform: desenvolver as (raw: FilaSync<CentroTransitorio>) => CentroFila,
+    clientFilter: (c) => !c.deleted,
+  });
   const centros = useMemo(
     () => [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
     [filasCentros],
@@ -56,45 +61,74 @@ export function IncidenciasFuncionariosView({ sesion }: { sesion: Sesion }) {
     [centros],
   );
 
-  const [etiqueta, setEtiqueta] = useState<FiltroEtiqueta>("todas");
-  const [categoria, setCategoria] = useState<FiltroCategoria>("todas");
+  const [tipo, setTipo] = useState<FiltroTipo>("todos");
   const [centroId, setCentroId] = useState<string>("todos");
-  const [resolviendoId, setResolviendoId] = useState<string | null>(null);
+  const [accionEnCursoId, setAccionEnCursoId] = useState<string | null>(null);
 
-  const hayFiltros =
-    etiqueta !== "todas" || categoria !== "todas" || centroId !== "todos";
+  const hayFiltros = tipo !== "todos" || centroId !== "todos";
 
   function limpiarFiltros() {
-    setEtiqueta("todas");
-    setCategoria("todas");
+    setTipo("todos");
     setCentroId("todos");
   }
 
-  const visibles = useMemo(() => {
-    const arr = incidencias.filter(
-      (i) =>
-        (etiqueta === "todas" || i.etiqueta === etiqueta) &&
-        (centroId === "todos" || i.centro_id === centroId) &&
-        (categoria === "todas" || i.categorias.includes(categoria)),
-    );
-    return [...arr].sort(
-      (a, b) =>
-        compararSeveridad(a.etiqueta, b.etiqueta) ||
-        b.dia.localeCompare(a.dia) ||
-        b.ts - a.ts,
-    );
-  }, [incidencias, etiqueta, categoria, centroId]);
+  const casosPendientes = useMemo(() => casosSaludPendientes(casos), [casos]);
+  const casosResueltos = useMemo(
+    () => casos.filter((c) => c.estatus === "resuelto"),
+    [casos],
+  );
+  const novedadesNegativas = useMemo(
+    () => eventos.filter((e) => e.tipo === "negativo"),
+    [eventos],
+  );
 
-  const urgentes = visibles.filter((i) => i.etiqueta === "urgente").length;
+  const visibles = useMemo((): ItemSeguimiento[] => {
+    const items: ItemSeguimiento[] = [];
 
-  async function resolver(id: string) {
-    setResolviendoId(id);
+    if (tipo === "todos" || tipo === "salud") {
+      for (const c of [...casosPendientes, ...casosResueltos]) {
+        if (centroId !== "todos" && c.centro_id !== centroId) continue;
+        items.push({ tipo: "salud", item: c });
+      }
+    }
+    if (tipo === "todos" || tipo === "novedades") {
+      for (const e of novedadesNegativas) {
+        if (centroId !== "todos" && e.centro_id !== centroId) continue;
+        items.push({ tipo: "novedad", item: e });
+      }
+    }
+
+    return items.sort((a, b) => {
+      const diaA = a.tipo === "salud" ? a.item.reportado_dia : a.item.dia;
+      const diaB = b.tipo === "salud" ? b.item.reportado_dia : b.item.dia;
+      if (diaA !== diaB) return diaB.localeCompare(diaA);
+      const tsA = a.tipo === "salud" ? a.item.creada_ts : a.item.ts;
+      const tsB = b.tipo === "salud" ? b.item.creada_ts : b.item.ts;
+      return tsB - tsA;
+    });
+  }, [tipo, centroId, casosPendientes, casosResueltos, novedadesNegativas]);
+
+  const activos = casosPendientes.length;
+
+  async function cambiarEstatus(id: string, estatus: EstatusCasoSalud) {
+    setAccionEnCursoId(id);
     try {
-      await resolverIncidencia(id);
+      await actualizarCasoSalud(id, { estatus });
     } catch (err) {
-      console.error("[IncidenciasFuncionarios] error resolviendo:", err);
+      console.error("[IncidenciasFuncionarios] error actualizando caso:", err);
     } finally {
-      setResolviendoId(null);
+      setAccionEnCursoId(null);
+    }
+  }
+
+  async function archivar(id: string) {
+    setAccionEnCursoId(id);
+    try {
+      await archivarCasoSalud(id);
+    } catch (err) {
+      console.error("[IncidenciasFuncionarios] error archivando caso:", err);
+    } finally {
+      setAccionEnCursoId(null);
     }
   }
 
@@ -104,48 +138,23 @@ export function IncidenciasFuncionariosView({ sesion }: { sesion: Sesion }) {
         <Card className="lg:col-span-1">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Filtros</CardTitle>
-            <CardDescription>Incidencias abiertas de la red</CardDescription>
+            <CardDescription>Casos de salud y novedades negativas del reporte</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <CampoFiltro label="Etiqueta">
-              <Select
-                value={etiqueta}
-                onValueChange={(v) => setEtiqueta(v as FiltroEtiqueta)}
-              >
+            <CampoFiltro label="Tipo">
+              <Select value={tipo} onValueChange={(v) => setTipo(v as FiltroTipo)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todas">Todas</SelectItem>
-                  {ETIQUETAS_INCIDENCIA.map((e) => (
-                    <SelectItem key={e.valor} value={e.valor}>
-                      {e.label}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="todos">Salud + novedades negativas</SelectItem>
+                  <SelectItem value="salud">Solo salud</SelectItem>
+                  <SelectItem value="novedades">Solo novedades negativas</SelectItem>
                 </SelectContent>
               </Select>
             </CampoFiltro>
 
-            <CampoFiltro label="Categoría">
-              <Select
-                value={categoria}
-                onValueChange={(v) => setCategoria(v as FiltroCategoria)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todas</SelectItem>
-                  {CATEGORIAS_INCIDENCIA.map((c) => (
-                    <SelectItem key={c.valor} value={c.valor}>
-                      {c.icono} {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CampoFiltro>
-
-              <CampoFiltro label="Campamento">
+            <CampoFiltro label="Campamento">
               <Select value={centroId} onValueChange={setCentroId}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -162,12 +171,7 @@ export function IncidenciasFuncionariosView({ sesion }: { sesion: Sesion }) {
             </CampoFiltro>
 
             {hayFiltros && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full gap-1.5"
-                onClick={limpiarFiltros}
-              >
+              <Button variant="outline" size="sm" className="w-full gap-1.5" onClick={limpiarFiltros}>
                 <FilterX className="size-3.5" />
                 Limpiar filtros
               </Button>
@@ -179,34 +183,34 @@ export function IncidenciasFuncionariosView({ sesion }: { sesion: Sesion }) {
           <CardHeader className="pb-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <CardTitle className="text-base lg:text-lg">Abiertas</CardTitle>
+                <CardTitle className="text-base lg:text-lg">En seguimiento</CardTitle>
                 <CardDescription>
-                  Ordenadas por severidad; resuelve desde aquí si tienes permiso
+                  Registros del reporte diario que requieren atención o cierre
                 </CardDescription>
               </div>
               <div className="flex items-center gap-1.5">
                 <Badge variant="outline" className="tabular-nums">
-                  {visibles.length} abierta(s)
+                  {visibles.length} visible(s)
                 </Badge>
-                {urgentes > 0 && (
-                  <Badge
-                    variant="outline"
-                    className="border-red-500/40 tabular-nums text-red-400"
-                  >
-                    {urgentes} urgente(s)
+                {activos > 0 && (
+                  <Badge variant="outline" className="border-rose-500/40 tabular-nums text-rose-400">
+                    {activos} salud activo(s)
                   </Badge>
                 )}
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <ListaIncidencias
-              incidencias={visibles}
+            <ListaSeguimientoReportes
+              items={visibles}
               centrosPorId={centrosPorId}
-              mostrarResolver
-              puedeResolver={(inc) => puedeResolverIncidencia(sesion.user, inc)}
-              onResolver={(id) => void resolver(id)}
-              resolviendoId={resolviendoId}
+              mostrarAccionesSalud
+              puedeEditarSalud={(caso: CasoSaludCentro) =>
+                puedeEditarCentro(sesion.user, caso.centro_id)
+              }
+              onCambiarEstatusSalud={(id, est) => void cambiarEstatus(id, est)}
+              onArchivarSalud={(id) => void archivar(id)}
+              accionEnCursoId={accionEnCursoId}
             />
           </CardContent>
         </Card>
@@ -215,13 +219,7 @@ export function IncidenciasFuncionariosView({ sesion }: { sesion: Sesion }) {
   );
 }
 
-function CampoFiltro({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function CampoFiltro({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
       <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">

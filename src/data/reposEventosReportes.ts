@@ -80,3 +80,34 @@ export async function guardarEventosReporteDia(datos: {
     eliminados: idsEliminar.length,
   });
 }
+
+/** Actualiza una novedad existente (`eventos_reportes`). */
+export async function actualizarEventoReporte(
+  id: string,
+  cambios: Partial<
+    Pick<EventoReporte, "tipo" | "titulo" | "descripcion" | "ts" | "participantes">
+  >,
+): Promise<void> {
+  const now = Date.now();
+  const fila: Record<string, unknown> = {
+    updated_at: now,
+    updated_by: usuarioActual(),
+  };
+  if (cambios.tipo !== undefined) fila.tipo = normalizarTipoEventoReporte(cambios.tipo);
+  if (cambios.titulo !== undefined) fila.titulo = cambios.titulo.trim();
+  if (cambios.descripcion !== undefined) fila.descripcion = cambios.descripcion.trim();
+  if (cambios.ts !== undefined) fila.ts = cambios.ts;
+  if (cambios.participantes !== undefined) {
+    fila.participantes = normalizarParticipantesEvento(cambios.participantes);
+  }
+  const { error } = await supabase.from("eventos_reportes").update(fila).eq("id", id);
+  if (error) throw new Error(`[reposEventosReportes] update: ${error.message}`);
+  registrarHistorial("actualizar_evento_reporte", "evento_reporte", id, cambios);
+}
+
+/** Elimina una novedad del reporte diario. */
+export async function eliminarEventoReporte(id: string): Promise<void> {
+  const { error } = await supabase.from("eventos_reportes").delete().eq("id", id);
+  if (error) throw new Error(`[reposEventosReportes] delete: ${error.message}`);
+  registrarHistorial("eliminar_evento_reporte", "evento_reporte", id);
+}
