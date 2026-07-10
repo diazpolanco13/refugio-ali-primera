@@ -1,5 +1,6 @@
 // Datos de referencia de los Centros Transitorios de Caracas (Fase 4).
-// 50 centros en catálogo estático: la UEN Gran Colombia se divide en 3 edificios (centro-03/51/52).
+// Catálogo estático de referencia. UEN Gran Colombia: 4 edificios (centro-03/51/52/54)
+// con el mismo nro oficial (3) y complejoId "gran-colombia" (cuentan como 1 en totales).
 // Generado a partir de la planilla proporcionada por el equipo de campo
 // (nombre, cuerpo de seguridad asignado, parroquia y coordenadas).
 // El centro-10 incluye un levantamiento demo precargado (reporte 03/07/2026).
@@ -91,14 +92,15 @@ export const CENTROS_TRANSITORIOS: CentroTransitorio[] = [
   {
     id: "centro-03",
     nro: 3,
+    complejoId: "gran-colombia",
     nombre: "UEN Gran Colombia — Edif. Colombia",
     grupo: "Área Metropolitana",
-    cuerpo: "Guardia Nacional Bolivariana",
+    cuerpo: "SEBIN",
     parroquia: "Parroquia Sta Rosalia",
     direccion: "UEN Gran Colombia, Santa Rosalia, Caracas",
     mapsUrl: "https://maps.app.goo.gl/GMUX4cK9qhdUwVaf7",
     geom: { type: "Point", coordinates: [-66.9097427, 10.4778598] },
-    notas: "",
+    notas: "Edificio Colombia del complejo UEN Gran Colombia (nro oficial 3).",
   },
   {
     id: "centro-04",
@@ -607,26 +609,28 @@ export const CENTROS_TRANSITORIOS: CentroTransitorio[] = [
   },
   {
     id: "centro-51",
-    nro: 51,
+    nro: 3,
+    complejoId: "gran-colombia",
     nombre: "UEN Gran Colombia — Edif. Perú",
     grupo: "Área Metropolitana",
-    cuerpo: "Guardia Nacional Bolivariana",
+    cuerpo: "SEBIN",
     parroquia: "Parroquia Sta Rosalia",
     direccion: "UEN Gran Colombia (Edif. Perú), Santa Rosalia, Caracas",
     mapsUrl: "https://maps.app.goo.gl/GMUX4cK9qhdUwVaf7",
     geom: { type: "Point", coordinates: [-66.9092427, 10.4781598] },
-    notas: "Edificio Perú del complejo UEN Gran Colombia (dividido del centro-03 el 04-jul-2026).",
+    notas: "Edificio Perú del complejo UEN Gran Colombia (nro oficial 3; dividido del centro-03 el 04-jul-2026).",
   },
   {
     id: "centro-52",
-    nro: 52,
+    nro: 3,
+    complejoId: "gran-colombia",
     nombre: "UEN Gran Colombia — Edif. Ecuador",
     grupo: "Área Metropolitana",
-    cuerpo: "Guardia Nacional Bolivariana",
+    cuerpo: "SEBIN",
     parroquia: "Parroquia Sta Rosalia",
     direccion: "UEN Gran Colombia (Edif. Ecuador), Santa Rosalia, Caracas",
     mapsUrl: "https://maps.app.goo.gl/GMUX4cK9qhdUwVaf7",
     geom: { type: "Point", coordinates: [-66.9102427, 10.4775598] },
-    notas: "Edificio Ecuador del complejo UEN Gran Colombia (dividido del centro-03 el 04-jul-2026).",
+    notas: "Edificio Ecuador del complejo UEN Gran Colombia (nro oficial 3; dividido del centro-03 el 04-jul-2026).",
   },
 ];

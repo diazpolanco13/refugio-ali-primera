@@ -412,6 +412,12 @@ export interface CentroTransitorio {
   id: string;
   nro: number;
   nombre: string;
+  /**
+   * Si varios edificios forman un solo campamento oficial (p. ej. Gran Colombia),
+   * comparten el mismo `complejoId` y el mismo `nro`. En totales de red cuentan
+   * como 1; en listados operativos siguen siendo filas separadas.
+   */
+  complejoId?: string | null;
   /** "Área Metropolitana" | "Gran Caracas" (agrupación logística del listado). */
   grupo: string;
   /** Texto crudo del cuerpo responsable (tal cual viene de la fuente). */

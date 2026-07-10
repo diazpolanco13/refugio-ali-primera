@@ -69,6 +69,13 @@ import {
   type EstadoReporteDia,
   type ReporteDiario,
 } from "@/domain/reporteDiario";
+import {
+  agruparPorUnidadConteo,
+  contarUnidadesCon,
+  estadoReporteUnidad,
+  marcadorOcupacionUnidad,
+  totalUnidadesConteo,
+} from "@/domain/complejosCentros";
 import { construirReporteEjecutivoCampamentos } from "@/domain/reporteEjecutivoCampamentos";
 import type { Sesion } from "@/data/authSupabase";
 import { Badge } from "@/components/ui/badge";
@@ -116,7 +123,6 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
-  contarCentrosConAnalista,
   etiquetaAnalistaSae,
   useAnalistasSae,
 } from "@/data/useAnalistasSae";
@@ -214,9 +220,17 @@ function ordenarFilas<
           (a.centro.nro ?? 0) - (b.centro.nro ?? 0),
       );
     case "nro_asc":
-      return copia.sort((a, b) => (a.centro.nro ?? 0) - (b.centro.nro ?? 0));
+      return copia.sort(
+        (a, b) =>
+          (a.centro.nro ?? 0) - (b.centro.nro ?? 0) ||
+          a.centro.nombre.localeCompare(b.centro.nombre, "es"),
+      );
     case "nro_desc":
-      return copia.sort((a, b) => (b.centro.nro ?? 0) - (a.centro.nro ?? 0));
+      return copia.sort(
+        (a, b) =>
+          (b.centro.nro ?? 0) - (a.centro.nro ?? 0) ||
+          a.centro.nombre.localeCompare(b.centro.nombre, "es"),
+      );
     case "nombre_asc":
       return copia.sort((a, b) =>
         a.centro.nombre.localeCompare(b.centro.nombre, "es"),
@@ -736,7 +750,11 @@ export function ReportesDiariosRedView() {
     },
   );
   const centros = useMemo(
-    () => [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
+    () =>
+      [...filasCentros].sort(
+        (a, b) =>
+          (a.nro ?? 0) - (b.nro ?? 0) || a.nombre.localeCompare(b.nombre, "es"),
+      ),
     [filasCentros],
   );
 
@@ -795,15 +813,23 @@ export function ReportesDiariosRedView() {
   function abrirParteRed() {
     setParteCompartir(
       textoParteGeneralRed({
-        centros,
+        centros: centrosEnAlcance,
         dia: diaActivo,
         snapshots,
-        controlesDia: controles.filter((c) => c.dia === diaActivo),
-        casosSaludAbiertos: casosAbiertosSeguimiento(casosSaludRed),
-        trabajosActivos: trabajosRed,
-        requerimientosActivos: requerimientosRed,
-        eventosDia: eventos.filter((e) => e.dia === diaActivo),
-        incidenciasAbiertas: casosAbiertosSeguimiento(casosSaludRed).length,
+        controlesDia: controles.filter(
+          (c) => c.dia === diaActivo && idsEnAlcance.has(c.centro_id),
+        ),
+        casosSaludAbiertos: casosAbiertosSeguimiento(casosSaludRed).filter((c) =>
+          idsEnAlcance.has(c.centro_id),
+        ),
+        trabajosActivos: trabajosEnAlcance,
+        requerimientosActivos: requerimientosEnAlcance,
+        eventosDia: eventos.filter(
+          (e) => e.dia === diaActivo && idsEnAlcance.has(e.centro_id),
+        ),
+        incidenciasAbiertas: casosAbiertosSeguimiento(casosSaludRed).filter((c) =>
+          idsEnAlcance.has(c.centro_id),
+        ).length,
       }),
     );
     setCopiadoDialogo(false);
@@ -927,43 +953,47 @@ export function ReportesDiariosRedView() {
   }, [supervisores]);
 
   const opcionesCuerpo = useMemo(() => {
-    const m = new Map<ClaveCuerpo, number>();
-    let sinAsignar = 0;
+    const m = new Map<ClaveCuerpo, CentroTransitorio[]>();
+    const sinAsignar: CentroTransitorio[] = [];
     for (const centro of centros) {
       const clave = normalizarCuerpo(centro.cuerpo);
       if (clave === VALOR_SIN_ASIGNAR) {
-        sinAsignar++;
+        sinAsignar.push(centro);
         continue;
       }
-      m.set(clave, (m.get(clave) ?? 0) + 1);
+      const arr = m.get(clave);
+      if (arr) arr.push(centro);
+      else m.set(clave, [centro]);
     }
     const opciones: OpcionFiltroMulti[] = CATALOGO_CUERPOS.filter(
-      (c) => c.clave !== VALOR_SIN_ASIGNAR && (m.get(c.clave) ?? 0) > 0,
+      (c) => c.clave !== VALOR_SIN_ASIGNAR && (m.get(c.clave)?.length ?? 0) > 0,
     ).map((c) => ({
       valor: c.clave,
       etiqueta: c.label,
-      cantidad: m.get(c.clave) ?? 0,
+      cantidad: totalUnidadesConteo(m.get(c.clave) ?? []),
     }));
-    return { opciones, cantidadSinAsignar: sinAsignar };
+    return { opciones, cantidadSinAsignar: totalUnidadesConteo(sinAsignar) };
   }, [centros]);
 
   const opcionesUnidad = useMemo(() => {
-    const m = new Map<string, number>();
-    let sinAsignar = 0;
+    const m = new Map<string, CentroTransitorio[]>();
+    const sinAsignar: CentroTransitorio[] = [];
     for (const centro of centros) {
       const clave = normalizarUnidadSebin(centro.supervision?.unidad_sebin);
       if (clave === VALOR_SIN_ASIGNAR) {
-        sinAsignar++;
+        sinAsignar.push(centro);
         continue;
       }
-      m.set(clave, (m.get(clave) ?? 0) + 1);
+      const arr = m.get(clave);
+      if (arr) arr.push(centro);
+      else m.set(clave, [centro]);
     }
     const opciones: OpcionFiltroMulti[] = catalogoUnidades
-      .filter((u) => u.clave !== VALOR_SIN_ASIGNAR && (m.get(u.clave) ?? 0) > 0)
+      .filter((u) => u.clave !== VALOR_SIN_ASIGNAR && (m.get(u.clave)?.length ?? 0) > 0)
       .map((u) => ({
         valor: u.clave,
         etiqueta: u.label,
-        cantidad: m.get(u.clave) ?? 0,
+        cantidad: totalUnidadesConteo(m.get(u.clave) ?? []),
         indicador: (
           <span
             className="size-2 shrink-0 rounded-full"
@@ -972,20 +1002,24 @@ export function ReportesDiariosRedView() {
           />
         ),
       }));
-    for (const [clave, cantidad] of m) {
+    for (const [clave, lista] of m) {
       if (opciones.some((o) => o.valor === clave)) continue;
-      opciones.push({ valor: clave, etiqueta: clave, cantidad });
+      opciones.push({
+        valor: clave,
+        etiqueta: clave,
+        cantidad: totalUnidadesConteo(lista),
+      });
     }
-    return { opciones, cantidadSinAsignar: sinAsignar };
+    return { opciones, cantidadSinAsignar: totalUnidadesConteo(sinAsignar) };
   }, [centros, catalogoUnidades]);
 
   const opcionesRevista = useMemo(() => {
-    const conteo = new Map<string, { etiqueta: string; cantidad: number }>();
-    let sinAsignar = 0;
+    const porValor = new Map<string, { etiqueta: string; centros: CentroTransitorio[] }>();
+    const sinAsignar: CentroTransitorio[] = [];
     for (const centro of centros) {
       const actual = centro.supervision?.supervisor_sebin?.trim() ?? "";
       if (!actual) {
-        sinAsignar++;
+        sinAsignar.push(centro);
         continue;
       }
       const delCatalogo = supervisores.find(
@@ -993,27 +1027,32 @@ export function ReportesDiariosRedView() {
       );
       const valor = delCatalogo?.username ?? actual;
       const etiqueta = delCatalogo?.nombre ?? actual;
-      const prev = conteo.get(valor);
-      if (prev) prev.cantidad++;
-      else conteo.set(valor, { etiqueta, cantidad: 1 });
+      const prev = porValor.get(valor);
+      if (prev) prev.centros.push(centro);
+      else porValor.set(valor, { etiqueta, centros: [centro] });
     }
-    const opciones: OpcionFiltroMulti[] = [...conteo.entries()]
-      .map(([valor, { etiqueta, cantidad }]) => ({ valor, etiqueta, cantidad }))
+    const opciones: OpcionFiltroMulti[] = [...porValor.entries()]
+      .map(([valor, { etiqueta, centros: lista }]) => ({
+        valor,
+        etiqueta,
+        cantidad: totalUnidadesConteo(lista),
+      }))
       .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es"));
-    return { opciones, cantidadSinAsignar: sinAsignar };
+    return { opciones, cantidadSinAsignar: totalUnidadesConteo(sinAsignar) };
   }, [centros, supervisores]);
 
   const opcionesAnalista = useMemo(() => {
-    let sinAsignar = 0;
-    for (const centro of centros) {
-      if ((centro.supervision?.analistas_sae ?? []).length === 0) sinAsignar++;
-    }
+    const sinAsignar = centros.filter(
+      (c) => (c.supervision?.analistas_sae ?? []).length === 0,
+    );
     const opciones: OpcionFiltroMulti[] = analistasSae.map((analista) => ({
       valor: analista.user_id,
       etiqueta: etiquetaAnalistaSae(analista),
-      cantidad: contarCentrosConAnalista(analista.user_id, centros),
+      cantidad: totalUnidadesConteo(
+        centros.filter((c) => c.supervision?.analistas_sae?.includes(analista.user_id)),
+      ),
     }));
-    return { opciones, cantidadSinAsignar: sinAsignar };
+    return { opciones, cantidadSinAsignar: totalUnidadesConteo(sinAsignar) };
   }, [analistasSae, centros]);
 
   const diaActivo = dia ?? hoyClave;
@@ -1023,11 +1062,10 @@ export function ReportesDiariosRedView() {
     [busquedaNombre],
   );
 
-  const filas = useMemo(() => {
-    const base = centros
-      .filter((c) =>
-        coincideFiltroEscalar(filtroCuerpos, normalizarCuerpo(c.cuerpo)),
-      )
+  /** Centros en alcance de filtros de asignación + búsqueda (métricas y denominadores). */
+  const centrosEnAlcance = useMemo(() => {
+    return centros
+      .filter((c) => coincideFiltroEscalar(filtroCuerpos, normalizarCuerpo(c.cuerpo)))
       .filter((c) =>
         coincideFiltroEscalar(
           filtroUnidades,
@@ -1042,11 +1080,46 @@ export function ReportesDiariosRedView() {
         ),
       )
       .filter((c) =>
-        coincideFiltroLista(
-          filtroAnalistas,
-          c.supervision?.analistas_sae ?? [],
-        ),
+        coincideFiltroLista(filtroAnalistas, c.supervision?.analistas_sae ?? []),
       )
+      .filter(
+        (c) =>
+          !terminoBusqueda ||
+          normalizarTextoBusqueda(c.nombre).includes(terminoBusqueda),
+      );
+  }, [
+    centros,
+    filtroCuerpos,
+    filtroUnidades,
+    filtroRevistas,
+    filtroAnalistas,
+    supervisoresPorUsername,
+    terminoBusqueda,
+  ]);
+
+  /** Total oficial en el alcance actual (complejos = 1). */
+  const totalCampamentos = useMemo(
+    () => totalUnidadesConteo(centrosEnAlcance),
+    [centrosEnAlcance],
+  );
+
+  const idsEnAlcance = useMemo(
+    () => new Set(centrosEnAlcance.map((c) => c.id)),
+    [centrosEnAlcance],
+  );
+
+  const trabajosEnAlcance = useMemo(
+    () => trabajosRed.filter((t) => idsEnAlcance.has(t.centro_id)),
+    [trabajosRed, idsEnAlcance],
+  );
+
+  const requerimientosEnAlcance = useMemo(
+    () => requerimientosRed.filter((r) => idsEnAlcance.has(r.centro_id)),
+    [requerimientosRed, idsEnAlcance],
+  );
+
+  const filas = useMemo(() => {
+    const base = centrosEnAlcance
       .map((centro) => {
         const estado = estadoCentroDia(centro.id, diaActivo);
         const reporte = reporteDelDia(reportes, centro.id, diaActivo);
@@ -1076,24 +1149,14 @@ export function ReportesDiariosRedView() {
         };
       })
       .filter((f) => estadoFiltro === "todos" || f.estado === estadoFiltro)
-      .filter((f) => ocupacionFiltro === "todos" || f.marcadorOcupacion === ocupacionFiltro)
-      .filter(
-        (f) =>
-          !terminoBusqueda ||
-          normalizarTextoBusqueda(f.centro.nombre).includes(terminoBusqueda),
-      );
+      .filter((f) => ocupacionFiltro === "todos" || f.marcadorOcupacion === ocupacionFiltro);
 
     return ordenarFilas(base, orden);
   }, [
-    centros,
+    centrosEnAlcance,
     diaActivo,
     estadoFiltro,
     ocupacionFiltro,
-    filtroCuerpos,
-    filtroUnidades,
-    filtroRevistas,
-    filtroAnalistas,
-    supervisoresPorUsername,
     orden,
     reportes,
     controles,
@@ -1106,8 +1169,12 @@ export function ReportesDiariosRedView() {
     requerimientosActivosPorCentro,
     diasConPartePorCentro,
     snapshots,
-    terminoBusqueda,
   ]);
+
+  const visiblesUnidades = useMemo(
+    () => totalUnidadesConteo(filas.map((f) => f.centro)),
+    [filas],
+  );
 
   const conteosHoy = useMemo(() => {
     const m: Record<EstadoReporteDia, number> = {
@@ -1116,21 +1183,24 @@ export function ReportesDiariosRedView() {
       solo_parte: 0,
       pendiente: 0,
     };
-    for (const c of centros) {
-      m[estadoCentroDia(c.id, hoyClave)]++;
+    for (const miembros of agruparPorUnidadConteo(centrosEnAlcance).values()) {
+      const estados = miembros.map((c) => estadoCentroDia(c.id, hoyClave));
+      m[estadoReporteUnidad(estados)]++;
     }
     return m;
-  }, [centros, hoyClave, reportes, controles, eventos, snapshots]);
+  }, [centrosEnAlcance, hoyClave, reportes, controles, eventos, snapshots]);
 
   const marcasPorDia = useMemo(() => {
     const m = new Map<string, string>();
     for (const d of ultimosDiasReporte(30, hoyClave)) {
-      const estados = centros.map((c) => estadoCentroDia(c.id, d));
+      const estados = [...agruparPorUnidadConteo(centrosEnAlcance).values()].map((miembros) =>
+        estadoReporteUnidad(miembros.map((c) => estadoCentroDia(c.id, d))),
+      );
       const color = colorRedPorDia(estados);
       if (color) m.set(d, color);
     }
     return m;
-  }, [centros, hoyClave, reportes, controles, eventos, snapshots]);
+  }, [centrosEnAlcance, hoyClave, reportes, controles, eventos, snapshots]);
 
   const leyendaCalendario = useMemo(
     () =>
@@ -1146,59 +1216,74 @@ export function ReportesDiariosRedView() {
       activo: 0,
       sin_refugiados: 0,
     };
-    for (const c of centros) {
-      const snap = snapshots.find((s) => s.centro_id === c.id && s.dia === diaActivo);
-      m[marcadorCentroDia(c, snap)]++;
+    for (const miembros of agruparPorUnidadConteo(centrosEnAlcance).values()) {
+      const marcadores = miembros.map((c) => {
+        const snap = snapshots.find((s) => s.centro_id === c.id && s.dia === diaActivo);
+        return marcadorCentroDia(c, snap);
+      });
+      m[marcadorOcupacionUnidad(marcadores)]++;
     }
     return m;
-  }, [centros, diaActivo, snapshots]);
+  }, [centrosEnAlcance, diaActivo, snapshots]);
 
   const conteosOcupacionHoy = useMemo(() => {
     const m: Record<MarcadorOcupacionCentro, number> = {
       activo: 0,
       sin_refugiados: 0,
     };
-    for (const c of centros) {
-      const snap = snapshots.find((s) => s.centro_id === c.id && s.dia === hoyClave);
-      m[marcadorCentroDia(c, snap)]++;
+    for (const miembros of agruparPorUnidadConteo(centrosEnAlcance).values()) {
+      const marcadores = miembros.map((c) => {
+        const snap = snapshots.find((s) => s.centro_id === c.id && s.dia === hoyClave);
+        return marcadorCentroDia(c, snap);
+      });
+      m[marcadorOcupacionUnidad(marcadores)]++;
     }
     return m;
-  }, [centros, hoyClave, snapshots]);
+  }, [centrosEnAlcance, hoyClave, snapshots]);
 
   const totalesIndicadoresDia = useMemo(() => {
-    let partes = 0;
-    let controlOk = 0;
-    let trabajosOk = 0;
-    let requerimientosOk = 0;
-    let eventosOk = 0;
     let incidenciasSalud = 0;
     let eventos = 0;
     let refugiados = 0;
 
-    for (const centro of centros) {
+    for (const centro of centrosEnAlcance) {
       const key = `${centro.id}:${diaActivo}`;
-      const reporte = reporteDelDia(reportes, centro.id, diaActivo);
       const tieneParte = diasConPartePorCentro.get(centro.id)?.has(diaActivo) ?? false;
       const eventosCount = eventosPorCentroDia.get(key) ?? 0;
-
-      if (tieneParte) {
-        partes++;
-        const snap = snapshots.find(
-          (s) => s.centro_id === centro.id && s.dia === diaActivo,
-        );
-        if (snap) {
-          refugiados += refugiadosEnSnapshot(snap);
-          incidenciasSalud += snap.incidencias_salud ?? 0;
-        }
-      }
-      if (controlesPorCentroDia.has(key)) controlOk++;
-      if (reportesRepPorCentroDia.has(key) || reporte?.trabajos_revisados) trabajosOk++;
-      if (requerimientosPorCentroDia.has(key) || reporte?.requerimientos_revisados) {
-        requerimientosOk++;
-      }
-      if (eventosRevisados(reporte, eventosCount)) eventosOk++;
       eventos += eventosCount;
+      if (!tieneParte) continue;
+      const snap = snapshots.find(
+        (s) => s.centro_id === centro.id && s.dia === diaActivo,
+      );
+      if (snap) {
+        refugiados += refugiadosEnSnapshot(snap);
+        incidenciasSalud += snap.incidencias_salud ?? 0;
+      }
     }
+
+    const partes = contarUnidadesCon(centrosEnAlcance, (c) =>
+      Boolean(diasConPartePorCentro.get(c.id)?.has(diaActivo)),
+    );
+    const controlOk = contarUnidadesCon(centrosEnAlcance, (c) =>
+      controlesPorCentroDia.has(`${c.id}:${diaActivo}`),
+    );
+    const trabajosOk = contarUnidadesCon(centrosEnAlcance, (c) => {
+      const key = `${c.id}:${diaActivo}`;
+      const reporte = reporteDelDia(reportes, c.id, diaActivo);
+      return reportesRepPorCentroDia.has(key) || reporte?.trabajos_revisados === true;
+    });
+    const requerimientosOk = contarUnidadesCon(centrosEnAlcance, (c) => {
+      const key = `${c.id}:${diaActivo}`;
+      const reporte = reporteDelDia(reportes, c.id, diaActivo);
+      return (
+        requerimientosPorCentroDia.has(key) || reporte?.requerimientos_revisados === true
+      );
+    });
+    const eventosOk = contarUnidadesCon(centrosEnAlcance, (c) => {
+      const key = `${c.id}:${diaActivo}`;
+      const reporte = reporteDelDia(reportes, c.id, diaActivo);
+      return eventosRevisados(reporte, eventosPorCentroDia.get(key) ?? 0);
+    });
 
     return {
       partes,
@@ -1211,7 +1296,7 @@ export function ReportesDiariosRedView() {
       refugiados,
     };
   }, [
-    centros,
+    centrosEnAlcance,
     diaActivo,
     reportes,
     controlesPorCentroDia,
@@ -1237,27 +1322,30 @@ export function ReportesDiariosRedView() {
   const reporteEjecutivo = useMemo(
     () =>
       construirReporteEjecutivoCampamentos({
-        centros,
+        centros: centrosEnAlcance,
         snapshots,
         reportes,
-        eventos,
-        controles,
-        trabajosActivos: trabajosRed,
-        requerimientosActivos: requerimientosRed,
-        casosSaludAbiertos: casosAbiertosSeguimiento(casosSaludRed),
-        eventosDetalle: eventos,
+        eventos: eventos.filter((e) => idsEnAlcance.has(e.centro_id)),
+        controles: controles.filter((c) => idsEnAlcance.has(c.centro_id)),
+        trabajosActivos: trabajosEnAlcance,
+        requerimientosActivos: requerimientosEnAlcance,
+        casosSaludAbiertos: casosAbiertosSeguimiento(casosSaludRed).filter((c) =>
+          idsEnAlcance.has(c.centro_id),
+        ),
+        eventosDetalle: eventos.filter((e) => idsEnAlcance.has(e.centro_id)),
         censoEstados,
         dia: diaActivo,
         generadoPor: sesion.user.nombre ?? sesion.user.username,
       }),
     [
-      centros,
+      centrosEnAlcance,
+      idsEnAlcance,
       snapshots,
       reportes,
       eventos,
       controles,
-      trabajosRed,
-      requerimientosRed,
+      trabajosEnAlcance,
+      requerimientosEnAlcance,
       casosSaludRed,
       censoEstados,
       diaActivo,
@@ -1405,7 +1493,7 @@ export function ReportesDiariosRedView() {
 
                 <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                   <TarjetaTotalRefugios
-                    total={centros.length}
+                    total={totalCampamentos}
                     activo={ocupacionFiltro === "todos"}
                     onClick={() => setOcupacionFiltro("todos")}
                   />
@@ -1414,7 +1502,7 @@ export function ReportesDiariosRedView() {
                       key={m}
                       marcador={m}
                       cantidad={conteosOcupacionDiaActivo[m]}
-                      total={centros.length}
+                      total={totalCampamentos}
                       activo={ocupacionFiltro === m}
                       onClick={() => setOcupacionFiltro(ocupacionFiltro === m ? "todos" : m)}
                     />
@@ -1427,7 +1515,7 @@ export function ReportesDiariosRedView() {
                     icono={<Users className="size-3 shrink-0 text-sky-400" />}
                     valor={totalesIndicadoresDia.refugiados.toLocaleString("es")}
                     completados={totalesIndicadoresDia.partes}
-                    total={centros.length}
+                    total={totalCampamentos}
                     color="#38bdf8"
                   />
                   <TarjetaTotalIndicadorReporte
@@ -1435,23 +1523,23 @@ export function ReportesDiariosRedView() {
                     icono={<ShieldCheck className="size-3 shrink-0 text-violet-400" />}
                     valor={totalesIndicadoresDia.controlOk.toLocaleString("es")}
                     completados={totalesIndicadoresDia.controlOk}
-                    total={centros.length}
+                    total={totalCampamentos}
                     color="#a78bfa"
                   />
                   <TarjetaTotalIndicadorReporte
                     titulo="Trabajos"
                     icono={<Wrench className="size-3 shrink-0 text-amber-400" />}
-                    valor={trabajosRed.length.toLocaleString("es")}
+                    valor={trabajosEnAlcance.length.toLocaleString("es")}
                     completados={totalesIndicadoresDia.trabajosOk}
-                    total={centros.length}
+                    total={totalCampamentos}
                     color="#fbbf24"
                   />
                   <TarjetaTotalIndicadorReporte
                     titulo="Requerimientos"
                     icono={<Package className="size-3 shrink-0 text-orange-400" />}
-                    valor={requerimientosRed.length.toLocaleString("es")}
+                    valor={requerimientosEnAlcance.length.toLocaleString("es")}
                     completados={totalesIndicadoresDia.requerimientosOk}
-                    total={centros.length}
+                    total={totalCampamentos}
                     color="#fb923c"
                   />
                   <TarjetaTotalIndicadorReporte
@@ -1459,7 +1547,7 @@ export function ReportesDiariosRedView() {
                     icono={<CalendarPlus className="size-3 shrink-0 text-emerald-400" />}
                     valor={totalesIndicadoresDia.eventos.toLocaleString("es")}
                     completados={totalesIndicadoresDia.eventosOk}
-                    total={centros.length}
+                    total={totalCampamentos}
                     color="#34d399"
                   />
                 </div>
@@ -1510,7 +1598,7 @@ export function ReportesDiariosRedView() {
                       {selectoresFiltro}
                     </div>
                     <p className="text-center text-[11px] text-muted-foreground">
-                      {filas.length} de {centros.length} centros visibles
+                      {visiblesUnidades} de {totalCampamentos} centros visibles
                     </p>
                   </CollapsibleContent>
                 </Collapsible>
@@ -1534,7 +1622,7 @@ export function ReportesDiariosRedView() {
                       <div>
                         <p className="text-xs font-semibold text-foreground">Filtros de vista</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {filas.length} de {centros.length} centros visibles
+                          {visiblesUnidades} de {totalCampamentos} centros visibles
                         </p>
                       </div>
                     </div>
@@ -1680,7 +1768,7 @@ export function ReportesDiariosRedView() {
                 <p className="text-sm font-medium text-foreground">
                   Centros del día
                   <span className="ml-1.5 font-normal text-muted-foreground sm:hidden">
-                    · {filas.length}
+                    · {visiblesUnidades}
                   </span>
                 </p>
                 <p className="hidden text-xs text-muted-foreground sm:block">
@@ -1691,7 +1779,7 @@ export function ReportesDiariosRedView() {
                 variant="outline"
                 className={cn(
                   "hidden h-7 gap-1.5 px-2.5 text-xs tabular-nums sm:inline-flex",
-                  hayFiltros || filas.length !== centros.length
+                  hayFiltros || visiblesUnidades !== totalCampamentos
                     ? "border-primary/70 bg-primary/15 font-semibold text-foreground shadow-sm ring-1 ring-primary/35"
                     : "border-border/80 bg-muted/50 font-medium text-foreground",
                 )}
@@ -1699,16 +1787,16 @@ export function ReportesDiariosRedView() {
                 <CircleDashed
                   className={cn(
                     "size-3.5",
-                    hayFiltros || filas.length !== centros.length
+                    hayFiltros || visiblesUnidades !== totalCampamentos
                       ? "text-primary"
                       : "text-muted-foreground",
                   )}
                 />
                 <span>
-                  {filas.length}
+                  {visiblesUnidades}
                   <span className="font-normal text-muted-foreground">
                     {" "}
-                    / {centros.length}
+                    / {totalCampamentos}
                   </span>{" "}
                   visible(s)
                 </span>

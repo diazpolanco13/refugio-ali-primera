@@ -6,6 +6,7 @@ import {
   totalPersonalOperativo,
   type CentroTransitorio,
 } from "./centrosTransitorios";
+import { contarUnidadesCon, totalUnidadesConteo } from "./complejosCentros";
 import { analisisCentro } from "./capacidadCentros";
 import {
   ETIQUETA_NIVEL,
@@ -49,7 +50,6 @@ export function kpisRedCentros(centros: CentroTransitorio[]): KpisRedCentros {
   let refugiadosTotal = 0;
   let familiasTotal = 0;
   let personalTotal = 0;
-  let centrosConDatos = 0;
   let cupoDisponible = 0;
   let centrosCriticos = 0;
   let centrosSaturados = 0;
@@ -64,18 +64,22 @@ export function kpisRedCentros(centros: CentroTransitorio[]): KpisRedCentros {
     familiasTotal += c.familias_ocupadas;
     personalTotal += totalPersonalOperativo(c.personal);
 
-    if (ref > 0 || c.familias_ocupadas > 0) centrosConDatos += 1;
     if (analisis.cupoReal != null) cupoDisponible += analisis.cupoReal;
     if (prio.nivel === "critico" || prio.nivel === "alto") centrosCriticos += 1;
     if (analisis.semaforo === "rojo") centrosSaturados += 1;
   }
+
+  const centrosConDatos = contarUnidadesCon(centros, (centro) => {
+    const c = normalizarCentro(centro);
+    return poblacionCentro(centro) > 0 || c.familias_ocupadas > 0;
+  });
 
   return {
     refugiadosTotal,
     familiasTotal,
     personalTotal,
     centrosConDatos,
-    centrosTotal: centros.length,
+    centrosTotal: totalUnidadesConteo(centros),
     cupoDisponible,
     centrosCriticos,
     centrosSaturados,

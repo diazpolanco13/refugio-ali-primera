@@ -5,6 +5,7 @@
 // la red" en /centros/reportes.
 
 import type { CentroTransitorio } from "./centrosTransitorios";
+import { contarUnidadesCon, totalUnidadesConteo } from "./complejosCentros";
 import { normalizarVulnerables, VULNERABLES_VACIO, type Vulnerables } from "./tipos";
 import type { SnapshotOcupacion } from "./serieOcupacionCentros";
 import type { ReporteControlDia } from "./controlReporte";
@@ -92,6 +93,9 @@ export function textoParteGeneralRed({
   const ninos = vuln.recien_nacidos_h + vuln.ninos + vuln.adolescentes_h;
   const ninas = vuln.recien_nacidos_m + vuln.ninas + vuln.adolescentes_m;
 
+  const totalCampamentos = totalUnidadesConteo(centros);
+  const conParteUnidades = contarUnidadesCon(centros, (c) => conParteDelDia.has(c.id));
+
   partes.push(
     [
       "**PARTE GENERAL — RED DE CAMPAMENTOS TRANSITORIOS**",
@@ -99,7 +103,7 @@ export function textoParteGeneralRed({
       "",
       `**FECHA:** ${fechaLegible(dia)}`,
       `**HORA:** ${hora}`,
-      `**CORTE:** ${n2(centros.length)} CAMPAMENTOS · CON PARTE DEL DÍA: ${n2(conParteDelDia.size)}/${n2(centros.length)}`,
+      `**CORTE:** ${n2(totalCampamentos)} CAMPAMENTOS · CON PARTE DEL DÍA: ${n2(conParteUnidades)}/${n2(totalCampamentos)}`,
     ].join("\n"),
   );
 
@@ -136,7 +140,7 @@ export function textoParteGeneralRed({
   partes.push(
     [
       "**CONTROL OPERATIVO (DÍA):**",
-      `- CAMPAMENTOS CON CONTROL REVISADO: ${n2(revisados.length)}/${n2(centros.length)}`,
+      `- CAMPAMENTOS CON CONTROL REVISADO: ${n2(revisados.length)}/${n2(totalCampamentos)}`,
       lineaControlRed("CAPTAHUELLA", capta.si, capta.no),
       lineaControlRed("JUEZ DE PAZ", juez.si, juez.no),
       lineaControlRed("SERVICIO MÉDICO", medico.si, medico.no),
@@ -233,13 +237,14 @@ export function textoParteGeneralRed({
 
   // ---- Campamentos sin parte del día ----
   const sinParte = centros.filter((c) => !conParteDelDia.has(c.id));
+  const sinParteUnidades = totalCampamentos - conParteUnidades;
   if (sinParte.length === 0) {
     partes.push("**CAMPAMENTOS SIN PARTE DEL DÍA:**\n- NINGUNO. TODA LA RED REPORTÓ.");
   } else {
     const visibles = sinParte.slice(0, MAX_LISTADO);
     partes.push(
       [
-        `**CAMPAMENTOS SIN PARTE DEL DÍA (${n2(sinParte.length)}/${n2(centros.length)}):**`,
+        `**CAMPAMENTOS SIN PARTE DEL DÍA (${n2(sinParteUnidades)}/${n2(totalCampamentos)}):**`,
         visibles.map((c) => c.nombre.toUpperCase()).join(", ") +
           (sinParte.length > MAX_LISTADO ? ` (+${sinParte.length - MAX_LISTADO} MÁS)` : ""),
       ].join("\n"),
