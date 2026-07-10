@@ -7,6 +7,8 @@ export interface AnalistaSae {
   user_id: string;
   username: string | null;
   nombre: string | null;
+  /** Teléfono de contacto Telegram del perfil (`perfiles.telegram`). */
+  telegram: string | null;
   /** Ámbito legado en el perfil; la fuente operativa es `supervision.analistas_sae`. */
   centros_asignados: string[];
 }
@@ -15,6 +17,7 @@ interface PerfilAnalistaRow extends Record<string, unknown> {
   user_id: string;
   username: string | null;
   nombre: string | null;
+  telegram: string | null;
   centros_asignados: string[] | null;
   rol: string;
 }
@@ -29,6 +32,7 @@ function transformarAnalistaSae(r: PerfilAnalistaRow): AnalistaSae {
     user_id: r.user_id,
     username: r.username,
     nombre: r.nombre,
+    telegram: r.telegram?.trim() || null,
     centros_asignados: Array.isArray(r.centros_asignados)
       ? r.centros_asignados
       : [],
@@ -48,7 +52,7 @@ export function useAnalistasSae(): AnalistaSae[] {
   const clientFilter = useCallback(esAnalistaSae, []);
 
   return useSupabaseQuery<AnalistaSae, PerfilAnalistaRow>("perfiles", {
-    select: "user_id, username, nombre, centros_asignados, rol",
+    select: "user_id, username, nombre, telegram, centros_asignados, rol",
     filter,
     order: { column: "nombre", ascending: true },
     transform,

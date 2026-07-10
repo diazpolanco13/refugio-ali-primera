@@ -14,6 +14,7 @@ import {
   LockKeyhole,
   MapPin,
   MapPinned,
+  RefreshCw,
   Users,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +27,7 @@ import { AutoridadesInstrucciones } from "@/features/terreno/AutoridadesInstrucc
 import { AutoridadesTerrenoPanel } from "@/features/terreno/AutoridadesTerrenoPanel";
 import { CapacidadInstrucciones } from "@/features/terreno/CapacidadInstrucciones";
 import { CapacidadTerrenoPanel } from "@/features/terreno/CapacidadTerrenoPanel";
+import { TerrenoBienvenida } from "@/features/terreno/TerrenoBienvenida";
 import { listarCentrosCenso, obtenerCentroTerreno, type CentroCenso } from "@/data/reposCenso";
 import type { FuncionarioCenso } from "@/data/reposCenso";
 import { asegurarSesionTerreno, cerrarSesionTerreno } from "@/data/loginTerreno";
@@ -43,6 +45,7 @@ import {
 } from "@/lib/instruccionesCampo";
 import { centroGeolocalizadoLocal } from "@/lib/geolocalizacionTerreno";
 import { formatearHoraActualizacionTerreno } from "@/lib/terrenoActualizacion";
+import { actualizarAppCampo } from "@/lib/actualizarAppCampo";
 import {
   cargarSesionOperadorTerreno,
   funcionarioTerrenoVacio,
@@ -89,6 +92,7 @@ function LineaActualizacion({
 
 type Pantalla =
   | "menu"
+  | "bienvenida"
   | "identificacion"
   | "instrucciones-reporte"
   | "selector-reporte"
@@ -123,6 +127,15 @@ export function TerrenoView() {
   const [resaltarId, setResaltarId] = useState(false);
   const [identificando, setIdentificando] = useState(false);
   const [errorIdentificacion, setErrorIdentificacion] = useState("");
+  const [actualizandoApp, setActualizandoApp] = useState(false);
+
+  // Quita el marcador de cache-bust tras «Borrar caché y actualizar».
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("_act")) return;
+    url.searchParams.delete("_act");
+    window.history.replaceState({}, "", url.toString());
+  }, []);
 
   useEffect(() => {
     let cancelado = false;
@@ -187,10 +200,12 @@ export function TerrenoView() {
   const accesoDenegado = !cargandoCentros && centros.length === 0;
   // Con QR: hay que identificarse antes del menú (usuarios temporales por persona).
   const requiereIdentificacion = Boolean(token && centroValido && !accesoDenegado);
+  const mostrarBienvenida =
+    requiereIdentificacion && gateListo && !operadorSesion && pantalla === "bienvenida";
   const mostrarIdentificacion =
-    requiereIdentificacion && gateListo && (!operadorSesion || pantalla === "identificacion");
+    requiereIdentificacion && gateListo && pantalla === "identificacion";
 
-  // Restaurar identificación de esta pestaña o forzar el formulario.
+  // Restaurar identificación de esta pestaña o forzar bienvenida → identificación.
   useEffect(() => {
     if (cargandoCentros || accesoDenegado) return;
     if (!requiereIdentificacion) {
@@ -202,7 +217,7 @@ export function TerrenoView() {
     if (!guardada) {
       setOperadorSesion(null);
       setGateListo(true);
-      setPantalla("identificacion");
+      setPantalla("bienvenida");
       return;
     }
     setFuncionarioDraft(guardada.funcionario);
@@ -218,7 +233,7 @@ export function TerrenoView() {
         olvidarSesionOperadorTerreno();
         setOperadorSesion(null);
         setGateListo(true);
-        setPantalla("identificacion");
+        setPantalla("bienvenida");
       });
     return () => {
       cancelado = true;
@@ -262,7 +277,7 @@ export function TerrenoView() {
     } catch {
       /* seguir al formulario aunque falle el signOut */
     }
-    setPantalla("identificacion");
+    setPantalla("bienvenida");
   }
 
   /**
@@ -347,11 +362,43 @@ export function TerrenoView() {
     setInstruccionesRestablecidas(true);
   }
 
+  async function forzarActualizacionApp() {
+    if (actualizandoApp) return;
+    setActualizandoApp(true);
+    try {
+      await actualizarAppCampo();
+    } catch {
+      setActualizandoApp(false);
+      setErrorEntrar(
+        "No se pudo limpiar la caché. Cierre la app y ábrala de nuevo desde el enlace.",
+      );
+    }
+  }
+
   if (requiereIdentificacion && !gateListo) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-background px-6 text-foreground">
         <Loader2 className="size-8 animate-spin text-primary" />
         <p className="text-sm text-muted-foreground">Preparando acceso…</p>
+      </div>
+    );
+  }
+
+  if (mostrarBienvenida) {
+    return (
+      <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
+        <header className="mx-auto flex w-full max-w-xl shrink-0 flex-col gap-1 px-4 pb-3 pt-[max(1.25rem,env(safe-area-inset-top))]">
+          <h1 className="text-base font-semibold leading-tight">Bienvenida</h1>
+          <p className="text-xs text-muted-foreground">
+            Lea las indicaciones antes de continuar
+          </p>
+        </header>
+        <main className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col overflow-hidden px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <TerrenoBienvenida
+            nombreCentro={centro?.nombre ?? "campamento"}
+            onContinuar={() => setPantalla("identificacion")}
+          />
+        </main>
       </div>
     );
   }
@@ -787,6 +834,42 @@ export function TerrenoView() {
                   : "Volver a mostrar las instrucciones una vez"}
               </button>
             )}
+          </section>
+        )}
+
+        {!accesoDenegado && (
+          <section
+            aria-label="Actualizar aplicación"
+            className="w-full space-y-2 rounded-xl border border-border bg-card/60 px-4 py-3"
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Actualizar aplicación</p>
+              <p className="text-xs leading-snug text-muted-foreground">
+                Si no ve los cambios recientes, borre la caché de esta página y descargue la
+                versión nueva.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void forzarActualizacionApp()}
+              disabled={actualizandoApp}
+              className={cn(
+                "flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-background text-sm font-medium transition-colors",
+                "hover:bg-accent disabled:opacity-60",
+              )}
+            >
+              {actualizandoApp ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Actualizando…
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="size-4" />
+                  Borrar caché y actualizar
+                </>
+              )}
+            </button>
           </section>
         )}
       </main>

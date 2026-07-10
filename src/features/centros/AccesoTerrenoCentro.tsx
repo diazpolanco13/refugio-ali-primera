@@ -4,36 +4,95 @@
 // `tokens_centros` oculta el token al resto de roles y la sección no se pinta.
 // El QR se genera en el navegador (lib `qrcode`), sin servicios externos.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { Check, Copy, Download, QrCode as QrCodeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { telefonoInternacional } from "@/lib/contacto";
 import { copiarTexto } from "@/lib/portapapeles";
 import { enlaceTerreno } from "@/lib/tokenTerreno";
 import { obtenerTokenActivoCentro } from "@/data/tokensCentros";
 import {
+  etiquetaAnalistaSae,
+  useAnalistasSae,
+  type AnalistaSae,
+} from "@/data/useAnalistasSae";
+import {
+  metaCuerpoDe,
+  metaUnidadSebinCentro,
+  normalizarSupervision,
   ubicacionCentro,
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
 
-/** Texto listo para pegar en chat: nombre, ubicación y enlace de terreno. */
+/** Teléfono Telegram en formato internacional (+58…). */
+function telegramParaPortapapeles(raw: string | null | undefined): string | null {
+  const limpio = raw?.trim();
+  if (!limpio) return null;
+  const intl = telefonoInternacional(limpio);
+  return intl ? `+${intl}` : limpio;
+}
+
+/**
+ * Texto listo para pegar en Telegram (negritas con **etiqueta**):
+ * REFUGIO, UBICACIÓN, GPS, RESPONSABLES y enlace de la plataforma.
+ */
 function textoPortapapelesTerreno(
   centro: CentroTransitorio,
   enlace: string,
+  analistasSae: AnalistaSae[],
 ): string {
   const nombre =
     centro.nro != null ? `N.° ${centro.nro} · ${centro.nombre}` : centro.nombre;
   const ubicacion = ubicacionCentro(centro);
-  const direccion = (centro.direccion ?? "").trim();
-  return [nombre, ubicacion || null, direccion || null, enlace]
-    .filter(Boolean)
-    .join("\n");
+  const gps = (centro.mapsUrl ?? "").trim();
+  const supervision = normalizarSupervision(centro.supervision);
+  const cuerpo = metaCuerpoDe(centro.cuerpo);
+  const unidad = metaUnidadSebinCentro(centro);
+
+  const lineas: string[] = [`**REFUGIO:** ${nombre}`];
+  if (ubicacion) lineas.push(`**UBICACIÓN:** ${ubicacion}`);
+  if (gps) lineas.push(`**GPS:** ${gps}`);
+
+  lineas.push("**RESPONSABLES:**");
+  if (cuerpo.clave !== "sin_asignar") {
+    lineas.push(`**Cuerpo:** ${cuerpo.label}`);
+  }
+  if (unidad.clave !== "sin_asignar") {
+    lineas.push(`**Unidad:** ${unidad.label}`);
+  }
+
+  const ids = supervision.analistas_sae;
+  if (ids.length > 0) {
+    const porId = new Map(analistasSae.map((a) => [a.user_id, a]));
+    lineas.push("**Analistas SAE:**");
+    for (const id of ids) {
+      const analista = porId.get(id);
+      const etiqueta = analista
+        ? etiquetaAnalistaSae(analista)
+        : "Analista sin perfil";
+      const telefono = telegramParaPortapapeles(analista?.telegram);
+      lineas.push(
+        telefono ? `· ${etiqueta} — ${telefono}` : `· ${etiqueta} — sin Telegram`,
+      );
+    }
+  }
+
+  lineas.push("**PLATAFORMA DE GESTIÓN DE REFUGIOS DE LA SAE:**");
+  lineas.push(enlace);
+  return lineas.join("\n");
 }
 
 export function AccesoTerrenoCentro({ centro }: { centro: CentroTransitorio }) {
+  const analistasSae = useAnalistasSae();
   const [enlace, setEnlace] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [copiado, setCopiado] = useState(false);
+
+  const textoCopiar = useMemo(
+    () => (enlace ? textoPortapapelesTerreno(centro, enlace, analistasSae) : ""),
+    [analistasSae, centro, enlace],
+  );
 
   useEffect(() => {
     let cancelado = false;
@@ -60,7 +119,8 @@ export function AccesoTerrenoCentro({ centro }: { centro: CentroTransitorio }) {
   if (!enlace) return null;
 
   async function copiarEnlace() {
-    if (await copiarTexto(textoPortapapelesTerreno(centro, enlace))) {
+    if (!textoCopiar) return;
+    if (await copiarTexto(textoCopiar)) {
       setCopiado(true);
       window.setTimeout(() => setCopiado(false), 2000);
     }
