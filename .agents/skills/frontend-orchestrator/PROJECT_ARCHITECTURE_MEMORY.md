@@ -63,6 +63,7 @@ src/
 | `Skeleton` / `SidebarMenuSkeleton` | Loading UI |
 | `CentrosMap` + controles | Mapa operativo |
 | `MapaCentrosProvider` | Estado mapa compartido |
+| `FiltroMultiBusqueda` | Multi-select con buscador + «Sin asignar» (tablero) |
 
 ## Rutas del menú lateral (referencia)
 
@@ -105,9 +106,16 @@ Según rol (no todas visibles siempre):
 - Filtro/búsqueda: `filtrarUsuarios.ts`; UI en `BarraFiltrosUsuarios` (Input + Tabs) + KPIs `ResumenCoberturaCentros`
 - `TarjetaUsuario` colapsable (≤3 chips + expandir); contenedor `GestionUsuarios` solo orquesta
 
+## Feature tablero — filtros de asignación operativa
+
+- Fuente de verdad: `centro.cuerpo` + `centro.supervision` (`unidad_sebin`, `supervisor_sebin`, `analistas_sae[]`)
+- Primitiva compartida: `components/FiltroMultiBusqueda.tsx` (buscador, «Sin asignar», multi-select; vacío = sin filtrar)
+- Tablero: 4 filtros (cuerpo, unidad SEBIN, revista, analista SAE) + orden; conteos por opción desde la red visible
+
 ## Historial de orquestaciones
 
 | Fecha | Tema | Notas |
 |-------|------|-------|
 | 2026-07-10 | Skeletons menú+mapa | Implementado: contrato shimmer, familias, wire App.tsx, useSupabaseQueryConEstado |
 | 2026-07-10 | Gestión usuarios UX | Buscador, KPIs cobertura, Tabs por rol, chips colapsables |
+| 2026-07-10 | Filtros asignación tablero | FiltroMultiBusqueda + 4 dimensiones alineadas a edición de campamento |

@@ -264,17 +264,29 @@ export interface SupervisionCentro {
   unidad_sebin: string;
   /** Comisario o supervisor de la unidad (opcional). */
   supervisor_sebin: string;
+  /**
+   * Analistas SAE asignados al campamento (`perfiles.user_id` con rol
+   * `analista_sae`). Uno o varios; alimenta el filtro del tablero.
+   */
+  analistas_sae: string[];
 }
 
 export const SUPERVISION_VACIA: SupervisionCentro = {
   unidad_sebin: "",
   supervisor_sebin: "",
+  analistas_sae: [],
 };
 
 export function normalizarSupervision(
   s: Partial<SupervisionCentro> | null | undefined,
 ): SupervisionCentro {
-  return { ...SUPERVISION_VACIA, ...(s ?? {}) };
+  const base = { ...SUPERVISION_VACIA, ...(s ?? {}) };
+  return {
+    ...base,
+    analistas_sae: Array.isArray(s?.analistas_sae)
+      ? [...new Set(s.analistas_sae.filter((id): id is string => typeof id === "string" && id.length > 0))]
+      : [],
+  };
 }
 
 /** Unidad SEBIN del campamento (clave canónica). */

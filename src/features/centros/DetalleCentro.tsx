@@ -264,6 +264,16 @@ export function SeccionIdentificacionCentro({ centro }: SeccionProps) {
             </span>
           </div>
         )}
+        {c.supervision.analistas_sae.length > 0 && (
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-500/30 px-2.5 py-0.5">
+            <span className="text-[11px] text-muted-foreground">SAE:</span>
+            <span className="text-[11px] font-medium text-foreground">
+              {c.supervision.analistas_sae.length === 1
+                ? "1 analista"
+                : `${c.supervision.analistas_sae.length} analistas`}
+            </span>
+          </div>
+        )}
       </div>
       <div className="space-y-0.5 text-xs text-muted-foreground">
         {ubicacion && <p>{ubicacion}</p>}

@@ -1,11 +1,13 @@
-import { useSupabaseQuery } from "./useSupabaseQuery";
+import { useCallback } from "react";
+import { useSupabaseQuery, type QueryBuilder } from "./useSupabaseQuery";
 
-/** Perfil resumido de un analista SAE (ámbito de monitoreo vía centros_asignados). */
+/** Perfil resumido de un analista SAE (catálogo de usuarios para asignación). */
 export interface AnalistaSae {
   id: string;
   user_id: string;
   username: string | null;
   nombre: string | null;
+  /** Ámbito legado en el perfil; la fuente operativa es `supervision.analistas_sae`. */
   centros_asignados: string[];
 }
 
@@ -17,19 +19,40 @@ interface PerfilAnalistaRow extends Record<string, unknown> {
   rol: string;
 }
 
-/** Lista de analistas SAE con Realtime (para filtros de vista en campamentos). */
+function filtrarAnalistasSae<T>(q: QueryBuilder<T>): QueryBuilder<T> {
+  return q.eq("rol", "analista_sae");
+}
+
+function transformarAnalistaSae(r: PerfilAnalistaRow): AnalistaSae {
+  return {
+    id: r.user_id,
+    user_id: r.user_id,
+    username: r.username,
+    nombre: r.nombre,
+    centros_asignados: Array.isArray(r.centros_asignados)
+      ? r.centros_asignados
+      : [],
+  };
+}
+
+function esAnalistaSae(row: AnalistaSae): boolean {
+  return Boolean(row.user_id);
+}
+
+/** Lista de analistas SAE con Realtime (asignación operativa y filtro del tablero). */
 export function useAnalistasSae(): AnalistaSae[] {
+  // Referencias estables: si `filter`/`transform` cambian de identidad en cada
+  // render, useSupabaseQuery re-fetcha y puede dejar el filtro de UI sin efecto.
+  const filter = useCallback(filtrarAnalistasSae, []);
+  const transform = useCallback(transformarAnalistaSae, []);
+  const clientFilter = useCallback(esAnalistaSae, []);
+
   return useSupabaseQuery<AnalistaSae, PerfilAnalistaRow>("perfiles", {
     select: "user_id, username, nombre, centros_asignados, rol",
-    filter: (q) => q.eq("rol", "analista_sae"),
+    filter,
     order: { column: "nombre", ascending: true },
-    transform: (r) => ({
-      id: r.user_id,
-      user_id: r.user_id,
-      username: r.username,
-      nombre: r.nombre,
-      centros_asignados: r.centros_asignados ?? [],
-    }),
+    transform,
+    clientFilter,
   });
 }
 
@@ -42,10 +65,17 @@ export function etiquetaAnalistaSae(
   return "Sin nombre";
 }
 
-/** Campamentos de la red que tiene asignados este analista. */
-export function contarCentrosAsignadosAnalista(
-  analista: Pick<AnalistaSae, "centros_asignados">,
-  idsCentrosActivos: ReadonlySet<string>,
+/**
+ * Campamentos donde este analista figura en `supervision.analistas_sae`
+ * (asignación operativa del centro).
+ */
+export function contarCentrosConAnalista(
+  userId: string,
+  centros: ReadonlyArray<{ supervision?: { analistas_sae?: string[] } | null }>,
 ): number {
-  return analista.centros_asignados.filter((id) => idsCentrosActivos.has(id)).length;
+  let n = 0;
+  for (const c of centros) {
+    if (c.supervision?.analistas_sae?.includes(userId)) n++;
+  }
+  return n;
 }

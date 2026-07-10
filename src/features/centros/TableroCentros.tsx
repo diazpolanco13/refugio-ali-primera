@@ -1,4 +1,11 @@
 import { LogoCuerpo } from "@/components/LogoCuerpo";
+import {
+  coincideFiltroEscalar,
+  coincideFiltroLista,
+  FiltroMultiBusqueda,
+  VALOR_SIN_ASIGNAR,
+  type OpcionFiltroMulti,
+} from "@/components/FiltroMultiBusqueda";
 import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -33,6 +40,7 @@ import {
   type CentroTransitorio,
   type ClaveCuerpo,
 } from "@/domain/centrosTransitorios";
+import { normalizarUnidadSebin } from "@/domain/unidadesSebin";
 import {
   COLOR_ESTADO_AGUA,
   COLOR_SEMAFORO,
@@ -61,10 +69,12 @@ import {
   type VistaTableroCentros,
 } from "@/data/preferenciasTablero";
 import {
-  contarCentrosAsignadosAnalista,
+  contarCentrosConAnalista,
   etiquetaAnalistaSae,
   useAnalistasSae,
 } from "@/data/useAnalistasSae";
+import { useCatalogoUnidadesSebinActivas } from "@/data/useUnidadesSebin";
+import { useSupervisoresSebin } from "@/data/useSupervisoresSebin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -253,6 +263,27 @@ function KpiRed({
 }
 
 /**
+ * ¿El funcionario de revista del campamento coincide con la selección
+ * (usernames del catálogo o nombre libre)?
+ */
+function coincideFiltroRevista(
+  seleccion: readonly string[],
+  supervisorRaw: string | undefined,
+  porUsername: ReadonlyMap<string, { username: string; nombre: string }>,
+): boolean {
+  if (seleccion.length === 0) return true;
+  const actual = supervisorRaw?.trim() ?? "";
+  if (!actual) return seleccion.includes(VALOR_SIN_ASIGNAR);
+  for (const key of seleccion) {
+    if (key === VALOR_SIN_ASIGNAR) continue;
+    const s = porUsername.get(key);
+    if (s && (actual === s.nombre || actual === s.username)) return true;
+    if (actual === key) return true;
+  }
+  return false;
+}
+
+/**
  * Sala situacional de la red de Centros Transitorios: cuadrícula de tarjetas
  * densas ordenadas por PRIORIDAD ("¿quién requiere más atención?"). Cada
  * capacidad logística se evalúa con una barra "tienes / deberías / faltan"
@@ -265,10 +296,14 @@ export function TableroCentros({
   cargando = false,
 }: Props) {
   const analistasSae = useAnalistasSae();
+  const catalogoUnidades = useCatalogoUnidadesSebinActivas();
+  const { supervisores } = useSupervisoresSebin();
   const [orden, setOrden] = useState<Orden>("prioridad");
   const [filtroNivel, setFiltroNivel] = useState<NivelPrioridad | null>(null);
-  const [filtroCuerpo, setFiltroCuerpo] = useState<ClaveCuerpo | "todos">("todos");
-  const [filtroAnalista, setFiltroAnalista] = useState<"todos" | string>("todos");
+  const [filtroCuerpos, setFiltroCuerpos] = useState<string[]>([]);
+  const [filtroUnidades, setFiltroUnidades] = useState<string[]>([]);
+  const [filtroRevistas, setFiltroRevistas] = useState<string[]>([]);
+  const [filtroAnalistas, setFiltroAnalistas] = useState<string[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [vista, setVista] = useState<VistaTableroCentros>(() => cargarVistaTableroCentros());
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
@@ -284,48 +319,136 @@ export function TableroCentros({
     [centros],
   );
 
-  const cuerposPresentes = useMemo(() => {
+  const supervisoresPorUsername = useMemo(() => {
+    const m = new Map<string, { username: string; nombre: string }>();
+    for (const s of supervisores) m.set(s.username, s);
+    return m;
+  }, [supervisores]);
+
+  const opcionesCuerpo = useMemo(() => {
     const m = new Map<ClaveCuerpo, number>();
+    let sinAsignar = 0;
     for (const { centro } of base) {
       const clave = normalizarCuerpo(centro.cuerpo);
+      if (clave === VALOR_SIN_ASIGNAR) {
+        sinAsignar++;
+        continue;
+      }
       m.set(clave, (m.get(clave) ?? 0) + 1);
     }
-    return CATALOGO_CUERPOS.filter((c) => (m.get(c.clave) ?? 0) > 0).map((c) => ({
-      meta: c,
+    const opciones: OpcionFiltroMulti[] = CATALOGO_CUERPOS.filter(
+      (c) => c.clave !== VALOR_SIN_ASIGNAR && (m.get(c.clave) ?? 0) > 0,
+    ).map((c) => ({
+      valor: c.clave,
+      etiqueta: c.label,
       cantidad: m.get(c.clave) ?? 0,
     }));
+    return { opciones, cantidadSinAsignar: sinAsignar };
   }, [base]);
 
-  const idsCentrosActivos = useMemo(
-    () => new Set(centros.map((c) => c.id)),
-    [centros],
-  );
+  const opcionesUnidad = useMemo(() => {
+    const m = new Map<string, number>();
+    let sinAsignar = 0;
+    for (const { centro } of base) {
+      const clave = normalizarUnidadSebin(centro.supervision?.unidad_sebin);
+      if (clave === VALOR_SIN_ASIGNAR) {
+        sinAsignar++;
+        continue;
+      }
+      m.set(clave, (m.get(clave) ?? 0) + 1);
+    }
+    const opciones: OpcionFiltroMulti[] = catalogoUnidades
+      .filter((u) => u.clave !== VALOR_SIN_ASIGNAR && (m.get(u.clave) ?? 0) > 0)
+      .map((u) => ({
+        valor: u.clave,
+        etiqueta: u.label,
+        cantidad: m.get(u.clave) ?? 0,
+        indicador: (
+          <span
+            className="size-2 shrink-0 rounded-full"
+            style={{ backgroundColor: u.color }}
+            aria-hidden
+          />
+        ),
+      }));
+    // Unidades presentes en datos pero ya no en catálogo activo
+    for (const [clave, cantidad] of m) {
+      if (opciones.some((o) => o.valor === clave)) continue;
+      opciones.push({ valor: clave, etiqueta: clave, cantidad });
+    }
+    return { opciones, cantidadSinAsignar: sinAsignar };
+  }, [base, catalogoUnidades]);
 
-  const analistasPresentes = useMemo(
-    () =>
-      analistasSae.map((analista) => ({
-        analista,
-        cantidad: contarCentrosAsignadosAnalista(analista, idsCentrosActivos),
-      })),
-    [analistasSae, idsCentrosActivos],
-  );
+  const opcionesRevista = useMemo(() => {
+    const conteo = new Map<string, { etiqueta: string; cantidad: number }>();
+    let sinAsignar = 0;
+    for (const { centro } of base) {
+      const actual = centro.supervision?.supervisor_sebin?.trim() ?? "";
+      if (!actual) {
+        sinAsignar++;
+        continue;
+      }
+      const delCatalogo = supervisores.find(
+        (s) => s.nombre === actual || s.username === actual,
+      );
+      const valor = delCatalogo?.username ?? actual;
+      const etiqueta = delCatalogo?.nombre ?? actual;
+      const prev = conteo.get(valor);
+      if (prev) prev.cantidad++;
+      else conteo.set(valor, { etiqueta, cantidad: 1 });
+    }
+    const opciones: OpcionFiltroMulti[] = [...conteo.entries()]
+      .map(([valor, { etiqueta, cantidad }]) => ({ valor, etiqueta, cantidad }))
+      .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es"));
+    return { opciones, cantidadSinAsignar: sinAsignar };
+  }, [base, supervisores]);
 
-  const centrosDelAnalistaSeleccionado = useMemo(() => {
-    if (filtroAnalista === "todos") return null;
-    const analista = analistasSae.find((a) => a.user_id === filtroAnalista);
-    if (!analista) return new Set<string>();
-    return new Set(analista.centros_asignados);
-  }, [analistasSae, filtroAnalista]);
+  const opcionesAnalista = useMemo(() => {
+    let sinAsignar = 0;
+    for (const { centro } of base) {
+      if ((centro.supervision?.analistas_sae ?? []).length === 0) sinAsignar++;
+    }
+    const opciones: OpcionFiltroMulti[] = analistasSae.map((analista) => ({
+      valor: analista.user_id,
+      etiqueta: etiquetaAnalistaSae(analista),
+      cantidad: contarCentrosConAnalista(analista.user_id, centros),
+    }));
+    return { opciones, cantidadSinAsignar: sinAsignar };
+  }, [analistasSae, base, centros]);
 
   const enContexto = useMemo(() => {
     const q = normalizarTexto(busqueda.trim());
     return base.filter(({ centro }) => {
-      if (filtroCuerpo !== "todos" && normalizarCuerpo(centro.cuerpo) !== filtroCuerpo) {
+      if (
+        !coincideFiltroEscalar(
+          filtroCuerpos,
+          normalizarCuerpo(centro.cuerpo),
+        )
+      ) {
         return false;
       }
       if (
-        centrosDelAnalistaSeleccionado &&
-        !centrosDelAnalistaSeleccionado.has(centro.id)
+        !coincideFiltroEscalar(
+          filtroUnidades,
+          normalizarUnidadSebin(centro.supervision?.unidad_sebin),
+        )
+      ) {
+        return false;
+      }
+      if (
+        !coincideFiltroRevista(
+          filtroRevistas,
+          centro.supervision?.supervisor_sebin,
+          supervisoresPorUsername,
+        )
+      ) {
+        return false;
+      }
+      if (
+        !coincideFiltroLista(
+          filtroAnalistas,
+          centro.supervision?.analistas_sae ?? [],
+        )
       ) {
         return false;
       }
@@ -335,7 +458,15 @@ export function TableroCentros({
       }
       return true;
     });
-  }, [base, filtroCuerpo, busqueda, centrosDelAnalistaSeleccionado]);
+  }, [
+    base,
+    busqueda,
+    filtroAnalistas,
+    filtroCuerpos,
+    filtroRevistas,
+    filtroUnidades,
+    supervisoresPorUsername,
+  ]);
 
   const conteo = useMemo(() => {
     const m: Record<NivelPrioridad, number> = {
@@ -417,61 +548,58 @@ export function TableroCentros({
 
   const hayFiltros =
     filtroNivel !== null ||
-    filtroCuerpo !== "todos" ||
-    filtroAnalista !== "todos" ||
+    filtroCuerpos.length > 0 ||
+    filtroUnidades.length > 0 ||
+    filtroRevistas.length > 0 ||
+    filtroAnalistas.length > 0 ||
     orden !== "prioridad" ||
     busqueda.trim() !== "";
 
   function limpiarFiltros() {
     setFiltroNivel(null);
-    setFiltroCuerpo("todos");
-    setFiltroAnalista("todos");
+    setFiltroCuerpos([]);
+    setFiltroUnidades([]);
+    setFiltroRevistas([]);
+    setFiltroAnalistas([]);
     setOrden("prioridad");
     setBusqueda("");
     setFiltrosAbiertos(false);
   }
 
-  const selectorAnalistaSae =
-    analistasPresentes.length > 0 ? (
-      <Select
-        value={filtroAnalista}
-        onValueChange={(v) => setFiltroAnalista(v)}
-      >
-        <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
-          <SelectValue placeholder="Analista SAE" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="todos">Todos los analistas SAE</SelectItem>
-          {analistasPresentes.map(({ analista, cantidad }) => (
-            <SelectItem key={analista.user_id} value={analista.user_id}>
-              {etiquetaAnalistaSae(analista)} ({cantidad})
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    ) : null;
-
   const selectoresFiltro = (
     <>
-      <Select
-        value={filtroCuerpo}
-        onValueChange={(v) => setFiltroCuerpo(v as ClaveCuerpo | "todos")}
-      >
-        <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
-          <SelectValue placeholder="Cuerpo" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="todos">Todos los cuerpos</SelectItem>
-          {cuerposPresentes.map(({ meta, cantidad }) => (
-            <SelectItem key={meta.clave} value={meta.clave}>
-              {meta.label} ({cantidad})
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {selectorAnalistaSae}
-
+      <FiltroMultiBusqueda
+        placeholder="Cuerpo policial"
+        buscarPlaceholder="Buscar cuerpo…"
+        opciones={opcionesCuerpo.opciones}
+        seleccion={filtroCuerpos}
+        onCambiar={setFiltroCuerpos}
+        cantidadSinAsignar={opcionesCuerpo.cantidadSinAsignar}
+      />
+      <FiltroMultiBusqueda
+        placeholder="Unidad SEBIN"
+        buscarPlaceholder="Buscar unidad…"
+        opciones={opcionesUnidad.opciones}
+        seleccion={filtroUnidades}
+        onCambiar={setFiltroUnidades}
+        cantidadSinAsignar={opcionesUnidad.cantidadSinAsignar}
+      />
+      <FiltroMultiBusqueda
+        placeholder="Funcionario revista"
+        buscarPlaceholder="Buscar funcionario…"
+        opciones={opcionesRevista.opciones}
+        seleccion={filtroRevistas}
+        onCambiar={setFiltroRevistas}
+        cantidadSinAsignar={opcionesRevista.cantidadSinAsignar}
+      />
+      <FiltroMultiBusqueda
+        placeholder="Analista SAE"
+        buscarPlaceholder="Buscar analista…"
+        opciones={opcionesAnalista.opciones}
+        seleccion={filtroAnalistas}
+        onCambiar={setFiltroAnalistas}
+        cantidadSinAsignar={opcionesAnalista.cantidadSinAsignar}
+      />
       <Select value={orden} onValueChange={(v) => setOrden(v as Orden)}>
         <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
           <SelectValue placeholder="Orden" />
@@ -509,7 +637,7 @@ export function TableroCentros({
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 lg:grid-cols-5">
             <KpiRed
               icono={<LayoutGrid className="size-3.5 text-emerald-300" />}
-              valor={centros.length}
+              valor={enContexto.length}
               etiqueta="Campamentos"
             />
             <KpiRed
@@ -607,38 +735,7 @@ export function TableroCentros({
             </div>
             <CollapsibleContent className="mt-2 space-y-2">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Select
-                  value={filtroCuerpo}
-                  onValueChange={(v) => setFiltroCuerpo(v as ClaveCuerpo | "todos")}
-                >
-                  <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
-                    <SelectValue placeholder="Cuerpo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos los cuerpos</SelectItem>
-                    {cuerposPresentes.map(({ meta, cantidad }) => (
-                      <SelectItem key={meta.clave} value={meta.clave}>
-                        {meta.label} ({cantidad})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectorAnalistaSae}
-                <Select
-                  value={orden}
-                  onValueChange={(v) => setOrden(v as Orden)}
-                >
-                  <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
-                    <SelectValue placeholder="Orden" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ordenes.map(({ valor, label }) => (
-                      <SelectItem key={valor} value={valor}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {selectoresFiltro}
               </div>
               <p className="text-center text-[11px] text-muted-foreground">
                 {filas.length} de {centros.length} campamentos visibles
@@ -674,7 +771,7 @@ export function TableroCentros({
                 <ToggleVistaTablero vista={vista} onChange={cambiarVista} />
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {selectoresFiltro}
             </div>
           </div>

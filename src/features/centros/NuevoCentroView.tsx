@@ -49,7 +49,7 @@ export function NuevoCentroView({ sesion }: Props) {
       geom: null,
       notas: "",
       estado: "preparacion",
-      supervision: { unidad_sebin: "", supervisor_sebin: "" },
+      supervision: { unidad_sebin: "", supervisor_sebin: "", analistas_sae: [] },
     };
   }, [centros]);
 
