@@ -121,7 +121,7 @@ export function FormularioIdentificacionFuncionario({
               value={funcionario.jerarquia}
               disabled={cargando}
               onChange={(e) => setCampo("jerarquia", e.target.value)}
-              placeholder="Ej: Sargento Mayor, Coordinador…"
+              placeholder="Ej: Inspector"
               className={cn(
                 "h-11",
                 resaltarFaltantes &&
@@ -161,7 +161,7 @@ export function FormularioIdentificacionFuncionario({
               value={funcionario.institucion}
               disabled={cargando}
               onChange={(e) => setCampo("institucion", e.target.value)}
-              placeholder="Ej: GNB, Protección Civil, Alcaldía…"
+              placeholder="Ej: SEBIN"
               className={cn(
                 "h-11",
                 resaltarFaltantes &&
