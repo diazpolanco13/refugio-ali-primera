@@ -179,8 +179,14 @@ export function FormularioIdentificacionFuncionario({
             </LabelCampoCenso>
             <Input
               id="func-telefono"
+              name="telefono"
               type="tel"
-              inputMode="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="tel"
+              autoCorrect="off"
+              autoCapitalize="off"
+              enterKeyHint="done"
               value={funcionario.telefono}
               disabled={cargando}
               onChange={(e) => setCampo("telefono", e.target.value)}

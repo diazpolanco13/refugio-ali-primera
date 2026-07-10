@@ -41,6 +41,11 @@ async function rpcSetofPaginado<T>(
   return acumulado;
 }
 
+export interface AnalistaContactoTerreno {
+  nombre: string;
+  telegram: string | null;
+}
+
 export interface CentroCenso {
   id: string;
   nombre: string;
@@ -54,6 +59,8 @@ export interface CentroCenso {
   geolocalizacion_ts?: number | null;
   autoridades_ts?: number | null;
   capacidad_ts?: number | null;
+  /** Analistas SAE del campamento (nombre + Telegram) vía `terreno_centro`. */
+  analistas_contacto?: AnalistaContactoTerreno[];
 }
 
 /** Funcionario que dirige el levantamiento en la escuela. */

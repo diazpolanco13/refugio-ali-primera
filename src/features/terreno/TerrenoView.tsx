@@ -28,6 +28,7 @@ import { AutoridadesInstrucciones } from "@/features/terreno/AutoridadesInstrucc
 import { AutoridadesTerrenoPanel } from "@/features/terreno/AutoridadesTerrenoPanel";
 import { CapacidadInstrucciones } from "@/features/terreno/CapacidadInstrucciones";
 import { CapacidadTerrenoPanel } from "@/features/terreno/CapacidadTerrenoPanel";
+import { ContactoAnalistasTerreno } from "@/features/terreno/ContactoAnalistasTerreno";
 import { TerrenoBienvenida } from "@/features/terreno/TerrenoBienvenida";
 import { listarCentrosCenso, obtenerCentroTerreno, type CentroCenso } from "@/data/reposCenso";
 import type { FuncionarioCenso } from "@/data/reposCenso";
@@ -808,6 +809,10 @@ export function TerrenoView() {
               </span>
             </div>
           </nav>
+        )}
+
+        {!accesoDenegado && centroValido && (
+          <ContactoAnalistasTerreno analistas={centro?.analistas_contacto} />
         )}
 
         {!accesoDenegado && (
