@@ -44,6 +44,8 @@ async function rpcSetofPaginado<T>(
 export interface CentroCenso {
   id: string;
   nombre: string;
+  /** True si el campamento ya tiene coordenada en BD. */
+  geolocalizado?: boolean;
 }
 
 /** Funcionario que dirige el levantamiento en la escuela. */

@@ -5,6 +5,7 @@
 
 export const INSTRUCCIONES_CENSO_KEY = "censo_instrucciones_v1";
 export const INSTRUCCIONES_REPORTE_KEY = "reporte_instrucciones_v1";
+export const INSTRUCCIONES_GEO_KEY = "geo_instrucciones_v1";
 const SIEMPRE_KEY = "instrucciones_campo_siempre_v1";
 
 export function verInstruccionesSiempre(): boolean {
@@ -47,6 +48,7 @@ export function restablecerInstruccionesVistas(): void {
   try {
     localStorage.removeItem(INSTRUCCIONES_CENSO_KEY);
     localStorage.removeItem(INSTRUCCIONES_REPORTE_KEY);
+    localStorage.removeItem(INSTRUCCIONES_GEO_KEY);
   } catch {
     /* ignorar */
   }

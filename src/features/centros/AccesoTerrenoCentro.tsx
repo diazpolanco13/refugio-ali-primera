@@ -11,7 +11,24 @@ import { Button } from "@/components/ui/button";
 import { copiarTexto } from "@/lib/portapapeles";
 import { enlaceTerreno } from "@/lib/tokenTerreno";
 import { obtenerTokenActivoCentro } from "@/data/tokensCentros";
-import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import {
+  ubicacionCentro,
+  type CentroTransitorio,
+} from "@/domain/centrosTransitorios";
+
+/** Texto listo para pegar en chat: nombre, ubicación y enlace de terreno. */
+function textoPortapapelesTerreno(
+  centro: CentroTransitorio,
+  enlace: string,
+): string {
+  const nombre =
+    centro.nro != null ? `N.° ${centro.nro} · ${centro.nombre}` : centro.nombre;
+  const ubicacion = ubicacionCentro(centro);
+  const direccion = (centro.direccion ?? "").trim();
+  return [nombre, ubicacion || null, direccion || null, enlace]
+    .filter(Boolean)
+    .join("\n");
+}
 
 export function AccesoTerrenoCentro({ centro }: { centro: CentroTransitorio }) {
   const [enlace, setEnlace] = useState("");
@@ -43,7 +60,7 @@ export function AccesoTerrenoCentro({ centro }: { centro: CentroTransitorio }) {
   if (!enlace) return null;
 
   async function copiarEnlace() {
-    if (await copiarTexto(enlace)) {
+    if (await copiarTexto(textoPortapapelesTerreno(centro, enlace))) {
       setCopiado(true);
       window.setTimeout(() => setCopiado(false), 2000);
     }

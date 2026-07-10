@@ -85,9 +85,12 @@ revoke all on function public.acceso_censo_centro(text, text) from public, anon,
 
 -- Identifica el campamento de un token de personal (/terreno y /censo).
 create or replace function public.terreno_centro(p_token text)
-returns table(id text, nombre text)
+returns table(id text, nombre text, geolocalizado boolean)
 language sql stable security definer set search_path = public as $$
-  select c.id, coalesce(nullif(trim(c.data->>'nombre'), ''), c.id) as nombre
+  select
+    c.id,
+    coalesce(nullif(trim(c.data->>'nombre'), ''), c.id) as nombre,
+    (c.geom is not null) as geolocalizado
   from public.centros c
   where c.id = public.centro_de_token(p_token, 'personal') and not c.deleted;
 $$;

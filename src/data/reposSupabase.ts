@@ -32,6 +32,7 @@ import {
 import { supabase } from "./supabaseClient";
 import { getUsuario } from "./authSupabase";
 import { registrarHistorial } from "./historial";
+import { desenvolver, type FilaSync } from "./desenvolver";
 
 // ---- Utilidades ----
 
@@ -487,18 +488,28 @@ async function upsertSnapshotOcupacion(
   }
 }
 
-/** Lee un centro por id desde Supabase. */
+/** Lee un centro por id desde Supabase (incluye `geom` normalizado). */
 async function leerCentro(id: string): Promise<CentroTransitorio | undefined> {
   const { data, error } = await supabase
     .from("centros")
-    .select("data")
+    .select("id, updated_at, updated_by, deleted, data, geom")
     .eq("id", id)
+    .eq("deleted", false)
     .maybeSingle();
   if (error) {
     console.warn("[reposSupabase] leerCentro:", error.message);
     return undefined;
   }
-  return (data?.data as CentroTransitorio | undefined) ?? undefined;
+  if (!data) return undefined;
+  const { deleted: _borrado, ...centro } = desenvolver(data as FilaSync<CentroTransitorio>);
+  return centro as CentroTransitorio;
+}
+
+/** Lectura pública de un centro (p. ej. geolocalización en terreno tras login). */
+export async function obtenerCentroPorId(
+  id: string,
+): Promise<CentroTransitorio | undefined> {
+  return leerCentro(id);
 }
 
 async function upsertCentroVivo(centro: CentroTransitorio): Promise<void> {

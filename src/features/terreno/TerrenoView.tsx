@@ -1,23 +1,30 @@
 // Portal público de trabajo en terreno (/terreno, sin login): una sola URL
-// para repartir a los funcionarios, con dos accesos — el Reporte diario del
-// campamento (app completa, requiere usuario) y el Censo de damnificados
-// (planilla pública). Acepta ?centro=<id> para llegar ya apuntado a un
-// campamento: el censo lo preselecciona y el reporte abre su ficha directo;
-// sin centro en el enlace, "Reporte diario" muestra el mismo selector de
-// campamentos que usa el censo antes de entrar a la app. La primera vez (por
-// dispositivo) el reporte pasa antes por su pantalla de instrucciones, y el
-// pie del menú permite restablecerlas o verlas siempre.
+// para repartir a los funcionarios. Accesos activos: Reporte del campamento
+// y Geolocalización GPS. El Censo queda visible pero bloqueado. Acepta
+// ?centro=<id> / ?t=<token> para llegar ya apuntado a un campamento.
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ClipboardList, Loader2, LockKeyhole, MapPin, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  ClipboardList,
+  Loader2,
+  LockKeyhole,
+  MapPin,
+  MapPinned,
+  Users,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { SelectorCentroLista } from "@/features/censo/SelectorCentroLista";
 import { ReporteInstrucciones } from "@/features/terreno/ReporteInstrucciones";
+import { GeolocalizacionInstrucciones } from "@/features/terreno/GeolocalizacionInstrucciones";
+import { GeolocalizacionCentroPanel } from "@/features/terreno/GeolocalizacionCentroPanel";
 import { listarCentrosCenso, obtenerCentroTerreno, type CentroCenso } from "@/data/reposCenso";
 import { asegurarSesionTerreno } from "@/data/loginTerreno";
 import { tokenTerrenoActual } from "@/lib/tokenTerreno";
 import {
+  INSTRUCCIONES_GEO_KEY,
   INSTRUCCIONES_REPORTE_KEY,
   debeMostrarInstrucciones,
   marcarInstruccionesVistas,
@@ -25,6 +32,9 @@ import {
   setVerInstruccionesSiempre,
   verInstruccionesSiempre,
 } from "@/lib/instruccionesCampo";
+import {
+  centroGeolocalizadoLocal,
+} from "@/lib/geolocalizacionTerreno";
 import { cn } from "@/lib/utils";
 
 function centroDeLaUrl(): string {
@@ -38,7 +48,12 @@ function urlReporteCentro(centroId: string): string {
 const CLASE_BOTON_CUADRADO =
   "flex aspect-square flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-card p-4 text-center shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary active:bg-primary/10";
 
-type Pantalla = "menu" | "instrucciones-reporte" | "selector-reporte";
+type Pantalla =
+  | "menu"
+  | "instrucciones-reporte"
+  | "selector-reporte"
+  | "instrucciones-geo"
+  | "geolocalizar";
 
 export function TerrenoView() {
   const centroParam = useMemo(centroDeLaUrl, []);
@@ -52,17 +67,30 @@ export function TerrenoView() {
   const [centroReporteId, setCentroReporteId] = useState("");
   const [instruccionesSiempre, setInstruccionesSiempre] = useState(verInstruccionesSiempre);
   const [instruccionesRestablecidas, setInstruccionesRestablecidas] = useState(false);
+  const [geolocalizado, setGeolocalizado] = useState(false);
 
   useEffect(() => {
     let cancelado = false;
     const carga = token
       ? obtenerCentroTerreno(token).then((centroDelToken) => {
           if (cancelado) return;
-          if (centroDelToken) setCentros([centroDelToken]);
-          else setErrorCentros("El enlace o código QR no es válido o fue revocado. Solicite el vigente de su campamento.");
+          if (centroDelToken) {
+            setCentros([centroDelToken]);
+            // Solo verde si este dispositivo ya guardó desde el flujo de terreno
+            // (no por tener geom previo en catálogo/BD).
+            setGeolocalizado(centroGeolocalizadoLocal(centroDelToken.id));
+          } else {
+            setErrorCentros(
+              "El enlace o código QR no es válido o fue revocado. Solicite el vigente de su campamento.",
+            );
+          }
         })
       : listarCentrosCenso().then((lista) => {
-          if (!cancelado) setCentros(lista);
+          if (!cancelado) {
+            setCentros(lista);
+            const id = centroParam || lista[0]?.id || "";
+            if (id) setGeolocalizado(centroGeolocalizadoLocal(id));
+          }
         });
     carga
       .catch((err) => {
@@ -79,7 +107,7 @@ export function TerrenoView() {
     return () => {
       cancelado = true;
     };
-  }, [token]);
+  }, [token, centroParam]);
 
   // Con token, el campamento es el del token; sin token, el enlace solo
   // arrastra el centro si existe en la red (evita propagar un id malformado
@@ -89,11 +117,6 @@ export function TerrenoView() {
   // Terminó la carga y no hay ningún campamento accesible: ni token válido ni
   // sesión autorizada. Desde este dispositivo no hay tarea posible.
   const accesoDenegado = !cargandoCentros && centros.length === 0;
-  const urlCenso = token
-    ? `/censo?t=${encodeURIComponent(token)}`
-    : centroValido
-      ? `/censo?centro=${encodeURIComponent(centroValido)}`
-      : "/censo";
 
   const [entrando, setEntrando] = useState(false);
   const [errorEntrar, setErrorEntrar] = useState("");
@@ -130,7 +153,16 @@ export function TerrenoView() {
 
   function abrirReporte() {
     if (debeMostrarInstrucciones(INSTRUCCIONES_REPORTE_KEY)) setPantalla("instrucciones-reporte");
-    else seguirAlReporte();
+    else void seguirAlReporte();
+  }
+
+  function abrirGeolocalizacion() {
+    if (!centroValido) {
+      setErrorEntrar("Abra el enlace o código QR de su campamento para geolocalizarlo.");
+      return;
+    }
+    if (debeMostrarInstrucciones(INSTRUCCIONES_GEO_KEY)) setPantalla("instrucciones-geo");
+    else setPantalla("geolocalizar");
   }
 
   function cambiarInstruccionesSiempre(valor: boolean) {
@@ -144,7 +176,18 @@ export function TerrenoView() {
   }
 
   if (pantalla !== "menu") {
-    const esInstrucciones = pantalla === "instrucciones-reporte";
+    const esInstruccionesReporte = pantalla === "instrucciones-reporte";
+    const esInstruccionesGeo = pantalla === "instrucciones-geo";
+    const esGeo = pantalla === "geolocalizar" || esInstruccionesGeo;
+    const titulo = esGeo ? "Geolocalizar" : "Reporte";
+    const subtitulo = esInstruccionesReporte
+      ? "Cómo llenar el parte del campamento"
+      : esInstruccionesGeo
+        ? "Cómo ubicar el campamento con el GPS"
+        : pantalla === "geolocalizar"
+          ? "Confirme el pin y guarde"
+          : "Seleccione el campamento que va a reportar";
+
     return (
       <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
         <header className="mx-auto flex w-full max-w-xl shrink-0 items-center gap-2 px-4 pb-3 pt-[max(1.25rem,env(safe-area-inset-top))]">
@@ -157,20 +200,34 @@ export function TerrenoView() {
             <ArrowLeft className="size-5" />
           </button>
           <div className="min-w-0">
-            <h1 className="text-base font-semibold leading-tight">Reporte diario</h1>
-            <p className="text-xs text-muted-foreground">
-              {esInstrucciones
-                ? "Cómo llenar el parte del campamento"
-                : "Seleccione el campamento que va a reportar"}
-            </p>
+            <h1 className="text-base font-semibold leading-tight">{titulo}</h1>
+            <p className="text-xs text-muted-foreground">{subtitulo}</p>
           </div>
         </header>
         <main className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col overflow-hidden px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          {esInstrucciones ? (
+          {esInstruccionesReporte ? (
             <ReporteInstrucciones
               onContinuar={() => {
                 marcarInstruccionesVistas(INSTRUCCIONES_REPORTE_KEY);
-                seguirAlReporte();
+                void seguirAlReporte();
+              }}
+            />
+          ) : esInstruccionesGeo ? (
+            <GeolocalizacionInstrucciones
+              nombreCentro={centro?.nombre}
+              onContinuar={() => {
+                marcarInstruccionesVistas(INSTRUCCIONES_GEO_KEY);
+                setPantalla("geolocalizar");
+              }}
+            />
+          ) : pantalla === "geolocalizar" && centroValido ? (
+            <GeolocalizacionCentroPanel
+              centroId={centroValido}
+              centroNombre={centro?.nombre ?? "campamento"}
+              token={token}
+              onGuardado={() => {
+                setGeolocalizado(true);
+                setPantalla("menu");
               }}
             />
           ) : (
@@ -273,7 +330,7 @@ export function TerrenoView() {
               ) : (
                 <ClipboardList className="size-10 text-primary" aria-hidden="true" />
               )}
-              <span className="text-sm font-semibold">Reporte diario</span>
+              <span className="text-sm font-semibold">Reporte</span>
               <span className="flex items-center gap-1 text-[0.6875rem] leading-tight text-muted-foreground">
                 <LockKeyhole className="size-3 shrink-0" aria-hidden="true" />
                 {entrando
@@ -285,16 +342,57 @@ export function TerrenoView() {
                       : "Parte del día · con usuario"}
               </span>
             </button>
-            <a
-              href={urlCenso}
-              className={cn(CLASE_BOTON_CUADRADO, cargandoCentros && "pointer-events-none opacity-70")}
+
+            <button
+              type="button"
+              onClick={abrirGeolocalizacion}
+              disabled={cargandoCentros || !centroValido}
+              className={cn(
+                CLASE_BOTON_CUADRADO,
+                geolocalizado &&
+                  "border-emerald-500/45 bg-emerald-500/10 hover:border-emerald-500/60 hover:bg-emerald-500/15",
+                (cargandoCentros || !centroValido) && "pointer-events-none opacity-70",
+              )}
             >
-              <Users className="size-10 text-primary" aria-hidden="true" />
-              <span className="text-sm font-semibold">Censo</span>
-              <span className="text-[0.6875rem] leading-tight text-muted-foreground">
-                {cargandoCentros ? "Verificando acceso…" : "Registro de damnificados · sin clave"}
+              {geolocalizado ? (
+                <CheckCircle2 className="size-10 text-emerald-500" aria-hidden="true" />
+              ) : (
+                <MapPinned className="size-10 text-primary" aria-hidden="true" />
+              )}
+              <span
+                className={cn(
+                  "text-sm font-semibold",
+                  geolocalizado && "text-emerald-600 dark:text-emerald-400",
+                )}
+              >
+                {geolocalizado ? "Geolocalizado" : "Geolocalizar"}
               </span>
-            </a>
+              <span
+                className={cn(
+                  "text-[0.6875rem] leading-tight",
+                  geolocalizado ? "text-emerald-600/80 dark:text-emerald-400/80" : "text-muted-foreground",
+                )}
+              >
+                {geolocalizado ? "Ubicación guardada · puede actualizar" : "GPS del campamento"}
+              </span>
+            </button>
+
+            <div
+              role="button"
+              aria-disabled="true"
+              aria-label="Censo: acceso desactivado"
+              className={cn(
+                CLASE_BOTON_CUADRADO,
+                "pointer-events-none cursor-not-allowed opacity-55 hover:border-border hover:bg-card",
+              )}
+            >
+              <Users className="size-10 text-muted-foreground" aria-hidden="true" />
+              <span className="text-sm font-semibold text-muted-foreground">Censo</span>
+              <span className="flex items-center gap-1 text-[0.6875rem] leading-tight text-muted-foreground">
+                <LockKeyhole className="size-3 shrink-0" aria-hidden="true" />
+                Acceso desactivado
+              </span>
+            </div>
           </nav>
         )}
 
@@ -305,36 +403,37 @@ export function TerrenoView() {
         )}
 
         {!accesoDenegado && (
-        <section
-          aria-label="Instrucciones de las planillas"
-          className="w-full space-y-2 rounded-xl border border-border bg-card/60 px-4 py-3"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium">Ver instrucciones cada vez</p>
-              <p className="text-xs leading-snug text-muted-foreground">
-                Muestra las pantallas de instrucciones del censo y del reporte en cada entrada.
-              </p>
+          <section
+            aria-label="Instrucciones de las planillas"
+            className="w-full space-y-2 rounded-xl border border-border bg-card/60 px-4 py-3"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Ver instrucciones cada vez</p>
+                <p className="text-xs leading-snug text-muted-foreground">
+                  Muestra las pantallas de instrucciones del reporte y la geolocalización en cada
+                  entrada.
+                </p>
+              </div>
+              <Switch
+                checked={instruccionesSiempre}
+                onCheckedChange={cambiarInstruccionesSiempre}
+                aria-label="Ver instrucciones cada vez"
+              />
             </div>
-            <Switch
-              checked={instruccionesSiempre}
-              onCheckedChange={cambiarInstruccionesSiempre}
-              aria-label="Ver instrucciones cada vez"
-            />
-          </div>
-          {!instruccionesSiempre && (
-            <button
-              type="button"
-              onClick={restablecerInstrucciones}
-              disabled={instruccionesRestablecidas}
-              className="text-xs font-medium text-primary underline-offset-2 hover:underline disabled:text-muted-foreground disabled:no-underline"
-            >
-              {instruccionesRestablecidas
-                ? "Listo: volverán a salir una vez en este dispositivo."
-                : "Volver a mostrar las instrucciones una vez"}
-            </button>
-          )}
-        </section>
+            {!instruccionesSiempre && (
+              <button
+                type="button"
+                onClick={restablecerInstrucciones}
+                disabled={instruccionesRestablecidas}
+                className="text-xs font-medium text-primary underline-offset-2 hover:underline disabled:text-muted-foreground disabled:no-underline"
+              >
+                {instruccionesRestablecidas
+                  ? "Listo: volverán a salir una vez en este dispositivo."
+                  : "Volver a mostrar las instrucciones una vez"}
+              </button>
+            )}
+          </section>
         )}
       </main>
     </div>
