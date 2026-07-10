@@ -1,8 +1,7 @@
 // Pantalla de bienvenida del portal /terreno: tono corporativo e instructivo
 // para funcionarios, antes de la identificación personal.
 
-import { useState } from "react";
-import { ArrowRight, ClipboardList, Loader2, MapPin, RefreshCw, Shield } from "lucide-react";
+import { ArrowRight, ClipboardList, MapPin, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,8 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { actualizarAppCampo } from "@/lib/actualizarAppCampo";
-import { cn } from "@/lib/utils";
 
 interface Props {
   nombreCentro: string;
@@ -22,23 +19,6 @@ interface Props {
 
 /** Bienvenida breve al portal de trabajo en el campamento. */
 export function TerrenoBienvenida({ nombreCentro, onContinuar }: Props) {
-  const [actualizandoApp, setActualizandoApp] = useState(false);
-  const [errorActualizar, setErrorActualizar] = useState<string | null>(null);
-
-  async function forzarActualizacionApp() {
-    if (actualizandoApp) return;
-    setErrorActualizar(null);
-    setActualizandoApp(true);
-    try {
-      await actualizarAppCampo();
-    } catch {
-      setActualizandoApp(false);
-      setErrorActualizar(
-        "No se pudo limpiar la caché. Cierre la app y ábrala de nuevo desde el enlace.",
-      );
-    }
-  }
-
   return (
     <Card className="flex min-h-0 flex-1 flex-col overflow-hidden shadow-lg">
       <CardHeader className="shrink-0 space-y-3 pb-3">
@@ -82,45 +62,6 @@ export function TerrenoBienvenida({ nombreCentro, onContinuar }: Props) {
             </ul>
           </div>
         </div>
-
-        <section
-          aria-label="Actualizar aplicación"
-          className="w-full space-y-2 rounded-xl border border-border bg-card/60 px-4 py-3"
-        >
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Actualizar aplicación</p>
-            <p className="text-xs leading-snug text-muted-foreground">
-              Si no ve los cambios recientes, borre la caché de esta página y descargue la
-              versión nueva.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void forzarActualizacionApp()}
-            disabled={actualizandoApp}
-            className={cn(
-              "flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-background text-sm font-medium transition-colors",
-              "hover:bg-accent disabled:opacity-60",
-            )}
-          >
-            {actualizandoApp ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                Actualizando…
-              </>
-            ) : (
-              <>
-                <RefreshCw className="size-4" />
-                Borrar caché y actualizar
-              </>
-            )}
-          </button>
-          {errorActualizar && (
-            <p className="text-xs text-destructive" role="alert">
-              {errorActualizar}
-            </p>
-          )}
-        </section>
       </CardContent>
 
       <CardFooter className="shrink-0 border-t border-border pt-4">

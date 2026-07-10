@@ -18,6 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { SelectorCentroLista } from "@/features/censo/SelectorCentroLista";
 import { ReporteInstrucciones } from "@/features/terreno/ReporteInstrucciones";
@@ -45,7 +46,10 @@ import {
 } from "@/lib/instruccionesCampo";
 import { centroGeolocalizadoLocal } from "@/lib/geolocalizacionTerreno";
 import { formatearHoraActualizacionTerreno } from "@/lib/terrenoActualizacion";
-import { actualizarAppCampo } from "@/lib/actualizarAppCampo";
+import {
+  actualizarAppCampo,
+  type ProgresoActualizacionApp,
+} from "@/lib/actualizarAppCampo";
 import {
   cargarSesionOperadorTerreno,
   funcionarioTerrenoVacio,
@@ -128,6 +132,9 @@ export function TerrenoView() {
   const [identificando, setIdentificando] = useState(false);
   const [errorIdentificacion, setErrorIdentificacion] = useState("");
   const [actualizandoApp, setActualizandoApp] = useState(false);
+  const [progresoApp, setProgresoApp] = useState<ProgresoActualizacionApp | null>(
+    null,
+  );
 
   // Quita el marcador de cache-bust tras «Borrar caché y actualizar».
   useEffect(() => {
@@ -365,10 +372,16 @@ export function TerrenoView() {
   async function forzarActualizacionApp() {
     if (actualizandoApp) return;
     setActualizandoApp(true);
+    setProgresoApp({
+      porcentaje: 0,
+      paso: "service_worker",
+      etiqueta: "Preparando…",
+    });
     try {
-      await actualizarAppCampo();
+      await actualizarAppCampo(setProgresoApp);
     } catch {
       setActualizandoApp(false);
+      setProgresoApp(null);
       setErrorEntrar(
         "No se pudo limpiar la caché. Cierre la app y ábrala de nuevo desde el enlace.",
       );
@@ -839,37 +852,54 @@ export function TerrenoView() {
 
         {!accesoDenegado && (
           <section
-            aria-label="Actualizar aplicación"
-            className="w-full space-y-2 rounded-xl border border-border bg-card/60 px-4 py-3"
+            aria-label="Actualizar aplicación (opcional)"
+            className="w-full space-y-2 rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-3"
           >
             <div className="min-w-0">
-              <p className="text-sm font-medium">Actualizar aplicación</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Actualizar aplicación{" "}
+                <span className="font-normal">(opcional)</span>
+              </p>
               <p className="text-xs leading-snug text-muted-foreground">
-                Si no ve los cambios recientes, borre la caché de esta página y descargue la
-                versión nueva.
+                Solo si no ve cambios recientes. No es necesario al entrar por
+                primera vez.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => void forzarActualizacionApp()}
-              disabled={actualizandoApp}
-              className={cn(
-                "flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-background text-sm font-medium transition-colors",
-                "hover:bg-accent disabled:opacity-60",
-              )}
-            >
-              {actualizandoApp ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Actualizando…
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="size-4" />
-                  Borrar caché y actualizar
-                </>
-              )}
-            </button>
+            {actualizandoApp && progresoApp ? (
+              <div
+                className="space-y-2"
+                role="status"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="min-w-0 truncate text-muted-foreground">
+                    {progresoApp.etiqueta}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-foreground">
+                    {progresoApp.porcentaje}%
+                  </span>
+                </div>
+                <Progress
+                  value={progresoApp.porcentaje}
+                  className="h-2"
+                  aria-label={`Progreso de actualización: ${progresoApp.porcentaje}%`}
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void forzarActualizacionApp()}
+                disabled={actualizandoApp}
+                className={cn(
+                  "flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-background text-sm font-medium transition-colors",
+                  "hover:bg-accent disabled:opacity-60",
+                )}
+              >
+                <RefreshCw className="size-4" />
+                Borrar caché y actualizar
+              </button>
+            )}
           </section>
         )}
       </main>
