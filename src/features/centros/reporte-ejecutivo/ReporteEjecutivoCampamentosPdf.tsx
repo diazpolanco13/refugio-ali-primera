@@ -1199,7 +1199,7 @@ export function ReporteEjecutivoCampamentosPdf({
               <Text style={[styles.title, { fontSize: 13 }]}>Situación de la red</Text>
             </View>
             <View style={styles.headerRight}>
-              <Text style={styles.pill}>{n(reporte.filasRed.length)} campamentos</Text>
+              <Text style={styles.pill}>{n(reporte.kpis.centrosTotal)} campamentos</Text>
               <Text
                 style={styles.smallMuted}
                 render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}

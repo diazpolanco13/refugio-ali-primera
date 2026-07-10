@@ -44,6 +44,11 @@ import {
   totalVulnerables,
   type Vulnerables,
 } from "./tipos";
+import {
+  agruparPorUnidadConteo,
+  contarUnidadesCon,
+  marcadorOcupacionUnidad,
+} from "./complejosCentros";
 
 export interface EventoReporteEjecutivo {
   centro_id: string;
@@ -284,10 +289,13 @@ function conteosOcupacionRed(
 ): OcupacionRedEjecutiva {
   let activo = 0;
   let sinRefugiados = 0;
-  for (const centro of centros) {
-    const snap = snapshots.find((s) => s.centro_id === centro.id && s.dia === dia);
-    const base = snap ? aplicarParteActualACentro(centro, snap) : centro;
-    if (marcadorOcupacionCentro(base) === "activo") activo += 1;
+  for (const miembros of agruparPorUnidadConteo(centros).values()) {
+    const marcadores = miembros.map((centro) => {
+      const snap = snapshots.find((s) => s.centro_id === centro.id && s.dia === dia);
+      const base = snap ? aplicarParteActualACentro(centro, snap) : centro;
+      return marcadorOcupacionCentro(base);
+    });
+    if (marcadorOcupacionUnidad(marcadores) === "activo") activo += 1;
     else sinRefugiados += 1;
   }
   return { activo, sinRefugiados };
@@ -347,9 +355,10 @@ function sumarPersonal(centros: CentroTransitorio[]): ReporteEjecutivoCampamento
 
 function agruparPorGrupo(centros: CentroTransitorio[]): GrupoEjecutivo[] {
   const grupos = new Map<string, GrupoEjecutivo>();
-  for (const centro of centros) {
-    const c = normalizarCentro(centro);
-    const grupo = centro.grupo?.trim() || "Sin grupo";
+  for (const miembros of agruparPorUnidadConteo(centros).values()) {
+    const representante = miembros[0];
+    if (!representante) continue;
+    const grupo = representante.grupo?.trim() || "Sin grupo";
     const fila = grupos.get(grupo) ?? {
       grupo,
       campamentos: 0,
@@ -357,8 +366,11 @@ function agruparPorGrupo(centros: CentroTransitorio[]): GrupoEjecutivo[] {
       familias: 0,
     };
     fila.campamentos += 1;
-    fila.refugiados += poblacionCentro(c);
-    fila.familias += c.familias_ocupadas;
+    for (const centro of miembros) {
+      const c = normalizarCentro(centro);
+      fila.refugiados += poblacionCentro(c);
+      fila.familias += c.familias_ocupadas;
+    }
     grupos.set(grupo, fila);
   }
   return [...grupos.values()].sort((a, b) => b.refugiados - a.refugiados);
@@ -366,9 +378,10 @@ function agruparPorGrupo(centros: CentroTransitorio[]): GrupoEjecutivo[] {
 
 function agruparPorCuerpo(centros: CentroTransitorio[]): CuerpoEjecutivo[] {
   const cuerpos = new Map<string, CuerpoEjecutivo>();
-  for (const centro of centros) {
-    const c = normalizarCentro(centro);
-    const cuerpo = metaCuerpoDe(centro.cuerpo).label;
+  for (const miembros of agruparPorUnidadConteo(centros).values()) {
+    const representante = miembros[0];
+    if (!representante) continue;
+    const cuerpo = metaCuerpoDe(representante.cuerpo).label;
     const fila = cuerpos.get(cuerpo) ?? {
       cuerpo,
       campamentos: 0,
@@ -376,8 +389,11 @@ function agruparPorCuerpo(centros: CentroTransitorio[]): CuerpoEjecutivo[] {
       familias: 0,
     };
     fila.campamentos += 1;
-    fila.refugiados += poblacionCentro(c);
-    fila.familias += c.familias_ocupadas;
+    for (const centro of miembros) {
+      const c = normalizarCentro(centro);
+      fila.refugiados += poblacionCentro(c);
+      fila.familias += c.familias_ocupadas;
+    }
     cuerpos.set(cuerpo, fila);
   }
   return [...cuerpos.values()].sort(
@@ -415,14 +431,22 @@ function resumenDiario({
   };
 }
 
-function conteoSiNo(
+function conteoSiNoUnidades(
+  centros: CentroTransitorio[],
   controles: ReporteControlDia[],
   campo: "captahuella" | "juez_paz" | "servicio_medico" | "ambulancia",
-  totalCampamentos: number,
 ): ConteoSiNo {
-  const si = controles.filter((c) => c[campo] === true).length;
-  const no = controles.filter((c) => c[campo] === false).length;
-  return { si, no, sinReporte: Math.max(0, totalCampamentos - si - no) };
+  const controlPorCentro = new Map(controles.map((c) => [c.centro_id, c]));
+  let si = 0;
+  let no = 0;
+  let sinReporte = 0;
+  for (const miembros of agruparPorUnidadConteo(centros).values()) {
+    const valores = miembros.map((m) => controlPorCentro.get(m.id)?.[campo]);
+    if (valores.some((v) => v === true)) si += 1;
+    else if (valores.some((v) => v === false)) no += 1;
+    else sinReporte += 1;
+  }
+  return { si, no, sinReporte };
 }
 
 export function construirReporteEjecutivoCampamentos({
@@ -482,11 +506,13 @@ export function construirReporteEjecutivoCampamentos({
   const nombreDe = new Map(centrosConParte.map((c) => [c.id, c.nombre]));
 
   const control: ControlEjecutivo = {
-    campamentosRevisados: controlesDia.filter((c) => c.revisado).length,
-    captahuella: conteoSiNo(controlesDia, "captahuella", centros.length),
-    juezPaz: conteoSiNo(controlesDia, "juez_paz", centros.length),
-    servicioMedico: conteoSiNo(controlesDia, "servicio_medico", centros.length),
-    ambulancia: conteoSiNo(controlesDia, "ambulancia", centros.length),
+    campamentosRevisados: contarUnidadesCon(centrosConParte, (c) =>
+      Boolean(controlPorCentro.get(c.id)?.revisado),
+    ),
+    captahuella: conteoSiNoUnidades(centrosConParte, controlesDia, "captahuella"),
+    juezPaz: conteoSiNoUnidades(centrosConParte, controlesDia, "juez_paz"),
+    servicioMedico: conteoSiNoUnidades(centrosConParte, controlesDia, "servicio_medico"),
+    ambulancia: conteoSiNoUnidades(centrosConParte, controlesDia, "ambulancia"),
   };
 
   const filasRed: FilaRedEjecutiva[] = centrosConParte
@@ -569,12 +595,16 @@ export function construirReporteEjecutivoCampamentos({
   );
 
   const unidadesMap = new Map<string, UnidadSebinEjecutiva>();
-  for (const centro of centrosConParte) {
-    const unidad = metaUnidadSebinDe(centro.supervision?.unidad_sebin);
+  for (const miembros of agruparPorUnidadConteo(centrosConParte).values()) {
+    const representante = miembros[0];
+    if (!representante) continue;
+    const unidad = metaUnidadSebinDe(representante.supervision?.unidad_sebin);
     const etiqueta = unidad.clave !== "sin_asignar" ? unidad.label : "Sin unidad asignada";
     const fila = unidadesMap.get(etiqueta) ?? { unidad: etiqueta, campamentos: 0, refugiados: 0 };
     fila.campamentos += 1;
-    fila.refugiados += poblacionCentro(normalizarCentro(centro));
+    for (const centro of miembros) {
+      fila.refugiados += poblacionCentro(normalizarCentro(centro));
+    }
     unidadesMap.set(etiqueta, fila);
   }
   const unidadesSebin = [...unidadesMap.values()].sort(
@@ -646,7 +676,7 @@ export function construirReporteEjecutivoCampamentos({
     novedadesDetalle,
     requerimientosPorCategoria,
     trabajosRed,
-    partesDelDia: diasConParteHoy.size,
+    partesDelDia: contarUnidadesCon(centrosConParte, (c) => diasConParteHoy.has(c.id)),
     unidadesSebin,
     censo: censoEstados,
     ocupacionRed: conteosOcupacionRed(centros, snapshots, dia),

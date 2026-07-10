@@ -770,17 +770,6 @@ export function ReportesDiariosRedView() {
   const { requerimientos: requerimientosRed } = useRequerimientosSeguimiento({ soloActivos: true });
   const { casos: casosSaludRed } = useCasosSaludCentros({ soloActivos: true });
   const { resumenes: censoResumenes } = useCensoRedResumen();
-  const censoEstados = useMemo(() => {
-    if (!censoResumenes.length) return null;
-    const conteo = { completados: 0, enCurso: 0, sinIniciar: 0 };
-    for (const r of censoResumenes) {
-      const estado = estadoCensoCentro(r);
-      if (estado === "completado_declarado" || estado === "sin_ocupantes") conteo.completados += 1;
-      else if (estado === "en_curso") conteo.enCurso += 1;
-      else conteo.sinIniciar += 1;
-    }
-    return conteo;
-  }, [censoResumenes]);
 
   const [generandoPdf, setGenerandoPdf] = useState(false);
   const [menuCompartirAbierto, setMenuCompartirAbierto] = useState(false);
@@ -1096,6 +1085,36 @@ export function ReportesDiariosRedView() {
     supervisoresPorUsername,
     terminoBusqueda,
   ]);
+
+  /** Censo SEBIN por unidad de conteo (complejo = 1 campamento). */
+  const censoEstados = useMemo(() => {
+    if (!censoResumenes.length) return null;
+    const porCentro = new Map(censoResumenes.map((r) => [r.centroId, r]));
+    const conteo = { completados: 0, enCurso: 0, sinIniciar: 0 };
+    for (const miembros of agruparPorUnidadConteo(centrosEnAlcance).values()) {
+      const estados = miembros.map((c) => {
+        const resumen = porCentro.get(c.id);
+        return resumen ? estadoCensoCentro(resumen) : ("sin_iniciar" as const);
+      });
+      if (
+        estados.every((e) => e === "completado_declarado" || e === "sin_ocupantes")
+      ) {
+        conteo.completados += 1;
+      } else if (
+        estados.some(
+          (e) =>
+            e === "en_curso" ||
+            e === "completado_declarado" ||
+            e === "sin_ocupantes",
+        )
+      ) {
+        conteo.enCurso += 1;
+      } else {
+        conteo.sinIniciar += 1;
+      }
+    }
+    return conteo;
+  }, [censoResumenes, centrosEnAlcance]);
 
   /** Total oficial en el alcance actual (complejos = 1). */
   const totalCampamentos = useMemo(
