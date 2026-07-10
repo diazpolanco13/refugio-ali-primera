@@ -6,7 +6,7 @@ import {
   VALOR_SIN_ASIGNAR,
   type OpcionFiltroMulti,
 } from "@/components/FiltroMultiBusqueda";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import {
   BedDouble,
@@ -260,6 +260,27 @@ function KpiRed({
       )}
     </div>
   );
+}
+
+function claseChipFiltro(activo: boolean) {
+  return cn(
+    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all",
+    activo
+      ? "shadow-sm ring-2 ring-offset-1 ring-offset-background"
+      : "opacity-65 hover:opacity-100 hover:bg-muted/45",
+  );
+}
+
+function estiloChipFiltro(activo: boolean, color: string): CSSProperties {
+  return activo
+    ? {
+        borderColor: color,
+        background: `${color}2e`,
+        color,
+        boxShadow: `0 0 0 1px ${color}66`,
+        ["--tw-ring-color" as string]: `${color}55`,
+      }
+    : { borderColor: `${color}33`, background: `${color}0a` };
 }
 
 /**
@@ -776,30 +797,39 @@ export function TableroCentros({
             </div>
           </div>
 
-          <div className="hidden flex-wrap items-center gap-1.5 md:flex">
-            <span className="mr-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <div className="hidden flex-wrap items-center gap-2 md:flex">
+            <span className="mr-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Nivel
             </span>
-            {ORDEN_NIVELES.map((nivel) => (
-              <button
-                key={nivel}
-                type="button"
-                onClick={() => setFiltroNivel(filtroNivel === nivel ? null : nivel)}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors",
-                  filtroNivel === nivel
-                    ? "border-primary/60 bg-primary/10"
-                    : "border-border bg-background/80 hover:bg-muted/40",
-                )}
-              >
-                <span
-                  className="size-1.5 rounded-full"
-                  style={{ background: COLOR_NIVEL[nivel] }}
-                />
-                <span className="text-muted-foreground">{ETIQUETA_NIVEL[nivel]}</span>
-                <span className="font-bold tabular-nums text-foreground">{conteo[nivel]}</span>
-              </button>
-            ))}
+            {ORDEN_NIVELES.map((nivel) => {
+              const activo = filtroNivel === nivel;
+              const color = COLOR_NIVEL[nivel];
+              return (
+                <button
+                  key={nivel}
+                  type="button"
+                  onClick={() => setFiltroNivel(filtroNivel === nivel ? null : nivel)}
+                  className={claseChipFiltro(activo)}
+                  style={estiloChipFiltro(activo, color)}
+                >
+                  <span
+                    className="size-2.5 rounded-full ring-2 ring-background"
+                    style={{ background: color }}
+                  />
+                  <span className={activo ? "font-semibold" : "text-muted-foreground"}>
+                    {ETIQUETA_NIVEL[nivel]}
+                  </span>
+                  <span
+                    className={cn(
+                      "tabular-nums",
+                      activo ? "font-bold" : "font-bold text-foreground",
+                    )}
+                  >
+                    {conteo[nivel]}
+                  </span>
+                </button>
+              );
+            })}
             <BuscadorCampamento
               valor={busqueda}
               onChange={setBusqueda}
@@ -827,13 +857,42 @@ export function TableroCentros({
                   : "Orden alfabético"}
             </p>
           </div>
-          <Badge variant="outline" className="hidden gap-1 tabular-nums sm:inline-flex">
-            {vista === "grid" ? (
-              <LayoutGrid className="size-3 text-muted-foreground" />
-            ) : (
-              <List className="size-3 text-muted-foreground" />
+          <Badge
+            variant="outline"
+            className={cn(
+              "hidden h-7 gap-1.5 px-2.5 text-xs tabular-nums sm:inline-flex",
+              hayFiltros || filas.length !== centros.length
+                ? "border-primary/70 bg-primary/15 font-semibold text-foreground shadow-sm ring-1 ring-primary/35"
+                : "border-border/80 bg-muted/50 font-medium text-foreground",
             )}
-            {filas.length} visible(s)
+          >
+            {vista === "grid" ? (
+              <LayoutGrid
+                className={cn(
+                  "size-3.5",
+                  hayFiltros || filas.length !== centros.length
+                    ? "text-primary"
+                    : "text-muted-foreground",
+                )}
+              />
+            ) : (
+              <List
+                className={cn(
+                  "size-3.5",
+                  hayFiltros || filas.length !== centros.length
+                    ? "text-primary"
+                    : "text-muted-foreground",
+                )}
+              />
+            )}
+            <span>
+              {filas.length}
+              <span className="font-normal text-muted-foreground">
+                {" "}
+                / {centros.length}
+              </span>{" "}
+              visible(s)
+            </span>
           </Badge>
         </div>
 
