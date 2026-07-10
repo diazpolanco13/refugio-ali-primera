@@ -18,7 +18,7 @@ import { RefugiadoForm } from "@/features/refugiados/RefugiadoForm";
 import { FichaRefugiadoView } from "@/features/refugiados/FichaRefugiadoView";
 import { useSupabaseQueryConEstado } from "@/data/useSupabaseQuery";
 import { FichaCentroSkeleton } from "./FichaCentroSkeleton";
-import { claveDia } from "@/data/reposSupabase";
+import { claveDia, guardarCentro } from "@/data/reposSupabase";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { useReportesCentros } from "@/data/useReportesCentros";
 import { useReportesControlDia } from "@/data/useReportesControlDia";
@@ -69,6 +69,8 @@ import { CensoCentroPanel } from "@/features/censo/CensoCentroPanel";
 import { cn } from "@/lib/utils";
 import { ReporteDiarioForm } from "./ReporteDiarioForm";
 import { VisorFechaReporte } from "./VisorFechaReporte";
+import { BotonEditarSeccion } from "./EdicionSeccionCentro";
+import { DialogoEdicionNombreCentro } from "./DialogoEdicionNombreCentro";
 
 interface Props {
   sesion: Sesion;
@@ -122,6 +124,11 @@ export function FichaCentroView({ sesion }: Props) {
   const [diaReporte, setDiaReporte] = useState(() =>
     diaDesdeParam(searchParams.get("dia"), hoyClave),
   );
+  const [editandoNombre, setEditandoNombre] = useState(false);
+  const [guardandoNombre, setGuardandoNombre] = useState(false);
+  const [errorNombre, setErrorNombre] = useState<string | null>(null);
+  /** Nombre local tras guardar: no esperar Realtime para actualizar el título. */
+  const [nombreLocal, setNombreLocal] = useState<string | null>(null);
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
   const {
@@ -148,6 +155,15 @@ export function FichaCentroView({ sesion }: Props) {
     () => centros.find((c) => c.id === id) ?? null,
     [centros, id],
   );
+
+  useEffect(() => {
+    setNombreLocal(null);
+  }, [centro?.id]);
+
+  useEffect(() => {
+    if (!centro || nombreLocal == null) return;
+    if (centro.nombre === nombreLocal) setNombreLocal(null);
+  }, [centro, nombreLocal]);
 
   const puedeEditar = centro != null && puedeEditarCentro(sesion.user, centro.id);
   const puedeEditarPasado = puedeEditarReportesPasados(sesion.user);
@@ -279,10 +295,31 @@ export function FichaCentroView({ sesion }: Props) {
     setSearchParams(next, { replace: true });
   }
 
+  async function guardarNombreCentro(nombre: string) {
+    if (!centro) return;
+    setGuardandoNombre(true);
+    setErrorNombre(null);
+    try {
+      await guardarCentro({ ...centro, nombre });
+      setNombreLocal(nombre);
+      setEditandoNombre(false);
+    } catch (err) {
+      setErrorNombre(
+        err instanceof Error ? err.message : "No se pudo guardar el nombre.",
+      );
+    } finally {
+      setGuardandoNombre(false);
+    }
+  }
+
   function cerrarReporte() {
     if (esTerreno) {
+      // /terreno es otro entry point (censo-entry): hay que salir del SPA
+      // principal; navigate() no monta TerrenoView y cae en el catch-all.
       const token = tokenTerrenoActual();
-      navigate(token ? `/terreno?t=${encodeURIComponent(token)}` : "/terreno");
+      window.location.assign(
+        token ? `/terreno?t=${encodeURIComponent(token)}` : "/terreno",
+      );
       return;
     }
     setSearchParams({ vista: "reporte" }, { replace: true });
@@ -359,7 +396,8 @@ export function FichaCentroView({ sesion }: Props) {
     );
   }
 
-  const titulo = `${centro.nro != null ? `N.° ${centro.nro} · ` : ""}${centro.nombre}`;
+  const nombreMostrado = nombreLocal ?? centro.nombre;
+  const titulo = `${centro.nro != null ? `N.° ${centro.nro} · ` : ""}${nombreMostrado}`;
   const etiquetaBotonReporte =
     hoyEstado === "pendiente" ? "Reportar hoy" : "Editar reporte de hoy";
   const esReporteTab = seccionActiva === "reporte";
@@ -493,6 +531,17 @@ export function FichaCentroView({ sesion }: Props) {
         icono={LayoutGrid}
         acento="sky"
         titulo={titulo}
+        tituloExtra={
+          puedeEditar ? (
+            <BotonEditarSeccion
+              titulo="Editar nombre del campamento"
+              onClick={() => {
+                setErrorNombre(null);
+                setEditandoNombre(true);
+              }}
+            />
+          ) : undefined
+        }
         descripcion={centro.parroquia || "Ficha del campamento en la red"}
         acciones={
           esReporteTab ? (
@@ -570,6 +619,21 @@ export function FichaCentroView({ sesion }: Props) {
           )
         }
       />
+
+      {puedeEditar && (
+        <DialogoEdicionNombreCentro
+          abierto={editandoNombre}
+          centro={{ ...centro, nombre: nombreMostrado }}
+          guardando={guardandoNombre}
+          error={errorNombre}
+          onCerrar={() => {
+            if (guardandoNombre) return;
+            setEditandoNombre(false);
+            setErrorNombre(null);
+          }}
+          onGuardar={(nombre) => void guardarNombreCentro(nombre)}
+        />
+      )}
 
       <Tabs
         value={seccionActiva}

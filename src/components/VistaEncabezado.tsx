@@ -57,6 +57,8 @@ const ESTILOS_ACENTO: Record<
 interface Props {
   icono: LucideIcon;
   titulo: string;
+  /** Contenido junto al título (p. ej. botón editar), fuera del truncate. */
+  tituloExtra?: ReactNode;
   descripcion?: string;
   acento?: AcentoVista;
   acciones?: ReactNode;
@@ -70,6 +72,7 @@ interface Props {
 export function VistaEncabezado({
   icono: Icono,
   titulo,
+  tituloExtra,
   descripcion,
   acento = "primary",
   acciones,
@@ -111,6 +114,7 @@ export function VistaEncabezado({
               <Icono className={cn(compacto ? "size-3.5 sm:size-4" : "size-4", est.icono)} />
             </span>
             <span className="min-w-0 truncate">{titulo}</span>
+            {tituloExtra ? <span className="shrink-0">{tituloExtra}</span> : null}
             {compacto && debajo ? (
               <span className="shrink-0 sm:hidden">{debajo}</span>
             ) : null}
