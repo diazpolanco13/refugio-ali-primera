@@ -1,7 +1,7 @@
 // Estado (localStorage) de las pantallas de instrucciones de las vistas de
 // campo (/censo y el reporte diario desde /terreno). Por defecto se muestran
-// una sola vez por dispositivo; el portal /terreno permite volver a verlas
-// (restablecer) o verlas siempre en cada entrada.
+// siempre en cada entrada (primera visita); el usuario puede desactivar el
+// toggle o restablecerlas una sola vez desde /terreno.
 
 export const INSTRUCCIONES_CENSO_KEY = "censo_instrucciones_v1";
 export const INSTRUCCIONES_REPORTE_KEY = "reporte_instrucciones_v1";
@@ -10,18 +10,24 @@ export const INSTRUCCIONES_AUTORIDADES_KEY = "autoridades_instrucciones_v1";
 export const INSTRUCCIONES_CAPACIDAD_KEY = "capacidad_instrucciones_v1";
 const SIEMPRE_KEY = "instrucciones_campo_siempre_v1";
 
+/**
+ * Preferencia «ver instrucciones cada vez».
+ * Sin valor guardado (primera visita) → activo. Solo queda off si el usuario
+ * lo desactivó explícitamente (`"0"`).
+ */
 export function verInstruccionesSiempre(): boolean {
   try {
-    return localStorage.getItem(SIEMPRE_KEY) === "1";
+    const v = localStorage.getItem(SIEMPRE_KEY);
+    if (v === null) return true;
+    return v === "1";
   } catch {
-    return false;
+    return true;
   }
 }
 
 export function setVerInstruccionesSiempre(valor: boolean): void {
   try {
-    if (valor) localStorage.setItem(SIEMPRE_KEY, "1");
-    else localStorage.removeItem(SIEMPRE_KEY);
+    localStorage.setItem(SIEMPRE_KEY, valor ? "1" : "0");
   } catch {
     /* ignorar */
   }
