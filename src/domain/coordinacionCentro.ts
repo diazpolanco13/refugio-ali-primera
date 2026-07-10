@@ -59,18 +59,19 @@ export const CATEGORIAS_RESPONSABILIDAD_COORDINACION: {
   label: string;
   color: string;
 }[] = [
+  { valor: "comunitaria", label: "Ente encargado", color: "#a855f7" },
   { valor: "supervision_rotatoria", label: "Supervisión rotatoria", color: "#ca8a04" },
   { valor: "analista_sae", label: "Analista de la SAE", color: "#0d9488" },
   { valor: "politica", label: "Responsabilidad política", color: "#3b82f6" },
   { valor: "seguridad", label: "Seguridad física", color: "#4d7c0f" },
   { valor: "salud", label: "Coordinación de salud", color: "#e11d48" },
   { valor: "justicia", label: "Coordinación de justicia", color: "#d97706" },
-  { valor: "comunitaria", label: "Responsabilidad comunitaria", color: "#a855f7" },
 ];
 
 /**
  * Pestañas de la UI de Coordinación. Supervisión muestra la asignación
  * operativa (`cuerpo` + `supervision.*`); el resto usa responsables_coordinacion.
+ * Orden: Ente encargado primero; Supervisión sin cambios de contenido.
  */
 export type IdPestanaCoordinacion = Exclude<
   CategoriaResponsabilidadCoordinacion,
@@ -84,6 +85,13 @@ export const PESTANAS_COORDINACION: {
   color: string;
   categorias: CategoriaResponsabilidadCoordinacion[];
 }[] = [
+  {
+    id: "comunitaria",
+    label: "Ente encargado",
+    labelCorto: "Ente encargado",
+    color: "#a855f7",
+    categorias: ["comunitaria"],
+  },
   {
     id: "supervision_rotatoria",
     label: "Supervisión",
@@ -118,13 +126,6 @@ export const PESTANAS_COORDINACION: {
     labelCorto: "Justicia",
     color: "#d97706",
     categorias: ["justicia"],
-  },
-  {
-    id: "comunitaria",
-    label: "Responsabilidad comunitaria",
-    labelCorto: "Comunitaria",
-    color: "#a855f7",
-    categorias: ["comunitaria"],
   },
 ];
 

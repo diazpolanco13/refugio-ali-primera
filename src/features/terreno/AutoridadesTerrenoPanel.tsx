@@ -1,5 +1,5 @@
-// Formulario móvil del directorio de autoridades en /terreno: solo Política,
-// Seguridad, Salud, Justicia y Comunitaria (sin Supervisión).
+// Formulario móvil del directorio de autoridades en /terreno: Ente encargado,
+// Política, Seguridad, Salud y Justicia (sin Supervisión).
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -51,7 +51,7 @@ function etiquetaAgregar(pestanaId: IdPestanaCoordinacion): string {
     case "justicia":
       return "Agregar responsable de justicia";
     case "comunitaria":
-      return "Agregar responsable comunitario";
+      return "Agregar ente encargado";
     default:
       return "Agregar responsable";
   }
@@ -78,7 +78,7 @@ export function AutoridadesTerrenoPanel({
   const [centro, setCentro] = useState<CentroTransitorio | null>(null);
   const [responsables, setResponsables] = useState<ResponsableCoordinacion[]>([]);
   const [sinAutoridad, setSinAutoridad] = useState<string[]>([]);
-  const [pestana, setPestana] = useState<IdPestanaCoordinacion>("politica");
+  const [pestana, setPestana] = useState<IdPestanaCoordinacion>("comunitaria");
   const [vista, setVista] = useState<Vista>("lista");
   const [borrador, setBorrador] = useState<ResponsableCoordinacion | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -218,7 +218,7 @@ export function AutoridadesTerrenoPanel({
     if (ok) {
       setPestana(
         PESTANAS_AUTORIDADES_TERRENO.find((p) => p.categorias.includes(normalizado.categoria))
-          ?.id ?? "politica",
+          ?.id ?? "comunitaria",
       );
       setVista("lista");
       setBorrador(null);
@@ -326,7 +326,7 @@ export function AutoridadesTerrenoPanel({
             Autoridades de {centroNombre}
           </CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
-            Política, Seguridad, Salud, Justicia y Comunitaria.
+            Ente encargado, Política, Seguridad, Salud y Justicia.
           </p>
         </div>
         <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">

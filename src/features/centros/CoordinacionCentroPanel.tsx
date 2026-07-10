@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Building2,
   ClipboardList,
   Landmark,
   Loader2,
@@ -8,7 +9,6 @@ import {
   Scale,
   Shield,
   Stethoscope,
-  Users,
 } from "lucide-react";
 import { guardarCentro } from "@/data/reposSupabase";
 import { normalizarCentro, type CentroTransitorio } from "@/domain/centrosTransitorios";
@@ -50,12 +50,12 @@ function firmaResponsables(lista: ResponsableCoordinacion[]): string {
 type IdPestana = IdPestanaCoordinacion;
 
 const ICONO_PESTANA: Record<IdPestana, React.ReactNode> = {
+  comunitaria: <Building2 className="size-3.5 shrink-0" />,
   supervision_rotatoria: <RotateCw className="size-3.5 shrink-0" />,
   politica: <Landmark className="size-3.5 shrink-0" />,
   seguridad: <Shield className="size-3.5 shrink-0" />,
   salud: <Stethoscope className="size-3.5 shrink-0" />,
   justicia: <Scale className="size-3.5 shrink-0" />,
-  comunitaria: <Users className="size-3.5 shrink-0" />,
 };
 
 function contarPorPestana(
@@ -93,7 +93,7 @@ function descripcionPestana(id: IdPestana): string {
     case "justicia":
       return "TJS, Ministerio Público y Defensoría del Pueblo.";
     case "comunitaria":
-      return "Coordinación comunitaria y funcionarios de apoyo.";
+      return "Ente u organismo encargado del campamento y funcionarios de apoyo.";
     default:
       return "";
   }

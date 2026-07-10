@@ -58,7 +58,7 @@ export function AutoridadesInstrucciones({ onContinuar, nombreCentro }: Props) {
         <BloqueInstruccion icono={BookOpen} titulo="¿Qué se registra?">
           Las autoridades de{" "}
           <strong className="font-medium text-foreground">
-            Política, Seguridad, Salud, Justicia y Comunitaria
+            Ente encargado, Política, Seguridad, Salud y Justicia
           </strong>
           . La supervisión rotatoria se gestiona en la aplicación con usuario.
         </BloqueInstruccion>

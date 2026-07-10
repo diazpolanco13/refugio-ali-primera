@@ -455,7 +455,7 @@ export function TerrenoView() {
             : pantalla === "geolocalizar"
               ? "Confirme el pin y guarde"
               : pantalla === "autoridades"
-                ? "Política, Seguridad, Salud, Justicia y Comunitaria"
+                ? "Ente encargado, Política, Seguridad, Salud y Justicia"
                 : pantalla === "capacidad"
                   ? "Aforo oficial y recursos del campamento"
                   : "Seleccione el campamento que va a reportar";
@@ -736,7 +736,7 @@ export function TerrenoView() {
                     : "text-muted-foreground",
                 )}
               >
-                {autoridadesOk ? "Directorio guardado · puede editar" : "Política · Salud · Justicia…"}
+                {autoridadesOk ? "Directorio guardado · puede editar" : "Ente encargado · Política · Seguridad…"}
               </span>
               <LineaActualizacion ts={autoridadesTs} resaltar={autoridadesOk} />
             </button>
