@@ -451,7 +451,7 @@ export function totalesRequerimientos(items: ItemRequerimiento[]): TotalesRequer
   };
 }
 
-/** Etiqueta legible para una respuesta sí/no/pendiente. */
+/** Etiqueta legible para una respuesta sí / no / en proceso. */
 export function etiquetaRespuesta(valor: RespuestaLevantamiento): string {
   if (valor === true) return "Sí";
   if (valor === false) return "No";
@@ -529,6 +529,15 @@ export interface CentroTransitorio {
    * (p. ej. desde /terreno). Confirmación operativa por categoría.
    */
   ambitos_sin_autoridad?: string[];
+  /**
+   * Marcas de tiempo (epoch ms) de la última guardada desde /terreno por tarea.
+   * Sirve para mostrar «última act.» en las cards del portal.
+   */
+  terreno_actualizado?: {
+    capacidad?: number;
+    autoridades?: number;
+    geolocalizacion?: number;
+  };
   /** URL pública de la foto del centro (Supabase Storage). */
   foto_url?: string;
   estado?: EstadoCentro;
@@ -546,6 +555,11 @@ export interface CentroNormalizado extends CentroTransitorio {
   responsables: Responsable[];
   responsables_coordinacion: ResponsableCoordinacion[];
   ambitos_sin_autoridad: string[];
+  terreno_actualizado: {
+    capacidad?: number;
+    autoridades?: number;
+    geolocalizacion?: number;
+  };
   foto_url: string;
   estado: EstadoCentro;
   fecha_levantamiento: string;
@@ -576,6 +590,16 @@ export function normalizarCentro(c: CentroTransitorio): CentroNormalizado {
     ambitos_sin_autoridad: Array.isArray(c.ambitos_sin_autoridad)
       ? c.ambitos_sin_autoridad.filter((v): v is string => typeof v === "string" && v.trim() !== "")
       : [],
+    terreno_actualizado: (() => {
+      const raw = c.terreno_actualizado;
+      if (!raw || typeof raw !== "object") return {};
+      const out: { capacidad?: number; autoridades?: number; geolocalizacion?: number } = {};
+      for (const k of ["capacidad", "autoridades", "geolocalizacion"] as const) {
+        const n = Number(raw[k]);
+        if (Number.isFinite(n) && n > 0) out[k] = n;
+      }
+      return out;
+    })(),
     foto_url: c.foto_url ?? "",
     estado: c.estado ?? "preparacion",
     notas: c.notas ?? "",

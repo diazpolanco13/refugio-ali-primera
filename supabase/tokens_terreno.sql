@@ -85,12 +85,51 @@ revoke all on function public.acceso_censo_centro(text, text) from public, anon,
 
 -- Identifica el campamento de un token de personal (/terreno y /censo).
 create or replace function public.terreno_centro(p_token text)
-returns table(id text, nombre text, geolocalizado boolean)
+returns table(
+  id text,
+  nombre text,
+  geolocalizado boolean,
+  autoridades_ok boolean,
+  capacidad_ok boolean
+)
 language sql stable security definer set search_path = public as $$
   select
     c.id,
     coalesce(nullif(trim(c.data->>'nombre'), ''), c.id) as nombre,
-    (c.geom is not null) as geolocalizado
+    (c.geom is not null) as geolocalizado,
+    (
+      exists (
+        select 1
+        from jsonb_array_elements(
+          coalesce(c.data->'responsables_coordinacion', '[]'::jsonb)
+        ) as r
+        where coalesce(r->>'categoria', '') in (
+          'politica', 'seguridad', 'salud', 'justicia', 'comunitaria'
+        )
+          and nullif(btrim(coalesce(r->>'nombre', '')), '') is not null
+      )
+      or exists (
+        select 1
+        from jsonb_array_elements_text(
+          coalesce(c.data->'ambitos_sin_autoridad', '[]'::jsonb)
+        ) as a(val)
+        where a.val in (
+          'politica', 'seguridad', 'salud', 'justicia', 'comunitaria'
+        )
+      )
+    ) as autoridades_ok,
+    (
+      jsonb_typeof(c.data->'censo_oficial'->'capacidad_instalada') = 'number'
+      or coalesce((c.data->'capacidad'->>'camas_instaladas')::int, 0) > 0
+      or coalesce((c.data->'capacidad'->>'pocetas_instaladas')::int, 0) > 0
+      or coalesce((c.data->'capacidad'->>'duchas_instaladas')::int, 0) > 0
+      or coalesce((c.data->'capacidad'->>'lavaderos_instalados')::int, 0) > 0
+      or coalesce((c.data->'capacidad'->>'contenedores_instalados')::int, 0) > 0
+      or (
+        coalesce((c.data->'capacidad'->>'agua_tanque')::boolean, false)
+        and coalesce((c.data->'capacidad'->>'agua_litros')::int, 0) > 0
+      )
+    ) as capacidad_ok
   from public.centros c
   where c.id = public.centro_de_token(p_token, 'personal') and not c.deleted;
 $$;

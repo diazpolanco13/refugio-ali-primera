@@ -40,7 +40,7 @@ import {
 } from "@/domain/centrosTransitorios";
 import { normalizarVulnerables, type Vulnerables } from "@/domain/tipos";
 import type { ReporteControlDia } from "@/domain/controlReporte";
-import { reporteControlDelDia } from "@/domain/controlReporte";
+import { CONTROL_VACIO, reporteControlDelDia } from "@/domain/controlReporte";
 import { DesgloseDemografico } from "@/features/censo/DesgloseDemografico";
 import { BloqueConfirmacionReporte } from "./BloqueConfirmacionReporte";
 import { Button } from "@/components/ui/button";
@@ -179,19 +179,9 @@ export function ReporteDiarioForm({
   const [incidenciasSalud, setIncidenciasSalud] = useState(0);
 
   const [control, setControl] = useState<Omit<ReporteControlDia, "id">>({
+    ...CONTROL_VACIO,
     centro_id: centro.id,
     dia: diaReporte,
-    captahuella: null,
-    captahuella_nota: "",
-    juez_paz: null,
-    juez_paz_nota: "",
-    servicio_medico: null,
-    servicio_medico_nota: "",
-    ambulancia: null,
-    ambulancia_nota: "",
-    revisado: false,
-    updated_at: 0,
-    updated_by: "",
   });
   const [controlHeredado, setControlHeredado] = useState(false);
 
@@ -221,21 +211,13 @@ export function ReporteDiarioForm({
   });
   const baselineIncidenciasSalud = useRef(0);
 
-  const baselineControl = useRef<ControlDatos>(controlDatos({
-    centro_id: centro.id,
-    dia: diaReporte,
-    captahuella: null,
-    captahuella_nota: "",
-    juez_paz: null,
-    juez_paz_nota: "",
-    servicio_medico: null,
-    servicio_medico_nota: "",
-    ambulancia: null,
-    ambulancia_nota: "",
-    revisado: false,
-    updated_at: 0,
-    updated_by: "",
-  }));
+  const baselineControl = useRef<ControlDatos>(
+    controlDatos({
+      ...CONTROL_VACIO,
+      centro_id: centro.id,
+      dia: diaReporte,
+    }),
+  );
 
   const baselineEventos = useRef<EventoReporte[]>([]);
 

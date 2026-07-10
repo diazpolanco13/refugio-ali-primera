@@ -46,6 +46,14 @@ export interface CentroCenso {
   nombre: string;
   /** True si el campamento ya tiene coordenada en BD. */
   geolocalizado?: boolean;
+  /** True si hay responsables o ámbitos «sin autoridades» en el directorio. */
+  autoridades_ok?: boolean;
+  /** True si hay aforo oficial, recurso Esfera o agua medida. */
+  capacidad_ok?: boolean;
+  /** Epoch ms de última actualización por tarea (portal /terreno). */
+  geolocalizacion_ts?: number | null;
+  autoridades_ts?: number | null;
+  capacidad_ts?: number | null;
 }
 
 /** Funcionario que dirige el levantamiento en la escuela. */

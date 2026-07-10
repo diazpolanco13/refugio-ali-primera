@@ -9,6 +9,7 @@ import { asegurarSesionTerreno } from "@/data/loginTerreno";
 import { guardarCentro, obtenerCentroPorId } from "@/data/reposSupabase";
 import { normalizarCentro, type CentroTransitorio } from "@/domain/centrosTransitorios";
 import { marcarCentroGeolocalizado } from "@/lib/geolocalizacionTerreno";
+import { conActualizacionTerreno } from "@/lib/terrenoActualizacion";
 import { cn } from "@/lib/utils";
 import { MapaGeolocalizacionCentro } from "./MapaGeolocalizacionCentro";
 
@@ -16,7 +17,7 @@ interface Props {
   centroId: string;
   centroNombre: string;
   token: string;
-  onGuardado: () => void;
+  onGuardado: (actualizadoAt: number) => void;
 }
 
 function FilaDato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
@@ -101,12 +102,21 @@ export function GeolocalizacionCentroPanel({
     setGuardando(true);
     setError("");
     try {
+      const ahora = Date.now();
       const geom: GeoJSON.Point = { type: "Point", coordinates: [lng, lat] };
-      await guardarCentro({ ...centro, geom });
+      await guardarCentro({
+        ...centro,
+        geom,
+        terreno_actualizado: conActualizacionTerreno(
+          centro.terreno_actualizado,
+          "geolocalizacion",
+          ahora,
+        ),
+      });
       marcarCentroGeolocalizado(centroId);
       setTeniaUbicacion(true);
       setGuardadoOk(true);
-      window.setTimeout(() => onGuardado(), 900);
+      window.setTimeout(() => onGuardado(ahora), 900);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "No se pudo guardar la ubicación. Intente de nuevo.",

@@ -144,6 +144,14 @@ async function aplicarSesion(session: Session | null): Promise<void> {
   emitir();
 }
 
+/** Recarga el estado de la app desde la sesión actual de Supabase Auth. */
+export async function sincronizarSesion(): Promise<Sesion | null> {
+  await initAuth();
+  const { data } = await supabase.auth.getSession();
+  await aplicarSesion(data.session);
+  return estado;
+}
+
 /**
  * Inicializa la suscripción a `onAuthStateChange` y carga la sesión inicial.
  * Idempotente. Lo llama `getSesion`/`useSesion`/`login` automáticamente para

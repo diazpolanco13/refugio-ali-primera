@@ -61,8 +61,8 @@ export function NavegacionFasesReporteDesktop({ fases, faseActiva }: Props) {
               <span
                 className={cn(
                   "min-w-0 truncate",
-                  activa && "text-teal-300",
-                  !activa && fase.estado === "completa" && "text-emerald-400",
+                  fase.estado === "completa" && "text-emerald-400",
+                  activa && fase.estado !== "completa" && "text-teal-300",
                   !activa && fase.estado === "en_progreso" && "text-amber-400",
                   !activa && fase.estado === "pendiente" && "text-muted-foreground",
                 )}

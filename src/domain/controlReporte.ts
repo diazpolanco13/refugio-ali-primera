@@ -38,13 +38,14 @@ export const CAMPOS_CONTROL_REPORTE: {
 ];
 
 export const CONTROL_VACIO: Omit<ReporteControlDia, "centro_id" | "dia"> = {
-  captahuella: null,
+  // Por defecto «No» (false). «En proceso» (null) es un estado explícito posterior.
+  captahuella: false,
   captahuella_nota: "",
-  juez_paz: null,
+  juez_paz: false,
   juez_paz_nota: "",
-  servicio_medico: null,
+  servicio_medico: false,
   servicio_medico_nota: "",
-  ambulancia: null,
+  ambulancia: false,
   ambulancia_nota: "",
   revisado: false,
   updated_at: 0,
@@ -52,8 +53,9 @@ export const CONTROL_VACIO: Omit<ReporteControlDia, "centro_id" | "dia"> = {
 };
 
 function normalizarRespuesta(raw: unknown): RespuestaLevantamiento {
-  if (raw === true || raw === false) return raw;
-  return null;
+  // Conserva true / false / null tal cual vienen de BD (null = «En proceso» ya elegido).
+  if (raw === true || raw === false || raw === null) return raw;
+  return false;
 }
 
 export function normalizarReporteControlDia(

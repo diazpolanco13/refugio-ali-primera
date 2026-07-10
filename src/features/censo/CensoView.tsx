@@ -86,8 +86,10 @@ import {
   type UbicacionCensador,
 } from "@/data/reposCenso";
 import { CensoInstrucciones } from "@/features/censo/CensoInstrucciones";
+import { CensoNexusPanel } from "@/features/censo/CensoNexusPanel";
 import { SelectorCentroLista } from "@/features/censo/SelectorCentroLista";
 import { GrupoOpcionesSegmentadas } from "@/features/censo/censoFormularioShared";
+import { FormularioIdentificacionFuncionario } from "@/features/censo/FormularioIdentificacionFuncionario";
 import {
   INSTRUCCIONES_CENSO_KEY,
   debeMostrarInstrucciones,
@@ -274,6 +276,8 @@ export function CensoView() {
   const [mostrarInstrucciones, setMostrarInstrucciones] = useState(() =>
     debeMostrarInstrucciones(INSTRUCCIONES_CENSO_KEY),
   );
+  /** Por cédula (Nexus → nominal) o planilla manual (staging censo_registros). */
+  const [modoCenso, setModoCenso] = useState<"nexus" | "manual">("nexus");
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
   const [paso1Seccion, setPaso1Seccion] = useState<"centro" | "funcionario">(
     token || centroParam || guardada?.centroId ? "funcionario" : "centro",
@@ -539,7 +543,10 @@ export function CensoView() {
   }
 
   const bloquearScrollPagina =
-    !mostrarInstrucciones && paso === 1 && paso1Seccion === "centro";
+    !mostrarInstrucciones &&
+    modoCenso === "manual" &&
+    paso === 1 &&
+    paso1Seccion === "centro";
 
   return (
     <div
@@ -569,7 +576,7 @@ export function CensoView() {
             <Home className="size-5" />
           </a>
         </div>
-        {!mostrarInstrucciones && (
+        {!mostrarInstrucciones && modoCenso === "manual" && (
           <div className="mx-auto mt-4 flex w-full max-w-xl items-center gap-2 text-xs">
             <PasoChip
               activo={paso === 1}
@@ -599,6 +606,34 @@ export function CensoView() {
             />
           </div>
         )}
+        {!mostrarInstrucciones && (
+          <div className="mx-auto mt-3 flex w-full max-w-xl gap-1 rounded-lg bg-primary-foreground/10 p-1">
+            <button
+              type="button"
+              className={cn(
+                "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                modoCenso === "nexus"
+                  ? "bg-primary-foreground text-primary"
+                  : "text-primary-foreground/80 hover:bg-primary-foreground/10",
+              )}
+              onClick={() => setModoCenso("nexus")}
+            >
+              Por cédula
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                modoCenso === "manual"
+                  ? "bg-primary-foreground text-primary"
+                  : "text-primary-foreground/80 hover:bg-primary-foreground/10",
+              )}
+              onClick={() => setModoCenso("manual")}
+            >
+              Planilla manual
+            </button>
+          </div>
+        )}
       </header>
 
       <main
@@ -609,7 +644,48 @@ export function CensoView() {
       >
         {mostrarInstrucciones && <CensoInstrucciones onContinuar={continuarDesdeInstrucciones} />}
 
-        {!mostrarInstrucciones && paso === 1 && paso1Seccion === "centro" && (
+        {!mostrarInstrucciones && modoCenso === "nexus" && (
+          <div className="-mt-3 space-y-3">
+            {!centroId ? (
+              <Card className="shadow-lg">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <MapPin className="size-4 text-primary" />
+                    Campamento
+                  </CardTitle>
+                  <CardDescription>
+                    Elija el campamento donde registra el hogar.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {errorCentros ? (
+                    <p className="text-sm text-destructive">{errorCentros}</p>
+                  ) : null}
+                  <div className="min-h-[16rem]">
+                    <SelectorCentroLista
+                      centros={centros}
+                      centroId={centroId}
+                      onSelect={setCentroId}
+                      cargando={cargandoCentros}
+                      onContinuar={() => {
+                        /* en modo nexus basta con elegir el centro */
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <CensoNexusPanel
+                centroId={centroId}
+                centroNombre={centroNombre || centroId}
+                tokenTerreno={token}
+                onCambiarCentro={!token ? () => setCentroId("") : undefined}
+              />
+            )}
+          </div>
+        )}
+
+        {!mostrarInstrucciones && modoCenso === "manual" && paso === 1 && paso1Seccion === "centro" && (
           <Card className="-mt-3 flex min-h-0 flex-1 flex-col overflow-hidden shadow-lg">
             <CardHeader className="shrink-0 pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -634,220 +710,102 @@ export function CensoView() {
           </Card>
         )}
 
-        {!mostrarInstrucciones && paso === 1 && paso1Seccion === "funcionario" && (
-          <Card className="-mt-3 shadow-lg">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <ClipboardList className="size-4 text-primary" />
-                Datos del funcionario
-              </CardTitle>
-              <CardDescription>
-                Identifique al funcionario que realiza el censo en{" "}
-                <span className="font-medium text-foreground">{centroNombre}</span>.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form
-                className="space-y-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!paso1Completo) {
-                    setResaltarFaltantesPaso1(true);
-                    return;
-                  }
-                  continuarAPaso2();
-                }}
+        {!mostrarInstrucciones && modoCenso === "manual" && paso === 1 && paso1Seccion === "funcionario" && (
+          <div className="-mt-3">
+            <FormularioIdentificacionFuncionario
+              funcionario={funcionario}
+              onChange={setFuncionario}
+              onConfirmar={continuarAPaso2}
+              centroNombre={centroNombre}
+              titulo="Datos del funcionario"
+              descripcion={
+                <>
+                  Identifique al funcionario que realiza el censo en{" "}
+                  <span className="font-medium text-foreground">{centroNombre}</span>.
+                </>
+              }
+              etiquetaContinuar={
+                geoEstado === "ok" ? "Confirmar y continuar al registro" : "Continuar al registro"
+              }
+              resaltarFaltantes={mostrarFaltantesPaso1}
+              onResaltarFaltantes={() => setResaltarFaltantesPaso1(true)}
+              accionCentro={
+                !token ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => setPaso1Seccion("centro")}
+                  >
+                    Cambiar
+                  </Button>
+                ) : undefined
+              }
+            >
+              <CampoSiNo
+                label="¿Está usted en el campamento?"
+                valor={ubicacion.en_refugio}
+                onChange={cambiarEnRefugio}
               >
-                <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2.5">
-                  <MapPin className="size-4 shrink-0 text-primary" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      Campamento
-                    </p>
-                    <p className="truncate text-sm font-medium">{centroNombre}</p>
-                  </div>
-                  {!token && (
+                <div className="space-y-2">
+                  {geoEstado === "ok" && ubicacion.lat != null && ubicacion.lng != null ? (
+                    <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2">
+                      <div className="flex min-w-0 items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400">
+                        <CheckCircle2 className="size-4 shrink-0" />
+                        <span className="truncate font-mono">
+                          {ubicacion.lat.toFixed(5)}, {ubicacion.lng.toFixed(5)}
+                          {ubicacion.precision != null && ` (±${Math.round(ubicacion.precision)} m)`}
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 shrink-0 text-xs"
+                        onClick={capturarUbicacion}
+                      >
+                        <RefreshCw className="size-3.5" />
+                        Recapturar
+                      </Button>
+                    </div>
+                  ) : (
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={() => setPaso1Seccion("centro")}
+                      className="h-11 w-full"
+                      onClick={capturarUbicacion}
+                      disabled={geoEstado === "cargando"}
                     >
-                      Cambiar
+                      {geoEstado === "cargando" ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" />
+                          Obteniendo ubicación…
+                        </>
+                      ) : (
+                        <>
+                          <LocateFixed className="size-4" />
+                          Geolocalizar
+                        </>
+                      )}
                     </Button>
                   )}
-                </div>
-
-                <Separator />
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Funcionario que realiza el censo
-                </p>
-
-                <div className="space-y-1.5">
-                  <LabelCampoCenso
-                    htmlFor="censo-jerarquia"
-                    resaltar={mostrarFaltantesPaso1 && esCampoFaltante("jerarquia", faltantesPaso1)}
-                  >
-                    Jerarquía / cargo
-                  </LabelCampoCenso>
-                  <Input
-                    id="censo-jerarquia"
-                    value={funcionario.jerarquia}
-                    onChange={(e) => setFuncionario((f) => ({ ...f, jerarquia: e.target.value }))}
-                    placeholder="Ej: Sargento Mayor, Coordinador…"
-                    className={cn(
-                      "h-11",
-                      mostrarFaltantesPaso1 &&
-                        esCampoFaltante("jerarquia", faltantesPaso1) &&
-                        claseInputFaltante,
-                    )}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <LabelCampoCenso
-                    htmlFor="censo-nombre-func"
-                    resaltar={mostrarFaltantesPaso1 && esCampoFaltante("nombre", faltantesPaso1)}
-                  >
-                    Nombre y apellido
-                  </LabelCampoCenso>
-                  <Input
-                    id="censo-nombre-func"
-                    value={funcionario.nombre}
-                    onChange={(e) => setFuncionario((f) => ({ ...f, nombre: e.target.value }))}
-                    placeholder="Nombre completo del funcionario"
-                    className={cn(
-                      "h-11",
-                      mostrarFaltantesPaso1 &&
-                        esCampoFaltante("nombre", faltantesPaso1) &&
-                        claseInputFaltante,
-                    )}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <LabelCampoCenso
-                    htmlFor="censo-institucion"
-                    resaltar={mostrarFaltantesPaso1 && esCampoFaltante("institucion", faltantesPaso1)}
-                  >
-                    Institución
-                  </LabelCampoCenso>
-                  <Input
-                    id="censo-institucion"
-                    value={funcionario.institucion}
-                    onChange={(e) => setFuncionario((f) => ({ ...f, institucion: e.target.value }))}
-                    placeholder="Ej: GNB, Protección Civil, Alcaldía…"
-                    className={cn(
-                      "h-11",
-                      mostrarFaltantesPaso1 &&
-                        esCampoFaltante("institucion", faltantesPaso1) &&
-                        claseInputFaltante,
-                    )}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <LabelCampoCenso
-                    htmlFor="censo-telefono"
-                    resaltar={mostrarFaltantesPaso1 && esCampoFaltante("telefono", faltantesPaso1)}
-                  >
-                    Teléfono (Telegram)
-                  </LabelCampoCenso>
-                  <Input
-                    id="censo-telefono"
-                    type="tel"
-                    inputMode="tel"
-                    value={funcionario.telefono}
-                    onChange={(e) => setFuncionario((f) => ({ ...f, telefono: e.target.value }))}
-                    placeholder="0412-0000000"
-                    className={cn(
-                      "h-11",
-                      mostrarFaltantesPaso1 &&
-                        esCampoFaltante("telefono", faltantesPaso1) &&
-                        claseInputFaltante,
-                    )}
-                  />
-                </div>
-
-                <CampoSiNo
-                  label="¿Está usted en el campamento?"
-                  valor={ubicacion.en_refugio}
-                  onChange={cambiarEnRefugio}
-                >
-                  <div className="space-y-2">
-                    {geoEstado === "ok" && ubicacion.lat != null && ubicacion.lng != null ? (
-                      <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2">
-                        <div className="flex min-w-0 items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400">
-                          <CheckCircle2 className="size-4 shrink-0" />
-                          <span className="truncate font-mono">
-                            {ubicacion.lat.toFixed(5)}, {ubicacion.lng.toFixed(5)}
-                            {ubicacion.precision != null && ` (±${Math.round(ubicacion.precision)} m)`}
-                          </span>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 shrink-0 text-xs"
-                          onClick={capturarUbicacion}
-                        >
-                          <RefreshCw className="size-3.5" />
-                          Recapturar
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-11 w-full"
-                        onClick={capturarUbicacion}
-                        disabled={geoEstado === "cargando"}
-                      >
-                        {geoEstado === "cargando" ? (
-                          <>
-                            <Loader2 className="size-4 animate-spin" />
-                            Obteniendo ubicación…
-                          </>
-                        ) : (
-                          <>
-                            <LocateFixed className="size-4" />
-                            Geolocalizar
-                          </>
-                        )}
-                      </Button>
-                    )}
-                    {geoEstado === "error" && (
-                      <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-                        {geoError}
-                      </p>
-                    )}
-                    <p className="text-[11px] text-muted-foreground">
-                      La ubicación valida que el censo se hace desde el campamento. Es importante,
-                      pero no obligatoria.
+                  {geoEstado === "error" && (
+                    <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                      {geoError}
                     </p>
-                  </div>
-                </CampoSiNo>
-
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                  <div className="min-w-0 flex-1">
-                    <AvisoCamposFaltantes
-                      campos={faltantesPaso1}
-                      visible={mostrarFaltantesPaso1}
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="h-11 w-full shrink-0 sm:w-auto sm:min-w-[14rem]"
-                    disabled={!paso1Completo}
-                  >
-                    {geoEstado === "ok" ? "Confirmar y continuar al registro" : "Continuar al registro"}
-                    <ArrowRight className="size-4" />
-                  </Button>
+                  )}
+                  <p className="text-[11px] text-muted-foreground">
+                    La ubicación valida que el censo se hace desde el campamento. Es importante,
+                    pero no obligatoria.
+                  </p>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
+              </CampoSiNo>
+            </FormularioIdentificacionFuncionario>
+          </div>
         )}
 
-        {!mostrarInstrucciones && paso === 2 && (
+        {!mostrarInstrucciones && modoCenso === "manual" && paso === 2 && (
           <div className="-mt-3 space-y-4">
             {/* Resumen del paso 1 */}
             <Card className="shadow-lg">
@@ -1405,7 +1363,7 @@ export function CensoView() {
           </div>
         )}
 
-        {!mostrarInstrucciones && paso === 3 && (
+        {!mostrarInstrucciones && modoCenso === "manual" && paso === 3 && (
           <PasoRegistrados
             centroId={centroId}
             centroNombre={centroNombre}

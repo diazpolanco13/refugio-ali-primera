@@ -34,7 +34,8 @@ import {
   type IdPestanaCoordinacion,
   type ResponsableCoordinacion,
 } from "@/domain/coordinacionCentro";
-import { marcarAutoridadesTerrenoGuardadas } from "@/lib/autoridadesTerreno";
+import { centroTieneAutoridadesTerreno } from "@/lib/autoridadesTerreno";
+import { conActualizacionTerreno } from "@/lib/terrenoActualizacion";
 import { cn } from "@/lib/utils";
 
 const SET_CATEGORIAS_TERRENO = new Set<string>(CATEGORIAS_AUTORIDADES_TERRENO);
@@ -60,7 +61,8 @@ interface Props {
   centroId: string;
   centroNombre: string;
   token: string;
-  onGuardado?: () => void;
+  /** Recibe si el directorio quedó con datos reales tras guardar. */
+  onGuardado?: (tieneDirectorio: boolean, actualizadoAt: number) => void;
 }
 
 type Vista = "lista" | "formulario";
@@ -173,19 +175,20 @@ export function AutoridadesTerrenoPanel({
         asegurarIdsResponsablesCoordinacion(lista),
       );
       const sync = syncCentroDesdeCoordinacion(centro, preparada);
+      const ahora = Date.now();
       const siguiente: CentroTransitorio = {
         ...centro,
         responsables_coordinacion: preparada,
         ambitos_sin_autoridad: ambitosSin,
         personal: sync.personal,
         servicios: sync.servicios,
+        terreno_actualizado: conActualizacionTerreno(centro.terreno_actualizado, "autoridades", ahora),
       };
       await guardarCentro(siguiente);
       setCentro(siguiente);
       setResponsables(preparada);
       setSinAutoridad(ambitosSin);
-      marcarAutoridadesTerrenoGuardadas(centroId);
-      onGuardado?.();
+      onGuardado?.(centroTieneAutoridadesTerreno(siguiente), ahora);
       return true;
     } catch (err) {
       setError(

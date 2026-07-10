@@ -1,11 +1,12 @@
 // Portal público de trabajo en terreno (/terreno, sin login): una sola URL
-// para repartir a los funcionarios. Accesos activos: Reporte del campamento
-// y Geolocalización GPS. El Censo queda visible pero bloqueado. Acepta
+// para repartir a los funcionarios. Accesos activos: Reporte, Geolocalización,
+// Autoridades y Capacidad. El Censo queda visible pero bloqueado. Acepta
 // ?centro=<id> / ?t=<token> para llegar ya apuntado a un campamento.
 
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
+  BedDouble,
   CheckCircle2,
   ClipboardList,
   Landmark,
@@ -23,11 +24,15 @@ import { GeolocalizacionInstrucciones } from "@/features/terreno/Geolocalizacion
 import { GeolocalizacionCentroPanel } from "@/features/terreno/GeolocalizacionCentroPanel";
 import { AutoridadesInstrucciones } from "@/features/terreno/AutoridadesInstrucciones";
 import { AutoridadesTerrenoPanel } from "@/features/terreno/AutoridadesTerrenoPanel";
+import { CapacidadInstrucciones } from "@/features/terreno/CapacidadInstrucciones";
+import { CapacidadTerrenoPanel } from "@/features/terreno/CapacidadTerrenoPanel";
 import { listarCentrosCenso, obtenerCentroTerreno, type CentroCenso } from "@/data/reposCenso";
-import { asegurarSesionTerreno } from "@/data/loginTerreno";
+import type { FuncionarioCenso } from "@/data/reposCenso";
+import { asegurarSesionTerreno, cerrarSesionTerreno } from "@/data/loginTerreno";
 import { tokenTerrenoActual } from "@/lib/tokenTerreno";
 import {
   INSTRUCCIONES_AUTORIDADES_KEY,
+  INSTRUCCIONES_CAPACIDAD_KEY,
   INSTRUCCIONES_GEO_KEY,
   INSTRUCCIONES_REPORTE_KEY,
   debeMostrarInstrucciones,
@@ -37,7 +42,15 @@ import {
   verInstruccionesSiempre,
 } from "@/lib/instruccionesCampo";
 import { centroGeolocalizadoLocal } from "@/lib/geolocalizacionTerreno";
-import { autoridadesTerrenoGuardadasLocal } from "@/lib/autoridadesTerreno";
+import { formatearHoraActualizacionTerreno } from "@/lib/terrenoActualizacion";
+import {
+  cargarSesionOperadorTerreno,
+  funcionarioTerrenoVacio,
+  guardarSesionOperadorTerreno,
+  olvidarSesionOperadorTerreno,
+  type SesionOperadorTerreno,
+} from "@/lib/terrenoFuncionario";
+import { FormularioIdentificacionFuncionario } from "@/features/censo/FormularioIdentificacionFuncionario";
 import { cn } from "@/lib/utils";
 
 function centroDeLaUrl(): string {
@@ -49,16 +62,42 @@ function urlReporteCentro(centroId: string): string {
 }
 
 const CLASE_BOTON_CUADRADO =
-  "flex aspect-square flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-card p-4 text-center shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary active:bg-primary/10";
+  "flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-card p-4 text-center shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary active:bg-primary/10";
+
+function LineaActualizacion({
+  ts,
+  resaltar,
+}: {
+  ts: number | null;
+  resaltar?: boolean;
+}) {
+  const texto = formatearHoraActualizacionTerreno(ts);
+  if (!texto) return null;
+  return (
+    <span
+      className={cn(
+        "text-[0.625rem] leading-tight tabular-nums",
+        resaltar
+          ? "text-emerald-600/75 dark:text-emerald-400/75"
+          : "text-muted-foreground/80",
+      )}
+    >
+      Act. {texto}
+    </span>
+  );
+}
 
 type Pantalla =
   | "menu"
+  | "identificacion"
   | "instrucciones-reporte"
   | "selector-reporte"
   | "instrucciones-geo"
   | "geolocalizar"
   | "instrucciones-autoridades"
-  | "autoridades";
+  | "autoridades"
+  | "instrucciones-capacidad"
+  | "capacidad";
 
 export function TerrenoView() {
   const centroParam = useMemo(centroDeLaUrl, []);
@@ -74,6 +113,16 @@ export function TerrenoView() {
   const [instruccionesRestablecidas, setInstruccionesRestablecidas] = useState(false);
   const [geolocalizado, setGeolocalizado] = useState(false);
   const [autoridadesOk, setAutoridadesOk] = useState(false);
+  const [capacidadOk, setCapacidadOk] = useState(false);
+  const [geoTs, setGeoTs] = useState<number | null>(null);
+  const [autoridadesTs, setAutoridadesTs] = useState<number | null>(null);
+  const [capacidadTs, setCapacidadTs] = useState<number | null>(null);
+  const [operadorSesion, setOperadorSesion] = useState<SesionOperadorTerreno | null>(null);
+  const [gateListo, setGateListo] = useState(false);
+  const [funcionarioDraft, setFuncionarioDraft] = useState<FuncionarioCenso>(funcionarioTerrenoVacio);
+  const [resaltarId, setResaltarId] = useState(false);
+  const [identificando, setIdentificando] = useState(false);
+  const [errorIdentificacion, setErrorIdentificacion] = useState("");
 
   useEffect(() => {
     let cancelado = false;
@@ -85,7 +134,12 @@ export function TerrenoView() {
             // Solo verde si este dispositivo ya guardó desde el flujo de terreno
             // (no por tener geom previo en catálogo/BD).
             setGeolocalizado(centroGeolocalizadoLocal(centroDelToken.id));
-            setAutoridadesOk(autoridadesTerrenoGuardadasLocal(centroDelToken.id));
+            // Verde solo si la BD tiene directorio / capacidad (no flag local stale).
+            setAutoridadesOk(centroDelToken.autoridades_ok === true);
+            setCapacidadOk(centroDelToken.capacidad_ok === true);
+            setGeoTs(centroDelToken.geolocalizacion_ts ?? null);
+            setAutoridadesTs(centroDelToken.autoridades_ts ?? null);
+            setCapacidadTs(centroDelToken.capacidad_ts ?? null);
           } else {
             setErrorCentros(
               "El enlace o código QR no es válido o fue revocado. Solicite el vigente de su campamento.",
@@ -98,7 +152,11 @@ export function TerrenoView() {
             const id = centroParam || lista[0]?.id || "";
             if (id) {
               setGeolocalizado(centroGeolocalizadoLocal(id));
-              setAutoridadesOk(autoridadesTerrenoGuardadasLocal(id));
+              setAutoridadesOk(false);
+              setCapacidadOk(false);
+              setGeoTs(null);
+              setAutoridadesTs(null);
+              setCapacidadTs(null);
             }
           }
         });
@@ -127,9 +185,85 @@ export function TerrenoView() {
   // Terminó la carga y no hay ningún campamento accesible: ni token válido ni
   // sesión autorizada. Desde este dispositivo no hay tarea posible.
   const accesoDenegado = !cargandoCentros && centros.length === 0;
+  // Con QR: hay que identificarse antes del menú (usuarios temporales por persona).
+  const requiereIdentificacion = Boolean(token && centroValido && !accesoDenegado);
+  const mostrarIdentificacion =
+    requiereIdentificacion && gateListo && (!operadorSesion || pantalla === "identificacion");
+
+  // Restaurar identificación de esta pestaña o forzar el formulario.
+  useEffect(() => {
+    if (cargandoCentros || accesoDenegado) return;
+    if (!requiereIdentificacion) {
+      setGateListo(true);
+      return;
+    }
+    let cancelado = false;
+    const guardada = cargarSesionOperadorTerreno(centroValido);
+    if (!guardada) {
+      setOperadorSesion(null);
+      setGateListo(true);
+      setPantalla("identificacion");
+      return;
+    }
+    setFuncionarioDraft(guardada.funcionario);
+    void asegurarSesionTerreno(token, centroValido, guardada.funcionario)
+      .then(() => {
+        if (cancelado) return;
+        setOperadorSesion(guardada);
+        setGateListo(true);
+        setPantalla((p) => (p === "identificacion" ? "menu" : p));
+      })
+      .catch(() => {
+        if (cancelado) return;
+        olvidarSesionOperadorTerreno();
+        setOperadorSesion(null);
+        setGateListo(true);
+        setPantalla("identificacion");
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [cargandoCentros, accesoDenegado, requiereIdentificacion, centroValido, token]);
 
   const [entrando, setEntrando] = useState(false);
   const [errorEntrar, setErrorEntrar] = useState("");
+
+  async function confirmarIdentificacion() {
+    if (!token || !centroValido) return;
+    setIdentificando(true);
+    setErrorIdentificacion("");
+    try {
+      const resp = await asegurarSesionTerreno(token, centroValido, funcionarioDraft);
+      const sesion: SesionOperadorTerreno = {
+        centroId: centroValido,
+        username: resp.username,
+        funcionario: { ...funcionarioDraft },
+      };
+      guardarSesionOperadorTerreno(sesion);
+      setOperadorSesion(sesion);
+      setPantalla("menu");
+    } catch (err) {
+      setErrorIdentificacion(
+        err instanceof Error ? err.message : "No se pudo registrar su acceso. Intente de nuevo.",
+      );
+    } finally {
+      setIdentificando(false);
+    }
+  }
+
+  async function cambiarOperador() {
+    olvidarSesionOperadorTerreno();
+    setOperadorSesion(null);
+    setFuncionarioDraft(funcionarioTerrenoVacio());
+    setResaltarId(false);
+    setErrorIdentificacion("");
+    try {
+      await cerrarSesionTerreno();
+    } catch {
+      /* seguir al formulario aunque falle el signOut */
+    }
+    setPantalla("identificacion");
+  }
 
   /**
    * Tras las instrucciones (o si ya se vieron): al reporte del centro del
@@ -150,7 +284,11 @@ export function TerrenoView() {
     setEntrando(true);
     setErrorEntrar("");
     try {
-      await asegurarSesionTerreno(token, centroValido);
+      await asegurarSesionTerreno(
+        token,
+        centroValido,
+        operadorSesion?.funcionario,
+      );
       window.location.href = destino;
     } catch (err) {
       setErrorEntrar(
@@ -187,6 +325,18 @@ export function TerrenoView() {
     }
   }
 
+  function abrirCapacidad() {
+    if (!centroValido) {
+      setErrorEntrar("Abra el enlace o código QR de su campamento para registrar la capacidad.");
+      return;
+    }
+    if (debeMostrarInstrucciones(INSTRUCCIONES_CAPACIDAD_KEY)) {
+      setPantalla("instrucciones-capacidad");
+    } else {
+      setPantalla("capacidad");
+    }
+  }
+
   function cambiarInstruccionesSiempre(valor: boolean) {
     setVerInstruccionesSiempre(valor);
     setInstruccionesSiempre(valor);
@@ -197,24 +347,71 @@ export function TerrenoView() {
     setInstruccionesRestablecidas(true);
   }
 
+  if (requiereIdentificacion && !gateListo) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-background px-6 text-foreground">
+        <Loader2 className="size-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Preparando acceso…</p>
+      </div>
+    );
+  }
+
+  if (mostrarIdentificacion) {
+    return (
+      <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
+        <header className="mx-auto flex w-full max-w-xl shrink-0 flex-col gap-1 px-4 pb-3 pt-[max(1.25rem,env(safe-area-inset-top))]">
+          <h1 className="text-base font-semibold leading-tight">Identificación</h1>
+          <p className="text-xs text-muted-foreground">
+            Registre quién opera en este dispositivo antes de continuar
+          </p>
+        </header>
+        <main className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col overflow-hidden px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <FormularioIdentificacionFuncionario
+            funcionario={funcionarioDraft}
+            onChange={setFuncionarioDraft}
+            onConfirmar={confirmarIdentificacion}
+            centroNombre={centro?.nombre ?? "campamento"}
+            etiquetaContinuar="Confirmar e ingresar"
+            cargando={identificando}
+            error={errorIdentificacion}
+            resaltarFaltantes={resaltarId}
+            onResaltarFaltantes={() => setResaltarId(true)}
+          />
+        </main>
+      </div>
+    );
+  }
+
   if (pantalla !== "menu") {
     const esInstruccionesReporte = pantalla === "instrucciones-reporte";
     const esInstruccionesGeo = pantalla === "instrucciones-geo";
     const esInstruccionesAut = pantalla === "instrucciones-autoridades";
+    const esInstruccionesCap = pantalla === "instrucciones-capacidad";
     const esGeo = pantalla === "geolocalizar" || esInstruccionesGeo;
     const esAut = pantalla === "autoridades" || esInstruccionesAut;
-    const titulo = esAut ? "Autoridades" : esGeo ? "Geolocalizar" : "Reporte";
+    const esCap = pantalla === "capacidad" || esInstruccionesCap;
+    const titulo = esCap
+      ? "Capacidad"
+      : esAut
+        ? "Autoridades"
+        : esGeo
+          ? "Geolocalizar"
+          : "Reporte";
     const subtitulo = esInstruccionesReporte
       ? "Cómo llenar el parte del campamento"
       : esInstruccionesGeo
         ? "Cómo ubicar el campamento con el GPS"
         : esInstruccionesAut
           ? "Cómo registrar el directorio del campamento"
-          : pantalla === "geolocalizar"
-            ? "Confirme el pin y guarde"
-            : pantalla === "autoridades"
-              ? "Política, Seguridad, Salud, Justicia y Comunitaria"
-              : "Seleccione el campamento que va a reportar";
+          : esInstruccionesCap
+            ? "Cómo registrar aforo y recursos Esfera"
+            : pantalla === "geolocalizar"
+              ? "Confirme el pin y guarde"
+              : pantalla === "autoridades"
+                ? "Política, Seguridad, Salud, Justicia y Comunitaria"
+                : pantalla === "capacidad"
+                  ? "Aforo oficial y recursos del campamento"
+                  : "Seleccione el campamento que va a reportar";
 
     return (
       <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
@@ -256,13 +453,22 @@ export function TerrenoView() {
                 setPantalla("autoridades");
               }}
             />
+          ) : esInstruccionesCap ? (
+            <CapacidadInstrucciones
+              nombreCentro={centro?.nombre}
+              onContinuar={() => {
+                marcarInstruccionesVistas(INSTRUCCIONES_CAPACIDAD_KEY);
+                setPantalla("capacidad");
+              }}
+            />
           ) : pantalla === "geolocalizar" && centroValido ? (
             <GeolocalizacionCentroPanel
               centroId={centroValido}
               centroNombre={centro?.nombre ?? "campamento"}
               token={token}
-              onGuardado={() => {
+              onGuardado={(actualizadoAt) => {
                 setGeolocalizado(true);
+                setGeoTs(actualizadoAt);
                 setPantalla("menu");
               }}
             />
@@ -271,7 +477,20 @@ export function TerrenoView() {
               centroId={centroValido}
               centroNombre={centro?.nombre ?? "campamento"}
               token={token}
-              onGuardado={() => setAutoridadesOk(true)}
+              onGuardado={(tieneDirectorio, actualizadoAt) => {
+                setAutoridadesOk(tieneDirectorio);
+                if (tieneDirectorio) setAutoridadesTs(actualizadoAt);
+              }}
+            />
+          ) : pantalla === "capacidad" && centroValido ? (
+            <CapacidadTerrenoPanel
+              centroId={centroValido}
+              centroNombre={centro?.nombre ?? "campamento"}
+              token={token}
+              onGuardado={(tieneCapacidad, actualizadoAt) => {
+                setCapacidadOk(tieneCapacidad);
+                if (tieneCapacidad) setCapacidadTs(actualizadoAt);
+              }}
             />
           ) : (
             <Card className="flex min-h-0 flex-1 flex-col overflow-hidden shadow-lg">
@@ -334,6 +553,25 @@ export function TerrenoView() {
           )}
           {errorEntrar && (
             <p className="max-w-xs text-xs leading-snug text-destructive">{errorEntrar}</p>
+          )}
+          {operadorSesion && (
+            <div className="flex w-full max-w-sm flex-col items-center gap-1.5 rounded-xl border border-border bg-card/60 px-3 py-2">
+              <p className="truncate text-center text-xs text-muted-foreground">
+                Operando como{" "}
+                <span className="font-medium text-foreground">
+                  {operadorSesion.funcionario.nombre}
+                </span>
+                {" · "}
+                {operadorSesion.funcionario.institucion}
+              </p>
+              <button
+                type="button"
+                onClick={() => void cambiarOperador()}
+                className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+              >
+                Otra persona / cambiar operador
+              </button>
+            </div>
           )}
         </header>
 
@@ -416,6 +654,7 @@ export function TerrenoView() {
               >
                 {geolocalizado ? "Ubicación guardada · puede actualizar" : "GPS del campamento"}
               </span>
+              <LineaActualizacion ts={geoTs} resaltar={geolocalizado} />
             </button>
 
             <button
@@ -452,6 +691,44 @@ export function TerrenoView() {
               >
                 {autoridadesOk ? "Directorio guardado · puede editar" : "Política · Salud · Justicia…"}
               </span>
+              <LineaActualizacion ts={autoridadesTs} resaltar={autoridadesOk} />
+            </button>
+
+            <button
+              type="button"
+              onClick={abrirCapacidad}
+              disabled={cargandoCentros || !centroValido}
+              className={cn(
+                CLASE_BOTON_CUADRADO,
+                capacidadOk &&
+                  "border-emerald-500/45 bg-emerald-500/10 hover:border-emerald-500/60 hover:bg-emerald-500/15",
+                (cargandoCentros || !centroValido) && "pointer-events-none opacity-70",
+              )}
+            >
+              {capacidadOk ? (
+                <CheckCircle2 className="size-10 text-emerald-500" aria-hidden="true" />
+              ) : (
+                <BedDouble className="size-10 text-primary" aria-hidden="true" />
+              )}
+              <span
+                className={cn(
+                  "text-sm font-semibold",
+                  capacidadOk && "text-emerald-600 dark:text-emerald-400",
+                )}
+              >
+                Capacidad
+              </span>
+              <span
+                className={cn(
+                  "text-[0.6875rem] leading-tight",
+                  capacidadOk
+                    ? "text-emerald-600/80 dark:text-emerald-400/80"
+                    : "text-muted-foreground",
+                )}
+              >
+                {capacidadOk ? "Aforo y recursos · puede editar" : "Cupo · camas · agua…"}
+              </span>
+              <LineaActualizacion ts={capacidadTs} resaltar={capacidadOk} />
             </button>
 
             <div
@@ -488,8 +765,8 @@ export function TerrenoView() {
               <div className="min-w-0">
                 <p className="text-sm font-medium">Ver instrucciones cada vez</p>
                 <p className="text-xs leading-snug text-muted-foreground">
-                  Muestra las pantallas de instrucciones del reporte, la geolocalización y las
-                  autoridades en cada entrada.
+                  Muestra las pantallas de instrucciones del reporte, geolocalización, autoridades
+                  y capacidad en cada entrada.
                 </p>
               </div>
               <Switch

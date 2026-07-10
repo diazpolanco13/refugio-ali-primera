@@ -1,21 +1,14 @@
-// Edge Function `login-terreno` (Fase 2 del acceso de campo).
+// Edge Function `login-terreno` (acceso de campo).
 //
-// Canjea un token de terreno (`tokens_centros.tipo = 'personal'`, el del QR
-// del campamento) por una sesión del usuario `operador-<centro_id>`:
-//   1. Valida el token contra `tokens_centros` (activo, tipo personal).
-//   2. Busca el operador del campamento; si no existe lo crea (auth.users con
-//      email sintético SIN contraseña + perfil rol `operador` con ese único
-//      centro asignado, hash_id generado aquí como en `create-user`).
-//   3. Emite un magiclink con `generateLink` y devuelve su `hashed_token`;
-//      el frontend lo canjea con `supabase.auth.verifyOtp` → sesión real y la
-//      RLS de siempre (operador limitado a su centro) hace el resto.
+// Canjea un token de terreno (`tokens_centros.tipo = 'personal'`) por una
+// sesión de operador:
+//   - Sin `funcionario`: usuario compartido `operador-<centro_id>` (legado).
+//   - Con `funcionario`: usuario temporal por persona
+//     `operador-<centro_id>-<huella>` (nombre/teléfono/institución), para que
+//     varias personas usen el mismo QR y queden como responsables distintos.
 //
-// El usuario compartido del campamento no tiene contraseña: la ÚNICA forma de
-// entrar es el token del QR, que es revocable por campamento. Registra en
-// `historial` la creación del operador y cada login de terreno.
-//
-// Desplegada vía MCP `deploy_edge_function` (verify_jwt: true — la anon key
-// es un JWT válido). Este archivo es la referencia versionada.
+// Emite magiclink (`hashed_token`); el frontend lo canjea con verifyOtp.
+// Desplegada vía MCP `deploy_edge_function` (verify_jwt: true).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -24,6 +17,13 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+interface FuncionarioBody {
+  jerarquia?: string;
+  nombre?: string;
+  institucion?: string;
+  telefono?: string;
+}
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -42,13 +42,42 @@ function generarHashId(): string {
   return `${hex.slice(0, 4)}-${hex.slice(4)}`;
 }
 
+function normalizarFuncionario(raw: FuncionarioBody | undefined): {
+  jerarquia: string;
+  nombre: string;
+  institucion: string;
+  telefono: string;
+} | null {
+  if (!raw || typeof raw !== "object") return null;
+  const jerarquia = typeof raw.jerarquia === "string" ? raw.jerarquia.trim() : "";
+  const nombre = typeof raw.nombre === "string" ? raw.nombre.trim() : "";
+  const institucion = typeof raw.institucion === "string" ? raw.institucion.trim() : "";
+  const telefono = typeof raw.telefono === "string" ? raw.telefono.trim() : "";
+  if (!jerarquia || !nombre || !institucion || !telefono) return null;
+  return { jerarquia, nombre, institucion, telefono };
+}
+
+async function huellaFuncionario(f: {
+  nombre: string;
+  institucion: string;
+  telefono: string;
+}): Promise<string> {
+  const tel = f.telefono.replace(/\D/g, "");
+  const text = `${tel}|${f.nombre.toLowerCase()}|${f.institucion.toLowerCase()}`;
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf))
+    .slice(0, 4)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  let body: { token?: string };
+  let body: { token?: string; funcionario?: FuncionarioBody };
   try {
     body = await req.json();
   } catch {
@@ -56,6 +85,7 @@ Deno.serve(async (req: Request) => {
   }
   const token = typeof body?.token === "string" ? body.token.trim() : "";
   if (!token) return json({ error: "Falta el token de terreno" }, 400);
+  const funcionario = normalizarFuncionario(body.funcionario);
 
   const adminClient = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -63,7 +93,6 @@ Deno.serve(async (req: Request) => {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
-  // 1) El token del QR es la credencial: debe estar activo y ser de personal.
   const { data: filaToken, error: tokenErr } = await adminClient
     .from("tokens_centros")
     .select("centro_id")
@@ -87,10 +116,10 @@ Deno.serve(async (req: Request) => {
   const nombreCentro =
     (centro.data as { nombre?: string })?.nombre?.trim() || centroId;
 
-  const username = `operador-${centroId}`;
+  const huella = funcionario ? await huellaFuncionario(funcionario) : null;
+  const username = huella ? `operador-${centroId}-${huella}` : `operador-${centroId}`;
   const email = `${username}@refugio.app`;
 
-  // 2) Operador del campamento: buscar o crear (sin contraseña).
   const { data: perfil } = await adminClient
     .from("perfiles")
     .select("user_id")
@@ -98,10 +127,17 @@ Deno.serve(async (req: Request) => {
     .maybeSingle();
 
   if (!perfil) {
+    const userMetadata: Record<string, unknown> = {
+      username,
+      terreno: true,
+      centro_id: centroId,
+    };
+    if (funcionario) userMetadata.funcionario = funcionario;
+
     const { data: nuevo, error: createErr } = await adminClient.auth.admin.createUser({
       email,
       email_confirm: true,
-      user_metadata: { username, terreno: true },
+      user_metadata: userMetadata,
     });
     if (createErr && !createErr.message.includes("already")) {
       return json({ error: `Error creando operador: ${createErr.message}` }, 500);
@@ -122,10 +158,15 @@ Deno.serve(async (req: Request) => {
       const { error: perfilErr } = await adminClient.from("perfiles").insert({
         user_id: nuevo.user.id,
         username,
-        nombre: `Terreno · ${nombreCentro}`,
+        nombre: funcionario ? funcionario.nombre : `Terreno · ${nombreCentro}`,
         rol: "operador",
         centros_asignados: [centroId],
-        responsabilidad: "Acceso de terreno (QR del campamento)",
+        responsabilidad: funcionario
+          ? `${funcionario.jerarquia} · ${funcionario.institucion}`
+          : "Acceso de terreno (QR del campamento)",
+        jerarquia: funcionario?.jerarquia ?? null,
+        telegram: funcionario?.telefono ?? null,
+        whatsapp: funcionario?.telefono ?? null,
         hash_id: hashId,
         marca_agua: true,
       });
@@ -140,12 +181,36 @@ Deno.serve(async (req: Request) => {
         accion: "crear_usuario_terreno",
         entidad: "usuario",
         entidad_id: nuevo.user.id,
-        detalle: { username, centro_id: centroId, origen: "login-terreno" },
+        detalle: {
+          username,
+          centro_id: centroId,
+          origen: "login-terreno",
+          funcionario: funcionario ?? null,
+        },
       });
     }
+  } else if (funcionario) {
+    // Actualizar datos de perfil y metadata si la misma persona vuelve a entrar.
+    await adminClient
+      .from("perfiles")
+      .update({
+        nombre: funcionario.nombre,
+        responsabilidad: `${funcionario.jerarquia} · ${funcionario.institucion}`,
+        jerarquia: funcionario.jerarquia,
+        telegram: funcionario.telefono,
+        whatsapp: funcionario.telefono,
+      })
+      .eq("user_id", perfil.user_id);
+    await adminClient.auth.admin.updateUserById(perfil.user_id, {
+      user_metadata: {
+        username,
+        terreno: true,
+        centro_id: centroId,
+        funcionario,
+      },
+    });
   }
 
-  // 3) Magiclink → hashed_token que el frontend canjea con verifyOtp.
   const { data: enlace, error: linkErr } = await adminClient.auth.admin.generateLink({
     type: "magiclink",
     email,
@@ -160,11 +225,19 @@ Deno.serve(async (req: Request) => {
     accion: "login_terreno",
     entidad: "centro",
     entidad_id: centroId,
-    detalle: { origen: "qr" },
+    detalle: {
+      origen: funcionario ? "qr_identificado" : "qr",
+      funcionario: funcionario ?? null,
+    },
   });
 
   return json(
-    { token_hash: enlace.properties.hashed_token, centro_id: centroId, username },
+    {
+      token_hash: enlace.properties.hashed_token,
+      centro_id: centroId,
+      username,
+      funcionario: funcionario ?? null,
+    },
     200,
   );
 });
