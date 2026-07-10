@@ -235,7 +235,7 @@ export function AutoridadesTerrenoPanel({
   }
 
   async function desmarcarSinAutoridades() {
-    const cats = new Set(pestanaMeta.categorias);
+    const cats = new Set<string>(pestanaMeta.categorias);
     const ambitosSin = sinAutoridad.filter((c) => !cats.has(c));
     await persistir(responsables, ambitosSin);
   }
