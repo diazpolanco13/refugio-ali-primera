@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  BadgeCheck,
   Building2,
   Check,
   ChevronsUpDown,
   Fingerprint,
-  IdCard,
   Loader2,
-  Pencil,
-  Phone,
   Plus,
-  Send,
   ShieldAlert,
   ShieldCheck,
   Trash2,
@@ -29,10 +24,8 @@ import {
   ROLES,
   rolUsaCentrosAsignados,
 } from "@/domain/permisos";
-import { BadgeRol } from "@/components/BadgeRol";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { VistaPagina } from "@/components/VistaPagina";
 import { EstadoVacio, LoadingTable } from "@/components/skeletons";
 import {
@@ -62,27 +55,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-
-/**
- * Fila de la tabla `perfiles` en Supabase (vinculada a `auth.users` por
- * `user_id`).
- */
-interface UsuarioPerfil {
-  user_id: string;
-  username: string | null;
-  nombre: string | null;
-  rol: Rol;
-  centros_asignados: string[] | null;
-  jerarquia: string | null;
-  cedula: string | null;
-  responsabilidad: string | null;
-  whatsapp: string | null;
-  telegram: string | null;
-  brazalete: string | null;
-  hash_id: string | null;
-  marca_agua: boolean;
-  created_at?: string;
-}
+import { BarraFiltrosUsuarios } from "./BarraFiltrosUsuarios";
+import { calcularCoberturaCentros } from "./coberturaCentros";
+import {
+  agruparUsuariosPorRol,
+  filtrarUsuariosGestion,
+} from "./filtrarUsuarios";
+import { ResumenCoberturaCentros } from "./ResumenCoberturaCentros";
+import {
+  etiquetaCentro,
+  TarjetaUsuario,
+  type UsuarioPerfil,
+} from "./TarjetaUsuario";
+import { BadgeRol } from "@/components/BadgeRol";
 
 type Formulario = {
   username: string;
@@ -113,12 +98,6 @@ const formVacio = (): Formulario => ({
   brazalete: "",
   marca_agua: true,
 });
-
-/** Etiqueta corta de un centro para chips y opciones: "N.° 12 · Nombre". */
-function etiquetaCentro(centro: CentroTransitorio | undefined, id: string): string {
-  if (!centro) return id;
-  return `${centro.nro != null ? `N.° ${centro.nro} · ` : ""}${centro.nombre}`;
-}
 
 /**
  * Multi-select de centros asignados: popover con buscador (Command) y chips
@@ -444,7 +423,7 @@ function FormUsuario({
                   <p className="text-xs leading-snug text-muted-foreground">
                     {usaCentros
                       ? form.rol === "analista_sae"
-                        ? "Ámbito de monitoreo del analista (su acceso operativo sigue siendo toda la red)."
+                        ? "Referencia opcional en el perfil. El filtro del tablero usa los analistas asignados en cada campamento (Asignación operativa)."
                         : "El supervisor y el operador solo ven y editan sus campamentos asignados."
                       : "Este rol tiene alcance sobre toda la red; no necesita asignación."}
                   </p>
@@ -585,163 +564,6 @@ function FormUsuario({
   );
 }
 
-function DatoFicha({
-  icono,
-  children,
-}: {
-  icono: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-      {icono}
-      {children}
-    </span>
-  );
-}
-
-function TarjetaUsuario({
-  usuario,
-  esYo,
-  centros,
-  onEditar,
-  onEliminar,
-}: {
-  usuario: UsuarioPerfil;
-  esYo: boolean;
-  centros: CentroTransitorio[];
-  onEditar: () => void;
-  onEliminar?: () => void;
-}) {
-  const porId = useMemo(() => new Map(centros.map((c) => [c.id, c])), [centros]);
-  const asignados = usuario.centros_asignados ?? [];
-  const tieneTodaLaRed =
-    centros.length > 0 && centros.every((c) => asignados.includes(c.id));
-
-  return (
-    <Card size="sm" className="py-3">
-      <CardContent className="px-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-              <span className="truncate">{usuario.nombre || usuario.username}</span>
-              {esYo && (
-                <Badge
-                  variant="outline"
-                  className="border-primary/40 text-[10px] text-primary"
-                >
-                  tú
-                </Badge>
-              )}
-            </div>
-            <div className="truncate text-xs text-muted-foreground">
-              @{usuario.username}
-              {usuario.jerarquia && <> · {usuario.jerarquia}</>}
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <Button size="sm" variant="outline" onClick={onEditar}>
-              <Pencil className="size-3" />
-              Editar
-            </Button>
-            {onEliminar && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-destructive hover:text-destructive"
-                onClick={onEliminar}
-                title="Eliminar usuario"
-              >
-                <Trash2 className="size-3" />
-              </Button>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <BadgeRol rol={usuario.rol} />
-          {usuario.hash_id && (
-            <Badge
-              variant="outline"
-              className="gap-1 border-primary/30 font-mono text-[10px] tracking-wider text-primary"
-            >
-              <Fingerprint className="size-3" />
-              {usuario.hash_id}
-            </Badge>
-          )}
-          <Badge
-            variant="outline"
-            className={cn(
-              "gap-1 text-[10px]",
-              usuario.marca_agua
-                ? "border-emerald-500/40 text-emerald-400"
-                : "border-amber-500/40 text-amber-400",
-            )}
-            title="Marca de agua de seguridad"
-          >
-            <ShieldAlert className="size-3" />
-            {usuario.marca_agua ? "Marca ON" : "Marca OFF"}
-          </Badge>
-        </div>
-
-        {asignados.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {tieneTodaLaRed ? (
-              <Badge
-                variant="outline"
-                className="gap-1 border-primary/40 text-[10px] text-primary"
-              >
-                <Building2 className="size-3" />
-                Toda la red ({centros.length} campamentos)
-              </Badge>
-            ) : (
-              asignados.map((id) => (
-                <Badge
-                  key={id}
-                  variant="outline"
-                  className="gap-1 text-[10px] text-muted-foreground"
-                >
-                  <Building2 className="size-3" />
-                  <span className="max-w-44 truncate">
-                    {etiquetaCentro(porId.get(id), id)}
-                  </span>
-                </Badge>
-              ))
-            )}
-          </div>
-        )}
-
-        {(usuario.responsabilidad ||
-          usuario.cedula ||
-          usuario.brazalete ||
-          usuario.whatsapp ||
-          usuario.telegram) && (
-          <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 border-t border-border pt-2.5">
-            {usuario.responsabilidad && (
-              <DatoFicha icono={<BadgeCheck className="size-3" />}>
-                {usuario.responsabilidad}
-              </DatoFicha>
-            )}
-            {usuario.cedula && (
-              <DatoFicha icono={<IdCard className="size-3" />}>{usuario.cedula}</DatoFicha>
-            )}
-            {usuario.brazalete && (
-              <DatoFicha icono={<BadgeCheck className="size-3" />}>
-                Brazalete {usuario.brazalete}
-              </DatoFicha>
-            )}
-            {usuario.whatsapp && (
-              <DatoFicha icono={<Phone className="size-3" />}>{usuario.whatsapp}</DatoFicha>
-            )}
-            {usuario.telegram && (
-              <DatoFicha icono={<Send className="size-3" />}>{usuario.telegram}</DatoFicha>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
@@ -755,6 +577,7 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
   const [eliminandoEnCurso, setEliminandoEnCurso] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState("");
   const [filtroRol, setFiltroRol] = useState<Rol | "todos">("todos");
+  const [busqueda, setBusqueda] = useState("");
 
   // Los centros se leen de Supabase para el multi-select de centros asignados.
   // `nro` vive dentro de `data` jsonb (no es columna top-level), así que el
@@ -771,6 +594,12 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
     () => [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
     [filasCentros],
   );
+
+  const mapaCentrosEtiqueta = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of centros) m.set(c.id, etiquetaCentro(c, c.id));
+    return m;
+  }, [centros]);
 
   const recargar = useCallback(async () => {
     setError("");
@@ -805,23 +634,34 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
     };
   }, [esAdmin, recargar]);
 
-  /** Conteo por rol para las píldoras de categoría. */
+  /** Conteo por rol (sobre el total, no el filtro de búsqueda). */
   const conteos = useMemo(() => {
     const c = new Map<Rol, number>();
     for (const u of usuarios) c.set(u.rol, (c.get(u.rol) ?? 0) + 1);
     return c;
   }, [usuarios]);
 
-  /** Usuarios visibles según el filtro, agrupados por rol (en orden del catálogo). */
-  const grupos = useMemo(() => {
-    const visibles =
-      filtroRol === "todos" ? usuarios : usuarios.filter((u) => u.rol === filtroRol);
-    return ROLES.map((rol) => ({
-      rol,
-      usuarios: visibles.filter((u) => u.rol === rol),
-    })).filter((g) => g.usuarios.length > 0);
-  }, [usuarios, filtroRol]);
+  const cobertura = useMemo(
+    () => calcularCoberturaCentros(centros, usuarios),
+    [centros, usuarios],
+  );
 
+  /** Usuarios visibles según rol + búsqueda, agrupados por rol. */
+  const grupos = useMemo(() => {
+    const visibles = filtrarUsuariosGestion({
+      usuarios,
+      mapaCentrosEtiqueta,
+      filtroRol,
+      busqueda,
+    });
+    return agruparUsuariosPorRol(visibles);
+  }, [usuarios, mapaCentrosEtiqueta, filtroRol, busqueda]);
+
+  const sinResultadosFiltro =
+    !cargando &&
+    usuarios.length > 0 &&
+    grupos.length === 0 &&
+    (busqueda.trim() !== "" || filtroRol !== "todos");
   async function crear(form: Formulario) {
     await invocarEdgeFunction("create-user", {
       username: form.username.trim(),
@@ -921,41 +761,29 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
               </div>
             )}
 
-            {/* Filtro por categoría de rol, con conteo */}
-            {!cargando && usuarios.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Button
-                  size="sm"
-                  variant={filtroRol === "todos" ? "secondary" : "outline"}
-                  className="h-7 gap-1.5 px-2.5 text-xs"
-                  onClick={() => setFiltroRol("todos")}
-                >
-                  Todos
-                  <span className="text-muted-foreground">{usuarios.length}</span>
-                </Button>
-                {ROLES.map((rol) => {
-                  const n = conteos.get(rol) ?? 0;
-                  if (n === 0) return null;
-                  return (
-                    <Button
-                      key={rol}
-                      size="sm"
-                      variant={filtroRol === rol ? "secondary" : "outline"}
-                      className="h-7 gap-1.5 px-2.5 text-xs"
-                      onClick={() => setFiltroRol(filtroRol === rol ? "todos" : rol)}
-                    >
-                      {INFO_ROLES[rol].etiqueta}
-                      <span className="text-muted-foreground">{n}</span>
-                    </Button>
-                  );
-                })}
-              </div>
+            <ResumenCoberturaCentros
+              cobertura={cobertura}
+              cargando={cargando}
+            />
+
+            {(cargando || usuarios.length > 0) && (
+              <BarraFiltrosUsuarios
+                busqueda={busqueda}
+                onBusqueda={setBusqueda}
+                filtroRol={filtroRol}
+                onFiltroRol={setFiltroRol}
+                conteos={conteos}
+                total={usuarios.length}
+                disabled={cargando || usuarios.length === 0}
+              />
             )}
 
             {cargando ? (
               <LoadingTable rows={6} cols={3} conToolbar={false} />
             ) : usuarios.length === 0 ? (
               <EstadoVacio titulo="No hay usuarios registrados" />
+            ) : sinResultadosFiltro ? (
+              <EstadoVacio titulo="Sin resultados para la búsqueda o el filtro" />
             ) : (
               grupos.map(({ rol, usuarios: lista }) => (
                 <section key={rol} className="space-y-2">

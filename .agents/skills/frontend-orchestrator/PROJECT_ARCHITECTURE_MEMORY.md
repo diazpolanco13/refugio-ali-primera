@@ -99,8 +99,15 @@ Según rol (no todas visibles siempre):
 - Skeleton específico por subsecciones de ficha de centro
 - Prefetch on hover de chunks desde el sidebar
 
+## Feature usuarios (gestión)
+
+- Cobertura de centros: helpers puros en `features/usuarios/coberturaCentros.ts` (unión de `centros_asignados` de roles con `rolUsaCentrosAsignados`)
+- Filtro/búsqueda: `filtrarUsuarios.ts`; UI en `BarraFiltrosUsuarios` (Input + Tabs) + KPIs `ResumenCoberturaCentros`
+- `TarjetaUsuario` colapsable (≤3 chips + expandir); contenedor `GestionUsuarios` solo orquesta
+
 ## Historial de orquestaciones
 
 | Fecha | Tema | Notas |
 |-------|------|-------|
 | 2026-07-10 | Skeletons menú+mapa | Implementado: contrato shimmer, familias, wire App.tsx, useSupabaseQueryConEstado |
+| 2026-07-10 | Gestión usuarios UX | Buscador, KPIs cobertura, Tabs por rol, chips colapsables |

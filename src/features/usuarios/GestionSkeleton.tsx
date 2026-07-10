@@ -31,16 +31,25 @@ export function GestionSkeleton({ variante = "usuarios" }: Props) {
         <Skeleton className="h-9 w-36 rounded-lg" />
       </div>
 
-      <div className="p-4 lg:p-6" aria-hidden>
+      <div className="space-y-4 p-4 lg:p-6" aria-hidden>
         {variante === "usuarios" ? (
+          <>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Skeleton className="h-[4.5rem] rounded-xl" />
+              <Skeleton className="h-[4.5rem] rounded-xl" />
+              <Skeleton className="h-[4.5rem] rounded-xl" />
+            </div>
+            <Skeleton className="h-9 w-full rounded-lg" />
+            <Skeleton className="h-8 w-full max-w-xl rounded-lg" />
+            <LoadingTable rows={6} cols={3} conToolbar={false} />
+          </>
+        ) : (
           <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
-            <LoadingTable rows={6} cols={3} />
+            <LoadingTable rows={7} cols={4} />
             <div className="rounded-xl border border-border/40 p-4">
               <LoadingForm fields={4} />
             </div>
           </div>
-        ) : (
-          <LoadingTable rows={7} cols={4} />
         )}
       </div>
     </SectionSkeletonFrame>
