@@ -32,8 +32,8 @@ function migasDetalleCentro(
   const migas: MigaPan[] = [...encabezado, { label: nombre, to: baseCentro }];
 
   if (reportar) {
-    migas.push({ label: "Reporte del día" });
-    return migas;
+    // Modo formulario de reporte: sin enlaces hacia atrás (ficha, listados, inicio).
+    return [{ label: nombre }, { label: "Reporte del día" }];
   }
 
   if (registrar) {

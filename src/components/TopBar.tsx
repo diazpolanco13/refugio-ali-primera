@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { MigasPanNav } from "@/components/MigasPanNav";
+import { esRolTerreno } from "@/domain/permisos";
+import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -73,14 +75,18 @@ export function TopBar({
   online,
 }: Props) {
   const conectado = useSupabaseConectado();
+  const [searchParams] = useSearchParams();
   const puedeEditar = puedeEscribir(sesion.user.rol);
   const nombre = sesion.user.nombre || sesion.user.username;
   const inicialesUsuario = iniciales(sesion.user.nombre, sesion.user.username);
+  // Operador del QR en modo reporte: sin menú lateral (no debe salir del parte).
+  const reporteTerrenoBloqueado =
+    esRolTerreno(sesion.user.rol) && searchParams.get("reportar") === "1";
 
   return (
     <header className="z-20 flex h-12 shrink-0 items-center justify-between border-b border-border bg-background/95 px-2 backdrop-blur-sm sm:px-3">
       <div className="flex min-w-0 items-center gap-2">
-        <SidebarTrigger className="shrink-0" />
+        {!reporteTerrenoBloqueado && <SidebarTrigger className="shrink-0" />}
         <IconoAppConEstado online={online} conectado={conectado} />
         <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <MigasPanNav />

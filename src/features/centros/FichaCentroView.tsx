@@ -1,7 +1,7 @@
 // Vista completa de un campamento (`/centro/:id`): segmentada por pestañas
 // (Resumen, Coordinación, Población, Censo, Reporte, Seguimiento, Infraestructura, Buzón).
 // Las mismas secciones también aparecen en el submenú del sidebar bajo Reportes diarios.
-// El reporte diario y la edición del campamento se abren integrados en el mismo marco.
+// El reporte diario se abre integrado en el mismo marco.
 // Vive dentro del AppShell global, con sidebar y TopBar compartidos.
 
 import { useEffect, useMemo, useState } from "react";
@@ -10,7 +10,6 @@ import {
   ArrowLeft,
   ClipboardCheck,
   LayoutGrid,
-  Pencil,
   SearchX,
   UserPlus,
 } from "lucide-react";
@@ -29,12 +28,12 @@ import type { Sesion } from "@/data/authSupabase";
 import {
   SECCIONES_FICHA_TERRENO,
   esRolTerreno,
-  puedeCrearCentros,
   puedeEditarCentro,
   puedeEditarReportesPasados,
   puedeVerBuzonCentro,
   puedeVerCensoCentro,
 } from "@/domain/permisos";
+import { tokenTerrenoActual } from "@/lib/tokenTerreno";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
 import { controlReportado, reporteControlDelDia } from "@/domain/controlReporte";
 import {
@@ -68,7 +67,6 @@ import {
 } from "./seccionesFichaCentro";
 import { CensoCentroPanel } from "@/features/censo/CensoCentroPanel";
 import { cn } from "@/lib/utils";
-import { CentroForm } from "./CentroForm";
 import { ReporteDiarioForm } from "./ReporteDiarioForm";
 import { VisorFechaReporte } from "./VisorFechaReporte";
 
@@ -116,8 +114,9 @@ export function FichaCentroView({ sesion }: Props) {
     : "reporte";
   const modoReporte = searchParams.get("reportar") === "1";
   const modoRegistrar = searchParams.get("registrar") === "1";
-  const modoEditar = searchParams.get("editar") === "1";
   const refugiadoId = searchParams.get("refugiado");
+  // Entrada desde /terreno (sesión operador del QR): solo el parte, sin salir a la ficha.
+  const reporteSoloTerreno = esTerreno && modoReporte;
 
   const hoyClave = useMemo(() => claveDia(Date.now()), []);
   const [diaReporte, setDiaReporte] = useState(() =>
@@ -152,7 +151,6 @@ export function FichaCentroView({ sesion }: Props) {
 
   const puedeEditar = centro != null && puedeEditarCentro(sesion.user, centro.id);
   const puedeEditarPasado = puedeEditarReportesPasados(sesion.user);
-  const puedeEliminar = puedeCrearCentros(sesion.user.rol);
 
   const reportesHoy = useReportesCentros({
     centroId: centro?.id,
@@ -282,15 +280,12 @@ export function FichaCentroView({ sesion }: Props) {
   }
 
   function cerrarReporte() {
+    if (esTerreno) {
+      const token = tokenTerrenoActual();
+      navigate(token ? `/terreno?t=${encodeURIComponent(token)}` : "/terreno");
+      return;
+    }
     setSearchParams({ vista: "reporte" }, { replace: true });
-  }
-
-  function abrirEdicion() {
-    setSearchParams({ vista: "resumen", editar: "1" }, { replace: true });
-  }
-
-  function cerrarEdicion() {
-    setSearchParams({ vista: "resumen" }, { replace: true });
   }
 
   function volverPoblacion() {
@@ -322,14 +317,29 @@ export function FichaCentroView({ sesion }: Props) {
     }
   }, [seccionParam, setSearchParams]);
 
+  // ?editar=1 apuntaba al CentroForm completo; ahora la asignación vive en Coordinación.
+  useEffect(() => {
+    if (searchParams.get("editar") === "1") {
+      setSearchParams({ vista: "coordinacion" }, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Operador de terreno: si abre la ficha sin ?reportar=1, forzar el formulario.
+  useEffect(() => {
+    if (!esTerreno || !centro || !puedeEditar) return;
+    if (modoReporte) return;
+    if (modoRegistrar || refugiadoId) return;
+    abrirReporte();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [esTerreno, centro?.id, puedeEditar, modoReporte, modoRegistrar, refugiadoId]);
+
   // Si no puede editar, no mantener modos de edición en la URL.
   useEffect(() => {
     if (centro && !puedeEditar) {
-      if (modoReporte) cerrarReporte();
+      if (modoReporte && !esTerreno) cerrarReporte();
       if (modoRegistrar) volverPoblacion();
-      if (modoEditar) cerrarEdicion();
     }
-  }, [modoReporte, modoRegistrar, modoEditar, centro, puedeEditar]);
+  }, [modoReporte, modoRegistrar, centro, puedeEditar, esTerreno]);
 
   if (!centro) {
     if (cargandoCentros) {
@@ -404,43 +414,6 @@ export function FichaCentroView({ sesion }: Props) {
     );
   }
 
-  if (modoEditar && puedeEditar && centro) {
-    return (
-      <MarcoVista
-        ancho={ANCHO_VISTA_PRINCIPAL}
-        rellenarAltura
-        className="overflow-hidden"
-        marcoClassName="flex min-h-0 flex-col text-foreground"
-      >
-        <VistaEncabezado
-          icono={Pencil}
-          acento="sky"
-          titulo={`Editar · ${titulo}`}
-          descripcion="Identificación, asignación operativa, capacidad y contactos"
-          acciones={
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 shrink-0 gap-1.5 px-2"
-              onClick={cerrarEdicion}
-            >
-              <ArrowLeft className="size-3.5" />
-              <span className="hidden sm:inline">Volver a la ficha</span>
-              <span className="sm:hidden">Volver</span>
-            </Button>
-          }
-        />
-        <CentroForm
-          centro={centro}
-          puedeEliminar={puedeEliminar}
-          variant="integrado"
-          onCerrar={cerrarEdicion}
-          onGuardado={() => cerrarEdicion()}
-        />
-      </MarcoVista>
-    );
-  }
-
   if (modoReporte && puedeEditar && (esHoyReporte || puedeEditarPasado)) {
     return (
       <MarcoVista
@@ -451,21 +424,36 @@ export function FichaCentroView({ sesion }: Props) {
       >
         <header className="shrink-0 border-b border-border/70 px-3 pb-3 pt-3 sm:px-4 lg:px-6">
           <div className="flex items-start gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 shrink-0 gap-1.5 px-2"
-              onClick={cerrarReporte}
-              aria-label="Volver a la ficha"
-            >
-              <ArrowLeft className="size-3.5" />
-              <span className="hidden sm:inline">Volver a la ficha</span>
-              <span className="sm:hidden">Volver</span>
-            </Button>
+            {!reporteSoloTerreno && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 gap-1.5 px-2"
+                onClick={cerrarReporte}
+                aria-label="Volver a la ficha"
+              >
+                <ArrowLeft className="size-3.5" />
+                <span className="hidden sm:inline">Volver a la ficha</span>
+                <span className="sm:hidden">Volver</span>
+              </Button>
+            )}
             <div className="min-w-0 flex-1 pt-0.5">
               <h1 className="truncate text-sm font-semibold sm:text-base">Reporte del día</h1>
               <p className="truncate text-xs text-muted-foreground">{titulo}</p>
             </div>
+            {reporteSoloTerreno && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 gap-1.5 px-2"
+                onClick={cerrarReporte}
+                aria-label="Volver al portal de terreno"
+              >
+                <ArrowLeft className="size-3.5" />
+                <span className="hidden sm:inline">Volver al portal</span>
+                <span className="sm:hidden">Portal</span>
+              </Button>
+            )}
           </div>
           <div className="mt-2.5 flex items-center gap-2">
             <VisorFechaReporte
@@ -487,6 +475,8 @@ export function FichaCentroView({ sesion }: Props) {
           diaReporte={diaReporte}
           faseInicial={searchParams.get("fase") ?? undefined}
           onCerrar={cerrarReporte}
+          ocultarCerrar={reporteSoloTerreno}
+          etiquetaCerrar={reporteSoloTerreno ? "Volver al portal" : "Cerrar"}
         />
       </MarcoVista>
     );
@@ -545,18 +535,6 @@ export function FichaCentroView({ sesion }: Props) {
               <div className="hidden shrink-0 sm:block">
                 <BadgesEstadoCentro centro={centro} />
               </div>
-              {puedeEditar && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-9 shrink-0 gap-1.5 px-3"
-                  onClick={abrirEdicion}
-                >
-                  <Pencil className="size-3.5" />
-                  <span className="hidden sm:inline">Editar campamento</span>
-                  <span className="sm:hidden">Editar</span>
-                </Button>
-              )}
               {puedeEditar && hoyEstado !== "completo" && (
                 <Button
                   size="sm"
@@ -640,7 +618,6 @@ export function FichaCentroView({ sesion }: Props) {
                 centro={centro}
                 puedeEditar={puedeEditar}
                 onIrAPestana={(vista) => cambiarSeccion(vista)}
-                onEditar={puedeEditar ? abrirEdicion : undefined}
               />
             </TabsContent>
 

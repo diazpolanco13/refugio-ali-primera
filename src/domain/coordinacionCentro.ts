@@ -69,8 +69,8 @@ export const CATEGORIAS_RESPONSABILIDAD_COORDINACION: {
 ];
 
 /**
- * Pestañas de la UI de Coordinación. Supervisión agrupa supervisión rotatoria
- * + analista SAE (ya no hay pestaña SAE aparte).
+ * Pestañas de la UI de Coordinación. Supervisión muestra la asignación
+ * operativa (`cuerpo` + `supervision.*`); el resto usa responsables_coordinacion.
  */
 export type IdPestanaCoordinacion = Exclude<
   CategoriaResponsabilidadCoordinacion,
@@ -127,6 +127,18 @@ export const PESTANAS_COORDINACION: {
     categorias: ["comunitaria"],
   },
 ];
+
+/**
+ * Ámbitos editables desde el portal de terreno (/terreno): las mismas
+ * pestañas de autoridades del directorio del centro, sin Supervisión
+ * (esa se gestiona en la app con usuario).
+ */
+export const PESTANAS_AUTORIDADES_TERRENO = PESTANAS_COORDINACION.filter(
+  (p) => p.id !== "supervision_rotatoria",
+);
+
+export const CATEGORIAS_AUTORIDADES_TERRENO: CategoriaResponsabilidadCoordinacion[] =
+  PESTANAS_AUTORIDADES_TERRENO.flatMap((p) => p.categorias);
 
 /** Pestaña UI que contiene una categoría de responsabilidad. */
 export function pestanaDeCategoria(

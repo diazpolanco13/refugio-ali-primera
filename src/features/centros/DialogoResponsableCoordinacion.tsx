@@ -41,12 +41,20 @@ import { Switch } from "@/components/ui/switch";
 export function CamposResponsableCoordinacion({
   valor,
   onChange,
+  categoriasPermitidas,
 }: {
   valor: ResponsableCoordinacion;
   onChange: (patch: Partial<ResponsableCoordinacion>) => void;
+  /** Si se indica, el selector de categoría solo ofrece estas opciones. */
+  categoriasPermitidas?: CategoriaResponsabilidadCoordinacion[];
 }) {
   const cat = metaCategoriaCoordinacion(valor.categoria);
   const config = CONFIG_CATEGORIA_COORDINACION[valor.categoria];
+  const opcionesCategoria = categoriasPermitidas?.length
+    ? CATEGORIAS_RESPONSABILIDAD_COORDINACION.filter((item) =>
+        categoriasPermitidas.includes(item.valor),
+      )
+    : CATEGORIAS_RESPONSABILIDAD_COORDINACION;
 
   function actualizarTelefono(indice: number, tel: string) {
     const telefonos = [...valor.telefonos];
@@ -89,7 +97,7 @@ export function CamposResponsableCoordinacion({
             <SelectValue placeholder="Seleccionar categoría" />
           </SelectTrigger>
           <SelectContent>
-            {CATEGORIAS_RESPONSABILIDAD_COORDINACION.map((item) => (
+            {opcionesCategoria.map((item) => (
               <SelectItem key={item.valor} value={item.valor}>
                 {item.label}
               </SelectItem>

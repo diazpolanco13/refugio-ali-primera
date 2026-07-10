@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   ClipboardList,
+  Landmark,
   Loader2,
   LockKeyhole,
   MapPin,
@@ -20,10 +21,13 @@ import { SelectorCentroLista } from "@/features/censo/SelectorCentroLista";
 import { ReporteInstrucciones } from "@/features/terreno/ReporteInstrucciones";
 import { GeolocalizacionInstrucciones } from "@/features/terreno/GeolocalizacionInstrucciones";
 import { GeolocalizacionCentroPanel } from "@/features/terreno/GeolocalizacionCentroPanel";
+import { AutoridadesInstrucciones } from "@/features/terreno/AutoridadesInstrucciones";
+import { AutoridadesTerrenoPanel } from "@/features/terreno/AutoridadesTerrenoPanel";
 import { listarCentrosCenso, obtenerCentroTerreno, type CentroCenso } from "@/data/reposCenso";
 import { asegurarSesionTerreno } from "@/data/loginTerreno";
 import { tokenTerrenoActual } from "@/lib/tokenTerreno";
 import {
+  INSTRUCCIONES_AUTORIDADES_KEY,
   INSTRUCCIONES_GEO_KEY,
   INSTRUCCIONES_REPORTE_KEY,
   debeMostrarInstrucciones,
@@ -32,9 +36,8 @@ import {
   setVerInstruccionesSiempre,
   verInstruccionesSiempre,
 } from "@/lib/instruccionesCampo";
-import {
-  centroGeolocalizadoLocal,
-} from "@/lib/geolocalizacionTerreno";
+import { centroGeolocalizadoLocal } from "@/lib/geolocalizacionTerreno";
+import { autoridadesTerrenoGuardadasLocal } from "@/lib/autoridadesTerreno";
 import { cn } from "@/lib/utils";
 
 function centroDeLaUrl(): string {
@@ -53,7 +56,9 @@ type Pantalla =
   | "instrucciones-reporte"
   | "selector-reporte"
   | "instrucciones-geo"
-  | "geolocalizar";
+  | "geolocalizar"
+  | "instrucciones-autoridades"
+  | "autoridades";
 
 export function TerrenoView() {
   const centroParam = useMemo(centroDeLaUrl, []);
@@ -68,6 +73,7 @@ export function TerrenoView() {
   const [instruccionesSiempre, setInstruccionesSiempre] = useState(verInstruccionesSiempre);
   const [instruccionesRestablecidas, setInstruccionesRestablecidas] = useState(false);
   const [geolocalizado, setGeolocalizado] = useState(false);
+  const [autoridadesOk, setAutoridadesOk] = useState(false);
 
   useEffect(() => {
     let cancelado = false;
@@ -79,6 +85,7 @@ export function TerrenoView() {
             // Solo verde si este dispositivo ya guardó desde el flujo de terreno
             // (no por tener geom previo en catálogo/BD).
             setGeolocalizado(centroGeolocalizadoLocal(centroDelToken.id));
+            setAutoridadesOk(autoridadesTerrenoGuardadasLocal(centroDelToken.id));
           } else {
             setErrorCentros(
               "El enlace o código QR no es válido o fue revocado. Solicite el vigente de su campamento.",
@@ -89,7 +96,10 @@ export function TerrenoView() {
           if (!cancelado) {
             setCentros(lista);
             const id = centroParam || lista[0]?.id || "";
-            if (id) setGeolocalizado(centroGeolocalizadoLocal(id));
+            if (id) {
+              setGeolocalizado(centroGeolocalizadoLocal(id));
+              setAutoridadesOk(autoridadesTerrenoGuardadasLocal(id));
+            }
           }
         });
     carga
@@ -165,6 +175,18 @@ export function TerrenoView() {
     else setPantalla("geolocalizar");
   }
 
+  function abrirAutoridades() {
+    if (!centroValido) {
+      setErrorEntrar("Abra el enlace o código QR de su campamento para registrar autoridades.");
+      return;
+    }
+    if (debeMostrarInstrucciones(INSTRUCCIONES_AUTORIDADES_KEY)) {
+      setPantalla("instrucciones-autoridades");
+    } else {
+      setPantalla("autoridades");
+    }
+  }
+
   function cambiarInstruccionesSiempre(valor: boolean) {
     setVerInstruccionesSiempre(valor);
     setInstruccionesSiempre(valor);
@@ -178,15 +200,21 @@ export function TerrenoView() {
   if (pantalla !== "menu") {
     const esInstruccionesReporte = pantalla === "instrucciones-reporte";
     const esInstruccionesGeo = pantalla === "instrucciones-geo";
+    const esInstruccionesAut = pantalla === "instrucciones-autoridades";
     const esGeo = pantalla === "geolocalizar" || esInstruccionesGeo;
-    const titulo = esGeo ? "Geolocalizar" : "Reporte";
+    const esAut = pantalla === "autoridades" || esInstruccionesAut;
+    const titulo = esAut ? "Autoridades" : esGeo ? "Geolocalizar" : "Reporte";
     const subtitulo = esInstruccionesReporte
       ? "Cómo llenar el parte del campamento"
       : esInstruccionesGeo
         ? "Cómo ubicar el campamento con el GPS"
-        : pantalla === "geolocalizar"
-          ? "Confirme el pin y guarde"
-          : "Seleccione el campamento que va a reportar";
+        : esInstruccionesAut
+          ? "Cómo registrar el directorio del campamento"
+          : pantalla === "geolocalizar"
+            ? "Confirme el pin y guarde"
+            : pantalla === "autoridades"
+              ? "Política, Seguridad, Salud, Justicia y Comunitaria"
+              : "Seleccione el campamento que va a reportar";
 
     return (
       <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
@@ -220,6 +248,14 @@ export function TerrenoView() {
                 setPantalla("geolocalizar");
               }}
             />
+          ) : esInstruccionesAut ? (
+            <AutoridadesInstrucciones
+              nombreCentro={centro?.nombre}
+              onContinuar={() => {
+                marcarInstruccionesVistas(INSTRUCCIONES_AUTORIDADES_KEY);
+                setPantalla("autoridades");
+              }}
+            />
           ) : pantalla === "geolocalizar" && centroValido ? (
             <GeolocalizacionCentroPanel
               centroId={centroValido}
@@ -230,6 +266,13 @@ export function TerrenoView() {
                 setPantalla("menu");
               }}
             />
+          ) : pantalla === "autoridades" && centroValido ? (
+            <AutoridadesTerrenoPanel
+              centroId={centroValido}
+              centroNombre={centro?.nombre ?? "campamento"}
+              token={token}
+              onGuardado={() => setAutoridadesOk(true)}
+            />
           ) : (
             <Card className="flex min-h-0 flex-1 flex-col overflow-hidden shadow-lg">
               <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden py-4">
@@ -238,8 +281,6 @@ export function TerrenoView() {
                   centroId={centroReporteId}
                   cargando={cargandoCentros}
                   onSelect={(id) => {
-                    // Marca la fila elegida (feedback inmediato) y sale a la app
-                    // completa; el login aparece ahí si no hay sesión.
                     setCentroReporteId(id);
                     window.location.href = urlReporteCentro(id);
                   }}
@@ -377,6 +418,42 @@ export function TerrenoView() {
               </span>
             </button>
 
+            <button
+              type="button"
+              onClick={abrirAutoridades}
+              disabled={cargandoCentros || !centroValido}
+              className={cn(
+                CLASE_BOTON_CUADRADO,
+                autoridadesOk &&
+                  "border-emerald-500/45 bg-emerald-500/10 hover:border-emerald-500/60 hover:bg-emerald-500/15",
+                (cargandoCentros || !centroValido) && "pointer-events-none opacity-70",
+              )}
+            >
+              {autoridadesOk ? (
+                <CheckCircle2 className="size-10 text-emerald-500" aria-hidden="true" />
+              ) : (
+                <Landmark className="size-10 text-primary" aria-hidden="true" />
+              )}
+              <span
+                className={cn(
+                  "text-sm font-semibold",
+                  autoridadesOk && "text-emerald-600 dark:text-emerald-400",
+                )}
+              >
+                Autoridades
+              </span>
+              <span
+                className={cn(
+                  "text-[0.6875rem] leading-tight",
+                  autoridadesOk
+                    ? "text-emerald-600/80 dark:text-emerald-400/80"
+                    : "text-muted-foreground",
+                )}
+              >
+                {autoridadesOk ? "Directorio guardado · puede editar" : "Política · Salud · Justicia…"}
+              </span>
+            </button>
+
             <div
               role="button"
               aria-disabled="true"
@@ -411,8 +488,8 @@ export function TerrenoView() {
               <div className="min-w-0">
                 <p className="text-sm font-medium">Ver instrucciones cada vez</p>
                 <p className="text-xs leading-snug text-muted-foreground">
-                  Muestra las pantallas de instrucciones del reporte y la geolocalización en cada
-                  entrada.
+                  Muestra las pantallas de instrucciones del reporte, la geolocalización y las
+                  autoridades en cada entrada.
                 </p>
               </div>
               <Switch

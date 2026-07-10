@@ -20,9 +20,11 @@
 --   p_lat double precision — latitud o NULL
 --
 -- Seguridad: SECURITY INVOKER → corre con los permisos del usuario autenticado,
--- así que las políticas RLS de `centros` (solo admin/coordinador/campo
--- escriben; visor no) siguen aplicando dentro de la función. Solo el rol
--- `authenticated` puede ejecutarla (revocada para `public`/`anon`).
+-- así que las políticas RLS de `centros` siguen aplicando. Solo `authenticated`
+-- puede ejecutarla. IMPORTANTE: se hace UPDATE primero y INSERT solo si no
+-- existe la fila. Un `INSERT … ON CONFLICT DO UPDATE` también evalúa la
+-- política INSERT (solo admin/analista_sae), y el operador de terreno
+-- (que sí puede UPDATE su campamento) fallaría al guardar desde /terreno.
 create or replace function public.upsert_centro(
   p_id text,
   p_data jsonb,
@@ -36,20 +38,29 @@ as $$
 declare
   v_now bigint := coalesce((p_data->>'updated_at')::bigint, (extract(epoch from now()) * 1000)::bigint);
   v_geom geography(Point, 4326) := null;
+  v_by text := coalesce(p_data->>'updated_by', auth.uid()::text);
+  v_updated int;
 begin
   if p_lng is not null and p_lat is not null then
     v_geom := st_setsrid(st_makepoint(p_lng, p_lat), 4326)::geography;
   end if;
 
-  insert into centros (id, updated_at, updated_by, deleted, data, geom)
-  values (p_id, v_now, coalesce(p_data->>'updated_by', auth.uid()::text), false, p_data, v_geom)
-  on conflict (id) do update
-    set
-      updated_at = excluded.updated_at,
-      updated_by = excluded.updated_by,
-      deleted = false,
-      data = excluded.data,
-      geom = coalesce(excluded.geom, centros.geom);
+  update public.centros
+  set
+    updated_at = v_now,
+    updated_by = v_by,
+    deleted = false,
+    data = p_data,
+    geom = coalesce(v_geom, geom)
+  where id = p_id;
+
+  get diagnostics v_updated = row_count;
+  if v_updated > 0 then
+    return;
+  end if;
+
+  insert into public.centros (id, updated_at, updated_by, deleted, data, geom)
+  values (p_id, v_now, v_by, false, p_data, v_geom);
 end;
 $$;
 

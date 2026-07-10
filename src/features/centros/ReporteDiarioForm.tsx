@@ -75,6 +75,10 @@ interface Props {
   diaReporte?: string;
   /** Pestaña con la que abre el formulario (parte, salud, control, trabajos, requerimientos, novedades). */
   faseInicial?: string;
+  /** Oculta el botón «Cerrar» del pie (operador de terreno bloqueado en el parte). */
+  ocultarCerrar?: boolean;
+  /** Etiqueta del botón cerrar (p. ej. «Volver al portal»). */
+  etiquetaCerrar?: string;
 }
 
 interface ParteForm {
@@ -162,6 +166,8 @@ export function ReporteDiarioForm({
   onCerrar,
   diaReporte: diaReporteProp,
   faseInicial,
+  ocultarCerrar = false,
+  etiquetaCerrar = "Cerrar",
 }: Props) {
   const base = normalizarCentro(centro);
   const diaReporte = diaReporteProp ?? claveDia(Date.now());
@@ -694,9 +700,11 @@ export function ReporteDiarioForm({
       {errorGuardado && (
         <p className="w-full text-xs leading-snug text-destructive">{errorGuardado}</p>
       )}
-      <Button variant="outline" onClick={onCerrar} disabled={guardando || confirmandoParte}>
-        Cerrar
-      </Button>
+      {!ocultarCerrar && (
+        <Button variant="outline" onClick={onCerrar} disabled={guardando || confirmandoParte}>
+          {etiquetaCerrar}
+        </Button>
+      )}
     </div>
   );
 

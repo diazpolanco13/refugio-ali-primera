@@ -172,6 +172,65 @@ export const ESTADOS_CENTRO: { valor: EstadoCentro; label: string; color: string
 ];
 
 /**
+ * Fase de instalación según el registro oficial (Vicepresidencia / MIJ).
+ * Distinto de `EstadoCentro` (saturado/cerrado = gestión operativa).
+ */
+export type EstatusInstalacionOficial = "instalado" | "proceso_de_instalacion";
+
+export const ESTATUS_INSTALACION_OFICIAL: {
+  valor: EstatusInstalacionOficial;
+  label: string;
+}[] = [
+  { valor: "instalado", label: "Instalado" },
+  { valor: "proceso_de_instalacion", label: "En proceso de instalación" },
+];
+
+/**
+ * Variables del censo oficial de campamentos transitorios.
+ * Fuente: registro Vicepresidencia Sectorial / MIJ (`campamentos_transitorios.json`).
+ * `capacidad_instalada` es el aforo habilitado editable; el cupo oficial se deriva
+ * como instalada − damnificados (puede ser negativo = sobrecupo).
+ */
+export interface CensoOficialCentro {
+  id_oficial: number | null;
+  /** Fecha de corte del registro oficial (ISO). */
+  fecha_corte: string | null;
+  ministerio_ente: string;
+  estatus_instalacion: EstatusInstalacionOficial | null;
+  capacidad_maxima: number | null;
+  capacidad_instalada: number | null;
+}
+
+export const CENSO_OFICIAL_VACIO: CensoOficialCentro = {
+  id_oficial: null,
+  fecha_corte: null,
+  ministerio_ente: "",
+  estatus_instalacion: null,
+  capacidad_maxima: null,
+  capacidad_instalada: null,
+};
+
+/** Normaliza el bloque de censo oficial tolerando filas viejas o incompletas. */
+export function normalizarCensoOficial(
+  c: Partial<CensoOficialCentro> | null | undefined,
+): CensoOficialCentro {
+  const raw = c ?? {};
+  const estatus = raw.estatus_instalacion;
+  const estatusOk =
+    estatus === "instalado" || estatus === "proceso_de_instalacion" ? estatus : null;
+  const numOrNull = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? v : null;
+  return {
+    id_oficial: numOrNull(raw.id_oficial),
+    fecha_corte: typeof raw.fecha_corte === "string" ? raw.fecha_corte : null,
+    ministerio_ente: typeof raw.ministerio_ente === "string" ? raw.ministerio_ente : "",
+    estatus_instalacion: estatusOk,
+    capacidad_maxima: numOrNull(raw.capacidad_maxima),
+    capacidad_instalada: numOrNull(raw.capacidad_instalada),
+  };
+}
+
+/**
  * Capacidad instalada vs. operativa de cada recurso del centro. La distinción
  * es clave para detectar cuellos de botella: puede haber 100 camas instaladas
  * pero solo 2 pocetas operativas → el centro no debería recibir más gente.
@@ -451,6 +510,11 @@ export interface CentroTransitorio {
   requerimientos?: ItemRequerimiento[];
   // ---- Campos mutables (registro de estado, sincronizables) ----
   capacidad?: CapacidadCentro;
+  /**
+   * Censo oficial (capacidad máxima/instalada, ente, estatus de instalación).
+   * El cupo de personas usa `capacidad_instalada`, no el mínimo Esfera de camas.
+   */
+  censo_oficial?: CensoOficialCentro;
   /** Ocupación actual por edad y sexo (mismo desglose que los sectores). */
   ocupacion?: Vulnerables;
   /** Personal operativo desplegado (funcionarios, salud, justicia). */
@@ -460,6 +524,11 @@ export interface CentroTransitorio {
   responsables?: Responsable[];
   /** Responsables de coordinación (política, seguridad física, supervisión, etc.). */
   responsables_coordinacion?: ResponsableCoordinacion[];
+  /**
+   * Ámbitos del directorio marcados explícitamente como «sin autoridades»
+   * (p. ej. desde /terreno). Confirmación operativa por categoría.
+   */
+  ambitos_sin_autoridad?: string[];
   /** URL pública de la foto del centro (Supabase Storage). */
   foto_url?: string;
   estado?: EstadoCentro;
@@ -470,11 +539,13 @@ export interface CentroTransitorio {
 /** Centro con todos los campos mutables garantizados (tras normalizar). */
 export interface CentroNormalizado extends CentroTransitorio {
   capacidad: CapacidadCentro;
+  censo_oficial: CensoOficialCentro;
   ocupacion: Vulnerables;
   personal: PersonalCentro;
   familias_ocupadas: number;
   responsables: Responsable[];
   responsables_coordinacion: ResponsableCoordinacion[];
+  ambitos_sin_autoridad: string[];
   foto_url: string;
   estado: EstadoCentro;
   fecha_levantamiento: string;
@@ -496,11 +567,15 @@ export function normalizarCentro(c: CentroTransitorio): CentroNormalizado {
   return {
     ...c,
     capacidad: normalizarCapacidad(c.capacidad),
+    censo_oficial: normalizarCensoOficial(c.censo_oficial),
     ocupacion: normalizarVulnerables(c.ocupacion),
     personal: normalizarPersonal(c.personal),
     familias_ocupadas: c.familias_ocupadas ?? 0,
     responsables: Array.isArray(c.responsables) ? c.responsables : [],
     responsables_coordinacion: responsablesCoordinacionDeCentro(c),
+    ambitos_sin_autoridad: Array.isArray(c.ambitos_sin_autoridad)
+      ? c.ambitos_sin_autoridad.filter((v): v is string => typeof v === "string" && v.trim() !== "")
+      : [],
     foto_url: c.foto_url ?? "",
     estado: c.estado ?? "preparacion",
     notas: c.notas ?? "",
