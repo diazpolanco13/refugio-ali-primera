@@ -8,11 +8,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
-  ArrowRight,
   BarChart3,
   Check,
   CheckCircle2,
-  ClipboardList,
   Flag,
   Home,
   Loader2,
@@ -176,15 +174,6 @@ function camposFaltantesRegistro(
       faltantes.push({ id: "jefe_documento", label: "cédula del jefe" });
     }
   }
-  return faltantes;
-}
-
-function camposFaltantesFuncionario(funcionario: FuncionarioCenso): CampoFaltante[] {
-  const faltantes: CampoFaltante[] = [];
-  if (!funcionario.jerarquia.trim()) faltantes.push({ id: "jerarquia", label: "jerarquía" });
-  if (!funcionario.nombre.trim()) faltantes.push({ id: "nombre", label: "nombre" });
-  if (!funcionario.institucion.trim()) faltantes.push({ id: "institucion", label: "institución" });
-  if (!funcionario.telefono.trim()) faltantes.push({ id: "telefono", label: "teléfono" });
   return faltantes;
 }
 
@@ -376,7 +365,6 @@ export function CensoView() {
       (registro.parentesco_jefe.trim() !== "" &&
         (registro.jefe_documento === CEDULA_JEFE_NO_SE || registro.jefe_documento.trim() !== "")));
 
-  const faltantesPaso1 = useMemo(() => camposFaltantesFuncionario(funcionario), [funcionario]);
   const faltantesPaso2 = useMemo(
     () => camposFaltantesRegistro(registro, esMenor, conoceCedulaJefe),
     [registro, esMenor, conoceCedulaJefe],
