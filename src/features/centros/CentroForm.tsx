@@ -2,8 +2,6 @@ import { useState } from "react";
 import {
   BedDouble,
   Building2,
-  Check,
-  ChevronsUpDown,
   ClipboardList,
   HeartPulse,
   Loader2,
@@ -21,26 +19,13 @@ import {
 import { nuevoId, guardarCentro, eliminarCentro } from "@/data/reposSupabase";
 import { subirFotoCentro, supabaseDisponible } from "@/data/supabase";
 import {
-  etiquetaAnalistaSae,
-  useAnalistasSae,
-  type AnalistaSae,
-} from "@/data/useAnalistasSae";
-import { useSupervisoresSebin } from "@/data/useSupervisoresSebin";
-import { useCatalogoUnidadesSebinActivas } from "@/data/useUnidadesSebin";
-import {
-  CATALOGO_CUERPOS,
   ESTADOS_CENTRO,
-  META_CUERPO,
   normalizarCentro,
-  normalizarCuerpo,
-  normalizarUnidadSebin,
   poblacionCentro,
   totalPersonalOperativo,
   personasLogistica,
   type CapacidadCentro,
   type CentroTransitorio,
-  type ClaveCuerpo,
-  type ClaveUnidadSebin,
   type ContactoReporte,
   type EstadoCentro,
   type ItemRequerimiento,
@@ -65,6 +50,7 @@ import {
 import { FormularioRequerimientos } from "@/features/centros/RequerimientosCentro";
 import { FormularioCapacidadCentro } from "@/features/centros/FormularioCapacidadCentro";
 import { InfraestructuraCentro } from "@/features/centros/InfraestructuraCentro";
+import { AsignacionOperativaCampos } from "@/features/centros/AsignacionOperativaCentro";
 import { AccionesContacto } from "@/components/AccionesContacto";
 import { ZonaSubidaImagen } from "@/components/ZonaSubidaImagen";
 import { VistaEncabezado } from "@/components/VistaEncabezado";
@@ -72,14 +58,6 @@ import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -103,11 +81,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumInput } from "@/components/ui/num-input";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -116,117 +89,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-
-/** Valor sentinela de Select (Radix no admite value=""). */
-const SIN_ASIGNAR = "__sin_asignar__";
-
-/**
- * Multi-select de analistas SAE (usuarios del sistema) para la asignación
- * operativa del campamento. Guarda `user_id` en `supervision.analistas_sae`.
- */
-function SelectorAnalistasOperativos({
-  analistas,
-  seleccion,
-  onCambiar,
-  disabled,
-}: {
-  analistas: AnalistaSae[];
-  seleccion: string[];
-  onCambiar: (ids: string[]) => void;
-  disabled?: boolean;
-}) {
-  const [abierto, setAbierto] = useState(false);
-  const porId = new Map(analistas.map((a) => [a.user_id, a]));
-
-  function toggle(id: string) {
-    onCambiar(
-      seleccion.includes(id) ? seleccion.filter((s) => s !== id) : [...seleccion, id],
-    );
-  }
-
-  return (
-    <div className="space-y-1.5">
-      <Popover open={abierto} onOpenChange={setAbierto}>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            role="combobox"
-            aria-expanded={abierto}
-            disabled={disabled}
-            className="mt-1.5 h-9 w-full justify-between px-3 text-sm font-normal"
-          >
-            <span className="truncate text-left">
-              {seleccion.length === 0
-                ? "Sin analista asignado"
-                : seleccion.length === 1
-                  ? etiquetaAnalistaSae(porId.get(seleccion[0]) ?? { nombre: null, username: null })
-                  : `${seleccion.length} analistas asignados`}
-            </span>
-            <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
-          <Command>
-            <CommandInput placeholder="Buscar analista…" />
-            <CommandList>
-              <CommandEmpty>
-                {analistas.length === 0
-                  ? "No hay usuarios con rol Analista SAE."
-                  : "Sin resultados."}
-              </CommandEmpty>
-              <CommandGroup>
-                {analistas.map((a) => {
-                  const marcado = seleccion.includes(a.user_id);
-                  return (
-                    <CommandItem
-                      key={a.user_id}
-                      value={`${etiquetaAnalistaSae(a)} ${a.username ?? ""}`}
-                      onSelect={() => toggle(a.user_id)}
-                    >
-                      <Check
-                        className={cn("size-4", marcado ? "opacity-100" : "opacity-0")}
-                      />
-                      <span className="truncate">{etiquetaAnalistaSae(a)}</span>
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-      {seleccion.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {seleccion.map((id) => {
-            const a = porId.get(id);
-            return (
-              <Badge
-                key={id}
-                variant="outline"
-                className="gap-1 pr-1 text-[10px] text-muted-foreground"
-              >
-                <span className="max-w-40 truncate">
-                  {a ? etiquetaAnalistaSae(a) : id}
-                </span>
-                {!disabled && (
-                  <button
-                    type="button"
-                    className="rounded-sm p-0.5 hover:bg-accent hover:text-foreground"
-                    onClick={() => toggle(id)}
-                    aria-label="Quitar analista"
-                  >
-                    <X className="size-3" />
-                  </button>
-                )}
-              </Badge>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface Props {
   centro: CentroTransitorio;
@@ -304,9 +166,6 @@ export function CentroForm({
   onGuardado,
 }: Props) {
   const base = normalizarCentro(centro);
-  const { supervisores, cargando: cargandoSupervisores } = useSupervisoresSebin();
-  const analistasSae = useAnalistasSae();
-  const catalogoUnidades = useCatalogoUnidadesSebinActivas();
 
   const [pestana, setPestana] = useState<Pestana>("identificacion");
   const [estado, setEstado] = useState<EstadoCentro>(base.estado);
@@ -812,149 +671,15 @@ export function CentroForm({
               </Select>
             </div>
 
-            <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
-              <div>
-                <p className="text-xs font-semibold text-foreground">Asignación operativa</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Cuerpo → unidad SEBIN → revista → analista(s) SAE
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="centro-cuerpo">1 · Cuerpo policial</Label>
-                <Select
-                  value={normalizarCuerpo(cuerpo)}
-                  disabled={soloLectura}
-                  onValueChange={(clave) => {
-                    const meta = META_CUERPO[clave as ClaveCuerpo];
-                    setCuerpo(clave === "sin_asignar" ? "" : meta?.label ?? "");
-                  }}
-                >
-                  <SelectTrigger id="centro-cuerpo" className="mt-1.5 w-full">
-                    <SelectValue placeholder="Sin asignar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATALOGO_CUERPOS.map((c) => (
-                      <SelectItem key={c.clave} value={c.clave}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="centro-unidad-sebin">2 · Unidad interna SEBIN</Label>
-                <Select
-                  value={normalizarUnidadSebin(supervision.unidad_sebin)}
-                  disabled={soloLectura}
-                  onValueChange={(clave) => {
-                    const meta = catalogoUnidades.find(
-                      (u) => u.clave === (clave as ClaveUnidadSebin),
-                    );
-                    setSupervision((prev) => ({
-                      ...prev,
-                      unidad_sebin: meta?.valorDb ?? "",
-                    }));
-                  }}
-                >
-                  <SelectTrigger id="centro-unidad-sebin" className="mt-1.5 w-full">
-                    <SelectValue placeholder="Sin unidad" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {catalogoUnidades.map((u) => (
-                      <SelectItem key={u.clave} value={u.clave}>
-                        <span className="flex items-center gap-2">
-                          <span
-                            className="size-2 shrink-0 rounded-full"
-                            style={{ backgroundColor: u.color }}
-                            aria-hidden
-                          />
-                          {u.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Catálogo en Configuración → Unidades SEBIN.
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="centro-supervisor">3 · Funcionario SEBIN (revista)</Label>
-                <Select
-                  value={
-                    supervision.supervisor_sebin.trim()
-                      ? supervision.supervisor_sebin.trim()
-                      : SIN_ASIGNAR
-                  }
-                  disabled={soloLectura || cargandoSupervisores}
-                  onValueChange={(valor) => {
-                    if (valor === SIN_ASIGNAR) {
-                      setSupervision((prev) => ({ ...prev, supervisor_sebin: "" }));
-                      return;
-                    }
-                    const elegido = supervisores.find(
-                      (s) => s.username === valor || s.nombre === valor,
-                    );
-                    setSupervision((prev) => ({
-                      ...prev,
-                      supervisor_sebin: elegido?.nombre ?? valor,
-                    }));
-                  }}
-                >
-                  <SelectTrigger id="centro-supervisor" className="mt-1.5 w-full">
-                    <SelectValue
-                      placeholder={
-                        cargandoSupervisores ? "Cargando supervisores…" : "Sin asignar"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={SIN_ASIGNAR}>Sin asignar</SelectItem>
-                    {(() => {
-                      const actual = supervision.supervisor_sebin.trim();
-                      const enLista =
-                        !actual ||
-                        supervisores.some(
-                          (s) => s.nombre === actual || s.username === actual,
-                        );
-                      return (
-                        <>
-                          {!enLista && actual && (
-                            <SelectItem value={actual}>{actual} (actual)</SelectItem>
-                          )}
-                          {supervisores.map((s) => (
-                            <SelectItem key={s.username} value={s.nombre}>
-                              {s.nombre}
-                            </SelectItem>
-                          ))}
-                        </>
-                      );
-                    })()}
-                  </SelectContent>
-                </Select>
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Usuarios con rol supervisor. Si no aparece, créalo en Gestión de usuarios.
-                </p>
-              </div>
-
-              <div>
-                <Label>4 · Analista de la SAE</Label>
-                <SelectorAnalistasOperativos
-                  analistas={analistasSae}
-                  seleccion={supervision.analistas_sae}
-                  disabled={soloLectura}
-                  onCambiar={(ids) =>
-                    setSupervision((prev) => ({ ...prev, analistas_sae: ids }))
-                  }
-                />
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Usuarios con rol Analista SAE. Uno o varios; alimenta el filtro del tablero.
-                </p>
-              </div>
-            </div>
+            <AsignacionOperativaCampos
+              cuerpo={cuerpo}
+              supervision={supervision}
+              disabled={soloLectura}
+              onCuerpoChange={setCuerpo}
+              onSupervisionChange={(patch) =>
+                setSupervision((prev) => ({ ...prev, ...patch }))
+              }
+            />
 
             <div>
               <Label htmlFor="centro-parroquia">Parroquia</Label>

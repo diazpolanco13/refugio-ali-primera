@@ -111,6 +111,7 @@ Según rol (no todas visibles siempre):
 - Fuente de verdad: `centro.cuerpo` + `centro.supervision` (`unidad_sebin`, `supervisor_sebin`, `analistas_sae[]`)
 - Primitiva compartida: `components/FiltroMultiBusqueda.tsx` (buscador, «Sin asignar», multi-select; vacío = sin filtrar)
 - Tablero: 4 filtros (cuerpo, unidad SEBIN, revista, analista SAE) + orden; conteos por opción desde la red visible
+- **UI edición (Asignación operativa):** triggers de `SelectorAsignacionBusqueda` alineados a `SelectTrigger` (`border-input`, `dark:bg-input/40`, chevron `text-muted-foreground`); labels de `CampoCompacto` muted y separados del control — no aplanar a texto plano
 
 ## Historial de orquestaciones
 
@@ -119,3 +120,4 @@ Según rol (no todas visibles siempre):
 | 2026-07-10 | Skeletons menú+mapa | Implementado: contrato shimmer, familias, wire App.tsx, useSupabaseQueryConEstado |
 | 2026-07-10 | Gestión usuarios UX | Buscador, KPIs cobertura, Tabs por rol, chips colapsables |
 | 2026-07-10 | Filtros asignación tablero | FiltroMultiBusqueda + 4 dimensiones alineadas a edición de campamento |
+| 2026-07-10 | Affordance asignación operativa | Trigger SelectTrigger-like + jerarquía CampoCompacto |

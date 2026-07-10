@@ -27,6 +27,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import {
+  AsignacionOperativaCentro,
+  contarAsignacionOperativa,
+} from "./AsignacionOperativaCentro";
 import { DialogoResponsableCoordinacion } from "./DialogoResponsableCoordinacion";
 import { ListaResponsablesCoordinacion } from "./ResponsablesCoordinacion";
 
@@ -79,7 +83,7 @@ function pestanaInicial(responsables: ResponsableCoordinacion[]): IdPestana {
 function descripcionPestana(id: IdPestana): string {
   switch (id) {
     case "supervision_rotatoria":
-      return "Supervisión rotatoria y analista SAE asignado al campamento.";
+      return "Cuerpo policial, unidad SEBIN, revista y analista(s) SAE del campamento.";
     case "politica":
       return "Coordinación política e institucional del campamento.";
     case "seguridad":
@@ -119,13 +123,22 @@ export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
 
   const c = normalizarCentro(centroLocal);
   const visibles = useMemo(
-    () => c.responsables_coordinacion.filter(responsableCoordinacionTieneDatos),
+    () =>
+      c.responsables_coordinacion.filter(
+        (r) =>
+          responsableCoordinacionTieneDatos(r) &&
+          r.categoria !== "supervision_rotatoria" &&
+          r.categoria !== "analista_sae",
+      ),
     [c.responsables_coordinacion],
   );
-  const conteos = useMemo(
-    () => contarPorPestana(c.responsables_coordinacion),
-    [c.responsables_coordinacion],
-  );
+  const conteos = useMemo(() => {
+    const base = contarPorPestana(c.responsables_coordinacion);
+    // Supervisión usa asignación operativa (`cuerpo` + `supervision.*`), no
+    // la lista legacy de responsables_coordinacion.
+    base.supervision_rotatoria = contarAsignacionOperativa(centroLocal);
+    return base;
+  }, [c.responsables_coordinacion, centroLocal]);
   const personalTotal = useMemo(
     () => visibles.reduce((sum, r) => sum + r.personal_mando, 0),
     [visibles],
@@ -307,7 +320,9 @@ export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
                   {descripcionPestana(pestana.id)}
                 </p>
               </div>
-              {puedeEditar && pestana.categorias.length === 1 && (
+              {puedeEditar &&
+                pestana.id !== "supervision_rotatoria" &&
+                pestana.categorias.length === 1 && (
                 <Button
                   type="button"
                   size="sm"
@@ -325,49 +340,51 @@ export function CoordinacionCentroPanel({ centro, puedeEditar }: Props) {
               )}
             </div>
 
-            <ListaResponsablesCoordinacion
-              responsables={c.responsables_coordinacion}
-              categoriasFiltro={pestana.categorias}
-              integrado
-              modoEdicion={puedeEditar}
-              ocultarBadgeCategoria={pestana.categorias.length === 1}
-              onEditar={abrirEditar}
-              onEliminar={(id) => void eliminarResponsable(id)}
-              onAgregarCategoria={puedeEditar ? abrirNuevo : undefined}
-              vacio={
-                <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
-                  <ClipboardList className="mx-auto size-10 text-muted-foreground/40" />
-                  <p className="mt-3 text-sm font-medium text-foreground">
-                    Sin datos en {pestana.label.toLowerCase()}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {pestana.categorias.length > 1
-                      ? "Registra la supervisión rotatoria y/o el analista SAE del campamento."
-                      : "Registra el responsable, contacto y personal desplegado de este ámbito."}
-                  </p>
-                  {puedeEditar && (
-                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                      {pestana.categorias.map((cat) => (
-                        <Button
-                          key={cat}
-                          type="button"
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => abrirNuevo(cat)}
-                        >
-                          <Plus className="size-3.5" />
-                          {cat === "analista_sae"
-                            ? "Analista SAE"
-                            : cat === "supervision_rotatoria"
-                              ? "Supervisión rotatoria"
-                              : "Agregar responsable"}
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              }
-            />
+            {pestana.id === "supervision_rotatoria" ? (
+              <AsignacionOperativaCentro
+                centro={centroLocal}
+                puedeEditar={puedeEditar}
+                onActualizado={setCentroLocal}
+              />
+            ) : (
+              <ListaResponsablesCoordinacion
+                responsables={c.responsables_coordinacion}
+                categoriasFiltro={pestana.categorias}
+                integrado
+                modoEdicion={puedeEditar}
+                ocultarBadgeCategoria={pestana.categorias.length === 1}
+                onEditar={abrirEditar}
+                onEliminar={(id) => void eliminarResponsable(id)}
+                onAgregarCategoria={puedeEditar ? abrirNuevo : undefined}
+                vacio={
+                  <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
+                    <ClipboardList className="mx-auto size-10 text-muted-foreground/40" />
+                    <p className="mt-3 text-sm font-medium text-foreground">
+                      Sin datos en {pestana.label.toLowerCase()}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Registra el responsable, contacto y personal desplegado de este ámbito.
+                    </p>
+                    {puedeEditar && (
+                      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                        {pestana.categorias.map((cat) => (
+                          <Button
+                            key={cat}
+                            type="button"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() => abrirNuevo(cat)}
+                          >
+                            <Plus className="size-3.5" />
+                            Agregar responsable
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                }
+              />
+            )}
           </TabsContent>
         ))}
       </Tabs>
