@@ -40,6 +40,7 @@ import {
   type CentroTransitorio,
   type ClaveCuerpo,
 } from "@/domain/centrosTransitorios";
+import { totalUnidadesConteo } from "@/domain/complejosCentros";
 import { normalizarUnidadSebin } from "@/domain/unidadesSebin";
 import {
   COLOR_ESTADO_AGUA,
@@ -69,7 +70,6 @@ import {
   type VistaTableroCentros,
 } from "@/data/preferenciasTablero";
 import {
-  contarCentrosConAnalista,
   etiquetaAnalistaSae,
   useAnalistasSae,
 } from "@/data/useAnalistasSae";
@@ -347,43 +347,47 @@ export function TableroCentros({
   }, [supervisores]);
 
   const opcionesCuerpo = useMemo(() => {
-    const m = new Map<ClaveCuerpo, number>();
-    let sinAsignar = 0;
+    const m = new Map<ClaveCuerpo, CentroTransitorio[]>();
+    const sinAsignar: CentroTransitorio[] = [];
     for (const { centro } of base) {
       const clave = normalizarCuerpo(centro.cuerpo);
       if (clave === VALOR_SIN_ASIGNAR) {
-        sinAsignar++;
+        sinAsignar.push(centro);
         continue;
       }
-      m.set(clave, (m.get(clave) ?? 0) + 1);
+      const arr = m.get(clave);
+      if (arr) arr.push(centro);
+      else m.set(clave, [centro]);
     }
     const opciones: OpcionFiltroMulti[] = CATALOGO_CUERPOS.filter(
-      (c) => c.clave !== VALOR_SIN_ASIGNAR && (m.get(c.clave) ?? 0) > 0,
+      (c) => c.clave !== VALOR_SIN_ASIGNAR && (m.get(c.clave)?.length ?? 0) > 0,
     ).map((c) => ({
       valor: c.clave,
       etiqueta: c.label,
-      cantidad: m.get(c.clave) ?? 0,
+      cantidad: totalUnidadesConteo(m.get(c.clave) ?? []),
     }));
-    return { opciones, cantidadSinAsignar: sinAsignar };
+    return { opciones, cantidadSinAsignar: totalUnidadesConteo(sinAsignar) };
   }, [base]);
 
   const opcionesUnidad = useMemo(() => {
-    const m = new Map<string, number>();
-    let sinAsignar = 0;
+    const m = new Map<string, CentroTransitorio[]>();
+    const sinAsignar: CentroTransitorio[] = [];
     for (const { centro } of base) {
       const clave = normalizarUnidadSebin(centro.supervision?.unidad_sebin);
       if (clave === VALOR_SIN_ASIGNAR) {
-        sinAsignar++;
+        sinAsignar.push(centro);
         continue;
       }
-      m.set(clave, (m.get(clave) ?? 0) + 1);
+      const arr = m.get(clave);
+      if (arr) arr.push(centro);
+      else m.set(clave, [centro]);
     }
     const opciones: OpcionFiltroMulti[] = catalogoUnidades
-      .filter((u) => u.clave !== VALOR_SIN_ASIGNAR && (m.get(u.clave) ?? 0) > 0)
+      .filter((u) => u.clave !== VALOR_SIN_ASIGNAR && (m.get(u.clave)?.length ?? 0) > 0)
       .map((u) => ({
         valor: u.clave,
         etiqueta: u.label,
-        cantidad: m.get(u.clave) ?? 0,
+        cantidad: totalUnidadesConteo(m.get(u.clave) ?? []),
         indicador: (
           <span
             className="size-2 shrink-0 rounded-full"
@@ -392,21 +396,24 @@ export function TableroCentros({
           />
         ),
       }));
-    // Unidades presentes en datos pero ya no en catálogo activo
-    for (const [clave, cantidad] of m) {
+    for (const [clave, lista] of m) {
       if (opciones.some((o) => o.valor === clave)) continue;
-      opciones.push({ valor: clave, etiqueta: clave, cantidad });
+      opciones.push({
+        valor: clave,
+        etiqueta: clave,
+        cantidad: totalUnidadesConteo(lista),
+      });
     }
-    return { opciones, cantidadSinAsignar: sinAsignar };
+    return { opciones, cantidadSinAsignar: totalUnidadesConteo(sinAsignar) };
   }, [base, catalogoUnidades]);
 
   const opcionesRevista = useMemo(() => {
-    const conteo = new Map<string, { etiqueta: string; cantidad: number }>();
-    let sinAsignar = 0;
+    const porValor = new Map<string, { etiqueta: string; centros: CentroTransitorio[] }>();
+    const sinAsignar: CentroTransitorio[] = [];
     for (const { centro } of base) {
       const actual = centro.supervision?.supervisor_sebin?.trim() ?? "";
       if (!actual) {
-        sinAsignar++;
+        sinAsignar.push(centro);
         continue;
       }
       const delCatalogo = supervisores.find(
@@ -414,28 +421,37 @@ export function TableroCentros({
       );
       const valor = delCatalogo?.username ?? actual;
       const etiqueta = delCatalogo?.nombre ?? actual;
-      const prev = conteo.get(valor);
-      if (prev) prev.cantidad++;
-      else conteo.set(valor, { etiqueta, cantidad: 1 });
+      const prev = porValor.get(valor);
+      if (prev) prev.centros.push(centro);
+      else porValor.set(valor, { etiqueta, centros: [centro] });
     }
-    const opciones: OpcionFiltroMulti[] = [...conteo.entries()]
-      .map(([valor, { etiqueta, cantidad }]) => ({ valor, etiqueta, cantidad }))
+    const opciones: OpcionFiltroMulti[] = [...porValor.entries()]
+      .map(([valor, { etiqueta, centros: lista }]) => ({
+        valor,
+        etiqueta,
+        cantidad: totalUnidadesConteo(lista),
+      }))
       .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es"));
-    return { opciones, cantidadSinAsignar: sinAsignar };
+    return { opciones, cantidadSinAsignar: totalUnidadesConteo(sinAsignar) };
   }, [base, supervisores]);
 
   const opcionesAnalista = useMemo(() => {
-    let sinAsignar = 0;
-    for (const { centro } of base) {
-      if ((centro.supervision?.analistas_sae ?? []).length === 0) sinAsignar++;
-    }
+    const sinAsignar = base
+      .filter(({ centro }) => (centro.supervision?.analistas_sae ?? []).length === 0)
+      .map(({ centro }) => centro);
     const opciones: OpcionFiltroMulti[] = analistasSae.map((analista) => ({
       valor: analista.user_id,
       etiqueta: etiquetaAnalistaSae(analista),
-      cantidad: contarCentrosConAnalista(analista.user_id, centros),
+      cantidad: totalUnidadesConteo(
+        base
+          .filter(({ centro }) =>
+            centro.supervision?.analistas_sae?.includes(analista.user_id),
+          )
+          .map(({ centro }) => centro),
+      ),
     }));
-    return { opciones, cantidadSinAsignar: sinAsignar };
-  }, [analistasSae, base, centros]);
+    return { opciones, cantidadSinAsignar: totalUnidadesConteo(sinAsignar) };
+  }, [analistasSae, base]);
 
   const enContexto = useMemo(() => {
     const q = normalizarTexto(busqueda.trim());
@@ -497,10 +513,54 @@ export function TableroCentros({
       estable: 0,
       sin_datos: 0,
     };
-    for (const f of enContexto) m[f.prioridad.nivel]++;
+    const porUnidad = new Map<string, NivelPrioridad[]>();
+    for (const f of enContexto) {
+      const clave = f.centro.complejoId?.trim() || f.centro.id;
+      const arr = porUnidad.get(clave);
+      if (arr) arr.push(f.prioridad.nivel);
+      else porUnidad.set(clave, [f.prioridad.nivel]);
+    }
+    for (const niveles of porUnidad.values()) {
+      const peor =
+        ORDEN_NIVELES.find((n) => niveles.includes(n)) ?? "sin_datos";
+      m[peor]++;
+    }
     return m;
   }, [enContexto]);
 
+  /** Alcance sin filtro de nivel (denominador de “visibles” y chips de nivel). */
+  const totalAlcance = useMemo(
+    () => totalUnidadesConteo(enContexto.map((f) => f.centro)),
+    [enContexto],
+  );
+
+  const filas = useMemo(() => {
+    const filtradas = filtroNivel
+      ? enContexto.filter((f) => f.prioridad.nivel === filtroNivel)
+      : enContexto;
+    if (orden === "prioridad") return ordenarPorPrioridad(filtradas);
+    const arr = [...filtradas];
+    arr.sort((a, b) => {
+      const aa = a.prioridad.analisis;
+      const bb = b.prioridad.analisis;
+      switch (orden) {
+        case "ocupados":
+          return bb.refugiados - aa.refugiados;
+        case "nombre":
+          return a.centro.nombre.localeCompare(b.centro.nombre, "es");
+        default:
+          return 0;
+      }
+    });
+    return arr;
+  }, [enContexto, orden, filtroNivel]);
+
+  const visiblesUnidades = useMemo(
+    () => totalUnidadesConteo(filas.map((f) => f.centro)),
+    [filas],
+  );
+
+  /** KPIs y logística según la vista filtrada (incluye nivel). */
   const totales = useMemo(() => {
     let refugiados = 0;
     let familias = 0;
@@ -510,7 +570,7 @@ export function TableroCentros({
     let banos = 0;
     let duchas = 0;
     let cupo = 0;
-    for (const { centro, prioridad } of enContexto) {
+    for (const { centro, prioridad } of filas) {
       const a = prioridad.analisis;
       const c = normalizarCentro(centro);
       refugiados += a.refugiados;
@@ -538,28 +598,7 @@ export function TableroCentros({
       aguaUsoCotidianoDia: agua.usoCotidianoL,
       comidasDia: total * COMIDAS_POR_PERSONA_DIA,
     };
-  }, [enContexto]);
-
-  const filas = useMemo(() => {
-    const filtradas = filtroNivel
-      ? enContexto.filter((f) => f.prioridad.nivel === filtroNivel)
-      : enContexto;
-    if (orden === "prioridad") return ordenarPorPrioridad(filtradas);
-    const arr = [...filtradas];
-    arr.sort((a, b) => {
-      const aa = a.prioridad.analisis;
-      const bb = b.prioridad.analisis;
-      switch (orden) {
-        case "ocupados":
-          return bb.refugiados - aa.refugiados;
-        case "nombre":
-          return a.centro.nombre.localeCompare(b.centro.nombre, "es");
-        default:
-          return 0;
-      }
-    });
-    return arr;
-  }, [enContexto, orden, filtroNivel]);
+  }, [filas]);
 
   const ordenes: { valor: Orden; label: string }[] = [
     { valor: "prioridad", label: "Nivel de atención" },
@@ -658,7 +697,7 @@ export function TableroCentros({
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 lg:grid-cols-5">
             <KpiRed
               icono={<LayoutGrid className="size-3.5 text-emerald-300" />}
-              valor={enContexto.length}
+              valor={visiblesUnidades}
               etiqueta="Campamentos"
             />
             <KpiRed
@@ -759,7 +798,7 @@ export function TableroCentros({
                 {selectoresFiltro}
               </div>
               <p className="text-center text-[11px] text-muted-foreground">
-                {filas.length} de {centros.length} campamentos visibles
+                {visiblesUnidades} de {totalAlcance} campamentos visibles
               </p>
             </CollapsibleContent>
           </Collapsible>
@@ -773,7 +812,7 @@ export function TableroCentros({
                 <div>
                   <p className="text-xs font-semibold text-foreground">Filtros de vista</p>
                   <p className="text-[11px] text-muted-foreground">
-                    {filas.length} de {centros.length} campamentos visibles
+                    {visiblesUnidades} de {totalAlcance} campamentos visibles
                   </p>
                 </div>
               </div>
@@ -846,7 +885,7 @@ export function TableroCentros({
             <p className="text-sm font-medium text-foreground">
               {vista === "grid" ? "Cuadrícula de campamentos" : "Lista de campamentos"}
               <span className="ml-1.5 font-normal text-muted-foreground sm:hidden">
-                · {filas.length}
+                · {visiblesUnidades}
               </span>
             </p>
             <p className="hidden text-xs text-muted-foreground sm:block">
@@ -861,7 +900,7 @@ export function TableroCentros({
             variant="outline"
             className={cn(
               "hidden h-7 gap-1.5 px-2.5 text-xs tabular-nums sm:inline-flex",
-              hayFiltros || filas.length !== centros.length
+              hayFiltros || visiblesUnidades !== totalAlcance
                 ? "border-primary/70 bg-primary/15 font-semibold text-foreground shadow-sm ring-1 ring-primary/35"
                 : "border-border/80 bg-muted/50 font-medium text-foreground",
             )}
@@ -870,7 +909,7 @@ export function TableroCentros({
               <LayoutGrid
                 className={cn(
                   "size-3.5",
-                  hayFiltros || filas.length !== centros.length
+                  hayFiltros || visiblesUnidades !== totalAlcance
                     ? "text-primary"
                     : "text-muted-foreground",
                 )}
@@ -879,17 +918,17 @@ export function TableroCentros({
               <List
                 className={cn(
                   "size-3.5",
-                  hayFiltros || filas.length !== centros.length
+                  hayFiltros || visiblesUnidades !== totalAlcance
                     ? "text-primary"
                     : "text-muted-foreground",
                 )}
               />
             )}
             <span>
-              {filas.length}
+              {visiblesUnidades}
               <span className="font-normal text-muted-foreground">
                 {" "}
-                / {centros.length}
+                / {totalAlcance}
               </span>{" "}
               visible(s)
             </span>

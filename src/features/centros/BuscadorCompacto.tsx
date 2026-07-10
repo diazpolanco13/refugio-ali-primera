@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import { totalUnidadesConteo } from "@/domain/complejosCentros";
 import {
   ESTADO_FILA_VACIO,
   FilaCentroLista,
@@ -118,7 +119,7 @@ export function BuscadorCompacto({
           <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
             {!termino ? (
               <p className="px-2 py-2 text-[10px] text-muted-foreground">
-                Escribe para buscar entre los {centros.length} campamentos.
+                Escribe para buscar entre los {totalUnidadesConteo(centros)} campamentos.
               </p>
             ) : resultados.length === 0 ? (
               <p className="px-2 py-2 text-[10px] text-muted-foreground">

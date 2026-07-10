@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Home, PawPrint, ShieldCheck, Users, Users2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { totalUnidadesConteo } from "@/domain/complejosCentros";
 import {
   normalizarCentro,
   poblacionCentro,
@@ -67,7 +68,11 @@ export function TotalesMapaCentros({ centros, className }: Props) {
         className,
       )}
     >
-      <KpiMapa icono={<Home className="size-3.5" />} etiqueta="Camp." valor={centros.length} />
+      <KpiMapa
+        icono={<Home className="size-3.5" />}
+        etiqueta="Camp."
+        valor={totalUnidadesConteo(centros)}
+      />
       <KpiMapa icono={<Users2 className="size-3.5" />} etiqueta="Fam." valor={familias} />
       <KpiMapa icono={<Users className="size-3.5" />} etiqueta="Damnif." valor={refugiados} />
       <KpiMapa icono={<ShieldCheck className="size-3.5" />} etiqueta="Func." valor={personal} />
