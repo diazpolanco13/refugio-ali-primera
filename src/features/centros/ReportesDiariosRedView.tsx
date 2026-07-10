@@ -443,17 +443,24 @@ function TarjetaMarcadorOcupacion({
 
 function claseChipFiltro(activo: boolean) {
   return cn(
-    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all",
     activo
-      ? "ring-1 ring-primary/25"
-      : "hover:bg-muted/45",
+      ? "shadow-sm ring-2 ring-offset-1 ring-offset-background"
+      : "opacity-65 hover:opacity-100 hover:bg-muted/45",
   );
 }
 
 function estiloChipFiltro(activo: boolean, color: string): React.CSSProperties {
   return activo
-    ? { borderColor: `${color}99`, background: `${color}18`, color }
-    : { borderColor: `${color}44`, background: `${color}0d` };
+    ? {
+        borderColor: color,
+        background: `${color}2e`,
+        color,
+        boxShadow: `0 0 0 1px ${color}66`,
+        // ring color via CSS custom property for Tailwind ring-*
+        ["--tw-ring-color" as string]: `${color}55`,
+      }
+    : { borderColor: `${color}33`, background: `${color}0a` };
 }
 
 function BadgeMarcadorOcupacion({ marcador }: { marcador: MarcadorOcupacionCentro }) {
@@ -1589,13 +1596,18 @@ export function ReportesDiariosRedView() {
                         style={estiloChipFiltro(activo, color)}
                       >
                         <span
-                          className="size-2 rounded-full"
+                          className="size-2.5 rounded-full ring-2 ring-background"
                           style={{ background: color }}
                         />
-                        <span className={activo ? "text-foreground" : "text-muted-foreground"}>
+                        <span className={activo ? "font-semibold" : "text-muted-foreground"}>
                           {META_ESTADO_REPORTE[e].label}
                         </span>
-                        <span className="font-bold tabular-nums text-foreground">
+                        <span
+                          className={cn(
+                            "tabular-nums",
+                            activo ? "font-bold" : "font-bold text-foreground",
+                          )}
+                        >
                           {conteosHoy[e]}
                         </span>
                       </button>
@@ -1617,13 +1629,18 @@ export function ReportesDiariosRedView() {
                         style={estiloChipFiltro(activo, color)}
                       >
                         <span
-                          className="size-2 rounded-full"
+                          className="size-2.5 rounded-full ring-2 ring-background"
                           style={{ background: color }}
                         />
-                        <span className={activo ? "text-foreground" : "text-muted-foreground"}>
+                        <span className={activo ? "font-semibold" : "text-muted-foreground"}>
                           {META_MARCADOR_OCUPACION[m].label}
                         </span>
-                        <span className="font-bold tabular-nums text-foreground">
+                        <span
+                          className={cn(
+                            "tabular-nums",
+                            activo ? "font-bold" : "font-bold text-foreground",
+                          )}
+                        >
                           {conteosOcupacionHoy[m]}
                         </span>
                       </button>
@@ -1670,9 +1687,31 @@ export function ReportesDiariosRedView() {
                   Ordenados por prioridad del reporte seleccionado
                 </p>
               </div>
-              <Badge variant="outline" className="hidden gap-1 tabular-nums sm:inline-flex">
-                <CircleDashed className="size-3 text-muted-foreground" />
-                {filas.length} visible(s)
+              <Badge
+                variant="outline"
+                className={cn(
+                  "hidden h-7 gap-1.5 px-2.5 text-xs tabular-nums sm:inline-flex",
+                  hayFiltros || filas.length !== centros.length
+                    ? "border-primary/70 bg-primary/15 font-semibold text-foreground shadow-sm ring-1 ring-primary/35"
+                    : "border-border/80 bg-muted/50 font-medium text-foreground",
+                )}
+              >
+                <CircleDashed
+                  className={cn(
+                    "size-3.5",
+                    hayFiltros || filas.length !== centros.length
+                      ? "text-primary"
+                      : "text-muted-foreground",
+                  )}
+                />
+                <span>
+                  {filas.length}
+                  <span className="font-normal text-muted-foreground">
+                    {" "}
+                    / {centros.length}
+                  </span>{" "}
+                  visible(s)
+                </span>
               </Badge>
             </div>
 

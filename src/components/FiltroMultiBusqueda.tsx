@@ -28,9 +28,11 @@ function normalizarBusqueda(s: string): string {
     .replace(/\p{M}/gu, "");
 }
 
+const ETIQUETA_TODOS = "Todos";
+
 /**
- * Filtro multi-select con buscador. Vacío = sin filtrar.
- * Primera opción fija: «Sin asignar» (campamentos sin valor en esa dimensión).
+ * Filtro multi-select con buscador. Vacío = «Todos» (sin filtrar).
+ * Orden fijo: Todos → Sin asignar → opciones del catálogo.
  */
 export function FiltroMultiBusqueda({
   opciones,
@@ -38,6 +40,7 @@ export function FiltroMultiBusqueda({
   onCambiar,
   placeholder,
   buscarPlaceholder = "Buscar…",
+  etiquetaTodos = ETIQUETA_TODOS,
   etiquetaSinAsignar = "Sin asignar",
   cantidadSinAsignar,
   className,
@@ -45,15 +48,17 @@ export function FiltroMultiBusqueda({
   opciones: OpcionFiltroMulti[];
   seleccion: string[];
   onCambiar: (valores: string[] | ((prev: string[]) => string[])) => void;
-  /** Texto del trigger cuando no hay selección (sin filtro). */
+  /** Texto del trigger cuando no hay selección (Todos). */
   placeholder: string;
   buscarPlaceholder?: string;
+  etiquetaTodos?: string;
   etiquetaSinAsignar?: string;
   cantidadSinAsignar?: number;
   className?: string;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [busqueda, setBusqueda] = useState("");
+  const esTodos = seleccion.length === 0;
 
   const opcionesSinSentinel = useMemo(
     () => opciones.filter((o) => o.valor !== VALOR_SIN_ASIGNAR),
@@ -73,6 +78,7 @@ export function FiltroMultiBusqueda({
       )
     : opcionesSinSentinel;
 
+  const mostrarTodos = !q || normalizarBusqueda(etiquetaTodos).includes(q);
   const mostrarSinAsignar =
     !q || normalizarBusqueda(etiquetaSinAsignar).includes(q);
 
@@ -83,15 +89,24 @@ export function FiltroMultiBusqueda({
     });
   }
 
+  function seleccionarTodos() {
+    onCambiar([]);
+  }
+
   const etiquetaTrigger = (() => {
-    if (seleccion.length === 0) return placeholder;
+    if (esTodos) return `${placeholder}: ${etiquetaTodos}`;
     if (seleccion.length === 1) {
       const v = seleccion[0];
-      if (v === VALOR_SIN_ASIGNAR) return etiquetaSinAsignar;
-      return porValor.get(v)?.etiqueta ?? "1 seleccionado";
+      if (v === VALOR_SIN_ASIGNAR) {
+        return `${placeholder}: ${etiquetaSinAsignar}`;
+      }
+      return `${placeholder}: ${porValor.get(v)?.etiqueta ?? "1 seleccionado"}`;
     }
-    return `${seleccion.length} seleccionados`;
+    return `${placeholder}: ${seleccion.length} seleccionados`;
   })();
+
+  const sinResultados =
+    opcionesFiltradas.length === 0 && !mostrarTodos && !mostrarSinAsignar;
 
   return (
     <Popover
@@ -107,13 +122,23 @@ export function FiltroMultiBusqueda({
           variant="outline"
           role="combobox"
           aria-expanded={abierto}
+          aria-pressed={!esTodos}
+          data-active={!esTodos || undefined}
           className={cn(
-            "h-8 w-full justify-between bg-card/70 px-2.5 text-xs font-normal",
+            "h-8 w-full justify-between px-2.5 text-xs transition-colors",
+            esTodos
+              ? "border-border/70 bg-card/70 font-normal text-muted-foreground"
+              : "border-primary/70 bg-primary/15 font-medium text-foreground shadow-sm ring-1 ring-primary/35",
             className,
           )}
         >
           <span className="truncate text-left">{etiquetaTrigger}</span>
-          <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
+          <ChevronsUpDown
+            className={cn(
+              "size-3.5 shrink-0",
+              esTodos ? "opacity-50" : "opacity-80 text-primary",
+            )}
+          />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
@@ -126,6 +151,22 @@ export function FiltroMultiBusqueda({
           />
         </div>
         <div className="max-h-64 overflow-y-auto p-1">
+          {mostrarTodos && (
+            <label
+              className={cn(
+                "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs font-medium",
+                "hover:bg-accent hover:text-accent-foreground",
+              )}
+            >
+              <Checkbox
+                checked={esTodos}
+                onCheckedChange={(checked) => {
+                  if (checked === true) seleccionarTodos();
+                }}
+              />
+              <span className="truncate">{etiquetaTodos}</span>
+            </label>
+          )}
           {mostrarSinAsignar && (
             <label
               className={cn(
@@ -145,7 +186,7 @@ export function FiltroMultiBusqueda({
               </span>
             </label>
           )}
-          {opcionesFiltradas.length === 0 && !mostrarSinAsignar ? (
+          {sinResultados ? (
             <p className="px-2 py-4 text-center text-xs text-muted-foreground">
               Sin resultados.
             </p>
