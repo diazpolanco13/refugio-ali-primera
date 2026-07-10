@@ -44,13 +44,17 @@ import { textoParteGeneralRed } from "@/domain/reporteTelegramRed";
 import { claveDia } from "@/data/reposSupabase";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import {
+  CATALOGO_CUERPOS,
   META_MARCADOR_OCUPACION,
   marcadorOcupacionCentro,
   metaCuerpoDe,
+  normalizarCuerpo,
   ORDEN_MARCADOR_OCUPACION,
   type CentroTransitorio,
+  type ClaveCuerpo,
   type MarcadorOcupacionCentro,
 } from "@/domain/centrosTransitorios";
+import { normalizarUnidadSebin } from "@/domain/unidadesSebin";
 import { aplicarParteActualACentro } from "@/domain/parteActualCentros";
 import {
   refugiadosEnSnapshot,
@@ -84,6 +88,13 @@ import {
 } from "@/components/ui/dialog";
 import { LogoCuerpo } from "@/components/LogoCuerpo";
 import {
+  coincideFiltroEscalar,
+  coincideFiltroLista,
+  FiltroMultiBusqueda,
+  VALOR_SIN_ASIGNAR,
+  type OpcionFiltroMulti,
+} from "@/components/FiltroMultiBusqueda";
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -105,6 +116,13 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
+  contarCentrosConAnalista,
+  etiquetaAnalistaSae,
+  useAnalistasSae,
+} from "@/data/useAnalistasSae";
+import { useCatalogoUnidadesSebinActivas } from "@/data/useUnidadesSebin";
+import { useSupervisoresSebin } from "@/data/useSupervisoresSebin";
+import {
   CalendarioSelectorDia,
   formatearDiaCalendario,
 } from "./CalendarioSelectorDia";
@@ -112,6 +130,24 @@ import { normalizarTextoBusqueda } from "./CentrosListaItems";
 
 type FiltroEstado = EstadoReporteDia | "todos";
 type FiltroOcupacion = MarcadorOcupacionCentro | "todos";
+
+/** Coincide funcionario de revista con usernames del catálogo o nombre libre. */
+function coincideFiltroRevista(
+  seleccion: readonly string[],
+  supervisorRaw: string | undefined,
+  porUsername: ReadonlyMap<string, { username: string; nombre: string }>,
+): boolean {
+  if (seleccion.length === 0) return true;
+  const actual = supervisorRaw?.trim() ?? "";
+  if (!actual) return seleccion.includes(VALOR_SIN_ASIGNAR);
+  for (const key of seleccion) {
+    if (key === VALOR_SIN_ASIGNAR) continue;
+    const s = porUsername.get(key);
+    if (s && (actual === s.nombre || actual === s.username)) return true;
+    if (actual === key) return true;
+  }
+  return false;
+}
 
 interface OutletContext {
   sesion: Sesion;
@@ -697,6 +733,10 @@ export function ReportesDiariosRedView() {
     [filasCentros],
   );
 
+  const analistasSae = useAnalistasSae();
+  const catalogoUnidades = useCatalogoUnidadesSebinActivas();
+  const { supervisores } = useSupervisoresSebin();
+
   const reportes = useReportesCentros({ desde });
   const controles = useReportesControlDia({ desde });
   const { eventos } = useEventosReportes({ desde });
@@ -864,16 +904,110 @@ export function ReportesDiariosRedView() {
   const [dia, setDia] = useState<string | null>(hoyClave);
   const [estadoFiltro, setEstadoFiltro] = useState<FiltroEstado>("todos");
   const [ocupacionFiltro, setOcupacionFiltro] = useState<FiltroOcupacion>("todos");
-  const [grupoFiltro, setGrupoFiltro] = useState<string>("todos");
+  const [filtroCuerpos, setFiltroCuerpos] = useState<string[]>([]);
+  const [filtroUnidades, setFiltroUnidades] = useState<string[]>([]);
+  const [filtroRevistas, setFiltroRevistas] = useState<string[]>([]);
+  const [filtroAnalistas, setFiltroAnalistas] = useState<string[]>([]);
   const [orden, setOrden] = useState<OrdenReportes>("pendientes");
   const [busquedaNombre, setBusquedaNombre] = useState("");
   const inputBusquedaRef = useRef<HTMLInputElement>(null);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
-  const grupos = useMemo(
-    () => [...new Set(centros.map((c) => c.grupo).filter(Boolean))].sort(),
-    [centros],
-  );
+  const supervisoresPorUsername = useMemo(() => {
+    const m = new Map<string, { username: string; nombre: string }>();
+    for (const s of supervisores) m.set(s.username, s);
+    return m;
+  }, [supervisores]);
+
+  const opcionesCuerpo = useMemo(() => {
+    const m = new Map<ClaveCuerpo, number>();
+    let sinAsignar = 0;
+    for (const centro of centros) {
+      const clave = normalizarCuerpo(centro.cuerpo);
+      if (clave === VALOR_SIN_ASIGNAR) {
+        sinAsignar++;
+        continue;
+      }
+      m.set(clave, (m.get(clave) ?? 0) + 1);
+    }
+    const opciones: OpcionFiltroMulti[] = CATALOGO_CUERPOS.filter(
+      (c) => c.clave !== VALOR_SIN_ASIGNAR && (m.get(c.clave) ?? 0) > 0,
+    ).map((c) => ({
+      valor: c.clave,
+      etiqueta: c.label,
+      cantidad: m.get(c.clave) ?? 0,
+    }));
+    return { opciones, cantidadSinAsignar: sinAsignar };
+  }, [centros]);
+
+  const opcionesUnidad = useMemo(() => {
+    const m = new Map<string, number>();
+    let sinAsignar = 0;
+    for (const centro of centros) {
+      const clave = normalizarUnidadSebin(centro.supervision?.unidad_sebin);
+      if (clave === VALOR_SIN_ASIGNAR) {
+        sinAsignar++;
+        continue;
+      }
+      m.set(clave, (m.get(clave) ?? 0) + 1);
+    }
+    const opciones: OpcionFiltroMulti[] = catalogoUnidades
+      .filter((u) => u.clave !== VALOR_SIN_ASIGNAR && (m.get(u.clave) ?? 0) > 0)
+      .map((u) => ({
+        valor: u.clave,
+        etiqueta: u.label,
+        cantidad: m.get(u.clave) ?? 0,
+        indicador: (
+          <span
+            className="size-2 shrink-0 rounded-full"
+            style={{ backgroundColor: u.color }}
+            aria-hidden
+          />
+        ),
+      }));
+    for (const [clave, cantidad] of m) {
+      if (opciones.some((o) => o.valor === clave)) continue;
+      opciones.push({ valor: clave, etiqueta: clave, cantidad });
+    }
+    return { opciones, cantidadSinAsignar: sinAsignar };
+  }, [centros, catalogoUnidades]);
+
+  const opcionesRevista = useMemo(() => {
+    const conteo = new Map<string, { etiqueta: string; cantidad: number }>();
+    let sinAsignar = 0;
+    for (const centro of centros) {
+      const actual = centro.supervision?.supervisor_sebin?.trim() ?? "";
+      if (!actual) {
+        sinAsignar++;
+        continue;
+      }
+      const delCatalogo = supervisores.find(
+        (s) => s.nombre === actual || s.username === actual,
+      );
+      const valor = delCatalogo?.username ?? actual;
+      const etiqueta = delCatalogo?.nombre ?? actual;
+      const prev = conteo.get(valor);
+      if (prev) prev.cantidad++;
+      else conteo.set(valor, { etiqueta, cantidad: 1 });
+    }
+    const opciones: OpcionFiltroMulti[] = [...conteo.entries()]
+      .map(([valor, { etiqueta, cantidad }]) => ({ valor, etiqueta, cantidad }))
+      .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es"));
+    return { opciones, cantidadSinAsignar: sinAsignar };
+  }, [centros, supervisores]);
+
+  const opcionesAnalista = useMemo(() => {
+    let sinAsignar = 0;
+    for (const centro of centros) {
+      if ((centro.supervision?.analistas_sae ?? []).length === 0) sinAsignar++;
+    }
+    const opciones: OpcionFiltroMulti[] = analistasSae.map((analista) => ({
+      valor: analista.user_id,
+      etiqueta: etiquetaAnalistaSae(analista),
+      cantidad: contarCentrosConAnalista(analista.user_id, centros),
+    }));
+    return { opciones, cantidadSinAsignar: sinAsignar };
+  }, [analistasSae, centros]);
 
   const diaActivo = dia ?? hoyClave;
 
@@ -884,7 +1018,28 @@ export function ReportesDiariosRedView() {
 
   const filas = useMemo(() => {
     const base = centros
-      .filter((c) => grupoFiltro === "todos" || c.grupo === grupoFiltro)
+      .filter((c) =>
+        coincideFiltroEscalar(filtroCuerpos, normalizarCuerpo(c.cuerpo)),
+      )
+      .filter((c) =>
+        coincideFiltroEscalar(
+          filtroUnidades,
+          normalizarUnidadSebin(c.supervision?.unidad_sebin),
+        ),
+      )
+      .filter((c) =>
+        coincideFiltroRevista(
+          filtroRevistas,
+          c.supervision?.supervisor_sebin,
+          supervisoresPorUsername,
+        ),
+      )
+      .filter((c) =>
+        coincideFiltroLista(
+          filtroAnalistas,
+          c.supervision?.analistas_sae ?? [],
+        ),
+      )
       .map((centro) => {
         const estado = estadoCentroDia(centro.id, diaActivo);
         const reporte = reporteDelDia(reportes, centro.id, diaActivo);
@@ -927,7 +1082,11 @@ export function ReportesDiariosRedView() {
     diaActivo,
     estadoFiltro,
     ocupacionFiltro,
-    grupoFiltro,
+    filtroCuerpos,
+    filtroUnidades,
+    filtroRevistas,
+    filtroAnalistas,
+    supervisoresPorUsername,
     orden,
     reportes,
     controles,
@@ -1060,7 +1219,10 @@ export function ReportesDiariosRedView() {
   const hayFiltros =
     estadoFiltro !== "todos" ||
     ocupacionFiltro !== "todos" ||
-    grupoFiltro !== "todos" ||
+    filtroCuerpos.length > 0 ||
+    filtroUnidades.length > 0 ||
+    filtroRevistas.length > 0 ||
+    filtroAnalistas.length > 0 ||
     dia !== hoyClave ||
     orden !== "pendientes" ||
     busquedaNombre.trim() !== "";
@@ -1100,7 +1262,10 @@ export function ReportesDiariosRedView() {
   function limpiarFiltros() {
     setEstadoFiltro("todos");
     setOcupacionFiltro("todos");
-    setGrupoFiltro("todos");
+    setFiltroCuerpos([]);
+    setFiltroUnidades([]);
+    setFiltroRevistas([]);
+    setFiltroAnalistas([]);
     setDia(hoyClave);
     setOrden("pendientes");
     setBusquedaNombre("");
@@ -1109,61 +1274,38 @@ export function ReportesDiariosRedView() {
 
   const selectoresFiltro = (
     <>
-      <Select
-        value={estadoFiltro}
-        onValueChange={(v) => setEstadoFiltro(v as FiltroEstado)}
-      >
-        <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
-          <SelectValue placeholder="Estado" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="todos">Todos los estados</SelectItem>
-          {(Object.keys(META_ESTADO_REPORTE) as EstadoReporteDia[]).map((e) => (
-            <SelectItem key={e} value={e}>
-              <span
-                className="mr-1.5 inline-block size-2 rounded-full"
-                style={{ background: META_ESTADO_REPORTE[e].color }}
-              />
-              {META_ESTADO_REPORTE[e].label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={ocupacionFiltro}
-        onValueChange={(v) => setOcupacionFiltro(v as FiltroOcupacion)}
-      >
-        <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
-          <SelectValue placeholder="Ocupación" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="todos">Todos (activos y vacíos)</SelectItem>
-          {ORDEN_MARCADOR_OCUPACION.map((m) => (
-            <SelectItem key={m} value={m}>
-              <span
-                className="mr-1.5 inline-block size-2 rounded-full"
-                style={{ background: META_MARCADOR_OCUPACION[m].color }}
-              />
-              {META_MARCADOR_OCUPACION[m].label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select value={grupoFiltro} onValueChange={setGrupoFiltro}>
-        <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
-          <SelectValue placeholder="Grupo" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="todos">Todos los grupos</SelectItem>
-          {grupos.map((g) => (
-            <SelectItem key={g} value={g}>
-              {g}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <FiltroMultiBusqueda
+        placeholder="Cuerpo policial"
+        buscarPlaceholder="Buscar cuerpo…"
+        opciones={opcionesCuerpo.opciones}
+        seleccion={filtroCuerpos}
+        onCambiar={setFiltroCuerpos}
+        cantidadSinAsignar={opcionesCuerpo.cantidadSinAsignar}
+      />
+      <FiltroMultiBusqueda
+        placeholder="Unidad SEBIN"
+        buscarPlaceholder="Buscar unidad…"
+        opciones={opcionesUnidad.opciones}
+        seleccion={filtroUnidades}
+        onCambiar={setFiltroUnidades}
+        cantidadSinAsignar={opcionesUnidad.cantidadSinAsignar}
+      />
+      <FiltroMultiBusqueda
+        placeholder="Funcionario revista"
+        buscarPlaceholder="Buscar funcionario…"
+        opciones={opcionesRevista.opciones}
+        seleccion={filtroRevistas}
+        onCambiar={setFiltroRevistas}
+        cantidadSinAsignar={opcionesRevista.cantidadSinAsignar}
+      />
+      <FiltroMultiBusqueda
+        placeholder="Analista SAE"
+        buscarPlaceholder="Buscar analista…"
+        opciones={opcionesAnalista.opciones}
+        seleccion={filtroAnalistas}
+        onCambiar={setFiltroAnalistas}
+        cantidadSinAsignar={opcionesAnalista.cantidadSinAsignar}
+      />
 
       <Select value={orden} onValueChange={(v) => setOrden(v as OrdenReportes)}>
         <SelectTrigger className="h-8 w-full bg-card/70 text-xs">
@@ -1415,7 +1557,7 @@ export function ReportesDiariosRedView() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_180px]">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[repeat(5,minmax(0,1fr))_180px]">
                     {selectoresFiltro}
                     <SelectorFechaReporte
                       dia={diaActivo}
