@@ -580,7 +580,7 @@ export function TableroCentros({
       camas += c.capacidad.camas_instaladas;
       banos += c.capacidad.pocetas_instaladas;
       duchas += c.capacidad.duchas_instaladas;
-      if (a.cupoReal != null) cupo += a.cupoReal;
+      if (a.cupoDisponible != null) cupo += a.cupoDisponible;
     }
     const total = refugiados + funcionarios;
     const agua = demandaAguaDia(total);

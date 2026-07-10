@@ -1,13 +1,11 @@
 // Análisis de capacidad vs. ocupación de un Centro Transitorio (lógica pura,
-// análoga a `brechas.ts`). Responde dos preguntas distintas:
-//   1. ¿Cuánta gente MÁS puede recibir con seguridad? → "cupo real": el mínimo
-//      entre camas, baños y duchas operativos (estándar Esfera). El recurso con
-//      menos margen es el que "fija el límite".
-//   2. ¿El agua está garantizada? → el agua NO limita cuántas personas caben
-//      (un tanque no fija headcount), sino por CUÁNTO TIEMPO alcanza. Se mide
-//      como autonomía en días y se acompaña de una recomendación accionable
-//      (garantizar reposición recurrente), porque un tanque es almacenamiento,
-//      no suministro continuo.
+// análoga a `brechas.ts`). Responde tres preguntas distintas:
+//   1. ¿Cuánta gente MÁS cabe según el censo oficial? → "cupo oficial":
+//      capacidad_instalada − damnificados (puede ser negativo = sobrecupo).
+//   2. ¿Cuánta gente MÁS puede recibir con seguridad Esfera? → "cupo real":
+//      el mínimo entre camas, baños y duchas operativos. Diagnóstico de
+//      infraestructura; ya no es el KPI primario de cupo.
+//   3. ¿El agua está garantizada? → autonomía en días (no fija headcount).
 
 import {
   normalizarCentro,
@@ -198,13 +196,27 @@ export interface AnalisisCentro {
   /** Recursos contables (camas, baños, duchas, basura). Agua va aparte. */
   recursos: RecursoAnalisis[];
   agua: AnalisisAgua;
-  /** Capacidad efectiva = mínima capacidadPersonas entre recursos que cuentan. */
+  /** Capacidad efectiva Esfera = mínima capacidadPersonas entre recursos que cuentan. */
   capacidadEfectiva: number | null;
-  /** Personas adicionales que puede recibir con seguridad (>= 0). */
+  /** Cupo Esfera (>= 0). Diagnóstico de infraestructura, no KPI primario. */
   cupoReal: number | null;
-  /** Recurso que fija el límite (menor margen). null si no hay datos. */
+  /** Aforo habilitado del censo oficial (editable). */
+  capacidadInstalada: number | null;
+  /** Aforo teórico del inmueble (censo oficial). */
+  capacidadMaxima: number | null;
+  /**
+   * Cupo oficial: capacidad_instalada − damnificados.
+   * Puede ser negativo (sobrecupo). null si no hay capacidad_instalada.
+   */
+  cupoOficial: number | null;
+  /**
+   * KPI primario de cupo: oficial si hay dato; si no, cupo Esfera.
+   * El oficial puede ser negativo; el Esfera está acotado a >= 0.
+   */
+  cupoDisponible: number | null;
+  /** Recurso que fija el límite Esfera (menor margen). null si no hay datos. */
   cuelloBotella: RecursoAnalisis | null;
-  /** % de ocupación respecto a la capacidad efectiva. */
+  /** % de ocupación respecto a la capacidad usada para el semáforo. */
   porcentajeOcupacion: number | null;
   semaforo: SemaforoCentro;
 }
@@ -214,15 +226,32 @@ export function ocupadosDe(centro: CentroTransitorio): number {
   return poblacionCentro(centro);
 }
 
+/**
+ * Cupo según censo oficial: capacidad_instalada − damnificados.
+ * null si aún no se registró capacidad_instalada. Puede ser negativo.
+ */
+export function cupoOficial(centro: CentroTransitorio): number | null {
+  const inst = normalizarCentro(centro).censo_oficial.capacidad_instalada;
+  if (inst == null) return null;
+  return inst - poblacionCentro(centro);
+}
+
 function pct(ocupados: number, cap: number): number {
   if (cap <= 0) return ocupados > 0 ? 999 : 0;
   return Math.round((ocupados / cap) * 100);
 }
 
+function semaforoPorOcupacion(porcentaje: number): SemaforoCentro {
+  if (porcentaje >= 100) return "rojo";
+  if (porcentaje >= 80) return "amarillo";
+  return "verde";
+}
+
 /**
- * Análisis completo de capacidad/ocupación de un centro. Solo se consideran los
- * recursos con datos ("medido"): un recurso sin instalar no fuerza el cupo a 0
- * (se asume "no medido") — así un centro recién creado no aparece saturado.
+ * Análisis completo de capacidad/ocupación de un centro.
+ * - Cupo KPI: censo oficial (`capacidad_instalada`) cuando existe.
+ * - Esfera (camas/baños/duchas): diagnóstico de infraestructura; un recurso sin
+ *   instalar no fuerza el cupo Esfera a 0 (se asume "no medido").
  */
 export function analisisCentro(centro: CentroTransitorio): AnalisisCentro {
   const c = normalizarCentro(centro);
@@ -231,6 +260,10 @@ export function analisisCentro(centro: CentroTransitorio): AnalisisCentro {
   const personal = totalPersonalOperativo(c.personal);
   const logistica = personasLogistica(centro);
   const familias = c.familias_ocupadas;
+  const capacidadInstalada = c.censo_oficial.capacidad_instalada;
+  const capacidadMaxima = c.censo_oficial.capacidad_maxima;
+  const cupoOficialValor =
+    capacidadInstalada == null ? null : capacidadInstalada - refugiados;
 
   // Unidades que DEBERÍAN existir para damnificados + personal (Esfera).
   const reqCamas = logistica;
@@ -328,32 +361,32 @@ export function analisisCentro(centro: CentroTransitorio): AnalisisCentro {
 
   const medidos = recursos.filter((r) => r.medido && r.cuentaParaCupo);
 
-  if (medidos.length === 0) {
-    return {
-      refugiados,
-      personal,
-      personasLogistica: logistica,
-      ocupados: refugiados,
-      familias,
-      recursos,
-      agua,
-      capacidadEfectiva: null,
-      cupoReal: null,
-      cuelloBotella: null,
-      porcentajeOcupacion: null,
-      semaforo: "sin_datos",
-    };
+  let capacidadEfectiva: number | null = null;
+  let cupoReal: number | null = null;
+  let cuelloBotella: RecursoAnalisis | null = null;
+  let porcentajeEsfera: number | null = null;
+  let semaforoEsfera: SemaforoCentro = "sin_datos";
+
+  if (medidos.length > 0) {
+    capacidadEfectiva = Math.min(...medidos.map((r) => r.capacidadPersonas));
+    cupoReal = Math.max(0, capacidadEfectiva - logistica);
+    cuelloBotella = medidos.reduce((min, r) => (r.margen < min.margen ? r : min), medidos[0]);
+    porcentajeEsfera = pct(logistica, capacidadEfectiva);
+    semaforoEsfera = semaforoPorOcupacion(porcentajeEsfera);
   }
 
-  const capacidadEfectiva = Math.min(...medidos.map((r) => r.capacidadPersonas));
-  const cupoReal = Math.max(0, capacidadEfectiva - logistica);
-  const cuelloBotella = medidos.reduce((min, r) => (r.margen < min.margen ? r : min), medidos[0]);
-  const porcentajeOcupacion = pct(logistica, capacidadEfectiva);
+  // Semáforo / %: prioriza censo oficial; fallback Esfera.
+  let porcentajeOcupacion: number | null = null;
+  let semaforo: SemaforoCentro = "sin_datos";
+  if (capacidadInstalada != null) {
+    porcentajeOcupacion = pct(refugiados, capacidadInstalada);
+    semaforo = semaforoPorOcupacion(porcentajeOcupacion);
+  } else if (porcentajeEsfera != null) {
+    porcentajeOcupacion = porcentajeEsfera;
+    semaforo = semaforoEsfera;
+  }
 
-  let semaforo: SemaforoCentro;
-  if (porcentajeOcupacion >= 100) semaforo = "rojo";
-  else if (porcentajeOcupacion >= 80) semaforo = "amarillo";
-  else semaforo = "verde";
+  const cupoDisponible = cupoOficialValor ?? cupoReal;
 
   return {
     refugiados,
@@ -365,6 +398,10 @@ export function analisisCentro(centro: CentroTransitorio): AnalisisCentro {
     agua,
     capacidadEfectiva,
     cupoReal,
+    capacidadInstalada,
+    capacidadMaxima,
+    cupoOficial: cupoOficialValor,
+    cupoDisponible,
     cuelloBotella,
     porcentajeOcupacion,
     semaforo,

@@ -70,8 +70,8 @@ export function FormularioCapacidadCentro({
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Registra lo instalado y cuánto está operativo ahora. La diferencia revela qué recurso
-        limita el ingreso (ej. muchas camas pero pocas pocetas).
+        Diagnóstico Esfera: lo instalado vs. operativo. El cupo de personas usa la capacidad
+        instalada del censo oficial, no estas camas/baños.
       </p>
       <div className="grid gap-2 sm:grid-cols-2">
         <ParRecurso

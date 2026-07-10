@@ -11,7 +11,9 @@ import { useAreasInfraestructura } from "@/data/useAreasInfraestructura";
 import { useRequerimientosSeguimiento } from "@/data/useRequerimientosSeguimiento";
 import {
   normalizarCapacidad,
+  normalizarCensoOficial,
   type CapacidadCentro,
+  type CensoOficialCentro,
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
 import { analisisCentro, COLOR_SEMAFORO } from "@/domain/capacidadCentros";
@@ -24,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { SeccionCapacidadCentro } from "./DetalleCentro";
 import { PieEdicionSeccion } from "./EdicionSeccionCentro";
 import { FormularioCapacidadCentro } from "./FormularioCapacidadCentro";
+import { FormularioCensoOficialCentro } from "./FormularioCensoOficialCentro";
 import { InfraestructuraCentro } from "./InfraestructuraCentro";
 import { SeguimientoRequerimientosCentro } from "./SeguimientoRequerimientosCentro";
 
@@ -50,26 +53,35 @@ export function InfraestructuraCapacidadPanel({ centro, puedeEditar, onIrAReport
   );
 
   const capacidadSerial = JSON.stringify(centro.capacidad ?? {});
+  const censoSerial = JSON.stringify(centro.censo_oficial ?? {});
   const capacidadFuente = useMemo(
     () => normalizarCapacidad(centro.capacidad),
     [centro.id, centro.updated_at, capacidadSerial],
+  );
+  const censoFuente = useMemo(
+    () => normalizarCensoOficial(centro.censo_oficial),
+    [centro.id, centro.updated_at, censoSerial],
   );
 
   const [subTab, setSubTab] = useState<SubTabInfra>("capacidad");
   const [editandoCapacidad, setEditandoCapacidad] = useState(false);
   const [capacidad, setCapacidad] = useState<CapacidadCentro>(capacidadFuente);
+  const [censoOficial, setCensoOficial] = useState<CensoOficialCentro>(censoFuente);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!editandoCapacidad) {
       setCapacidad(capacidadFuente);
+      setCensoOficial(censoFuente);
     }
-  }, [capacidadFuente, editandoCapacidad]);
+  }, [capacidadFuente, censoFuente, editandoCapacidad]);
 
   const colorSemaforo = COLOR_SEMAFORO[analisis.semaforo];
   const tieneCapacidadRegistrada =
-    analisis.recursos.some((r) => r.medido) || analisis.agua.medido;
+    analisis.capacidadInstalada != null ||
+    analisis.recursos.some((r) => r.medido) ||
+    analisis.agua.medido;
   const areasAtencion = conteosInfra.requiere_mejora + conteosInfra.en_proceso;
 
   const resumenAreas = useMemo(() => {
@@ -89,6 +101,7 @@ export function InfraestructuraCapacidadPanel({ centro, puedeEditar, onIrAReport
 
   function cancelarEdicion() {
     setCapacidad(capacidadFuente);
+    setCensoOficial(censoFuente);
     setError(null);
     setEditandoCapacidad(false);
   }
@@ -100,6 +113,7 @@ export function InfraestructuraCapacidadPanel({ centro, puedeEditar, onIrAReport
       await guardarCentro({
         ...centro,
         capacidad: normalizarCapacidad(capacidad),
+        censo_oficial: normalizarCensoOficial(censoOficial),
       });
       setEditandoCapacidad(false);
     } catch (err) {
@@ -131,9 +145,10 @@ export function InfraestructuraCapacidadPanel({ centro, puedeEditar, onIrAReport
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-border bg-muted/20 px-4 py-2.5 text-xs">
         <span className="text-muted-foreground">
           Cupo:{" "}
-          {analisis.cupoReal != null ? (
+          {analisis.cupoDisponible != null ? (
             <span className="font-semibold tabular-nums" style={{ color: colorSemaforo }}>
-              +{analisis.cupoReal.toLocaleString("es")}
+              {analisis.cupoDisponible > 0 ? "+" : ""}
+              {analisis.cupoDisponible.toLocaleString("es")}
             </span>
           ) : (
             <span className="text-muted-foreground/80">sin datos</span>
@@ -201,7 +216,7 @@ export function InfraestructuraCapacidadPanel({ centro, puedeEditar, onIrAReport
         <TabsContent value="capacidad" className="mt-4 space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <p className="text-xs text-muted-foreground">
-              Recursos instalados vs. operativos del campamento.
+              Aforo oficial (cupo) y recursos Esfera del campamento.
             </p>
             {puedeEditar &&
               (editandoCapacidad ? (
@@ -234,7 +249,16 @@ export function InfraestructuraCapacidadPanel({ centro, puedeEditar, onIrAReport
 
           {editandoCapacidad ? (
             <div className="space-y-5">
-              <FormularioCapacidadCentro capacidad={capacidad} onChange={setCapacidad} />
+              <FormularioCensoOficialCentro
+                censo={censoOficial}
+                onChange={setCensoOficial}
+              />
+              <div>
+                <p className="mb-2 text-xs font-semibold text-foreground">
+                  Estándar Esfera (diagnóstico)
+                </p>
+                <FormularioCapacidadCentro capacidad={capacidad} onChange={setCapacidad} />
+              </div>
               <PieEdicionSeccion
                 guardando={guardando}
                 error={error}
@@ -249,7 +273,8 @@ export function InfraestructuraCapacidadPanel({ centro, puedeEditar, onIrAReport
                 Sin capacidad registrada
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Registra camas, baños, duchas y agua para calcular el cupo real del campamento.
+                Registra la capacidad instalada (censo oficial) para calcular el cupo. Las camas
+                y baños quedan como diagnóstico Esfera.
               </p>
               {puedeEditar && (
                 <Button
@@ -264,7 +289,41 @@ export function InfraestructuraCapacidadPanel({ centro, puedeEditar, onIrAReport
               )}
             </div>
           ) : (
-            <SeccionCapacidadCentro centro={centro} integrado />
+            <div className="space-y-4">
+              {(analisis.capacidadInstalada != null ||
+                analisis.capacidadMaxima != null ||
+                censoFuente.ministerio_ente) && (
+                <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5 text-xs">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
+                    {analisis.capacidadInstalada != null && (
+                      <span>
+                        Instalada:{" "}
+                        <span className="font-semibold tabular-nums text-foreground">
+                          {analisis.capacidadInstalada.toLocaleString("es")}
+                        </span>
+                      </span>
+                    )}
+                    {analisis.capacidadMaxima != null && (
+                      <span>
+                        Máxima:{" "}
+                        <span className="font-semibold tabular-nums text-foreground">
+                          {analisis.capacidadMaxima.toLocaleString("es")}
+                        </span>
+                      </span>
+                    )}
+                    {censoFuente.ministerio_ente.trim() && (
+                      <span>
+                        Ente:{" "}
+                        <span className="font-medium text-foreground">
+                          {censoFuente.ministerio_ente.trim()}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              <SeccionCapacidadCentro centro={centro} integrado />
+            </div>
           )}
         </TabsContent>
 

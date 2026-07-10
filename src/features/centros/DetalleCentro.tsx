@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import {
   ESTADOS_CENTRO,
+  ESTATUS_INSTALACION_OFICIAL,
   metaCuerpoDe,
   metaUnidadSebinCentro,
   normalizarCentro,
@@ -157,6 +158,9 @@ export function BadgesEstadoCentro({ centro }: SeccionProps) {
   const c = normalizarCentro(centro);
   const analisis = analisisCentro(centro);
   const estadoInfo = ESTADOS_CENTRO.find((e) => e.valor === c.estado);
+  const estatusInfo = ESTATUS_INSTALACION_OFICIAL.find(
+    (e) => e.valor === c.censo_oficial.estatus_instalacion,
+  );
   const colorSemaforo = COLOR_SEMAFORO[analisis.semaforo];
   const mostrarCupo = analisis.semaforo !== "sin_datos";
   return (
@@ -168,6 +172,11 @@ export function BadgesEstadoCentro({ centro }: SeccionProps) {
           style={{ borderColor: `${estadoInfo.color}66`, color: estadoInfo.color }}
         >
           {estadoInfo.label}
+        </Badge>
+      )}
+      {estatusInfo && (
+        <Badge variant="outline" className="border-teal-500/40 text-[10px] text-teal-400">
+          {estatusInfo.label}
         </Badge>
       )}
       {mostrarCupo && (
@@ -278,6 +287,35 @@ export function SeccionIdentificacionCentro({ centro }: SeccionProps) {
       <div className="space-y-0.5 text-xs text-muted-foreground">
         {ubicacion && <p>{ubicacion}</p>}
         {centro.direccion && <p className="leading-snug">{centro.direccion}</p>}
+        {c.censo_oficial.ministerio_ente.trim() && (
+          <p>
+            Ente:{" "}
+            <span className="font-medium text-foreground">
+              {c.censo_oficial.ministerio_ente.trim()}
+            </span>
+          </p>
+        )}
+        {(c.censo_oficial.capacidad_instalada != null ||
+          c.censo_oficial.capacidad_maxima != null) && (
+          <p>
+            Aforo:{" "}
+            {c.censo_oficial.capacidad_instalada != null ? (
+              <span className="font-medium text-foreground">
+                {c.censo_oficial.capacidad_instalada.toLocaleString("es")} instalada
+              </span>
+            ) : (
+              <span className="text-muted-foreground">sin instalada</span>
+            )}
+            {c.censo_oficial.capacidad_maxima != null && (
+              <>
+                {" · "}
+                <span className="font-medium text-foreground">
+                  {c.censo_oficial.capacidad_maxima.toLocaleString("es")} máxima
+                </span>
+              </>
+            )}
+          </p>
+        )}
       </div>
       {centro.mapsUrl && (
         <a
@@ -501,38 +539,60 @@ export function SeccionCapacidadCentro({
         </span>
       </div>
 
-      {!integrado && analisis.cupoReal != null ? (
+      {!integrado && analisis.cupoDisponible != null ? (
         <div
           className="rounded-lg px-3 py-2 text-center"
           style={{ background: `${colorSemaforo}1a` }}
         >
           <div className="text-2xl font-bold" style={{ color: colorSemaforo }}>
-            {analisis.cupoReal.toLocaleString("es")}
+            {analisis.cupoDisponible.toLocaleString("es")}
           </div>
           <div className="text-[11px] text-muted-foreground">
-            personas más que puede recibir con seguridad
+            {analisis.cupoOficial != null
+              ? "cupo disponible (capacidad instalada − damnificados)"
+              : "personas más que puede recibir con seguridad (Esfera)"}
           </div>
-          {analisis.cuelloBotella && analisis.cupoReal >= 0 && (
+          {analisis.capacidadInstalada != null && (
             <div className="mt-1 text-[11px] text-muted-foreground">
-              Recurso que fija el límite:{" "}
+              Capacidad instalada:{" "}
               <span className="font-semibold text-foreground">
-                {analisis.cuelloBotella.label}
-              </span>{" "}
-              <span className="text-muted-foreground">(lo primero que se agota)</span>
+                {analisis.capacidadInstalada.toLocaleString("es")}
+              </span>
+              {analisis.capacidadMaxima != null &&
+                analisis.capacidadMaxima !== analisis.capacidadInstalada && (
+                  <>
+                    {" "}
+                    · máxima{" "}
+                    <span className="font-semibold text-foreground">
+                      {analisis.capacidadMaxima.toLocaleString("es")}
+                    </span>
+                  </>
+                )}
             </div>
           )}
+          {analisis.cupoOficial == null &&
+            analisis.cuelloBotella &&
+            analisis.cupoReal != null &&
+            analisis.cupoReal >= 0 && (
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                Recurso que fija el límite:{" "}
+                <span className="font-semibold text-foreground">
+                  {analisis.cuelloBotella.label}
+                </span>{" "}
+                <span className="text-muted-foreground">(lo primero que se agota)</span>
+              </div>
+            )}
         </div>
       ) : !integrado ? (
         <p className="text-[11px] text-muted-foreground">
-          Aún no hay datos de capacidad. Registra camas, pocetas o duchas para calcular el cupo
-          real.
+          Aún no hay capacidad instalada ni recursos Esfera. Registra la capacidad instalada
+          (censo oficial) o camas/pocetas/duchas.
         </p>
       ) : (
         analisis.cuelloBotella &&
-        analisis.cupoReal != null &&
-        analisis.cupoReal >= 0 && (
+        analisis.cupoReal != null && (
           <p className="text-[11px] text-muted-foreground">
-            Recurso que fija el límite:{" "}
+            Cuello de botella Esfera:{" "}
             <span className="font-semibold text-foreground">
               {analisis.cuelloBotella.label}
             </span>
@@ -541,7 +601,7 @@ export function SeccionCapacidadCentro({
       )}
 
       <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        Recursos: hay · operativas · deberían (según población). Toca el ⓘ para ver el estándar.
+        Estándar Esfera (diagnóstico): hay · operativas · deberían. Toca el ⓘ para el estándar.
       </p>
       <div className="space-y-2">
         {analisis.recursos.map((r) => (
@@ -694,7 +754,7 @@ export function DetalleCentro({ centro, puedeEditar, onEditar }: Props) {
       {puedeEditar && (
         <Button className="w-full" onClick={onEditar}>
           <Pencil className="size-4" />
-          Registrar / editar estado
+          Abrir ficha del campamento
         </Button>
       )}
     </div>

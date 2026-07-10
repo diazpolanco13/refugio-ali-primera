@@ -2,11 +2,12 @@
 // identificación, acceso de terreno y alertas de servicios.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Camera, ImagePlus, Loader2, Pencil, Trash2 } from "lucide-react";
+import { AlertTriangle, Camera, ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { claveDia, guardarCentro } from "@/data/reposSupabase";
 import { subirFotoCentro, supabaseDisponible } from "@/data/supabase";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import {
+  ESTATUS_INSTALACION_OFICIAL,
   normalizarCentro,
   normalizarServicios,
   poblacionCentro,
@@ -30,8 +31,6 @@ interface Props {
   centro: CentroTransitorio;
   puedeEditar?: boolean;
   onIrAPestana: (vista: VistaFichaCentro) => void;
-  /** Abre el formulario completo de edición del campamento. */
-  onEditar?: () => void;
 }
 
 /** Variación vs día anterior: verde +N, rojo -N. */
@@ -47,7 +46,40 @@ function Delta({ valor, anterior }: { valor: number; anterior?: number }) {
   return <span className="text-[10px] font-bold text-rose-400">{d.toLocaleString("es")}</span>;
 }
 
-/** KPIs compactos con delta vs ayer y cupo disponible. */
+function CardKpi({
+  etiqueta,
+  valor,
+  anterior,
+  clase,
+  color,
+}: {
+  etiqueta: string;
+  valor: string | number;
+  anterior?: number;
+  clase?: string;
+  color?: string;
+}) {
+  const esNumero = typeof valor === "number";
+  return (
+    <div className="rounded-lg border border-border bg-card px-2 py-2 text-center sm:px-3 sm:py-2.5">
+      <div className="flex items-baseline justify-center gap-1">
+        <div
+          className={cn(
+            "text-lg font-bold tabular-nums leading-none text-foreground sm:text-xl",
+            clase,
+          )}
+          style={color ? { color } : undefined}
+        >
+          {esNumero ? valor.toLocaleString("es") : valor}
+        </div>
+        {esNumero && <Delta valor={valor} anterior={anterior} />}
+      </div>
+      <div className="mt-1 text-[10px] text-muted-foreground">{etiqueta}</div>
+    </div>
+  );
+}
+
+/** KPIs: reporte diario + aforo oficial (estatus, máximas, instalada, disponibles). */
 function KpisResumen({ centro }: { centro: CentroTransitorio }) {
   const c = normalizarCentro(centro);
   const analisis = analisisCentro(centro);
@@ -64,62 +96,62 @@ function KpisResumen({ centro }: { centro: CentroTransitorio }) {
   const ayer = ultimoSnapshotAntes(snapshots, hoy);
 
   const colorSemaforo = COLOR_SEMAFORO[analisis.semaforo];
-  const cupoTexto =
-    analisis.cupoReal != null ? analisis.cupoReal.toLocaleString("es") : "—";
+  const estatusLabel =
+    ESTATUS_INSTALACION_OFICIAL.find(
+      (e) => e.valor === c.censo_oficial.estatus_instalacion,
+    )?.label ?? "—";
+  const estatusClase =
+    c.censo_oficial.estatus_instalacion === "instalado"
+      ? "text-emerald-400"
+      : c.censo_oficial.estatus_instalacion === "proceso_de_instalacion"
+        ? "text-amber-400"
+        : "text-muted-foreground";
 
-  const items = [
-    {
-      etiqueta: "Damnificados",
-      valor: refugiados,
-      anterior: ayer?.total_afectados,
-      clase: "text-sky-300",
-    },
-    {
-      etiqueta: "Familias",
-      valor: analisis.familias,
-      anterior: ayer?.familias,
-    },
-    {
-      etiqueta: "Personal",
-      valor: analisis.personal,
-      clase: "text-violet-300",
-    },
-    {
-      etiqueta: "Cupo disponible",
-      valor: cupoTexto,
-      color: colorSemaforo,
-      esCupo: true,
-    },
-  ];
+  const fmt = (n: number | null) => (n == null ? "—" : n.toLocaleString("es"));
+  // total_disponibles oficial = capacidad_instalada − damnificados del reporte
+  const disponibles = analisis.cupoOficial;
 
   return (
     <div className="min-w-0 space-y-2">
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-        {items.map((item) => (
-          <div
-            key={item.etiqueta}
-            className="rounded-lg border border-border bg-card px-2 py-2 text-center sm:px-3 sm:py-2.5"
-          >
-            <div className="flex items-baseline justify-center gap-1">
-              <div
-                className={cn(
-                  "text-lg font-bold tabular-nums leading-none text-foreground sm:text-xl",
-                  item.clase,
-                )}
-                style={item.esCupo ? { color: item.color } : undefined}
-              >
-                {typeof item.valor === "number"
-                  ? item.valor.toLocaleString("es")
-                  : item.valor}
-              </div>
-              {!item.esCupo && typeof item.valor === "number" && (
-                <Delta valor={item.valor} anterior={item.anterior} />
-              )}
-            </div>
-            <div className="mt-1 text-[10px] text-muted-foreground">{item.etiqueta}</div>
-          </div>
-        ))}
+      {/* Parte diario */}
+      <div className="grid grid-cols-3 gap-1.5">
+        <CardKpi
+          etiqueta="Damnificados"
+          valor={refugiados}
+          anterior={ayer?.total_afectados}
+          clase="text-sky-300"
+        />
+        <CardKpi
+          etiqueta="Familias"
+          valor={analisis.familias}
+          anterior={ayer?.familias}
+        />
+        <CardKpi
+          etiqueta="Personal"
+          valor={analisis.personal}
+          clase="text-violet-300"
+        />
       </div>
+
+      {/* Aforo / censo oficial */}
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+        <CardKpi etiqueta="Estatus" valor={estatusLabel} clase={estatusClase} />
+        <CardKpi
+          etiqueta="Capacidad máxima"
+          valor={fmt(analisis.capacidadMaxima)}
+        />
+        <CardKpi
+          etiqueta="Capacidad instalada"
+          valor={fmt(analisis.capacidadInstalada)}
+        />
+        <CardKpi
+          etiqueta="Disponibles"
+          valor={disponibles == null ? "—" : disponibles.toLocaleString("es")}
+          color={disponibles == null ? undefined : colorSemaforo}
+          clase={disponibles == null ? "text-muted-foreground" : undefined}
+        />
+      </div>
+
       {c.censo_en_proceso && (
         <Badge variant="outline" className="border-amber-500/40 text-[10px] text-amber-500">
           Censo demográfico en proceso
@@ -343,7 +375,6 @@ export function ResumenCentroPanel({
   centro,
   puedeEditar = false,
   onIrAPestana,
-  onEditar,
 }: Props) {
   return (
     <div className="space-y-4">
@@ -366,23 +397,9 @@ export function ResumenCentroPanel({
       </div>
 
       <div className="space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Identificación y asignación
-          </p>
-          {puedeEditar && onEditar && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-8 gap-1.5"
-              onClick={onEditar}
-            >
-              <Pencil className="size-3.5" />
-              Editar campamento
-            </Button>
-          )}
-        </div>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Identificación y asignación
+        </p>
         <SeccionIdentificacionCentro centro={centro} />
       </div>
 

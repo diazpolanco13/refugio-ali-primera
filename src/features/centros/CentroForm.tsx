@@ -24,6 +24,7 @@ import {
   totalPersonalOperativo,
   personasLogistica,
   type CapacidadCentro,
+  type CensoOficialCentro,
   type CentroTransitorio,
   type ContactoReporte,
   type EstadoCentro,
@@ -48,6 +49,7 @@ import {
 } from "@/features/centros/LevantamientoCentro";
 import { FormularioRequerimientos } from "@/features/centros/RequerimientosCentro";
 import { FormularioCapacidadCentro } from "@/features/centros/FormularioCapacidadCentro";
+import { FormularioCensoOficialCentro } from "@/features/centros/FormularioCensoOficialCentro";
 import { InfraestructuraCentro } from "@/features/centros/InfraestructuraCentro";
 import { AsignacionOperativaCampos } from "@/features/centros/AsignacionOperativaCentro";
 import { AccionesContacto } from "@/components/AccionesContacto";
@@ -200,6 +202,7 @@ export function CentroForm({
   const [novedades, setNovedades] = useState(base.novedades);
   const [requerimientos, setRequerimientos] = useState<ItemRequerimiento[]>(base.requerimientos);
   const [capacidad, setCapacidad] = useState<CapacidadCentro>(base.capacidad);
+  const [censoOficial, setCensoOficial] = useState<CensoOficialCentro>(base.censo_oficial);
   const [ocupacion, setOcupacion] = useState<Vulnerables>(base.ocupacion);
   const [personal, setPersonal] = useState<PersonalCentro>(base.personal);
   const [familias, setFamilias] = useState(base.familias_ocupadas);
@@ -358,6 +361,7 @@ export function CentroForm({
             notas: r.notas?.trim() ?? "",
           })),
         capacidad,
+        censo_oficial: censoOficial,
         ocupacion,
         personal,
         familias_ocupadas: familias,
@@ -1005,7 +1009,19 @@ export function CentroForm({
           {pestana === "infraestructura" && (
           <div className="space-y-6">
             <div>
-              <Label className="text-sm font-semibold">Capacidad (instalada / operativa)</Label>
+              <Label className="text-sm font-semibold">Censo oficial (aforo)</Label>
+              <div className="mt-2">
+                <FormularioCensoOficialCentro
+                  censo={censoOficial}
+                  onChange={setCensoOficial}
+                  deshabilitado={soloLectura}
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm font-semibold">
+                Recursos Esfera (instalada / operativa)
+              </Label>
               <div className="mt-2">
                 <FormularioCapacidadCentro
                   capacidad={capacidad}

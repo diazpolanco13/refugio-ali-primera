@@ -175,8 +175,8 @@ export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle 
       <div className="flex items-center justify-between gap-2 text-[11px]">
         <span className="text-muted-foreground">Cupo disponible</span>
         <span className="font-semibold" style={{ color: colorSemaforo }}>
-          {analisis.cupoReal != null
-            ? `+${analisis.cupoReal.toLocaleString("es")}`
+          {analisis.cupoDisponible != null
+            ? `${analisis.cupoDisponible > 0 ? "+" : ""}${analisis.cupoDisponible.toLocaleString("es")}`
             : "Sin datos"}
         </span>
       </div>

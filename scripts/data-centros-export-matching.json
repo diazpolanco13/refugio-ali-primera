@@ -1,0 +1,722 @@
+[
+  {
+    "id": "centro-01",
+    "nombre": "UEN Pedro Emilio Coll",
+    "parroquia": "COCHE",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 491,
+    "familias_ocupadas": 140
+  },
+  {
+    "id": "centro-02",
+    "nombre": "UEN Francisco Pimentel",
+    "parroquia": "STA. TERESA",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 699,
+    "familias_ocupadas": 232
+  },
+  {
+    "id": "centro-52",
+    "nombre": "UEN Gran Colombia — Edif. Ecuador",
+    "parroquia": "Santa Rosalía",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 511,
+    "familias_ocupadas": 190
+  },
+  {
+    "id": "centro-03",
+    "nombre": "UEN Gran Colombia — Edif. Colombia",
+    "parroquia": "Santa Rosalía",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 160,
+    "familias_ocupadas": 55
+  },
+  {
+    "id": "centro-51",
+    "nombre": "UEN Gran Colombia — Edif. Perú",
+    "parroquia": "Santa Rosalía",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 90,
+    "familias_ocupadas": 30
+  },
+  {
+    "id": "centro-54",
+    "nombre": "UEN Gran Colombia — Edif. Bolivia",
+    "parroquia": "",
+    "municipio": "",
+    "total_afectados": 194,
+    "familias_ocupadas": 55
+  },
+  {
+    "id": "centro-04",
+    "nombre": "Liceo Jose Avalos",
+    "parroquia": "El VALLE",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-05",
+    "nombre": "EBN Dr. Guillermo Delgado Palacios",
+    "parroquia": "El VALLE",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-06",
+    "nombre": "Liceo Judith Liendo",
+    "parroquia": "El Valle",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-08",
+    "nombre": "Liceo Leopoldo Aguerrevere",
+    "parroquia": "Sanj Pedro",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 198,
+    "familias_ocupadas": 50
+  },
+  {
+    "id": "centro-09",
+    "nombre": "ETI Leonardo Infante",
+    "parroquia": "PETARE",
+    "municipio": "SUCRE",
+    "total_afectados": 227,
+    "familias_ocupadas": 71
+  },
+  {
+    "id": "centro-10",
+    "nombre": "U. E. N. Mariano Picón Salas",
+    "parroquia": "MIRANDA",
+    "municipio": "SUCRE",
+    "total_afectados": 371,
+    "familias_ocupadas": 117
+  },
+  {
+    "id": "centro-11",
+    "nombre": "UE Jesús Enrique Lossada",
+    "parroquia": "EL RECREO",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-12",
+    "nombre": "UE Cesar Rengifo",
+    "parroquia": "ALTAGRACIAS",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 37,
+    "familias_ocupadas": 14
+  },
+  {
+    "id": "centro-13",
+    "nombre": "UEN Armando Zuloaga",
+    "parroquia": "SAN JOSÉ",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 165,
+    "familias_ocupadas": 46
+  },
+  {
+    "id": "centro-14",
+    "nombre": "CE Miguel Antonio Caro",
+    "parroquia": "SUCRE",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-16",
+    "nombre": "Liceo Juan Landaeta",
+    "parroquia": "SUCRE",
+    "municipio": "SUCRE",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-17",
+    "nombre": "UE Gervacio Artigas",
+    "parroquia": "SUCRE",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 541,
+    "familias_ocupadas": 113
+  },
+  {
+    "id": "centro-18",
+    "nombre": "Liceo Juan Lovera",
+    "parroquia": "MACARAO",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 62,
+    "familias_ocupadas": 21
+  },
+  {
+    "id": "centro-19",
+    "nombre": "CE Claudio Feliciano",
+    "parroquia": "MACARAO",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 1,
+    "familias_ocupadas": 1
+  },
+  {
+    "id": "centro-20",
+    "nombre": "UE Luis Padrino",
+    "parroquia": "SAN JUAN",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 190,
+    "familias_ocupadas": 73
+  },
+  {
+    "id": "centro-21",
+    "nombre": "UEN Vicente Gil",
+    "parroquia": "SAN BERNARDINO",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-23",
+    "nombre": "Liceo Agustín Aveledo",
+    "parroquia": "LA PASTORA",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-24",
+    "nombre": "UE Jose Ignacio Paz Castillo",
+    "parroquia": "LA PASTORA",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 131,
+    "familias_ocupadas": 41
+  },
+  {
+    "id": "centro-25",
+    "nombre": "UEN Pedro Fontes",
+    "parroquia": "LA VEGA",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-26",
+    "nombre": "UE Luis Hurtado",
+    "parroquia": "El Junkito",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 280,
+    "familias_ocupadas": 70
+  },
+  {
+    "id": "centro-27",
+    "nombre": "UEN Eduardo Crema",
+    "parroquia": "El Paraiso",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 111,
+    "familias_ocupadas": 39
+  },
+  {
+    "id": "centro-28",
+    "nombre": "UEN Tito Salas",
+    "parroquia": "las minas",
+    "municipio": "Baruta",
+    "total_afectados": 31,
+    "familias_ocupadas": 10
+  },
+  {
+    "id": "centro-29",
+    "nombre": "UEN Sorocaima",
+    "parroquia": "Baruta , Nuestra Señora del Rosario",
+    "municipio": "Baruta",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-30",
+    "nombre": "UEE Adolfo Nava Coronado",
+    "parroquia": "El Cafetal",
+    "municipio": "Baruta",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-31",
+    "nombre": "UEN Alejo Fortique",
+    "parroquia": "BARUTA",
+    "municipio": "BARUTA",
+    "total_afectados": 125,
+    "familias_ocupadas": 29
+  },
+  {
+    "id": "centro-32",
+    "nombre": "CE Andres Bello",
+    "parroquia": "La Candelaria",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 167,
+    "familias_ocupadas": 51
+  },
+  {
+    "id": "centro-33",
+    "nombre": "UENB coronel Carlos Delgado Chalboud",
+    "parroquia": "Coche",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 426,
+    "familias_ocupadas": 133
+  },
+  {
+    "id": "centro-34",
+    "nombre": "UED Juan Antonio Perez Bonal",
+    "parroquia": "SUCRE",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 207,
+    "familias_ocupadas": 78
+  },
+  {
+    "id": "centro-36",
+    "nombre": "CEIN Mamá Rosa, Urb La Limonera",
+    "parroquia": "NUESTRA SEÑORA DER ROSARIO",
+    "municipio": "BARUTA",
+    "total_afectados": 71,
+    "familias_ocupadas": 18
+  },
+  {
+    "id": "centro-37",
+    "nombre": "UEN Josefa Irausquin Lopez, El Cafetal",
+    "parroquia": "CAFETAL",
+    "municipio": "BARUTA",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-38",
+    "nombre": "CEIN Lino Clemente, Baruta",
+    "parroquia": "BARUTA",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-39",
+    "nombre": "UEN Jesús Maria Alfaro, Cafetal",
+    "parroquia": "CAFETAL",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-40",
+    "nombre": "UEN EI Libertador",
+    "parroquia": "CHACAO",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-41",
+    "nombre": "EU Conopoima",
+    "parroquia": "EL HATILLO",
+    "municipio": "LIBERTADOR",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-42",
+    "nombre": "CEN Luis Beltran Prieto Figueroa",
+    "parroquia": "PETARE",
+    "municipio": "SUCRE",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-43",
+    "nombre": "UEN Rafael Napoleón Baite",
+    "parroquia": "PETARE",
+    "municipio": "SUCRE",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-44",
+    "nombre": "CEN Negro Primero Caucaguita",
+    "parroquia": "CAUCAGUITA",
+    "municipio": "SUCRE",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-45",
+    "nombre": "UEN Generalisimo Francisco de Miranda, Filas de Mariche",
+    "parroquia": "FILAS DE MARICHE",
+    "municipio": "SUCRE",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-46",
+    "nombre": "CEN Ana Maria Campos, Filas de Mariche",
+    "parroquia": "FILAS DE MARICHE",
+    "municipio": "SUCRE",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-48",
+    "nombre": "CEN Francisco Iznardi",
+    "parroquia": "PETARE",
+    "municipio": "SUCRE",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-49",
+    "nombre": "UEN Jose de Jesús Arocha, Petare",
+    "parroquia": "PETARE",
+    "municipio": "SUCRE",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-50",
+    "nombre": "Escuela Internacional de Liderazgo Antonio José de Sucre",
+    "parroquia": "FILAS DE MARICHE",
+    "municipio": "SUCRE",
+    "total_afectados": 146,
+    "familias_ocupadas": 56
+  },
+  {
+    "id": "centro-53",
+    "nombre": "GBM El Valle (Gimnasio Vertical)",
+    "parroquia": "",
+    "municipio": "",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-55",
+    "nombre": "Coliseo La Urbina",
+    "parroquia": "",
+    "municipio": "",
+    "total_afectados": 110,
+    "familias_ocupadas": 37
+  },
+  {
+    "id": "centro-56",
+    "nombre": "Ciudadela de Catia 2",
+    "parroquia": "",
+    "municipio": "",
+    "total_afectados": 80,
+    "familias_ocupadas": 35
+  },
+  {
+    "id": "centro-57",
+    "nombre": "Gimnasio Vertical Santa Teresa",
+    "parroquia": "",
+    "municipio": "",
+    "total_afectados": 13,
+    "familias_ocupadas": 6
+  },
+  {
+    "id": "centro-58",
+    "nombre": "San Pedro Claver",
+    "parroquia": "",
+    "municipio": "",
+    "total_afectados": 101,
+    "familias_ocupadas": 30
+  },
+  {
+    "id": "centro-59",
+    "nombre": "GBM Pinto Salinas (Gimnasio Vertical)",
+    "parroquia": "",
+    "municipio": "",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-60",
+    "nombre": "UEN Zoe Xiques Silva",
+    "parroquia": "",
+    "municipio": "",
+    "total_afectados": 443,
+    "familias_ocupadas": 89
+  },
+  {
+    "id": "centro-61",
+    "nombre": "Estacionamiento Hotel Ávila",
+    "parroquia": "",
+    "municipio": "",
+    "total_afectados": 205,
+    "familias_ocupadas": 64
+  },
+  {
+    "id": "centro-62",
+    "nombre": "PSUV Caracas",
+    "parroquia": "",
+    "municipio": "",
+    "total_afectados": 40,
+    "familias_ocupadas": 13
+  },
+  {
+    "id": "centro-63",
+    "nombre": "CMAPP El Junquito",
+    "parroquia": "",
+    "municipio": "",
+    "total_afectados": 6,
+    "familias_ocupadas": 2
+  },
+  {
+    "id": "centro-64",
+    "nombre": "UNES del Junquito",
+    "parroquia": "",
+    "municipio": "",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-65",
+    "nombre": "Complejo Guayana Esequiba",
+    "parroquia": "",
+    "municipio": "",
+    "total_afectados": 239,
+    "familias_ocupadas": 67
+  },
+  {
+    "id": "centro-66",
+    "nombre": "GBM Caricuao (Gimnasio Vertical)",
+    "parroquia": "",
+    "municipio": "",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-67",
+    "nombre": "Escuela de Grumetes (Canes)",
+    "parroquia": "Catia La Mar",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-68",
+    "nombre": "Universidad Marítima del Caribe",
+    "parroquia": "Catia La Mar",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-69",
+    "nombre": "C.E.I. Manuel Gual",
+    "parroquia": "Catia La Mar",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-70",
+    "nombre": "U.E.N. Narciso Gonell",
+    "parroquia": "Catia La Mar",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-71",
+    "nombre": "Escuela Ángel Valero Hostos",
+    "parroquia": "Catia La Mar",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-72",
+    "nombre": "Complejo Educativo Antonio José de Sucre",
+    "parroquia": "Catia La Mar",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-73",
+    "nombre": "Campamento César Nieves",
+    "parroquia": "Catia La Mar",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-74",
+    "nombre": "U.E.N. Gustavo Olivares Bosques",
+    "parroquia": "Catia La Mar",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-75",
+    "nombre": "Liceo Armando Reverón",
+    "parroquia": "Urimare",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-76",
+    "nombre": "Refugio para Niños y Niñas",
+    "parroquia": "Urimare",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-77",
+    "nombre": "Refugio para Adultos y Adultas Mayores (Escuela Santa Eduvigis)",
+    "parroquia": "Urimare",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-78",
+    "nombre": "E.N.B. Juan de Urpín",
+    "parroquia": "Urimare",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-79",
+    "nombre": "Estadio Miguel Montes",
+    "parroquia": "Urimare",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-80",
+    "nombre": "Liceo Lorenzo González",
+    "parroquia": "Carlos Soublette",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-81",
+    "nombre": "Unidad Educativa 10 de Marzo",
+    "parroquia": "Carlos Soublette",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-82",
+    "nombre": "Polideportivo José María Vargas",
+    "parroquia": "Carlos Soublette",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-83",
+    "nombre": "U.E.N. Juan Germán Roscio",
+    "parroquia": "Maiquetía",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-84",
+    "nombre": "Liceo Licenciado Aranda",
+    "parroquia": "Maiquetía",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-85",
+    "nombre": "E.B.E. Juan Aranaga",
+    "parroquia": "Maiquetía",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-86",
+    "nombre": "E.N.B. Manuel Segundo Sánchez",
+    "parroquia": "Maiquetía",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-87",
+    "nombre": "Complejo Educativo República de Panamá",
+    "parroquia": "La Guaira",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-88",
+    "nombre": "Escuela Estadal La Guaira",
+    "parroquia": "La Guaira",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-89",
+    "nombre": "Fundación Sol de Vargas",
+    "parroquia": "Caraballeda",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-90",
+    "nombre": "Escuela Integral Básica Guaicamacuto",
+    "parroquia": "Macuto",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-91",
+    "nombre": "Ciudad Vacacional Los Caracas",
+    "parroquia": "Naiguatá",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-92",
+    "nombre": "Universidad Simón Bolívar – Sede Litoral (Camurí Grande)",
+    "parroquia": "Naiguatá",
+    "municipio": "Vargas",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-93",
+    "nombre": "E.T.I. Rafael Vegas",
+    "parroquia": "Sucre",
+    "municipio": "Libertador",
+    "total_afectados": 27,
+    "familias_ocupadas": 2
+  },
+  {
+    "id": "centro-94",
+    "nombre": "Escuela Nuestra América",
+    "parroquia": "San Juan",
+    "municipio": "Libertador",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  },
+  {
+    "id": "centro-95",
+    "nombre": "C.E.I. Paula María Nieves",
+    "parroquia": "Altagracia",
+    "municipio": "Libertador",
+    "total_afectados": 0,
+    "familias_ocupadas": 0
+  }
+]

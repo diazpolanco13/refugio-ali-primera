@@ -64,7 +64,7 @@ export function kpisRedCentros(centros: CentroTransitorio[]): KpisRedCentros {
     familiasTotal += c.familias_ocupadas;
     personalTotal += totalPersonalOperativo(c.personal);
 
-    if (analisis.cupoReal != null) cupoDisponible += analisis.cupoReal;
+    if (analisis.cupoDisponible != null) cupoDisponible += analisis.cupoDisponible;
     if (prio.nivel === "critico" || prio.nivel === "alto") centrosCriticos += 1;
     if (analisis.semaforo === "rojo") centrosSaturados += 1;
   }
