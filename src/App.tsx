@@ -5,9 +5,20 @@ import { initAuth, useSesion, type Sesion } from "./data/authSupabase";
 import { MarcaAgua } from "./components/MarcaAgua";
 import { PantallaCarga } from "./components/PantallaCarga";
 import { EnDesarrollo } from "./components/EnDesarrollo";
+import { SectionSuspense } from "./components/SectionSuspense";
 import { AppShell } from "./layouts/AppShell";
 import { ocultarSplash } from "./lib/splash";
 import { rutaInicialDeRol, rutaPermitidaParaRol } from "./domain/permisos";
+import { DashboardViewSkeleton } from "./features/dashboard/DashboardViewSkeleton";
+import { MapaSectionSkeleton } from "./features/centros/MapaSectionSkeleton";
+import { TableroCampamentosSkeleton } from "./features/centros/TableroCampamentosSkeleton";
+import { TablaRedSkeleton } from "./features/centros/TablaRedSkeleton";
+import { CensoRedSkeleton } from "./features/censo/CensoRedSkeleton";
+import { RefugiadosRedSkeleton } from "./features/refugiados/RefugiadosRedSkeleton";
+import { FichaCentroSkeleton } from "./features/centros/FichaCentroSkeleton";
+import { BandejaIncidenciasSkeleton } from "./features/incidencias/BandejaIncidenciasSkeleton";
+import { GestionSkeleton } from "./features/usuarios/GestionSkeleton";
+import { LogsSkeleton } from "./features/logs/LogsSkeleton";
 
 // Rutas con carga perezosa: cada vista pesada (MapLibre, recharts, ficha
 // humanitaria…) viaja en su propio chunk. El bundle inicial queda en el núcleo
@@ -138,6 +149,17 @@ function RutaAutorizada({ sesion, children }: { sesion: Sesion; children: ReactN
   return children;
 }
 
+/** Lazy route con skeleton de sección (shell ya montado). */
+function RutaConSkeleton({
+  fallback,
+  children,
+}: {
+  fallback: ReactNode;
+  children: ReactNode;
+}) {
+  return <SectionSuspense fallback={fallback}>{children}</SectionSuspense>;
+}
+
 export function App() {
   const sesion = useSesion();
   const location = useLocation();
@@ -178,100 +200,217 @@ export function App() {
 
   return (
     <>
-      <Suspense fallback={<PantallaCarga />}>
-        <Routes>
-          <Route
-            path="/dashboard"
-            element={
-              <RutaAutorizada sesion={sesion}>
+      <Routes>
+        <Route
+          path="/dashboard"
+          element={
+            <RutaAutorizada sesion={sesion}>
+              <RutaConSkeleton fallback={<DashboardViewSkeleton />}>
                 <DashboardView sesion={sesion} />
-              </RutaAutorizada>
+              </RutaConSkeleton>
+            </RutaAutorizada>
+          }
+        />
+
+        <Route
+          element={
+            <RutaAutorizada sesion={sesion}>
+              <AppShell sesion={sesion} />
+            </RutaAutorizada>
+          }
+        >
+          <Route path="/" element={<Navigate to="/centros/mapa" replace />} />
+          <Route
+            path="/centros/mapa"
+            element={
+              <RutaConSkeleton fallback={<MapaSectionSkeleton />}>
+                <CentrosView />
+              </RutaConSkeleton>
             }
           />
-
           <Route
+            path="/centros/tablero"
             element={
-              <RutaAutorizada sesion={sesion}>
-                <AppShell sesion={sesion} />
-              </RutaAutorizada>
+              <RutaConSkeleton fallback={<TableroCampamentosSkeleton />}>
+                <CentrosView />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/centros/traslados"
+            element={
+              <EnDesarrollo
+                titulo="Traslados entre campamentos"
+                descripcion="Registro y seguimiento de movimientos de damnificados entre campamentos de la red."
+              />
+            }
+          />
+          <Route
+            path="/centros/reportes/:centroId"
+            element={
+              <RutaConSkeleton fallback={<FichaCentroSkeleton />}>
+                <FichaCentroView sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/centros/reportes"
+            element={
+              <RutaConSkeleton
+                fallback={<TablaRedSkeleton etiqueta="Cargando reportes diarios" />}
+              >
+                <ReportesDiariosRedView />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/centros/censo-rapido/personas"
+            element={
+              <RutaConSkeleton
+                fallback={<TablaRedSkeleton conTabs etiqueta="Cargando listado de censo" />}
+              >
+                <CensoRedListadoView sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/centros/censo-rapido/:centroId"
+            element={
+              <RutaConSkeleton fallback={<FichaCentroSkeleton />}>
+                <CensoCentroDetalleView sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/centros/censo-rapido"
+            element={
+              <RutaConSkeleton fallback={<CensoRedSkeleton />}>
+                <CensoRedView sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/centros/refugiados"
+            element={
+              <RutaConSkeleton fallback={<RefugiadosRedSkeleton />}>
+                <RefugiadosRedView />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/centros/refugiados/:alojamientoId"
+            element={
+              <RutaConSkeleton fallback={<FichaCentroSkeleton />}>
+                <RefugiadoDetalleRedView />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/centros/dotaciones-pendientes"
+            element={
+              <RutaConSkeleton
+                fallback={<TablaRedSkeleton etiqueta="Cargando dotaciones" />}
+              >
+                <DotacionesPendientesView />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/centro/nuevo"
+            element={
+              <RutaConSkeleton fallback={<FichaCentroSkeleton />}>
+                <NuevoCentroView sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/centro/:id"
+            element={
+              <RutaConSkeleton fallback={<FichaCentroSkeleton />}>
+                <FichaCentroView sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/incidencias/eliminadas"
+            element={
+              <RutaConSkeleton fallback={<BandejaIncidenciasSkeleton />}>
+                <DenunciasEliminadasView sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/incidencias"
+            element={
+              <RutaConSkeleton fallback={<BandejaIncidenciasSkeleton />}>
+                <IncidenciasLayout sesion={sesion} />
+              </RutaConSkeleton>
             }
           >
-            <Route path="/" element={<Navigate to="/centros/mapa" replace />} />
-            <Route path="/centros/mapa" element={<CentrosView />} />
-            <Route path="/centros/tablero" element={<CentrosView />} />
+            <Route index element={<IncidenciasRedirect sesion={sesion} />} />
             <Route
-              path="/centros/traslados"
-              element={
-                <EnDesarrollo
-                  titulo="Traslados entre campamentos"
-                  descripcion="Registro y seguimiento de movimientos de damnificados entre campamentos de la red."
-                />
-              }
+              path="funcionarios"
+              element={<IncidenciasFuncionariosView sesion={sesion} />}
+            />
+            {/* Rutas absorbidas por la bandeja unificada de funcionarios. */}
+            <Route
+              path="archivadas"
+              element={<Navigate to="/incidencias/funcionarios?estado=archivadas" replace />}
             />
             <Route
-              path="/centros/reportes/:centroId"
-              element={<FichaCentroView sesion={sesion} />}
+              path="analitica"
+              element={<Navigate to="/incidencias/funcionarios" replace />}
             />
-            <Route path="/centros/reportes" element={<ReportesDiariosRedView />} />
-            <Route
-              path="/centros/censo-rapido/personas"
-              element={<CensoRedListadoView sesion={sesion} />}
-            />
-            <Route
-              path="/centros/censo-rapido/:centroId"
-              element={<CensoCentroDetalleView sesion={sesion} />}
-            />
-            <Route path="/centros/censo-rapido" element={<CensoRedView sesion={sesion} />} />
-            <Route path="/centros/refugiados" element={<RefugiadosRedView />} />
-            <Route path="/centros/refugiados/:alojamientoId" element={<RefugiadoDetalleRedView />} />
-            <Route path="/centros/dotaciones-pendientes" element={<DotacionesPendientesView />} />
-            <Route path="/centro/nuevo" element={<NuevoCentroView sesion={sesion} />} />
-            <Route path="/centro/:id" element={<FichaCentroView sesion={sesion} />} />
-            <Route
-              path="/incidencias/eliminadas"
-              element={<DenunciasEliminadasView sesion={sesion} />}
-            />
-            <Route path="/incidencias" element={<IncidenciasLayout sesion={sesion} />}>
-              <Route index element={<IncidenciasRedirect sesion={sesion} />} />
-              <Route
-                path="funcionarios"
-                element={<IncidenciasFuncionariosView sesion={sesion} />}
-              />
-              {/* Rutas absorbidas por la bandeja unificada de funcionarios. */}
-              <Route
-                path="archivadas"
-                element={<Navigate to="/incidencias/funcionarios?estado=archivadas" replace />}
-              />
-              <Route
-                path="analitica"
-                element={<Navigate to="/incidencias/funcionarios" replace />}
-              />
-              <Route path="refugiados" element={<IncidenciasRefugiadosView sesion={sesion} />} />
-            </Route>
-            <Route path="/qrs-terreno" element={<HojaQrsTerrenoView sesion={sesion} />} />
-            <Route path="/usuarios" element={<GestionUsuarios sesion={sesion} />} />
-            <Route
-              path="/config/unidades-sebin"
-              element={<GestionUnidadesSebin sesion={sesion} />}
-            />
-            <Route path="/logs" element={<LogsView sesion={sesion} />} />
-            <Route
-              path="/config/perfil"
-              element={
-                <EnDesarrollo
-                  titulo="Preferencias de cuenta"
-                  descripcion="Configuración personal como marca de agua y notificaciones."
-                />
-              }
-            />
-            <Route
-              path="/config/sistema"
-              element={<Navigate to="/config/unidades-sebin" replace />}
-            />
-            <Route path="*" element={<Navigate to="/centros/mapa" replace />} />
+            <Route path="refugiados" element={<IncidenciasRefugiadosView sesion={sesion} />} />
           </Route>
-        </Routes>
-      </Suspense>
+          <Route
+            path="/qrs-terreno"
+            element={
+              <RutaConSkeleton fallback={<TablaRedSkeleton etiqueta="Cargando QRs" />}>
+                <HojaQrsTerrenoView sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/usuarios"
+            element={
+              <RutaConSkeleton fallback={<GestionSkeleton variante="usuarios" />}>
+                <GestionUsuarios sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/config/unidades-sebin"
+            element={
+              <RutaConSkeleton fallback={<GestionSkeleton variante="unidades" />}>
+                <GestionUnidadesSebin sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/logs"
+            element={
+              <RutaConSkeleton fallback={<LogsSkeleton />}>
+                <LogsView sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/config/perfil"
+            element={
+              <EnDesarrollo
+                titulo="Preferencias de cuenta"
+                descripcion="Configuración personal como marca de agua y notificaciones."
+              />
+            }
+          />
+          <Route
+            path="/config/sistema"
+            element={<Navigate to="/config/unidades-sebin" replace />}
+          />
+          <Route path="*" element={<Navigate to="/centros/mapa" replace />} />
+        </Route>
+      </Routes>
       {mostrarMarcaAgua && <MarcaAgua usuario={sesion.user} />}
     </>
   );

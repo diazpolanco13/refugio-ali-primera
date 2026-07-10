@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
 import { VistaEncabezado } from "@/components/VistaEncabezado";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 type FiltroGrupoEtario = GrupoEtarioRefugiado | "todos";
@@ -221,7 +222,7 @@ export function RefugiadosRedView() {
   }
 
   return (
-    <MarcoVista ancho={ANCHO_VISTA_PRINCIPAL} rellenarAltura marcoClassName="flex min-h-0 flex-col">
+    <MarcoVista ancho={ANCHO_VISTA_PRINCIPAL} rellenarAltura marcoClassName="flex min-h-0 flex-col animate-in fade-in-0 duration-200">
       <VistaEncabezado
         icono={Users}
         acento="violet"
@@ -361,8 +362,9 @@ export function RefugiadosRedView() {
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Personas alojadas</CardTitle>
               <CardDescription>
-                {visibles.length} perfil(es) visible(s)
-                {cargando && " · cargando…"}
+                {cargando && alojamientos.length === 0
+                  ? "Cargando perfiles…"
+                  : `${visibles.length} perfil(es) visible(s)`}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -380,7 +382,36 @@ export function RefugiadosRedView() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {visibles.length === 0 && !cargando ? (
+                      {cargando && alojamientos.length === 0 ? (
+                        Array.from({ length: 8 }, (_, i) => (
+                          <TableRow key={i} aria-hidden>
+                            <TableCell>
+                              <div className="space-y-1.5">
+                                <Skeleton className="h-3.5 w-36" />
+                                <Skeleton className="h-2.5 w-24" />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1.5">
+                                <Skeleton className="h-3 w-16" />
+                                <Skeleton className="h-5 w-20 rounded-full" />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Skeleton className="h-5 w-24 rounded-full" />
+                            </TableCell>
+                            <TableCell>
+                              <Skeleton className="h-5 w-20 rounded-full" />
+                            </TableCell>
+                            <TableCell>
+                              <Skeleton className="h-3.5 w-28" />
+                            </TableCell>
+                            <TableCell>
+                              <Skeleton className="h-3 w-20" />
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : visibles.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
                             Sin registros con los filtros actuales

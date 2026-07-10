@@ -5,7 +5,7 @@ import type { Sesion } from "@/data/authSupabase";
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
-import { useSupabaseQuery } from "@/data/useSupabaseQuery";
+import { useSupabaseQueryConEstado } from "@/data/useSupabaseQuery";
 import { actualizarCasoSalud, archivarCasoSalud } from "@/data/reposCasosSalud";
 import { claveDia } from "@/data/reposSupabase";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
@@ -17,6 +17,7 @@ import {
   type EstatusCasoSalud,
 } from "@/domain/seguimientoReportes";
 import { puedeEditarCentro } from "@/domain/permisos";
+import { EstadoError, EstadoVacio } from "@/components/skeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +37,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CalendarioIncidencias } from "./CalendarioIncidencias";
 import { ListaSeguimientoReportes, type ItemSeguimiento } from "./ListaSeguimientoReportes";
+import { BandejaIncidenciasSkeleton } from "./BandejaIncidenciasSkeleton";
 
 type FiltroTipo = "todos" | "salud" | "novedades";
 type FiltroEstado = "seguimiento" | "archivadas";
@@ -59,7 +61,11 @@ export function IncidenciasFuncionariosView({ sesion }: { sesion: Sesion }) {
   const snapshots = useOcupacionesCentros({ desde });
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
-  const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>("centros", {
+  const {
+    datos: filasCentros,
+    cargando: cargandoCentros,
+    error: errorCentros,
+  } = useSupabaseQueryConEstado<CentroFila, FilaSync<CentroTransitorio>>("centros", {
     transform: desenvolver as (raw: FilaSync<CentroTransitorio>) => CentroFila,
     clientFilter: (c) => !c.deleted,
   });
@@ -191,8 +197,26 @@ export function IncidenciasFuncionariosView({ sesion }: { sesion: Sesion }) {
     }
   }
 
+  if (cargandoCentros) {
+    return <BandejaIncidenciasSkeleton enMarco={false} />;
+  }
+
+  if (errorCentros) {
+    return (
+      <EstadoError
+        titulo="No se pudieron cargar las incidencias"
+        descripcion="Revisa la conexión e inténtalo de nuevo."
+        accion={
+          <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
+            Reintentar
+          </Button>
+        }
+      />
+    );
+  }
+
   return (
-    <div className="p-4 lg:p-6">
+    <div className="animate-in fade-in-0 p-4 duration-200 lg:p-6">
       <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="space-y-4">
           <Card>
@@ -343,17 +367,28 @@ export function IncidenciasFuncionariosView({ sesion }: { sesion: Sesion }) {
             </div>
           </CardHeader>
           <CardContent>
-            <ListaSeguimientoReportes
-              items={visibles}
-              centrosPorId={centrosPorId}
-              mostrarAccionesSalud={estado === "seguimiento"}
-              puedeEditarSalud={(caso: CasoSaludCentro) =>
-                puedeEditarCentro(sesion.user, caso.centro_id)
-              }
-              onCambiarEstatusSalud={(id, est) => void cambiarEstatus(id, est)}
-              onArchivarSalud={(id) => void archivar(id)}
-              accionEnCursoId={accionEnCursoId}
-            />
+            {visibles.length === 0 ? (
+              <EstadoVacio
+                titulo={
+                  estado === "seguimiento"
+                    ? "Sin casos en seguimiento"
+                    : "Sin registros en el histórico"
+                }
+                descripcion="Cuando haya novedades o casos de salud, aparecerán aquí."
+              />
+            ) : (
+              <ListaSeguimientoReportes
+                items={visibles}
+                centrosPorId={centrosPorId}
+                mostrarAccionesSalud={estado === "seguimiento"}
+                puedeEditarSalud={(caso: CasoSaludCentro) =>
+                  puedeEditarCentro(sesion.user, caso.centro_id)
+                }
+                onCambiarEstatusSalud={(id, est) => void cambiarEstatus(id, est)}
+                onArchivarSalud={(id) => void archivar(id)}
+                accionEnCursoId={accionEnCursoId}
+              />
+            )}
           </CardContent>
         </Card>
       </div>

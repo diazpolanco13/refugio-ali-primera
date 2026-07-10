@@ -15,7 +15,7 @@ import {
   type ModoMarcadorCentros,
 } from "@/data/preferenciasMapa";
 import type { BaseMapa } from "@/map/estiloMapa";
-import { useSupabaseQuery } from "@/data/useSupabaseQuery";
+import { useSupabaseQueryConEstado } from "@/data/useSupabaseQuery";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
@@ -27,6 +27,8 @@ import {
 import type { Sesion } from "@/data/authSupabase";
 import { puedeEscribir, puedeCrearCentros } from "@/domain/permisos";
 import { useMapaCentros } from "@/contexts/MapaCentrosContext";
+import { EstadoError } from "@/components/skeletons";
+import { Button } from "@/components/ui/button";
 import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
 import { CentrosMap, type CentrosMapHandle } from "./CentrosMap";
 import { DetalleCentro } from "./DetalleCentro";
@@ -35,6 +37,7 @@ import { TableroCentros } from "./TableroCentros";
 import { PanelCentros, calcularEstadosFilas } from "./PanelCentros";
 import { ControlesMapaFlotantes } from "./ControlesMapaFlotantes";
 import { TotalesMapaCentros } from "./TotalesMapaCentros";
+import { MapaSectionSkeleton } from "./MapaSectionSkeleton";
 
 interface OutletContext {
   sesion: Sesion;
@@ -105,7 +108,11 @@ export function CentrosView() {
   }, []);
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
-  const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(
+  const {
+    datos: filasCentros,
+    cargando: cargandoCentros,
+    error: errorCentros,
+  } = useSupabaseQueryConEstado<CentroFila, FilaSync<CentroTransitorio>>(
     "centros",
     {
       transform: desenvolver as (raw: FilaSync<CentroTransitorio>) => CentroFila,
@@ -197,9 +204,27 @@ export function CentrosView() {
     if (centro) setExpandido(unidadSebinDe(centro), true);
   }, [seleccionado, centros]);
 
+  if (cargandoCentros && vista === "mapa") {
+    return <MapaSectionSkeleton />;
+  }
+
+  if (errorCentros) {
+    return (
+      <EstadoError
+        titulo="No se pudieron cargar los campamentos"
+        descripcion="Revisa la conexión e inténtalo de nuevo."
+        accion={
+          <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
+            Reintentar
+          </Button>
+        }
+      />
+    );
+  }
+
   return (
     <>
-      <div className="relative h-full min-h-0">
+      <div className="relative h-full min-h-0 animate-in fade-in-0 duration-200">
         {vista === "mapa" ? (
           <>
             <CentrosMap
@@ -258,6 +283,7 @@ export function CentrosView() {
               centros={centros}
               onSeleccionar={(id) => navigate(`/centro/${id}`)}
               puedeCrearCentro={puedeEliminar}
+              cargando={cargandoCentros}
             />
           </MarcoVista>
         )}

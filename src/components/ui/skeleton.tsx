@@ -1,13 +1,27 @@
 import { cn } from "@/lib/utils"
 
-function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
+type SkeletonVariant = "pulse" | "shimmer"
+
+function Skeleton({
+  className,
+  variant = "shimmer",
+  ...props
+}: React.ComponentProps<"div"> & {
+  variant?: SkeletonVariant
+}) {
   return (
     <div
       data-slot="skeleton"
-      className={cn("animate-pulse rounded-md bg-muted", className)}
+      className={cn(
+        "rounded-md bg-muted",
+        variant === "pulse" && "animate-pulse",
+        variant === "shimmer" && "animate-skeleton-shimmer",
+        className,
+      )}
       {...props}
     />
   )
 }
 
 export { Skeleton }
+export type { SkeletonVariant }

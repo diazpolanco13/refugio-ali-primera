@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import type { Sesion } from "@/data/authSupabase";
 import { useBootstrapUnidadesSebin } from "@/data/useUnidadesSebin";
 import { MapaCentrosProvider } from "@/contexts/MapaCentrosContext";
+import { PathnameNavegacionProvider } from "@/contexts/PathnameNavegacionContext";
 import { AppSidebar } from "@/components/AppSidebar";
 import { TopBar } from "@/components/TopBar";
 import {
@@ -33,21 +34,23 @@ function AppShellInner({ sesion }: Props) {
   }, []);
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <div className="flex h-[100dvh] w-full overflow-hidden">
-        <Sidebar collapsible="icon" variant="sidebar">
-          <AppSidebar sesion={sesion} />
-          <SidebarRail />
-        </Sidebar>
+    <PathnameNavegacionProvider>
+      <TooltipProvider delayDuration={200}>
+        <div className="flex h-[100dvh] w-full overflow-hidden">
+          <Sidebar collapsible="icon" variant="sidebar">
+            <AppSidebar sesion={sesion} />
+            <SidebarRail />
+          </Sidebar>
 
-        <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <TopBar sesion={sesion} online={online} />
-          <div className="relative min-h-0 flex-1 overflow-hidden">
-            <Outlet context={{ sesion }} />
-          </div>
-        </SidebarInset>
-      </div>
-    </TooltipProvider>
+          <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <TopBar sesion={sesion} online={online} />
+            <div className="relative min-h-0 flex-1 overflow-hidden">
+              <Outlet context={{ sesion }} />
+            </div>
+          </SidebarInset>
+        </div>
+      </TooltipProvider>
+    </PathnameNavegacionProvider>
   );
 }
 

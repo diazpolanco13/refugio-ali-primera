@@ -11,6 +11,7 @@ import {
 import { puedeGestionarUnidadesSebin } from "@/domain/permisos";
 import { slugUnidadSebin, type MetaUnidadSebin } from "@/domain/unidadesSebin";
 import { VistaPagina } from "@/components/VistaPagina";
+import { LoadingTable } from "@/components/skeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -202,10 +203,7 @@ export function GestionUnidadesSebin({ sesion }: Props) {
           )}
 
           {cargando && unidades.length === 0 ? (
-            <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              Cargando catálogo…
-            </div>
+            <LoadingTable rows={6} cols={4} conToolbar={false} />
           ) : (
             <ul className="divide-y divide-border rounded-xl border border-border bg-card">
               {unidades.map((u) => (

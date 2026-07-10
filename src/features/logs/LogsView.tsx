@@ -10,7 +10,6 @@ import {
   ClipboardCheck,
   FilterX,
   KeyRound,
-  Loader2,
   Pencil,
   Plus,
   ScrollText,
@@ -25,6 +24,7 @@ import { puedeVerLogs } from "@/domain/permisos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { VistaPagina } from "@/components/VistaPagina";
+import { LoadingList } from "@/components/skeletons";
 import {
   Select,
   SelectContent,
@@ -308,10 +308,7 @@ export function LogsView({ sesion }: { sesion: Sesion }) {
 
             {/* Lista */}
             {cargando ? (
-              <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin text-primary" />
-                Cargando bitácora…
-              </div>
+              <LoadingList count={8} />
             ) : visibles.length === 0 ? (
               <div className="rounded-xl border border-border bg-card p-8 text-center">
                 <Building2 className="mx-auto mb-2 size-6 text-muted-foreground" />

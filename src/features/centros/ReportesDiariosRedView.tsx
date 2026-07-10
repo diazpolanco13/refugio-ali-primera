@@ -28,7 +28,8 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import { useSupabaseQuery } from "@/data/useSupabaseQuery";
+import { useSupabaseQueryConEstado } from "@/data/useSupabaseQuery";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useReportesCentros } from "@/data/useReportesCentros";
 import { useReportesControlDia } from "@/data/useReportesControlDia";
 import { useEventosReportes } from "@/data/useEventosReportes";
@@ -681,7 +682,10 @@ export function ReportesDiariosRedView() {
   const desde = useMemo(() => ultimosDiasReporte(30, hoyClave)[0], [hoyClave]);
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
-  const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(
+  const {
+    datos: filasCentros,
+    cargando: cargandoCentros,
+  } = useSupabaseQueryConEstado<CentroFila, FilaSync<CentroTransitorio>>(
     "centros",
     {
       transform: desenvolver as (raw: FilaSync<CentroTransitorio>) => CentroFila,
@@ -1530,7 +1534,34 @@ export function ReportesDiariosRedView() {
               </Badge>
             </div>
 
-            {filas.length === 0 ? (
+            {cargandoCentros ? (
+              <ul className="space-y-1.5 sm:space-y-2" aria-busy="true" aria-label="Cargando centros">
+                {Array.from({ length: 8 }, (_, i) => (
+                  <li
+                    key={i}
+                    className="flex items-center gap-2 rounded-lg border border-border/60 bg-background/65 px-2.5 py-2 sm:gap-3 sm:rounded-xl sm:px-3 sm:py-3"
+                    aria-hidden
+                  >
+                    <Skeleton className="size-8 shrink-0 rounded-lg sm:size-10 sm:rounded-xl" />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Skeleton
+                        className="h-3.5"
+                        style={{ width: `${48 + ((i * 11) % 28)}%` }}
+                      />
+                      <Skeleton
+                        className="h-2.5"
+                        style={{ width: `${32 + ((i * 7) % 22)}%` }}
+                      />
+                    </div>
+                    <div className="hidden items-center gap-1.5 sm:flex">
+                      <Skeleton className="h-6 w-14 rounded-md" />
+                      <Skeleton className="h-6 w-12 rounded-md" />
+                      <Skeleton className="h-6 w-16 rounded-full" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : filas.length === 0 ? (
               <p className="rounded-xl border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
                 {busquedaNombre.trim()
                   ? `Ningún campamento coincide con «${busquedaNombre.trim()}».`

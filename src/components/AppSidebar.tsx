@@ -1,4 +1,4 @@
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import {
   ChevronRight,
@@ -31,6 +31,7 @@ import {
 } from "@/domain/permisos";
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import { totalCasosSaludActivosRed } from "@/domain/seguimientoReportes";
+import { usePathnameNavegacion } from "@/contexts/PathnameNavegacionContext";
 import { BadgeEnDesarrollo } from "@/components/BadgeEnDesarrollo";
 import {
   Collapsible,
@@ -95,10 +96,11 @@ function ItemMenu({
   badge?: number;
   badgeClassName?: string;
 }) {
+  const { marcarNavegacion } = usePathnameNavegacion();
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={activo} tooltip={label}>
-        <Link to={to}>
+        <Link to={to} onClick={() => marcarNavegacion(to)}>
           <Icono />
           <TextoMenu>{label}</TextoMenu>
         </Link>
@@ -112,23 +114,29 @@ function ItemMenu({
 
 function ItemMenuReportesDiarios({
   pathname,
+  search,
   veCensoRapido,
   veCensoFicha,
   veBuzonFicha,
 }: {
   pathname: string;
+  search: string;
   veCensoRapido: boolean;
   veCensoFicha: boolean;
   veBuzonFicha: boolean;
 }) {
-  const [searchParams] = useSearchParams();
+  const { marcarNavegacion } = usePathnameNavegacion();
+  const [searchParamsLive] = useSearchParams();
   const enReportesRed = esRutaReportesRed(pathname);
   const esFichaCentro = esFichaCentroPathname(pathname);
   const esReportesCentro = esReportesCentroPathname(pathname);
   const centroId = centroIdDePathname(pathname);
   const [submenuAbierto, setSubmenuAbierto] = useState(true);
 
-  const seccionParam = searchParams.get("vista");
+  const seccionParam =
+    new URLSearchParams(search.startsWith("?") ? search.slice(1) : search).get(
+      "vista",
+    ) ?? searchParamsLive.get("vista");
   const seccionActiva = normalizarSeccionFichaCentro(seccionParam);
   const enListadoReportes = pathname === "/centros/reportes";
   const activo = enReportesRed || esFichaCentro;
@@ -181,20 +189,30 @@ function ItemMenuReportesDiarios({
           <SidebarMenuSub>
             <SidebarMenuSubItem>
               <SidebarMenuSubButton asChild isActive={enListadoReportes}>
-                <Link to="/centros/reportes">Por campamento</Link>
+                <Link
+                  to="/centros/reportes"
+                  onClick={() => marcarNavegacion("/centros/reportes")}
+                >
+                  Por campamento
+                </Link>
               </SidebarMenuSubButton>
             </SidebarMenuSubItem>
             {enCampamento &&
-              seccionesSubmenu.map((seccion) => (
-                <SidebarMenuSubItem key={seccion.id}>
-                  <SidebarMenuSubButton
-                    asChild
-                    isActive={enCampamento && seccionActiva === seccion.id}
-                  >
-                    <Link to={rutaSeccion(seccion.id)}>{seccion.label}</Link>
-                  </SidebarMenuSubButton>
-                </SidebarMenuSubItem>
-              ))}
+              seccionesSubmenu.map((seccion) => {
+                const to = rutaSeccion(seccion.id);
+                return (
+                  <SidebarMenuSubItem key={seccion.id}>
+                    <SidebarMenuSubButton
+                      asChild
+                      isActive={enCampamento && seccionActiva === seccion.id}
+                    >
+                      <Link to={to} onClick={() => marcarNavegacion(to)}>
+                        {seccion.label}
+                      </Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                );
+              })}
           </SidebarMenuSub>
         </CollapsibleContent>
       </SidebarMenuItem>
@@ -226,7 +244,7 @@ function ItemEnDesarrollo({
 }
 
 function NavContenido({ sesion }: Props) {
-  const location = useLocation();
+  const { pathname, search } = usePathnameNavegacion();
   const esCensoRapido = esRolCensoRapido(sesion.user.rol);
   const esTerreno = esRolTerreno(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
@@ -235,7 +253,7 @@ function NavContenido({ sesion }: Props) {
   const vePapeleraDenuncias = puedeVerPapeleraDenuncias(sesion.user.rol);
   const veCensoRed = puedeVerCensoRapidoRed(sesion.user.rol);
   const vePoblacionRed = puedeVerPoblacionRed(sesion.user.rol);
-  const centroIdRuta = centroIdDePathname(location.pathname);
+  const centroIdRuta = centroIdDePathname(pathname);
   const veCensoFicha =
     centroIdRuta != null && puedeVerCensoCentro(sesion.user, centroIdRuta);
   const veBuzonFicha =
@@ -246,11 +264,7 @@ function NavContenido({ sesion }: Props) {
     ? 0
     : casosSalud.filter((c) => c.estatus === "activo").length;
 
-  const pathname = location.pathname;
-
   if (esTerreno) {
-    // Sesión del QR de terreno: una sola tarea — los reportes de sus
-    // campamentos. El resto del menú no aplica (y las rutas redirigen).
     return (
       <SidebarGroup>
         <SidebarGroupLabel>Campamentos transitorios</SidebarGroupLabel>
@@ -333,6 +347,7 @@ function NavContenido({ sesion }: Props) {
             />
             <ItemMenuReportesDiarios
               pathname={pathname}
+              search={search}
               veCensoRapido={veCensoRed}
               veCensoFicha={veCensoFicha}
               veBuzonFicha={veBuzonFicha}
@@ -428,6 +443,7 @@ function NavContenido({ sesion }: Props) {
 
 /** Sidebar completo para vistas con rail colapsado. */
 export function AppSidebar({ sesion }: Props) {
+  const { marcarNavegacion } = usePathnameNavegacion();
   return (
     <>
       <SidebarHeader className="border-b border-sidebar-border p-2">
@@ -439,7 +455,7 @@ export function AppSidebar({ sesion }: Props) {
               tooltip="Campamentos Transitorios"
               className="group-data-[collapsible=icon]:justify-center"
             >
-              <Link to="/centros/mapa">
+              <Link to="/centros/mapa" onClick={() => marcarNavegacion("/centros/mapa")}>
                 <span className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-inset ring-primary/30">
                   <MapPinned className="size-4" />
                 </span>

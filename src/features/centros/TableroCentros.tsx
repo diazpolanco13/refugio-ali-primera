@@ -65,10 +65,7 @@ import {
   etiquetaAnalistaSae,
   useAnalistasSae,
 } from "@/data/useAnalistasSae";
-import { AccionesContacto } from "@/components/AccionesContacto";
-import { VistaEncabezado } from "@/components/VistaEncabezado";
 import { Badge } from "@/components/ui/badge";
-import { tieneTelefonoContacto } from "@/lib/contacto";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -83,12 +80,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { tieneTelefonoContacto } from "@/lib/contacto";
 import { cn } from "@/lib/utils";
+import { AccionesContacto } from "@/components/AccionesContacto";
+import { VistaEncabezado } from "@/components/VistaEncabezado";
 
 interface Props {
   centros: CentroTransitorio[];
   onSeleccionar: (id: string) => void;
   puedeCrearCentro?: boolean;
+  /** Mientras llegan los centros: shell visible, skeleton solo en la lista. */
+  cargando?: boolean;
 }
 
 type Orden = "prioridad" | "ocupados" | "nombre";
@@ -255,7 +258,12 @@ function KpiRed({
  * capacidad logística se evalúa con una barra "tienes / deberías / faltan"
  * coloreada por gravedad. El clic abre la ficha completa del centro.
  */
-export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Props) {
+export function TableroCentros({
+  centros,
+  onSeleccionar,
+  puedeCrearCentro,
+  cargando = false,
+}: Props) {
   const analistasSae = useAnalistasSae();
   const [orden, setOrden] = useState<Orden>("prioridad");
   const [filtroNivel, setFiltroNivel] = useState<NivelPrioridad | null>(null);
@@ -732,7 +740,39 @@ export function TableroCentros({ centros, onSeleccionar, puedeCrearCentro }: Pro
           </Badge>
         </div>
 
-        {filas.length === 0 ? (
+        {cargando ? (
+          <ul
+            className="space-y-1.5 sm:space-y-2"
+            aria-busy="true"
+            aria-label="Cargando campamentos"
+          >
+            {Array.from({ length: 8 }, (_, i) => (
+              <li
+                key={i}
+                className="flex items-center gap-2 rounded-lg border border-border/60 bg-background/65 px-2.5 py-2 sm:gap-3 sm:rounded-xl sm:px-3 sm:py-3"
+                aria-hidden
+              >
+                <Skeleton className="size-8 shrink-0 rounded-full sm:size-9" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <Skeleton
+                    className="h-3.5"
+                    style={{ width: `${48 + ((i * 11) % 28)}%` }}
+                  />
+                  <Skeleton
+                    className="h-2.5"
+                    style={{ width: `${32 + ((i * 7) % 22)}%` }}
+                  />
+                </div>
+                <div className="hidden items-center gap-1.5 sm:flex">
+                  <Skeleton className="h-6 w-12 rounded-md" />
+                  <Skeleton className="h-6 w-12 rounded-md" />
+                  <Skeleton className="h-6 w-12 rounded-md" />
+                  <Skeleton className="h-6 w-14 rounded-full" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : filas.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
             {busqueda.trim()
               ? `Ningún campamento coincide con «${busqueda.trim()}».`
@@ -828,7 +868,7 @@ function FilaCentroTablero({
     <button
       type="button"
       onClick={onSeleccionar}
-      className="group flex w-full items-center gap-2 rounded-lg border border-border/60 bg-background/65 px-2.5 py-2 text-left transition-all active:bg-muted/30 sm:gap-3 sm:rounded-xl sm:px-3 sm:py-3 sm:hover:-translate-y-0.5 sm:hover:border-border sm:hover:bg-muted/25 sm:hover:shadow-sm"
+      className="group flex w-full cursor-pointer items-center gap-2 rounded-lg border border-border/60 bg-background/65 px-2.5 py-2 text-left transition-all active:bg-muted/30 sm:gap-3 sm:rounded-xl sm:px-3 sm:py-3 sm:hover:-translate-y-0.5 sm:hover:border-border sm:hover:bg-muted/25 sm:hover:shadow-sm"
     >
       <div
         className="flex size-8 shrink-0 flex-col items-center justify-center overflow-hidden rounded-lg border bg-muted/30 sm:size-10 sm:rounded-xl"

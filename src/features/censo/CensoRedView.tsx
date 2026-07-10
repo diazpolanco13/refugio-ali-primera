@@ -7,7 +7,6 @@ import {
   CircleDashed,
   ClipboardList,
   FilterX,
-  Loader2,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -41,6 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { VistaPagina } from "@/components/VistaPagina";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { TarjetaCensoResumen } from "./TarjetaCensoResumen";
 import { CensoRedTabs } from "./CensoRedTabs";
@@ -278,10 +278,36 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
             </div>
           )}
 
-          {cargando ? (
-            <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin text-primary" />
-              Cargando censo de la red…
+          {cargando && resumenes.length === 0 ? (
+            <div
+              className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
+              aria-busy="true"
+              aria-label="Cargando escuelas del censo"
+            >
+              {Array.from({ length: 6 }, (_, i) => (
+                <div
+                  key={i}
+                  className="space-y-3 rounded-xl border border-border/60 bg-card/70 p-4"
+                  aria-hidden
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Skeleton
+                        className="h-4"
+                        style={{ width: `${55 + ((i * 9) % 30)}%` }}
+                      />
+                      <Skeleton className="h-2.5 w-24" />
+                    </div>
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                  <Skeleton className="h-2 w-full" />
+                  <div className="flex flex-wrap gap-1.5">
+                    <Skeleton className="h-5 w-14 rounded-md" />
+                    <Skeleton className="h-5 w-12 rounded-md" />
+                    <Skeleton className="h-5 w-16 rounded-md" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : visibles.length === 0 ? (
             <div className="rounded-xl border border-border bg-card p-8 text-center">

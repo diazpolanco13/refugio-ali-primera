@@ -1,7 +1,7 @@
 // Hook de consulta para la nueva capa de datos (Fase 3 de la migración).
 // Reemplaza a `useLiveQuery` de Dexie: carga inicial vía `supabase.from(...).select()`
 // y mantiene el estado local sincronizado con la tabla vía Realtime
-// (`postgres_changes`). Devuelve un array tipado por el consumidor.
+// (`postgres_changes`).
 //
 // Limitación conocida: el `filter` (function) se aplica al QueryBuilder para la
 // carga inicial, pero NO se puede re-aplicar en el cliente a los eventos
@@ -58,14 +58,27 @@ export interface UseSupabaseQueryOptions<T, R = T> {
   clientFilter?: (row: T) => boolean;
 }
 
-export function useSupabaseQuery<T extends { id: string }, R extends Record<string, unknown> = T & Record<string, unknown>>(
+export interface UseSupabaseQueryEstado<T> {
+  datos: T[];
+  /** `true` solo hasta la primera resolución (éxito o error). Realtime no lo reactiva. */
+  cargando: boolean;
+  error: unknown | null;
+}
+
+/**
+ * Variante con estado de carga/error. Preferir esta cuando la vista muestra skeleton.
+ */
+export function useSupabaseQueryConEstado<
+  T extends { id: string },
+  R extends Record<string, unknown> = T & Record<string, unknown>,
+>(
   tabla: string,
   options: UseSupabaseQueryOptions<T, R> = {},
-): T[] {
+): UseSupabaseQueryEstado<T> {
   const { filter, order, select = "*", transform, clientFilter } = options;
   const [datos, setDatos] = useState<T[]>([]);
-  // Mantiene la última referencia del filtro en cliente sin reiniciar la
-  // suscripción cuando cambian identidades de función entre renders.
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<unknown | null>(null);
   const clientFilterRef = useRef(clientFilter);
   clientFilterRef.current = clientFilter;
   const transformRef = useRef(transform);
@@ -74,10 +87,10 @@ export function useSupabaseQuery<T extends { id: string }, R extends Record<stri
   useEffect(() => {
     let cancelado = false;
     const channelName = `useSupabaseQuery:${tabla}:${Math.random().toString(36).slice(2)}`;
+    setCargando(true);
+    setError(null);
 
-    // 1) Carga inicial.
     (async () => {
-      // Cast: el builder real de supabase-js cumple con la forma QueryBuilder<R>.
       let query = supabase.from(tabla).select(select) as unknown as QueryBuilder<R>;
       if (filter) query = filter(query);
       if (order) query = query.order(order.column, { ascending: order.ascending ?? true });
@@ -85,15 +98,23 @@ export function useSupabaseQuery<T extends { id: string }, R extends Record<stri
       if (cancelado) return;
       if (result.error) {
         console.warn(`[useSupabaseQuery:${tabla}] error en select:`, result.error);
+        setError(result.error);
+        setDatos([]);
+        setCargando(false);
         return;
       }
       const arr = (result.data ?? []) as R[];
-      const procesados = arr.map((r) => (transformRef.current ? transformRef.current(r) : (r as unknown as T)));
-      const filtrado = clientFilterRef.current ? procesados.filter(clientFilterRef.current) : procesados;
+      const procesados = arr.map((r) =>
+        transformRef.current ? transformRef.current(r) : (r as unknown as T),
+      );
+      const filtrado = clientFilterRef.current
+        ? procesados.filter(clientFilterRef.current)
+        : procesados;
       setDatos(filtrado);
+      setError(null);
+      setCargando(false);
     })();
 
-    // 2) Suscripción Realtime a la tabla.
     const channel = supabase
       .channel(channelName)
       .on<R>(
@@ -132,10 +153,18 @@ export function useSupabaseQuery<T extends { id: string }, R extends Record<stri
       cancelado = true;
       void supabase.removeChannel(channel);
     };
-    // Las opciones se estabilizan por consumidor (object literal inline →
-    // re-render), pero el canal se identifica por `tabla`. Recrear el efecto
-    // ante cada cambio de `filter`/`order` es aceptable para queries de UI.
   }, [tabla, select, filter, order?.column, order?.ascending]);
 
-  return datos;
+  return { datos, cargando, error };
+}
+
+/**
+ * Consulta tipada que devuelve solo el array (API histórica).
+ * Para skeletons usar `useSupabaseQueryConEstado`.
+ */
+export function useSupabaseQuery<
+  T extends { id: string },
+  R extends Record<string, unknown> = T & Record<string, unknown>,
+>(tabla: string, options: UseSupabaseQueryOptions<T, R> = {}): T[] {
+  return useSupabaseQueryConEstado<T, R>(tabla, options).datos;
 }

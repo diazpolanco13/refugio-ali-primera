@@ -34,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { VistaPagina } from "@/components/VistaPagina";
+import { EstadoVacio, LoadingTable } from "@/components/skeletons";
 import {
   Command,
   CommandEmpty,
@@ -952,14 +953,9 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
             )}
 
             {cargando ? (
-              <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin text-primary" />
-                Cargando usuarios…
-              </div>
+              <LoadingTable rows={6} cols={3} conToolbar={false} />
             ) : usuarios.length === 0 ? (
-              <p className="py-16 text-center text-sm text-muted-foreground">
-                No hay usuarios registrados
-              </p>
+              <EstadoVacio titulo="No hay usuarios registrados" />
             ) : (
               grupos.map(({ rol, usuarios: lista }) => (
                 <section key={rol} className="space-y-2">

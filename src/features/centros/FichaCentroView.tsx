@@ -17,7 +17,8 @@ import {
 import { useAlojamientosCentro } from "@/data/useAlojamientosCentro";
 import { RefugiadoForm } from "@/features/refugiados/RefugiadoForm";
 import { FichaRefugiadoView } from "@/features/refugiados/FichaRefugiadoView";
-import { useSupabaseQuery } from "@/data/useSupabaseQuery";
+import { useSupabaseQueryConEstado } from "@/data/useSupabaseQuery";
+import { FichaCentroSkeleton } from "./FichaCentroSkeleton";
 import { claveDia } from "@/data/reposSupabase";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { useReportesCentros } from "@/data/useReportesCentros";
@@ -124,7 +125,10 @@ export function FichaCentroView({ sesion }: Props) {
   );
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
-  const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(
+  const {
+    datos: filasCentros,
+    cargando: cargandoCentros,
+  } = useSupabaseQueryConEstado<CentroFila, FilaSync<CentroTransitorio>>(
     "centros",
     {
       transform: desenvolver as (raw: FilaSync<CentroTransitorio>) => CentroFila,
@@ -328,19 +332,16 @@ export function FichaCentroView({ sesion }: Props) {
   }, [modoReporte, modoRegistrar, modoEditar, centro, puedeEditar]);
 
   if (!centro) {
+    if (cargandoCentros) {
+      return <FichaCentroSkeleton />;
+    }
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 bg-background px-6 text-center text-foreground">
-        {filasCentros.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Cargando campamento…</p>
-        ) : (
-          <>
-            <SearchX className="size-8 text-muted-foreground" />
-            <p className="text-sm font-semibold">Campamento no encontrado</p>
-            <p className="text-xs text-muted-foreground">
-              El campamento solicitado no existe o fue eliminado de la red.
-            </p>
-          </>
-        )}
+        <SearchX className="size-8 text-muted-foreground" />
+        <p className="text-sm font-semibold">Campamento no encontrado</p>
+        <p className="text-xs text-muted-foreground">
+          El campamento solicitado no existe o fue eliminado de la red.
+        </p>
         <Button variant="outline" size="sm" onClick={() => navigate("/centros/mapa")}>
           Ir al mapa
         </Button>
