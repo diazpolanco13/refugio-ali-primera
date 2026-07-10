@@ -127,7 +127,7 @@ export function SelectorAsignacionBusqueda({
   }
 
   const etiquetaTrigger = (() => {
-    if (esSinAsignar) return "Sin asignar";
+    if (esSinAsignar) return placeholder;
     if (esTodos) return `Todos (${opcionesLimpias.length})`;
     if (seleccionValida.length === 1) {
       return porValor.get(seleccionValida[0])?.etiqueta ?? "1 seleccionado";

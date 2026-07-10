@@ -14,7 +14,6 @@ import {
   Shield,
   Trash2,
   Users,
-  X,
 } from "lucide-react";
 import { nuevoId, guardarCentro, eliminarCentro } from "@/data/reposSupabase";
 import { subirFotoCentro, supabaseDisponible } from "@/data/supabase";
