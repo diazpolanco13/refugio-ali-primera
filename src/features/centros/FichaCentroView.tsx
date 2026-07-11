@@ -72,6 +72,8 @@ import { ReporteDiarioForm } from "./ReporteDiarioForm";
 import { VisorFechaReporte } from "./VisorFechaReporte";
 import { BotonEditarSeccion } from "./EdicionSeccionCentro";
 import { DialogoEdicionNombreCentro } from "./DialogoEdicionNombreCentro";
+import { DialogoEdicionUbicacionCentro } from "./DialogoEdicionUbicacionCentro";
+import type { UbicacionAdministrativa } from "@/domain/catalogosHumanitarios";
 
 interface Props {
   sesion: Sesion;
@@ -131,6 +133,11 @@ export function FichaCentroView({ sesion }: Props) {
   const [errorNombre, setErrorNombre] = useState<string | null>(null);
   /** Nombre local tras guardar: no esperar Realtime para actualizar el título. */
   const [nombreLocal, setNombreLocal] = useState<string | null>(null);
+  const [editandoUbicacion, setEditandoUbicacion] = useState(false);
+  const [guardandoUbicacion, setGuardandoUbicacion] = useState(false);
+  const [errorUbicacion, setErrorUbicacion] = useState<string | null>(null);
+  /** Ubicación local tras guardar: no esperar Realtime para el texto del resumen. */
+  const [ubicacionLocal, setUbicacionLocal] = useState<UbicacionAdministrativa | null>(null);
   /** Progreso del formulario integrado (evita badge stale hasta que llegue Realtime). */
   const [progresoFormulario, setProgresoFormulario] = useState<{
     completas: number;
@@ -166,12 +173,24 @@ export function FichaCentroView({ sesion }: Props) {
 
   useEffect(() => {
     setNombreLocal(null);
+    setUbicacionLocal(null);
   }, [centro?.id]);
 
   useEffect(() => {
     if (!centro || nombreLocal == null) return;
     if (centro.nombre === nombreLocal) setNombreLocal(null);
   }, [centro, nombreLocal]);
+
+  useEffect(() => {
+    if (!centro || ubicacionLocal == null) return;
+    if (
+      (centro.estado_federativo ?? "") === ubicacionLocal.estado_federativo &&
+      (centro.municipio ?? "") === ubicacionLocal.municipio &&
+      (centro.parroquia ?? "") === ubicacionLocal.parroquia
+    ) {
+      setUbicacionLocal(null);
+    }
+  }, [centro, ubicacionLocal]);
 
   const puedeEditar = centro != null && puedeEditarCentro(sesion.user, centro.id);
   const puedeEditarPasado = puedeEditarReportesPasados(sesion.user);
@@ -358,6 +377,28 @@ export function FichaCentroView({ sesion }: Props) {
     }
   }
 
+  async function guardarUbicacionCentro(ubicacion: UbicacionAdministrativa) {
+    if (!centro) return;
+    setGuardandoUbicacion(true);
+    setErrorUbicacion(null);
+    try {
+      await guardarCentro({
+        ...centro,
+        estado_federativo: ubicacion.estado_federativo,
+        municipio: ubicacion.municipio,
+        parroquia: ubicacion.parroquia,
+      });
+      setUbicacionLocal(ubicacion);
+      setEditandoUbicacion(false);
+    } catch (err) {
+      setErrorUbicacion(
+        err instanceof Error ? err.message : "No se pudo guardar la ubicación.",
+      );
+    } finally {
+      setGuardandoUbicacion(false);
+    }
+  }
+
   function volverPortalTerreno() {
     const token = tokenTerrenoActual();
     window.location.assign(
@@ -438,6 +479,14 @@ export function FichaCentroView({ sesion }: Props) {
   }
 
   const nombreMostrado = nombreLocal ?? centro.nombre;
+  const centroMostrado =
+    !ubicacionLocal && nombreLocal == null
+      ? centro
+      : {
+          ...centro,
+          ...(nombreLocal != null ? { nombre: nombreLocal } : {}),
+          ...(ubicacionLocal ?? {}),
+        };
   const titulo = `${centro.nro != null ? `N.° ${centro.nro} · ` : ""}${nombreMostrado}`;
   const etiquetaBotonReporte =
     hoyEstado === "pendiente" ? "Reportar hoy" : "Editar reporte de hoy";
@@ -701,6 +750,21 @@ export function FichaCentroView({ sesion }: Props) {
         />
       )}
 
+      {puedeEditar && (
+        <DialogoEdicionUbicacionCentro
+          abierto={editandoUbicacion}
+          centro={centroMostrado}
+          guardando={guardandoUbicacion}
+          error={errorUbicacion}
+          onCerrar={() => {
+            if (guardandoUbicacion) return;
+            setEditandoUbicacion(false);
+            setErrorUbicacion(null);
+          }}
+          onGuardar={(ubicacion) => void guardarUbicacionCentro(ubicacion)}
+        />
+      )}
+
       <Tabs
         value={seccionActiva}
         onValueChange={(v) => cambiarSeccion(v as SeccionFichaCentro)}
@@ -745,9 +809,17 @@ export function FichaCentroView({ sesion }: Props) {
           <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:p-6">
             <TabsContent value="resumen" className="mt-0">
               <ResumenCentroPanel
-                centro={centro}
+                centro={centroMostrado}
                 puedeEditar={puedeEditar}
                 onIrAPestana={(vista) => cambiarSeccion(vista)}
+                onEditarUbicacion={
+                  puedeEditar
+                    ? () => {
+                        setErrorUbicacion(null);
+                        setEditandoUbicacion(true);
+                      }
+                    : undefined
+                }
               />
             </TabsContent>
 

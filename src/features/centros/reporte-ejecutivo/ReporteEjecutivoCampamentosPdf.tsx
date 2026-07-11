@@ -477,6 +477,31 @@ const styles = StyleSheet.create({
   tablaFilaAlterna: {
     backgroundColor: fondoSuave,
   },
+  tablaGrupoEstado: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    backgroundColor: "#e6f5f2",
+    borderBottomWidth: 1,
+    borderBottomColor: teal,
+  },
+  tablaGrupoEstadoPrimero: {
+    marginTop: 0,
+  },
+  tablaGrupoEstadoTexto: {
+    color: teal,
+    fontSize: 7.5,
+    fontWeight: 700,
+    letterSpacing: 0.4,
+  },
+  tablaGrupoEstadoMeta: {
+    color: gris,
+    fontSize: 6.5,
+    fontWeight: 700,
+  },
   celdaNombre: {
     color: azul,
     fontSize: 7.4,
@@ -494,7 +519,7 @@ const styles = StyleSheet.create({
     color: azul,
     fontSize: 7.4,
     fontWeight: 700,
-    textAlign: "right",
+    textAlign: "center",
   },
   celdaCentro: {
     fontSize: 7.2,
@@ -711,7 +736,7 @@ function Kpi({
 }: {
   label: string;
   value: number | string;
-  sub?: string;
+  sub?: ReactNode;
   last?: boolean;
   compact?: boolean;
 }) {
@@ -723,17 +748,18 @@ function Kpi({
         : last
           ? [styles.kpiCard, styles.kpiCardLast]
           : styles.kpiCard;
+  const subStyle = compact ? [styles.kpiSub, styles.kpiSubCompact] : styles.kpiSub;
   return (
     <View style={cardStyles}>
       <Text style={styles.kpiLabel}>{label}</Text>
       <Text style={compact ? [styles.kpiValue, styles.kpiValueCompact] : styles.kpiValue}>
         {typeof value === "number" ? n(value) : value}
       </Text>
-      {sub ? (
-        <Text style={compact ? [styles.kpiSub, styles.kpiSubCompact] : styles.kpiSub}>
-          {sub}
-        </Text>
-      ) : null}
+      {sub == null ? null : typeof sub === "string" || typeof sub === "number" ? (
+        <Text style={subStyle}>{sub}</Text>
+      ) : (
+        sub
+      )}
     </View>
   );
 }
@@ -906,61 +932,6 @@ function DonutOcupacion({
   );
 }
 
-function Donut({
-  titulo,
-  si,
-  no,
-  sinReporte,
-  compact = false,
-}: {
-  titulo: string;
-  si: number;
-  no: number;
-  sinReporte: number;
-  compact?: boolean;
-}) {
-  const total = Math.max(1, si + no + sinReporte);
-  const fSi = si / total;
-  const fNo = no / total;
-  const r = compact ? 16 : 24;
-  const grosor = compact ? 6 : 9;
-  const svgSize = compact ? 44 : 62;
-  const cx = svgSize / 2;
-  return (
-    <View style={compact ? styles.donutBloqueCompacto : styles.donutBloque} wrap={false}>
-      <Svg width={svgSize} height={svgSize} viewBox={`0 0 ${svgSize} ${svgSize}`}>
-        <Path
-          d={arcoDonut(cx, cx, r, 0.9999)}
-          stroke="#e5edf2"
-          strokeWidth={grosor}
-          fill="none"
-        />
-        {fNo > 0 ? (
-          <Path
-            d={arcoDonut(cx, cx, r, fSi + fNo)}
-            stroke={rojo}
-            strokeWidth={grosor}
-            fill="none"
-          />
-        ) : null}
-        {fSi > 0 ? (
-          <Path d={arcoDonut(cx, cx, r, fSi)} stroke={verde} strokeWidth={grosor} fill="none" />
-        ) : null}
-      </Svg>
-      <View style={styles.donutTextos}>
-        <Text style={styles.donutTitulo}>{titulo}</Text>
-        <Text style={[styles.donutLinea, { color: verde }]}>SÍ: {n(si)} ({Math.round(fSi * 100)}%)</Text>
-        <Text style={[styles.donutLinea, { color: rojo }]}>NO: {n(no)} ({Math.round(fNo * 100)}%)</Text>
-        {!compact ? (
-          <Text style={styles.donutLinea}>Sin reporte: {n(sinReporte)}</Text>
-        ) : (
-          <Text style={styles.donutLinea}>S/r: {n(sinReporte)}</Text>
-        )}
-      </View>
-    </View>
-  );
-}
-
 const META_ESTATUS_CASO_PDF: Record<string, { label: string; color: string }> = {
   activo: { label: "Activo", color: rojo },
   en_proceso: { label: "En proceso", color: ambar },
@@ -974,6 +945,28 @@ export function ReporteEjecutivoCampamentosPdf({
   const dem = reporte.demografia;
   const totalGenero = Math.max(1, dem.hombres + dem.mujeres);
   const resumen = reporte.resumenDia;
+  const filasPorSegmento = (() => {
+    const grupos: {
+      segmento: string;
+      filas: typeof reporte.filasRed;
+      unidades: number;
+    }[] = [];
+    for (const fila of reporte.filasRed) {
+      const ultimo = grupos[grupos.length - 1];
+      if (!ultimo || ultimo.segmento !== fila.segmento) {
+        grupos.push({ segmento: fila.segmento, filas: [fila], unidades: 0 });
+      } else {
+        ultimo.filas.push(fila);
+      }
+    }
+    for (const g of grupos) {
+      const claves = new Set(
+        g.filas.map((f) => (f.nro != null ? `n:${f.nro}` : `nom:${f.nombre}`)),
+      );
+      g.unidades = claves.size;
+    }
+    return grupos;
+  })();
 
   return (
     <Document
@@ -1023,7 +1016,18 @@ export function ReporteEjecutivoCampamentosPdf({
           <Kpi
             label="Novedades del día"
             value={reporte.novedadesDetalle.length}
-            sub={`${resumen.eventosPositivos} + · ${resumen.eventosNegativos} −`}
+            sub={
+              <Text style={[styles.kpiSub, styles.kpiSubCompact]}>
+                <Text>Positivas= </Text>
+                <Text style={{ color: verde, fontWeight: 700 }}>
+                  {n(resumen.eventosPositivos)}
+                </Text>
+                <Text>  Negativas= </Text>
+                <Text style={{ color: rojo, fontWeight: 700 }}>
+                  {n(resumen.eventosNegativos)}
+                </Text>
+              </Text>
+            }
             last
             compact
           />
@@ -1099,43 +1103,66 @@ export function ReporteEjecutivoCampamentosPdf({
               </Section>
             ) : null}
 
-            <Section title="Control operativo" hint={`${n(reporte.control.campamentosRevisados)}/${n(reporte.kpis.centrosTotal)} rev.`} fixed>
-              <Donut
-                titulo="Captahuellas"
-                si={reporte.control.captahuella.si}
-                no={reporte.control.captahuella.no}
-                sinReporte={reporte.control.captahuella.sinReporte}
-                compact
-              />
-              <Donut
-                titulo="Jueces de paz"
-                si={reporte.control.juezPaz.si}
-                no={reporte.control.juezPaz.no}
-                sinReporte={reporte.control.juezPaz.sinReporte}
-                compact
-              />
-              <Barra
-                label="Serv. médico"
-                value={reporte.control.servicioMedico.si}
-                total={reporte.kpis.centrosTotal}
-                color={verde}
-              />
-              <Barra
-                label="Ambulancia"
-                value={reporte.control.ambulancia.si}
-                total={reporte.kpis.centrosTotal}
-                color={ambar}
-              />
+            <Section
+              title="Ocupación por región"
+              hint={`${n(reporte.ocupacionRed.activo + reporte.ocupacionRed.sinRefugiados)} camp.`}
+              fixed
+            >
+              {reporte.ocupacionPorSegmento.map((seg) => (
+                <View key={seg.segmento} style={{ marginBottom: 5 }} wrap={false}>
+                  <View style={[styles.row, { marginBottom: 2 }]}>
+                    <Text style={[styles.sectionTitle, { fontSize: 7.5 }]}>{seg.segmento}</Text>
+                    <Text style={styles.sectionHint}>{n(seg.total)} camp.</Text>
+                  </View>
+                  <Barra
+                    label="Con personas"
+                    value={seg.conPersonas}
+                    total={seg.total}
+                    color={verdeOcupacion}
+                  />
+                  <Barra
+                    label="Desocupados"
+                    value={seg.desocupados}
+                    total={seg.total}
+                    color={grisOcupacion}
+                  />
+                </View>
+              ))}
             </Section>
           </View>
 
           <View style={[styles.column, styles.columnLast]}>
-            <Section title="Trabajos en la red" hint={`${n(reporte.trabajosRed.activos)} activos`} tint fixed>
-              <View style={styles.miniGrid}>
-                <MiniDato label="Pend." value={reporte.trabajosRed.pendientes} />
-                <MiniDato label="Progreso" value={reporte.trabajosRed.enProgreso} />
-                <MiniDato label="Camp." value={reporte.trabajosRed.campamentos} />
-                <MiniDato label="Antig. d" value={reporte.trabajosRed.masViejoDias ?? 0} />
+            <Section
+              title="Trabajos en los Campamentos"
+              hint={`${n(reporte.trabajosRed.activos)} activos`}
+              tint
+              fixed
+            >
+              <Barra
+                label="Pendientes"
+                value={reporte.trabajosRed.pendientes}
+                total={Math.max(1, reporte.trabajosRed.activos)}
+                color={ambar}
+              />
+              <Barra
+                label="En progreso"
+                value={reporte.trabajosRed.enProgreso}
+                total={Math.max(1, reporte.trabajosRed.activos)}
+                color={teal}
+              />
+              <View style={[styles.row, { marginTop: 2, marginBottom: 1 }]}>
+                <Text style={styles.rowLabel}>Campamentos con trabajos</Text>
+                <Text style={styles.rowValue}>{n(reporte.trabajosRed.campamentos)}</Text>
+              </View>
+              <View style={[styles.row, { marginBottom: 0 }]}>
+                <Text style={styles.rowLabel}>Más antiguo abierto</Text>
+                <Text style={styles.rowValue}>
+                  {reporte.trabajosRed.masViejoDias == null
+                    ? "—"
+                    : reporte.trabajosRed.masViejoDias <= 1
+                      ? "hoy"
+                      : `${n(reporte.trabajosRed.masViejoDias)} días`}
+                </Text>
               </View>
             </Section>
 
@@ -1182,7 +1209,7 @@ export function ReporteEjecutivoCampamentosPdf({
         </View>
       </Page>
 
-      {/* ===== Tabla de la red, un campamento por fila ===== */}
+      {/* ===== Tabla de la red, agrupada por estado ===== */}
       <Page size="LETTER" orientation="landscape" style={styles.page}>
         <EncabezadoInstitucional generadoTs={reporte.generadoTs} />
 
@@ -1206,95 +1233,112 @@ export function ReporteEjecutivoCampamentosPdf({
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.campamento }]}>Campamento</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.ente }]}>Ente responsable</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.cuerpo }]}>Cuerpo · unidad</Text>
-          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.damnif, textAlign: "right" }]}>Damnif.</Text>
-          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.fam, textAlign: "right" }]}>Fam.</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.damnif, textAlign: "center" }]}>Damnif.</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.fam, textAlign: "center" }]}>Fam.</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.trabajos }]}>Trabajos</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.salud }]}>Casos de salud</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.noved }]}>Novedades</Text>
         </View>
 
-        {reporte.filasRed.map((fila, i) => (
-          <View
-            key={`${fila.nro ?? "s/n"}-${fila.nombre}`}
-            style={i % 2 === 1 ? [styles.tablaFila, styles.tablaFilaAlterna] : styles.tablaFila}
-            wrap={false}
-          >
-            <Text style={[styles.celdaTexto, { flex: ANCHOS_TABLA.nro }]}>
-              {fila.nro != null ? fila.nro : "—"}
-            </Text>
-            <View style={{ flex: ANCHOS_TABLA.campamento, paddingRight: 4 }}>
-              <Text style={styles.celdaNombre}>{fila.nombre}</Text>
-              {fila.parroquia ? <Text style={styles.celdaSub}>{fila.parroquia}</Text> : null}
-            </View>
-            <View style={{ flex: ANCHOS_TABLA.ente, paddingRight: 4 }}>
-              <Text style={styles.celdaTexto}>
-                {fila.enteResponsable.trim() || "—"}
+        {filasPorSegmento.map((grupo, gi) => (
+          <View key={grupo.segmento}>
+            <View
+              style={
+                gi === 0
+                  ? [styles.tablaGrupoEstado, styles.tablaGrupoEstadoPrimero]
+                  : styles.tablaGrupoEstado
+              }
+              wrap={false}
+            >
+              <Text style={styles.tablaGrupoEstadoTexto}>{grupo.segmento.toUpperCase()}</Text>
+              <Text style={styles.tablaGrupoEstadoMeta}>
+                {n(grupo.unidades)} camp.
               </Text>
             </View>
-            <View style={{ flex: ANCHOS_TABLA.cuerpo, paddingRight: 4 }}>
-              <Text style={styles.celdaTexto}>{fila.cuerpo}</Text>
-              {fila.unidadSebin ? <Text style={styles.celdaSub}>{fila.unidadSebin}</Text> : null}
-              {fila.responsableSebin ? (
-                <Text style={styles.celdaSub}>{fila.responsableSebin}</Text>
-              ) : null}
-            </View>
-            <Text style={[styles.celdaNumero, { flex: ANCHOS_TABLA.damnif }]}>{n(fila.refugiados)}</Text>
-            <Text style={[styles.celdaNumero, { flex: ANCHOS_TABLA.fam }]}>{n(fila.familias)}</Text>
-            <View style={{ flex: ANCHOS_TABLA.trabajos, paddingRight: 4 }}>
-              {fila.trabajosDetalle.length === 0 ? (
-                <Text style={[styles.celdaTexto, { color: gris }]}>—</Text>
-              ) : (
-                fila.trabajosDetalle.map((t, j) => (
-                  <Text key={j} style={[styles.celdaTexto, { marginBottom: 1 }]}>
-                    • {textoOracion(t.titulo)}{" "}
-                    <Text style={{ color: t.dias >= 3 ? rojo : gris }}>
-                      ({t.dias <= 1 ? "hoy" : `${t.dias} d`})
-                    </Text>
+            {grupo.filas.map((fila, i) => (
+              <View
+                key={`${fila.nro}-${fila.nombre}`}
+                style={i % 2 === 1 ? [styles.tablaFila, styles.tablaFilaAlterna] : styles.tablaFila}
+                wrap={false}
+              >
+                <Text style={[styles.celdaTexto, { flex: ANCHOS_TABLA.nro }]}>
+                  {fila.nro != null ? fila.nro : "—"}
+                </Text>
+                <View style={{ flex: ANCHOS_TABLA.campamento, paddingRight: 4 }}>
+                  <Text style={styles.celdaNombre}>{fila.nombre}</Text>
+                  {fila.parroquia ? <Text style={styles.celdaSub}>{fila.parroquia}</Text> : null}
+                </View>
+                <View style={{ flex: ANCHOS_TABLA.ente, paddingRight: 4 }}>
+                  <Text style={styles.celdaTexto}>
+                    {fila.enteResponsable.trim() || "—"}
                   </Text>
-                ))
-              )}
-            </View>
-            <View style={{ flex: ANCHOS_TABLA.salud, paddingRight: 4 }}>
-              {fila.casosDetalle.length === 0 ? (
-                <Text style={[styles.celdaTexto, { color: gris }]}>—</Text>
-              ) : (
-                fila.casosDetalle.map((c, j) => (
-                  <Text key={j} style={[styles.celdaTexto, { marginBottom: 1 }]}>
-                    • {textoOracion(c.titulo)}{" "}
-                    <Text style={{ color: gris }}>
-                      (<Text style={{ color: META_ESTATUS_CASO_PDF[c.estatus]?.color ?? gris, fontWeight: 700 }}>
-                        {META_ESTATUS_CASO_PDF[c.estatus]?.label ?? c.estatus}
-                      </Text>{" "}
-                      · {c.dias <= 1 ? "hoy" : `${c.dias} d`})
-                    </Text>
-                  </Text>
-                ))
-              )}
-            </View>
-            <View style={{ flex: ANCHOS_TABLA.noved }}>
-              {fila.novedadesDetalle.length === 0 ? (
-                <Text style={[styles.celdaTexto, { color: gris }]}>—</Text>
-              ) : (
-                fila.novedadesDetalle.map((nov, j) => (
-                  <Text
-                    key={j}
-                    style={[
-                      styles.celdaTexto,
-                      { marginBottom: 1, color: nov.tipo === "positivo" ? verde : rojo },
-                    ]}
-                  >
-                    • {textoOracion(nov.titulo)}
-                  </Text>
-                ))
-              )}
-            </View>
+                </View>
+                <View style={{ flex: ANCHOS_TABLA.cuerpo, paddingRight: 4 }}>
+                  <Text style={styles.celdaTexto}>{fila.cuerpo}</Text>
+                  {fila.unidadSebin ? <Text style={styles.celdaSub}>{fila.unidadSebin}</Text> : null}
+                  {fila.responsableSebin ? (
+                    <Text style={styles.celdaSub}>{fila.responsableSebin}</Text>
+                  ) : null}
+                </View>
+                <Text style={[styles.celdaNumero, { flex: ANCHOS_TABLA.damnif }]}>{n(fila.refugiados)}</Text>
+                <Text style={[styles.celdaNumero, { flex: ANCHOS_TABLA.fam }]}>{n(fila.familias)}</Text>
+                <View style={{ flex: ANCHOS_TABLA.trabajos, paddingRight: 4 }}>
+                  {fila.trabajosDetalle.length === 0 ? (
+                    <Text style={[styles.celdaTexto, { color: gris }]}>—</Text>
+                  ) : (
+                    fila.trabajosDetalle.map((t, j) => (
+                      <Text key={j} style={[styles.celdaTexto, { marginBottom: 1 }]}>
+                        • {textoOracion(t.titulo)}{" "}
+                        <Text style={{ color: t.dias >= 3 ? rojo : gris }}>
+                          ({t.dias <= 1 ? "hoy" : `${t.dias} d`})
+                        </Text>
+                      </Text>
+                    ))
+                  )}
+                </View>
+                <View style={{ flex: ANCHOS_TABLA.salud, paddingRight: 4 }}>
+                  {fila.casosDetalle.length === 0 ? (
+                    <Text style={[styles.celdaTexto, { color: gris }]}>—</Text>
+                  ) : (
+                    fila.casosDetalle.map((c, j) => (
+                      <Text key={j} style={[styles.celdaTexto, { marginBottom: 1 }]}>
+                        • {textoOracion(c.titulo)}{" "}
+                        <Text style={{ color: gris }}>
+                          (<Text style={{ color: META_ESTATUS_CASO_PDF[c.estatus]?.color ?? gris, fontWeight: 700 }}>
+                            {META_ESTATUS_CASO_PDF[c.estatus]?.label ?? c.estatus}
+                          </Text>{" "}
+                          · {c.dias <= 1 ? "hoy" : `${c.dias} d`})
+                        </Text>
+                      </Text>
+                    ))
+                  )}
+                </View>
+                <View style={{ flex: ANCHOS_TABLA.noved }}>
+                  {fila.novedadesDetalle.length === 0 ? (
+                    <Text style={[styles.celdaTexto, { color: gris }]}>—</Text>
+                  ) : (
+                    fila.novedadesDetalle.map((nov, j) => (
+                      <Text
+                        key={j}
+                        style={[
+                          styles.celdaTexto,
+                          { marginBottom: 1, color: nov.tipo === "positivo" ? verde : rojo },
+                        ]}
+                      >
+                        • {textoOracion(nov.titulo)}
+                      </Text>
+                    ))
+                  )}
+                </View>
+              </View>
+            ))}
           </View>
         ))}
         </View>
 
         <View style={styles.footer} fixed>
-          <Text>Ordenado por N° de campamento · Ente = organismo encargado · Trabajos con días abiertos.</Text>
-          <Text>Casos de salud = abiertos en seguimiento · Novedades = del día del corte.</Text>
+          <Text>Agrupado por región · N° oficial (complejo = un número) · Ente = organismo encargado.</Text>
+          <Text>Trabajos y casos de salud = abiertos · Novedades = del día del corte.</Text>
         </View>
       </Page>
 

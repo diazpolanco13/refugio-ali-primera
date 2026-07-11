@@ -53,7 +53,9 @@ import { FormularioCensoOficialCentro } from "@/features/centros/FormularioCenso
 import { InfraestructuraCentro } from "@/features/centros/InfraestructuraCentro";
 import { AsignacionOperativaCampos } from "@/features/centros/AsignacionOperativaCentro";
 import { AccionesContacto } from "@/components/AccionesContacto";
+import { SelectoresGeo } from "@/components/SelectoresGeo";
 import { ZonaSubidaImagen } from "@/components/ZonaSubidaImagen";
+import { normalizarUbicacionCentro } from "@/domain/catalogosHumanitarios";
 import { VistaEncabezado } from "@/components/VistaEncabezado";
 import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
 import { Badge } from "@/components/ui/badge";
@@ -178,7 +180,12 @@ export function CentroForm({
   );
   const [cuerpo, setCuerpo] = useState(base.cuerpo ?? "");
   const [supervision, setSupervision] = useState<SupervisionCentro>(base.supervision);
-  const [parroquia, setParroquia] = useState(base.parroquia ?? "");
+  const ubiInicial = normalizarUbicacionCentro({
+    estado_federativo: base.estado_federativo,
+    municipio: base.municipio,
+    parroquia: base.parroquia,
+  });
+  const [parroquia, setParroquia] = useState(ubiInicial.parroquia);
   const [direccion, setDireccion] = useState(base.direccion ?? "");
   const [mapsUrl, setMapsUrl] = useState(base.mapsUrl ?? "");
   // Coordenadas como texto para permitir edición parcial ("-66.9", "10.48…").
@@ -191,8 +198,8 @@ export function CentroForm({
   const [buscandoGps, setBuscandoGps] = useState(false);
   const [errorCoords, setErrorCoords] = useState<string | null>(null);
   const [fechaLevantamiento, setFechaLevantamiento] = useState(base.fecha_levantamiento);
-  const [estadoFederativo, setEstadoFederativo] = useState(base.estado_federativo);
-  const [municipio, setMunicipio] = useState(base.municipio);
+  const [estadoFederativo, setEstadoFederativo] = useState(ubiInicial.estado_federativo);
+  const [municipio, setMunicipio] = useState(ubiInicial.municipio);
   const [coordPolitico, setCoordPolitico] = useState<ContactoReporte>(base.coord_politico);
   const [coordMinisterial, setCoordMinisterial] = useState<ContactoReporte>(base.coord_ministerial);
   const [seguridad, setSeguridad] = useState<SeguridadCentro>(base.seguridad);
@@ -320,14 +327,16 @@ export function CentroForm({
           supervisor_sebin: supervision.supervisor_sebin.trim(),
           analistas_sae: supervision.analistas_sae,
         },
-        parroquia: parroquia.trim(),
+        ...normalizarUbicacionCentro({
+          estado_federativo: estadoFederativo,
+          municipio,
+          parroquia,
+        }),
         direccion: direccion.trim(),
         mapsUrl: mapsUrl.trim(),
         geom,
         estado,
         fecha_levantamiento: fechaLevantamiento,
-        estado_federativo: estadoFederativo.trim(),
-        municipio: municipio.trim(),
         coord_politico: {
           ...coordPolitico,
           nombre: coordPolitico.nombre.trim(),
@@ -617,29 +626,22 @@ export function CentroForm({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="centro-estado-fed">Estado</Label>
-                <Input
-                  id="centro-estado-fed"
-                  className="mt-1.5"
-                  value={estadoFederativo}
-                  disabled={soloLectura}
-                  onChange={(e) => setEstadoFederativo(e.target.value)}
-                  placeholder="Miranda"
-                />
-              </div>
-              <div>
-                <Label htmlFor="centro-municipio">Municipio</Label>
-                <Input
-                  id="centro-municipio"
-                  className="mt-1.5"
-                  value={municipio}
-                  disabled={soloLectura}
-                  onChange={(e) => setMunicipio(e.target.value)}
-                  placeholder="Sucre"
-                />
-              </div>
+            <div>
+              <Label className="mb-1.5 block">Ubicación administrativa</Label>
+              <SelectoresGeo
+                pais="Venezuela"
+                estado={estadoFederativo}
+                municipio={municipio}
+                parroquia={parroquia}
+                onPaisChange={() => {}}
+                onEstadoChange={setEstadoFederativo}
+                onMunicipioChange={setMunicipio}
+                onParroquiaChange={setParroquia}
+                disabled={soloLectura}
+                mostrarPais={false}
+                paisBloqueado
+                soloEstadosMetropolitanos
+              />
             </div>
 
             <div>
@@ -683,18 +685,6 @@ export function CentroForm({
                 setSupervision((prev) => ({ ...prev, ...patch }))
               }
             />
-
-            <div>
-              <Label htmlFor="centro-parroquia">Parroquia</Label>
-              <Input
-                id="centro-parroquia"
-                className="mt-1.5"
-                value={parroquia}
-                disabled={soloLectura}
-                onChange={(e) => setParroquia(e.target.value)}
-                placeholder="Parroquia Coche"
-              />
-            </div>
 
             <div>
               <Label htmlFor="centro-direccion">Dirección</Label>

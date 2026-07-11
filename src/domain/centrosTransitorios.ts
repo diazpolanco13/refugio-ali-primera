@@ -17,6 +17,7 @@ import {
   responsablesCoordinacionDeCentro,
   type ResponsableCoordinacion,
 } from "./coordinacionCentro";
+import { normalizarUbicacionCentro } from "./catalogosHumanitarios";
 import {
   metaUnidadSebinDe,
   normalizarUnidadSebin,
@@ -578,6 +579,11 @@ export interface CentroNormalizado extends CentroTransitorio {
 
 /** Rellena defaults de los campos mutables para leer un centro con seguridad. */
 export function normalizarCentro(c: CentroTransitorio): CentroNormalizado {
+  const ubicacion = normalizarUbicacionCentro({
+    estado_federativo: c.estado_federativo,
+    municipio: c.municipio,
+    parroquia: c.parroquia,
+  });
   return {
     ...c,
     capacidad: normalizarCapacidad(c.capacidad),
@@ -604,8 +610,9 @@ export function normalizarCentro(c: CentroTransitorio): CentroNormalizado {
     estado: c.estado ?? "preparacion",
     notas: c.notas ?? "",
     fecha_levantamiento: c.fecha_levantamiento ?? "",
-    estado_federativo: c.estado_federativo ?? "",
-    municipio: c.municipio ?? "",
+    estado_federativo: ubicacion.estado_federativo,
+    municipio: ubicacion.municipio,
+    parroquia: ubicacion.parroquia,
     coord_politico: normalizarContacto(c.coord_politico),
     coord_ministerial: normalizarContacto(c.coord_ministerial),
     seguridad: normalizarSeguridad(c.seguridad),
@@ -628,9 +635,9 @@ export function normalizarCentro(c: CentroTransitorio): CentroNormalizado {
 export function ubicacionCentro(
   c: Pick<CentroTransitorio, "estado_federativo" | "municipio" | "parroquia">,
 ): string {
-  const parroquia = (c.parroquia ?? "").replace(/^Parroquia\s/i, "").trim();
-  return [c.estado_federativo, c.municipio, parroquia]
-    .map((s) => (s ?? "").trim())
+  const ubi = normalizarUbicacionCentro(c);
+  return [ubi.estado_federativo, ubi.municipio, ubi.parroquia]
+    .map((s) => s.trim())
     .filter(Boolean)
     .join(" · ");
 }

@@ -50,6 +50,9 @@ import {
   contarUnidadesCon,
   marcadorOcupacionUnidad,
 } from "./complejosCentros";
+import {
+  normalizarUbicacionCentro,
+} from "./catalogosHumanitarios";
 
 /** Ente encargado: primero coordinación comunitaria, si no el censo oficial. */
 export function enteResponsableDeCentro(centro: CentroTransitorio): string {
@@ -175,8 +178,16 @@ export interface ControlEjecutivo {
 }
 
 export interface FilaRedEjecutiva {
+  /** N° oficial del campamento en el sistema (varios locales pueden compartir el mismo). */
   nro: number | null;
   nombre: string;
+  /** Estado federativo del centro. */
+  estado: string;
+  /**
+   * Segmento de la tabla del PDF.
+   * Distrito Capital + Miranda → «Caracas y Miranda»; La Guaira aparte.
+   */
+  segmento: string;
   parroquia: string;
   /** Ministerio / ente u organización encargado del campamento. */
   enteResponsable: string;
@@ -200,6 +211,30 @@ export interface FilaRedEjecutiva {
   casosDetalle: { titulo: string; estatus: string; dias: number }[];
   /** Novedades del día del campamento (título y tipo). */
   novedadesDetalle: { titulo: string; tipo: TipoEventoReporte }[];
+}
+
+/** Segmento de red para el PDF ejecutivo (une capital + Miranda). */
+export function segmentoReporteRed(estadoFederativo: string): string {
+  const e = estadoFederativo.trim().toLocaleLowerCase("es");
+  if (
+    e === "distrito capital" ||
+    e === "dtto. capital" ||
+    e === "dtto capital" ||
+    e === "caracas" ||
+    e === "miranda"
+  ) {
+    return "Caracas y Miranda";
+  }
+  if (e === "la guaira" || e === "vargas") {
+    return "La Guaira";
+  }
+  return estadoFederativo.trim() || "Sin estado";
+}
+
+function ordenSegmentoReporte(segmento: string): number {
+  if (segmento === "Caracas y Miranda") return 1;
+  if (segmento === "La Guaira") return 2;
+  return 9;
 }
 
 export interface CasoSaludEjecutivo {
@@ -257,6 +292,17 @@ export interface OcupacionRedEjecutiva {
   sinRefugiados: number;
 }
 
+/** Ocupación de unidades de conteo por segmento regional. */
+export interface OcupacionSegmentoEjecutivo {
+  /** Etiqueta de visualización (p. ej. «Caracas / Miranda», «Vargas»). */
+  segmento: string;
+  /** Unidades con damnificados. */
+  conPersonas: number;
+  /** Unidades sin damnificados. */
+  desocupados: number;
+  total: number;
+}
+
 /** Punto diario de la totalización semanal (últimos 7 días). */
 export interface PuntoSerieSemanalEjecutivo {
   dia: string;
@@ -292,8 +338,16 @@ export interface ReporteEjecutivoCampamentos {
   unidadesSebin: UnidadSebinEjecutiva[];
   censo: CensoEstadosEjecutivo | null;
   ocupacionRed: OcupacionRedEjecutiva;
+  /** Ocupación por región (Caracas/Miranda, Vargas, …). */
+  ocupacionPorSegmento: OcupacionSegmentoEjecutivo[];
   /** Total de personas (damnificados) por día, últimos 7 días hasta el corte. */
   serieSemanal: PuntoSerieSemanalEjecutivo[];
+}
+
+function etiquetaSegmentoOcupacion(segmento: string): string {
+  if (segmento === "Caracas y Miranda") return "Caracas / Miranda";
+  if (segmento === "La Guaira") return "Vargas";
+  return segmento;
 }
 
 function conteosOcupacionRed(
@@ -313,6 +367,39 @@ function conteosOcupacionRed(
     else sinRefugiados += 1;
   }
   return { activo, sinRefugiados };
+}
+
+function conteosOcupacionPorSegmento(
+  centros: CentroTransitorio[],
+  snapshots: SnapshotOcupacion[],
+  dia: string,
+): OcupacionSegmentoEjecutivo[] {
+  const porClave = new Map<string, { conPersonas: number; desocupados: number }>();
+  for (const miembros of agruparPorUnidadConteo(centros).values()) {
+    const representante = miembros[0];
+    if (!representante) continue;
+    const ubi = normalizarUbicacionCentro(normalizarCentro(representante));
+    const clave = segmentoReporteRed(
+      ubi.estado_federativo || representante.estado_federativo || "",
+    );
+    const marcadores = miembros.map((centro) => {
+      const snap = snapshots.find((s) => s.centro_id === centro.id && s.dia === dia);
+      const base = snap ? aplicarParteActualACentro(centro, snap) : centro;
+      return marcadorOcupacionCentro(base);
+    });
+    const fila = porClave.get(clave) ?? { conPersonas: 0, desocupados: 0 };
+    if (marcadorOcupacionUnidad(marcadores) === "activo") fila.conPersonas += 1;
+    else fila.desocupados += 1;
+    porClave.set(clave, fila);
+  }
+  return [...porClave.entries()]
+    .sort((a, b) => ordenSegmentoReporte(a[0]) - ordenSegmentoReporte(b[0]))
+    .map(([clave, v]) => ({
+      segmento: etiquetaSegmentoOcupacion(clave),
+      conPersonas: v.conPersonas,
+      desocupados: v.desocupados,
+      total: v.conPersonas + v.desocupados,
+    }));
 }
 
 function porcentaje(valor: number, total: number): number {
@@ -532,6 +619,7 @@ export function construirReporteEjecutivoCampamentos({
   const filasRed: FilaRedEjecutiva[] = centrosConParte
     .map((centro) => {
       const c = normalizarCentro(centro);
+      const ubi = normalizarUbicacionCentro(c);
       const ctrl = controlPorCentro.get(centro.id);
       const trabajosCentro = trabajosPorCentro.get(centro.id) ?? [];
       const masViejo = trabajosCentro.length
@@ -541,7 +629,9 @@ export function construirReporteEjecutivoCampamentos({
       return {
         nro: centro.nro ?? null,
         nombre: centro.nombre,
-        parroquia: centro.parroquia,
+        estado: ubi.estado_federativo.trim() || "Sin estado",
+        segmento: segmentoReporteRed(ubi.estado_federativo || centro.estado_federativo || ""),
+        parroquia: ubi.parroquia || centro.parroquia,
         enteResponsable: enteResponsableDeCentro(c),
         cuerpo: metaCuerpoDe(centro.cuerpo).label,
         unidadSebin: unidad.clave !== "sin_asignar" ? unidad.label : "",
@@ -571,8 +661,13 @@ export function construirReporteEjecutivoCampamentos({
         })),
       };
     })
-    // La tabla sigue la numeración oficial de la red (N°).
-    .sort((a, b) => (a.nro ?? 9999) - (b.nro ?? 9999) || a.nombre.localeCompare(b.nombre));
+    .sort(
+      (a, b) =>
+        ordenSegmentoReporte(a.segmento) - ordenSegmentoReporte(b.segmento) ||
+        a.segmento.localeCompare(b.segmento, "es") ||
+        (a.nro ?? 9999) - (b.nro ?? 9999) ||
+        a.nombre.localeCompare(b.nombre, "es"),
+    );
 
   const casosSaludDetalle: CasoSaludEjecutivo[] = [...casosSaludAbiertos]
     .sort(
@@ -695,6 +790,7 @@ export function construirReporteEjecutivoCampamentos({
     unidadesSebin,
     censo: censoEstados,
     ocupacionRed: conteosOcupacionRed(centros, snapshots, dia),
+    ocupacionPorSegmento: conteosOcupacionPorSegmento(centros, snapshots, dia),
     serieSemanal: serieOcupacionRedVentana(
       snapshots,
       centros.map((c) => ({ id: c.id, grupo: c.grupo })),

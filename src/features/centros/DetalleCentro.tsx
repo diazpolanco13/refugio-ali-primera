@@ -221,7 +221,14 @@ export function SeccionFotoCentro({
 }
 
 /** Identificación: fecha de levantamiento, cuerpo asignado, ubicación y Maps. */
-export function SeccionIdentificacionCentro({ centro }: SeccionProps) {
+export function SeccionIdentificacionCentro({
+  centro,
+  puedeEditar = false,
+  onEditarUbicacion,
+}: SeccionProps & {
+  puedeEditar?: boolean;
+  onEditarUbicacion?: () => void;
+}) {
   const c = normalizarCentro(centro);
   const meta = metaCuerpoDe(centro.cuerpo);
   const metaUnidad = metaUnidadSebinCentro(centro);
@@ -285,7 +292,24 @@ export function SeccionIdentificacionCentro({ centro }: SeccionProps) {
         )}
       </div>
       <div className="space-y-0.5 text-xs text-muted-foreground">
-        {ubicacion && <p>{ubicacion}</p>}
+        <div className="flex items-start gap-1">
+          <p className="min-w-0 flex-1 uppercase tracking-wide text-orange-400/90">
+            {ubicacion || "Sin ubicación administrativa"}
+          </p>
+          {puedeEditar && onEditarUbicacion && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="size-6 shrink-0 text-muted-foreground hover:text-foreground"
+              title="Editar ubicación administrativa"
+              aria-label="Editar ubicación administrativa"
+              onClick={onEditarUbicacion}
+            >
+              <Pencil className="size-3.5" />
+            </Button>
+          )}
+        </div>
         {centro.direccion && <p className="leading-snug">{centro.direccion}</p>}
         {c.censo_oficial.ministerio_ente.trim() && (
           <p>

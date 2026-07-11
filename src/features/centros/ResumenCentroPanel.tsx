@@ -31,6 +31,7 @@ interface Props {
   centro: CentroTransitorio;
   puedeEditar?: boolean;
   onIrAPestana: (vista: VistaFichaCentro) => void;
+  onEditarUbicacion?: () => void;
 }
 
 /** Variación vs día anterior: verde +N, rojo -N. */
@@ -375,6 +376,7 @@ export function ResumenCentroPanel({
   centro,
   puedeEditar = false,
   onIrAPestana,
+  onEditarUbicacion,
 }: Props) {
   return (
     <div className="space-y-4">
@@ -400,7 +402,11 @@ export function ResumenCentroPanel({
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           Identificación y asignación
         </p>
-        <SeccionIdentificacionCentro centro={centro} />
+        <SeccionIdentificacionCentro
+          centro={centro}
+          puedeEditar={puedeEditar}
+          onEditarUbicacion={onEditarUbicacion}
+        />
       </div>
 
       <AccesoTerrenoCentro centro={centro} />

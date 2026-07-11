@@ -136,6 +136,7 @@ export const DIVISIONES_VENEZUELA: DivisionVenezuela[] = [
         parroquias: [
           "Caraballeda",
           "Carayaca",
+          "Carlos Soublette",
           "Caruao",
           "Catia La Mar",
           "La Guaira",
@@ -252,3 +253,232 @@ export function opcionesConNoSe(opciones: string[], valorActual: string): string
   const base = opciones.filter((o) => o !== OPCION_GEO_NO_SE);
   return opcionesConLegacy([OPCION_GEO_NO_SE, ...base], valorActual);
 }
+
+/** Quita acentos y unifica mayúsculas/espacios para comparar alias geográficos. */
+export function claveGeo(raw: string | null | undefined): string {
+  return (raw ?? "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/^parroquia\s+/i, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function buscarPorAlias(opciones: string[], raw: string, alias: Record<string, string>): string {
+  const clave = claveGeo(raw);
+  if (!clave) return "";
+  const canonicoAlias = alias[clave];
+  if (canonicoAlias && opciones.includes(canonicoAlias)) return canonicoAlias;
+  const exacto = opciones.find((o) => claveGeo(o) === clave);
+  if (exacto) return exacto;
+  const parcial = opciones.find((o) => {
+    const c = claveGeo(o);
+    return c.includes(clave) || clave.includes(c);
+  });
+  return parcial ?? "";
+}
+
+const ALIAS_ESTADO: Record<string, string> = {
+  caracas: "Distrito Capital",
+  "distrito capital": "Distrito Capital",
+  "dtto capital": "Distrito Capital",
+  "dto capital": "Distrito Capital",
+  "dpto capital": "Distrito Capital",
+  miranda: "Miranda",
+  "dtto miranda": "Miranda",
+  "estado miranda": "Miranda",
+  "la guaira": "La Guaira",
+  vargas: "La Guaira",
+  "estado vargas": "La Guaira",
+};
+
+const ALIAS_MUNICIPIO: Record<string, string> = {
+  libertador: "Libertador",
+  baruta: "Baruta",
+  chacao: "Chacao",
+  "el hatillo": "El Hatillo",
+  hatillo: "El Hatillo",
+  sucre: "Sucre",
+  vargas: "Vargas",
+  plaza: "Plaza",
+  zamora: "Zamora",
+};
+
+/** Alias de parroquia → nombre canónico del catálogo. */
+const ALIAS_PARROQUIA: Record<string, string> = {
+  // Distrito Capital
+  altagracia: "Altagracia",
+  altagracias: "Altagracia",
+  "la candelaria": "Candelaria",
+  candelaria: "Candelaria",
+  caricuao: "Caricuao",
+  coche: "Coche",
+  "el junquito": "El Junquito",
+  "el junkito": "El Junquito",
+  junquito: "El Junquito",
+  "el paraiso": "El Paraíso",
+  "el recreo": "El Recreo",
+  "el valle": "El Valle",
+  "la pastora": "La Pastora",
+  "la vega": "La Vega",
+  macarao: "Macarao",
+  "san bernardino": "San Bernardino",
+  "san jose": "San José",
+  "san juan": "San Juan",
+  "san pedro": "San Pedro",
+  "sanj pedro": "San Pedro",
+  "santa rosalia": "Santa Rosalía",
+  "santa teresa": "Santa Teresa",
+  "sta teresa": "Santa Teresa",
+  sucre: "Sucre",
+  "23 de enero": "23 de Enero",
+  // Miranda · Baruta
+  baruta: "Baruta",
+  "nuestra senora del rosario": "Baruta",
+  "nuestra senora der rosario": "Baruta",
+  "nuestra senora del rosario de baruta": "Baruta",
+  "baruta nuestra senora del rosario": "Baruta",
+  "el cafetal": "El Cafetal",
+  cafetal: "El Cafetal",
+  "las minas": "Las Minas de Baruta",
+  "las minas de baruta": "Las Minas de Baruta",
+  "minas de baruta": "Las Minas de Baruta",
+  // Miranda · otros
+  chacao: "Chacao",
+  "el hatillo": "El Hatillo",
+  hatillo: "El Hatillo",
+  petare: "Petare",
+  caucaguita: "Caucagüita",
+  "filas de mariche": "Filas de Mariche",
+  mariche: "Filas de Mariche",
+  "la dolorita": "La Dolorita",
+  "leoncio martinez": "Leoncio Martínez",
+  // La Guaira
+  caraballeda: "Caraballeda",
+  "carlos soublette": "Carlos Soublette",
+  "carlos sublette": "Carlos Soublette",
+  "catia la mar": "Catia La Mar",
+  "la guaira": "La Guaira",
+  macuto: "Macuto",
+  maiquetia: "Maiquetía",
+  naiguata: "Naiguatá",
+  urimare: "Urimare",
+};
+
+/** Parroquia → municipio canónico cuando el municipio cargado es incorrecto. */
+const PARROQUIA_A_MUNICIPIO: Record<string, { estado: string; municipio: string }> = {
+  Baruta: { estado: "Miranda", municipio: "Baruta" },
+  "El Cafetal": { estado: "Miranda", municipio: "Baruta" },
+  "Las Minas de Baruta": { estado: "Miranda", municipio: "Baruta" },
+  Chacao: { estado: "Miranda", municipio: "Chacao" },
+  "El Hatillo": { estado: "Miranda", municipio: "El Hatillo" },
+  Petare: { estado: "Miranda", municipio: "Sucre" },
+  Caucagüita: { estado: "Miranda", municipio: "Sucre" },
+  "Filas de Mariche": { estado: "Miranda", municipio: "Sucre" },
+  "La Dolorita": { estado: "Miranda", municipio: "Sucre" },
+  "Leoncio Martínez": { estado: "Miranda", municipio: "Sucre" },
+  Caraballeda: { estado: "La Guaira", municipio: "Vargas" },
+  "Carlos Soublette": { estado: "La Guaira", municipio: "Vargas" },
+  "Catia La Mar": { estado: "La Guaira", municipio: "Vargas" },
+  "La Guaira": { estado: "La Guaira", municipio: "Vargas" },
+  Macuto: { estado: "La Guaira", municipio: "Vargas" },
+  Maiquetía: { estado: "La Guaira", municipio: "Vargas" },
+  Naiguatá: { estado: "La Guaira", municipio: "Vargas" },
+  Urimare: { estado: "La Guaira", municipio: "Vargas" },
+};
+
+export interface UbicacionAdministrativa {
+  estado_federativo: string;
+  municipio: string;
+  parroquia: string;
+}
+
+/**
+ * Estandariza estado / municipio / parroquia al catálogo de DIVISIONES_VENEZUELA.
+ * Corrige mayúsculas, typos frecuentes y parroquias mal asignadas de municipio.
+ */
+export function normalizarUbicacionCentro(
+  raw: Partial<UbicacionAdministrativa> | null | undefined,
+): UbicacionAdministrativa {
+  const estadoRaw = (raw?.estado_federativo ?? "").trim();
+  const municipioRaw = (raw?.municipio ?? "").trim();
+  const parroquiaRaw = (raw?.parroquia ?? "").trim().replace(/^Parroquia\s+/i, "");
+
+  let estado =
+    buscarPorAlias([...ESTADOS_VENEZUELA], estadoRaw, ALIAS_ESTADO) ||
+    ALIAS_ESTADO[claveGeo(estadoRaw)] ||
+    "";
+
+  // Resolver parroquia primero (suele ser la señal más fiable).
+  let parroquia =
+    buscarPorAlias(
+      DIVISIONES_VENEZUELA.flatMap((d) => d.municipios.flatMap((m) => m.parroquias)),
+      parroquiaRaw,
+      ALIAS_PARROQUIA,
+    ) || ALIAS_PARROQUIA[claveGeo(parroquiaRaw)] || "";
+
+  // Si la parroquia pertenece a un municipio concreto, forzar estado/municipio.
+  const dueño = parroquia ? PARROQUIA_A_MUNICIPIO[parroquia] : undefined;
+  if (dueño) {
+    // Excepción: "Sucre" y "La Guaira" existen en más de un estado.
+    const ambigua =
+      parroquia === "Sucre" ||
+      parroquia === "La Guaira" ||
+      parroquia === "Candelaria" ||
+      parroquia === "San José";
+    if (!ambigua) {
+      estado = dueño.estado;
+      return { estado_federativo: estado, municipio: dueño.municipio, parroquia };
+    }
+  }
+
+  if (!estado) {
+    return { estado_federativo: "", municipio: "", parroquia: parroquia || "" };
+  }
+
+  const municipios = municipiosPorEstado("Venezuela", estado);
+  let municipio =
+    buscarPorAlias(municipios, municipioRaw, ALIAS_MUNICIPIO) ||
+    ALIAS_MUNICIPIO[claveGeo(municipioRaw)] ||
+    "";
+
+  // La Guaira solo tiene municipio Vargas.
+  if (estado === "La Guaira") municipio = "Vargas";
+
+  // Distrito Capital solo tiene Libertador.
+  if (estado === "Distrito Capital") municipio = "Libertador";
+
+  // Parroquia ambigua "Sucre": si municipio es Sucre de Miranda, es Petare-area;
+  // si estado es DC o municipio Libertador, es parroquia Sucre de Caracas.
+  if (parroquia === "Sucre" && (municipio === "Sucre" || claveGeo(municipioRaw) === "sucre") && estado === "Distrito Capital") {
+    municipio = "Libertador";
+  }
+  if (
+    parroquia === "Sucre" &&
+    estado === "Miranda" &&
+    (municipio === "Sucre" || claveGeo(municipioRaw) === "sucre")
+  ) {
+    // En Miranda no hay parroquia Sucre; "Sucre" como municipio_parroquia del JSON suele ser Petare.
+    parroquia = "";
+    municipio = "Sucre";
+  }
+
+  if (municipio && !parroquia) {
+    const lista = parroquiasPorMunicipio("Venezuela", estado, municipio);
+    parroquia = buscarPorAlias(lista, parroquiaRaw, ALIAS_PARROQUIA);
+  } else if (municipio && parroquia) {
+    const lista = parroquiasPorMunicipio("Venezuela", estado, municipio);
+    if (!lista.includes(parroquia)) {
+      const reubicada = buscarPorAlias(lista, parroquiaRaw, ALIAS_PARROQUIA);
+      parroquia = reubicada;
+    }
+  }
+
+  return {
+    estado_federativo: estado,
+    municipio,
+    parroquia,
+  };
+}
+
