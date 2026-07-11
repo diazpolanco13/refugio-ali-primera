@@ -1,5 +1,7 @@
 /** Línea compacta: fecha · hora · usuario de la última actualización de un bloque. */
 
+import { useEtiquetaPerfil } from "@/data/useEtiquetaPerfil";
+
 function formatearFechaHoraCorta(ts: number): string {
   const d = new Date(ts);
   if (Number.isNaN(d.getTime())) return "";
@@ -24,15 +26,18 @@ export function MetaActualizacionBloque({
 }) {
   const marca = ts && ts > 0 ? formatearFechaHoraCorta(ts) : "";
   const quien = (by ?? "").trim();
+  // Operadores de terreno: resolver a «jerarquía · nombre» desde perfiles.
+  const etiqueta = useEtiquetaPerfil(quien || null);
   if (!marca && !quien) return null;
 
-  const partes = [marca, quien].filter(Boolean);
+  const partes = [marca, etiqueta || quien].filter(Boolean);
   return (
     <p
       className={
         className ??
-        "mt-1.5 text-[9px] leading-tight tabular-nums tracking-wide text-muted-foreground/85"
+        "mt-1.5 text-[9px] leading-tight tracking-wide text-muted-foreground/85"
       }
+      title={quien && etiqueta !== quien ? quien : undefined}
     >
       {partes.join(" · ")}
     </p>
