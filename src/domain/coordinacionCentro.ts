@@ -307,6 +307,7 @@ export function normalizarResponsableCoordinacion(
 export function responsableCoordinacionTieneDatos(r: ResponsableCoordinacion): boolean {
   return Boolean(
     r.nombre.trim() ||
+      r.ente.trim() ||
       r.telefonos.some((t) => t.trim()) ||
       r.personal_mando > 0 ||
       r.logistica.some((l) => l.disponible || l.cantidad > 0) ||

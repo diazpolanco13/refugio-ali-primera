@@ -14,6 +14,7 @@ import {
   type CentroTransitorio,
   type PersonalCentro,
 } from "./centrosTransitorios";
+import { responsablesCoordinacionDeCentro } from "./coordinacionCentro";
 import { COMIDAS_POR_PERSONA_DIA, demandaAguaDia } from "./estandares";
 import {
   demografiaRed,
@@ -49,6 +50,17 @@ import {
   contarUnidadesCon,
   marcadorOcupacionUnidad,
 } from "./complejosCentros";
+
+/** Ente encargado: primero coordinación comunitaria, si no el censo oficial. */
+export function enteResponsableDeCentro(centro: CentroTransitorio): string {
+  const c = normalizarCentro(centro);
+  for (const r of responsablesCoordinacionDeCentro(c)) {
+    if (r.categoria !== "comunitaria") continue;
+    const ente = r.ente.trim();
+    if (ente) return ente;
+  }
+  return c.censo_oficial.ministerio_ente.trim();
+}
 
 export interface EventoReporteEjecutivo {
   centro_id: string;
@@ -166,6 +178,8 @@ export interface FilaRedEjecutiva {
   nro: number | null;
   nombre: string;
   parroquia: string;
+  /** Ministerio / ente u organización encargado del campamento. */
+  enteResponsable: string;
   cuerpo: string;
   unidadSebin: string;
   /** Supervisor SEBIN asignado al campamento (`supervision.supervisor_sebin`). */
@@ -528,6 +542,7 @@ export function construirReporteEjecutivoCampamentos({
         nro: centro.nro ?? null,
         nombre: centro.nombre,
         parroquia: centro.parroquia,
+        enteResponsable: enteResponsableDeCentro(c),
         cuerpo: metaCuerpoDe(centro.cuerpo).label,
         unidadSebin: unidad.clave !== "sin_asignar" ? unidad.label : "",
         responsableSebin: centro.supervision?.supervisor_sebin?.trim() ?? "",

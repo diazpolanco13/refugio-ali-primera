@@ -824,22 +824,16 @@ function MiniDato({ label, value }: { label: string; value: number }) {
 
 
 const ANCHOS_TABLA = {
-  nro: 0.4,
-  campamento: 1.95,
-  cuerpo: 1.1,
-  damnif: 0.6,
-  fam: 0.52,
-  control: 1.0,
-  trabajos: 1.75,
-  salud: 1.55,
-  noved: 1.55,
+  nro: 0.35,
+  campamento: 1.7,
+  ente: 1.25,
+  cuerpo: 1.0,
+  damnif: 0.55,
+  fam: 0.48,
+  trabajos: 1.65,
+  salud: 1.45,
+  noved: 1.45,
 };
-
-function TextoSiNo({ valor }: { valor: boolean | null }) {
-  const texto = valor === null ? "—" : valor ? "SÍ" : "NO";
-  const color = valor === null ? gris : valor ? verde : rojo;
-  return <Text style={{ color, fontWeight: 700 }}>{texto}</Text>;
-}
 
 function arcoDonut(cx: number, cy: number, r: number, fraccion: number): string {
   const f = Math.max(0.0001, Math.min(fraccion, 0.9999));
@@ -1210,10 +1204,10 @@ export function ReporteEjecutivoCampamentosPdf({
         <View style={styles.tablaHeader} fixed>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.nro }]}>N°</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.campamento }]}>Campamento</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.ente }]}>Ente responsable</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.cuerpo }]}>Cuerpo · unidad</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.damnif, textAlign: "right" }]}>Damnif.</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.fam, textAlign: "right" }]}>Fam.</Text>
-          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.control, paddingLeft: 6 }]}>Control</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.trabajos }]}>Trabajos</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.salud }]}>Casos de salud</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.noved }]}>Novedades</Text>
@@ -1232,6 +1226,11 @@ export function ReporteEjecutivoCampamentosPdf({
               <Text style={styles.celdaNombre}>{fila.nombre}</Text>
               {fila.parroquia ? <Text style={styles.celdaSub}>{fila.parroquia}</Text> : null}
             </View>
+            <View style={{ flex: ANCHOS_TABLA.ente, paddingRight: 4 }}>
+              <Text style={styles.celdaTexto}>
+                {fila.enteResponsable.trim() || "—"}
+              </Text>
+            </View>
             <View style={{ flex: ANCHOS_TABLA.cuerpo, paddingRight: 4 }}>
               <Text style={styles.celdaTexto}>{fila.cuerpo}</Text>
               {fila.unidadSebin ? <Text style={styles.celdaSub}>{fila.unidadSebin}</Text> : null}
@@ -1241,14 +1240,6 @@ export function ReporteEjecutivoCampamentosPdf({
             </View>
             <Text style={[styles.celdaNumero, { flex: ANCHOS_TABLA.damnif }]}>{n(fila.refugiados)}</Text>
             <Text style={[styles.celdaNumero, { flex: ANCHOS_TABLA.fam }]}>{n(fila.familias)}</Text>
-            <View style={{ flex: ANCHOS_TABLA.control, paddingLeft: 6 }}>
-              <Text style={styles.celdaTexto}>
-                Captah. <TextoSiNo valor={fila.captahuella} />
-              </Text>
-              <Text style={[styles.celdaTexto, { marginTop: 1 }]}>
-                Juez paz <TextoSiNo valor={fila.juezPaz} />
-              </Text>
-            </View>
             <View style={{ flex: ANCHOS_TABLA.trabajos, paddingRight: 4 }}>
               {fila.trabajosDetalle.length === 0 ? (
                 <Text style={[styles.celdaTexto, { color: gris }]}>—</Text>
@@ -1302,7 +1293,7 @@ export function ReporteEjecutivoCampamentosPdf({
         </View>
 
         <View style={styles.footer} fixed>
-          <Text>Ordenado por N° de campamento · Control según revisión del día · Trabajos con días abiertos.</Text>
+          <Text>Ordenado por N° de campamento · Ente = organismo encargado · Trabajos con días abiertos.</Text>
           <Text>Casos de salud = abiertos en seguimiento · Novedades = del día del corte.</Text>
         </View>
       </Page>
