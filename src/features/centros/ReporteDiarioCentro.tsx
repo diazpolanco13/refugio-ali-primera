@@ -4,12 +4,10 @@
 import { useMemo, useState, type ReactNode } from "react";
 import {
   CalendarPlus,
-  Check,
   ChevronRight,
   CircleCheck,
   CircleDashed,
   ClipboardCheck,
-  Copy,
   HardHat,
   Package,
   ShieldCheck,
@@ -21,21 +19,19 @@ import { claveDia } from "@/data/reposSupabase";
 import { useReportesCentros } from "@/data/useReportesCentros";
 import { useReportesControlDia } from "@/data/useReportesControlDia";
 import { useReparacionesCentros } from "@/data/useReparacionesCentros";
-import { useRequerimientosSeguimiento } from "@/data/useRequerimientosSeguimiento";
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
-import { textoReporteTelegramCentro } from "@/domain/reporteTelegramCentro";
 import {
   casosAbiertosSeguimiento,
   META_ESTATUS_CASO_SALUD,
   type CasoSaludCentro,
 } from "@/domain/casosSalud";
 import { BadgeAntiguedad } from "@/components/ui/badge-antiguedad";
-import { copiarTexto } from "@/lib/portapapeles";
 import {
   centroRequiereReparaciones,
 } from "@/domain/reparaciones";
+import { BotonCopiarReporteTelegram } from "./BotonCopiarReporteTelegram";
 import {
   META_ESTADO_REPORTE,
   estadosReportePorDia,
@@ -455,30 +451,8 @@ function ReporteExpandido({
   const setDiaSel = onDiaChange ?? setDiaInterno;
   const [reportando, setReportando] = useState(false);
   const [faseFormulario, setFaseFormulario] = useState<string | undefined>(undefined);
-  const { requerimientos: requerimientosActivos } = useRequerimientosSeguimiento({
-    centroId: centro.id,
-    soloActivos: true,
-  });
   const { casos: casosSalud } = useCasosSaludCentros({ centroId: centro.id, soloActivos: true });
   const casosSaludAbiertos = casosAbiertosSeguimiento(casosSalud);
-  const [estadoCopia, setEstadoCopia] = useState<"idle" | "ok" | "error">("idle");
-
-  async function copiarParteTelegram() {
-    const texto = textoReporteTelegramCentro({
-      centro,
-      dia: diaSel,
-      snapshot: snapshots.find((s) => s.dia === diaSel),
-      reporte: reportes.find((r) => r.dia === diaSel),
-      controlDia: reporteControlDelDia(controles, centro.id, diaSel),
-      eventosDia: eventosDelDia(eventos, centro.id, diaSel),
-      trabajosActivos: trabajos,
-      requerimientosActivos,
-      casosSaludAbiertos,
-    });
-    const ok = await copiarTexto(texto);
-    setEstadoCopia(ok ? "ok" : "error");
-    window.setTimeout(() => setEstadoCopia("idle"), 2500);
-  }
 
   function abrirFormularioReporte(fase?: string) {
     if (onAbrirReporte) {
@@ -553,26 +527,7 @@ function ReporteExpandido({
             <CardTitle className="text-sm">
               {esHoy ? "Reporte de hoy" : "Reporte del día"} · {formatearDiaCalendario(diaSel)}
             </CardTitle>
-            <Button
-              type="button"
-              size="sm"
-              className="h-8 shrink-0 gap-1.5 bg-teal-600 text-xs text-white shadow-sm hover:bg-teal-500"
-              onClick={copiarParteTelegram}
-            >
-              {estadoCopia === "ok" ? (
-                <>
-                  <Check className="size-3.5 text-emerald-400" />
-                  Copiado
-                </>
-              ) : estadoCopia === "error" ? (
-                "No se pudo copiar"
-              ) : (
-                <>
-                  <Copy className="size-3.5" />
-                  Copiar parte
-                </>
-              )}
-            </Button>
+            <BotonCopiarReporteTelegram centro={centro} dia={diaSel} />
           </div>
         </CardHeader>
         <CardContent>

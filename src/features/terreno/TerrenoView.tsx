@@ -66,7 +66,9 @@ function centroDeLaUrl(): string {
 }
 
 function urlReporteCentro(centroId: string): string {
-  return `/centros/reportes/${encodeURIComponent(centroId)}?vista=reporte&reportar=1`;
+  // Aterriza en el resumen del reporte (con «COPIAR REPORTE»); el formulario
+  // se abre desde «Editar reporte».
+  return `/centros/reportes/${encodeURIComponent(centroId)}?vista=reporte`;
 }
 
 const CLASE_BOTON_CUADRADO =

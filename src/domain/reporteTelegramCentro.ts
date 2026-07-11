@@ -1,7 +1,7 @@
 // Texto plano del parte diario de un campamento, con el mismo formato de los
 // reportes que circulan por el grupo de Telegram de enlaces (CONTROL
 // OPERACIONAL / RELACIÓN GENERAL / NOVEDADES). Lo consume el botón "Copiar
-// parte" de la pestaña Reporte: el dato nace en la app y se pega en el grupo.
+// parte» / «COPIAR REPORTE» de la pestaña Reporte: el dato nace en la app y se pega en el grupo.
 
 import type { CentroTransitorio } from "./centrosTransitorios";
 import { normalizarVulnerables } from "./tipos";

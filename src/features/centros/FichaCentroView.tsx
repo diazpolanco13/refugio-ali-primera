@@ -57,6 +57,7 @@ import { CoordinacionCentroPanel } from "./CoordinacionCentroPanel";
 import { PoblacionCentroPanel } from "./PoblacionCentroPanel";
 import { ResumenCentroPanel } from "./ResumenCentroPanel";
 import { SeccionReporteDiarioCentro, BadgeEstadoReporte } from "./ReporteDiarioCentro";
+import { BotonCopiarReporteTelegram } from "./BotonCopiarReporteTelegram";
 import { SeccionSeguimientoReportesCentro } from "./SeguimientoReportesCentro";
 import { InfraestructuraCapacidadPanel } from "./InfraestructuraCapacidadPanel";
 import { BuzonCentroPanel } from "./BuzonCentroPanel";
@@ -117,7 +118,8 @@ export function FichaCentroView({ sesion }: Props) {
   const modoReporte = searchParams.get("reportar") === "1";
   const modoRegistrar = searchParams.get("registrar") === "1";
   const refugiadoId = searchParams.get("refugiado");
-  // Entrada desde /terreno (sesión operador del QR): solo el parte, sin salir a la ficha.
+  // Entrada desde /terreno (sesión operador del QR): formularios con retorno
+  // al resumen de la ficha y acceso explícito al portal.
   const reporteSoloTerreno = esTerreno && modoReporte;
 
   const hoyClave = useMemo(() => claveDia(Date.now()), []);
@@ -312,16 +314,16 @@ export function FichaCentroView({ sesion }: Props) {
     }
   }
 
+  function volverPortalTerreno() {
+    const token = tokenTerrenoActual();
+    window.location.assign(
+      token ? `/terreno?t=${encodeURIComponent(token)}` : "/terreno",
+    );
+  }
+
   function cerrarReporte() {
-    if (esTerreno) {
-      // /terreno es otro entry point (censo-entry): hay que salir del SPA
-      // principal; navigate() no monta TerrenoView y cae en el catch-all.
-      const token = tokenTerrenoActual();
-      window.location.assign(
-        token ? `/terreno?t=${encodeURIComponent(token)}` : "/terreno",
-      );
-      return;
-    }
+    // Tras editar, volver al resumen del reporte (donde está «COPIAR REPORTE»).
+    // El retorno al portal de terreno es explícito vía volverPortalTerreno.
     setSearchParams({ vista: "reporte" }, { replace: true });
   }
 
@@ -361,14 +363,9 @@ export function FichaCentroView({ sesion }: Props) {
     }
   }, [searchParams, setSearchParams]);
 
-  // Operador de terreno: si abre la ficha sin ?reportar=1, forzar el formulario.
-  useEffect(() => {
-    if (!esTerreno || !centro || !puedeEditar) return;
-    if (modoReporte) return;
-    if (modoRegistrar || refugiadoId) return;
-    abrirReporte();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [esTerreno, centro?.id, puedeEditar, modoReporte, modoRegistrar, refugiadoId]);
+  // Operador de terreno: aterriza en la ficha (pestaña Reporte) para ver el
+  // resumen y «COPIAR REPORTE»; el formulario se abre con «Editar reporte».
+  // (Antes se forzaba ?reportar=1 y no veían el botón de copiar.)
 
   // Si no puede editar, no mantener modos de edición en la URL.
   useEffect(() => {
@@ -462,19 +459,19 @@ export function FichaCentroView({ sesion }: Props) {
       >
         <header className="shrink-0 border-b border-border/70 px-3 pb-3 pt-3 sm:px-4 lg:px-6">
           <div className="flex items-start gap-2">
-            {!reporteSoloTerreno && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 shrink-0 gap-1.5 px-2"
-                onClick={cerrarReporte}
-                aria-label="Volver a la ficha"
-              >
-                <ArrowLeft className="size-3.5" />
-                <span className="hidden sm:inline">Volver a la ficha</span>
-                <span className="sm:hidden">Volver</span>
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0 gap-1.5 px-2"
+              onClick={cerrarReporte}
+              aria-label={reporteSoloTerreno ? "Volver al resumen del reporte" : "Volver a la ficha"}
+            >
+              <ArrowLeft className="size-3.5" />
+              <span className="hidden sm:inline">
+                {reporteSoloTerreno ? "Volver al resumen" : "Volver a la ficha"}
+              </span>
+              <span className="sm:hidden">Volver</span>
+            </Button>
             <div className="min-w-0 flex-1 pt-0.5">
               <h1 className="truncate text-sm font-semibold sm:text-base">Reporte del día</h1>
               <p className="truncate text-xs text-muted-foreground">{titulo}</p>
@@ -484,16 +481,15 @@ export function FichaCentroView({ sesion }: Props) {
                 variant="outline"
                 size="sm"
                 className="h-8 shrink-0 gap-1.5 px-2"
-                onClick={cerrarReporte}
+                onClick={volverPortalTerreno}
                 aria-label="Volver al portal de terreno"
               >
-                <ArrowLeft className="size-3.5" />
-                <span className="hidden sm:inline">Volver al portal</span>
+                <span className="hidden sm:inline">Portal</span>
                 <span className="sm:hidden">Portal</span>
               </Button>
             )}
           </div>
-          <div className="mt-2.5 flex items-center gap-2">
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
             <VisorFechaReporte
               dia={diaReporte}
               onDiaChange={cambiarDiaReporte}
@@ -504,6 +500,7 @@ export function FichaCentroView({ sesion }: Props) {
               className="h-9 min-w-0 flex-1 sm:h-8 sm:flex-none"
             />
             <BadgeEstadoReporte estado={estadoDiaReporte} destacado />
+            <BotonCopiarReporteTelegram centro={centro} dia={diaReporte} />
           </div>
         </header>
         <ReporteDiarioForm
@@ -513,8 +510,8 @@ export function FichaCentroView({ sesion }: Props) {
           diaReporte={diaReporte}
           faseInicial={searchParams.get("fase") ?? undefined}
           onCerrar={cerrarReporte}
-          ocultarCerrar={reporteSoloTerreno}
-          etiquetaCerrar={reporteSoloTerreno ? "Volver al portal" : "Cerrar"}
+          ocultarCerrar={false}
+          etiquetaCerrar={reporteSoloTerreno ? "Volver al resumen" : "Cerrar"}
         />
       </MarcoVista>
     );
@@ -578,6 +575,18 @@ export function FichaCentroView({ sesion }: Props) {
                   <span className="sm:hidden">Reporte</span>
                 </Button>
               )}
+              {esTerreno && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 shrink-0 gap-1.5 px-2"
+                  onClick={volverPortalTerreno}
+                  aria-label="Volver al portal de terreno"
+                >
+                  <ArrowLeft className="size-3.5" />
+                  <span className="hidden sm:inline">Portal</span>
+                </Button>
+              )}
             </>
           ) : (
             <>
@@ -593,6 +602,18 @@ export function FichaCentroView({ sesion }: Props) {
                   <ClipboardCheck className="size-4" />
                   <span className="hidden sm:inline">{etiquetaBotonReporte}</span>
                   <span className="sm:hidden">Reporte</span>
+                </Button>
+              )}
+              {esTerreno && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 shrink-0 gap-1.5 px-2"
+                  onClick={volverPortalTerreno}
+                  aria-label="Volver al portal de terreno"
+                >
+                  <ArrowLeft className="size-3.5" />
+                  <span className="hidden sm:inline">Portal</span>
                 </Button>
               )}
             </>
