@@ -2,9 +2,10 @@ import {
   normalizarReporteControlDia,
   type ReporteControlDia,
 } from "../domain/controlReporte";
+import { registrarHistorial } from "./historial";
+import { notificarMutacionLive } from "./liveInvalidation";
 import { supabase } from "./supabaseClient";
 import { claveDia, usuarioActual } from "./reposSupabase";
-import { registrarHistorial } from "./historial";
 
 export async function guardarReporteControlDia(
   datos: Omit<ReporteControlDia, "id" | "updated_at" | "updated_by"> & { dia?: string },
@@ -36,6 +37,7 @@ export async function guardarReporteControlDia(
     dia: fila.dia,
     revisado: fila.revisado,
   });
+  notificarMutacionLive("reportes_control_dia");
 }
 
 export async function eliminarReporteControlDia(datos: {
@@ -54,6 +56,7 @@ export async function eliminarReporteControlDia(datos: {
     centro_id: datos.centro_id,
     dia: datos.dia,
   });
+  notificarMutacionLive("reportes_control_dia");
 }
 
 export { normalizarReporteControlDia };

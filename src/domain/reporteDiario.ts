@@ -211,6 +211,15 @@ export interface ReporteDiario {
   observaciones: string;
   updated_at: number;
   updated_by: string;
+  /** Última confirmación del bloque Salud (independiente del updated_at de la fila). */
+  salud_updated_at?: number;
+  salud_updated_by?: string;
+  trabajos_updated_at?: number;
+  trabajos_updated_by?: string;
+  requerimientos_updated_at?: number;
+  requerimientos_updated_by?: string;
+  eventos_updated_at?: number;
+  eventos_updated_by?: string;
 }
 
 /** Comida sin reportar (valores vacíos), útil como estado inicial de formularios. */
@@ -295,6 +304,22 @@ export function normalizarReporte(
     observaciones,
     updated_at: raw.updated_at ?? 0,
     updated_by: raw.updated_by ?? "",
+    salud_updated_at: Number((raw as { salud_updated_at?: unknown }).salud_updated_at) || undefined,
+    salud_updated_by: String((raw as { salud_updated_by?: unknown }).salud_updated_by ?? "") || undefined,
+    trabajos_updated_at:
+      Number((raw as { trabajos_updated_at?: unknown }).trabajos_updated_at) || undefined,
+    trabajos_updated_by:
+      String((raw as { trabajos_updated_by?: unknown }).trabajos_updated_by ?? "") || undefined,
+    requerimientos_updated_at:
+      Number((raw as { requerimientos_updated_at?: unknown }).requerimientos_updated_at) ||
+      undefined,
+    requerimientos_updated_by:
+      String((raw as { requerimientos_updated_by?: unknown }).requerimientos_updated_by ?? "") ||
+      undefined,
+    eventos_updated_at:
+      Number((raw as { eventos_updated_at?: unknown }).eventos_updated_at) || undefined,
+    eventos_updated_by:
+      String((raw as { eventos_updated_by?: unknown }).eventos_updated_by ?? "") || undefined,
   };
 }
 

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { MetaActualizacionBloque } from "./MetaActualizacionBloque";
 
 /** Último snapshot estrictamente anterior a `dia` (YYYY-MM-DD). */
 export function ultimoSnapshotAntes(
@@ -122,6 +123,8 @@ interface Props {
   confirmado?: boolean;
   /** Si se define, la tarjeta es clicable y abre la fase Parte del formulario. */
   onAbrir?: () => void;
+  /** Fecha/hora/usuario de la última actualización del parte. */
+  meta?: { ts?: number | null; by?: string | null } | null;
 }
 
 export function ParteNumericoResumen({
@@ -129,6 +132,7 @@ export function ParteNumericoResumen({
   snapshotAnterior,
   confirmado = true,
   onAbrir,
+  meta,
 }: Props) {
   const [desgloseAbierto, setDesgloseAbierto] = useState(false);
   const vuln = normalizarVulnerables(snapshot.ocupacion);
@@ -314,6 +318,8 @@ export function ParteNumericoResumen({
           {refugiados.toLocaleString("es")}
         </p>
       )}
+
+      {meta && <MetaActualizacionBloque ts={meta.ts} by={meta.by} />}
     </div>
   );
 }

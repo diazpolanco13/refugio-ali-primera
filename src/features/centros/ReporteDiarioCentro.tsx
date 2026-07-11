@@ -32,6 +32,7 @@ import {
   centroRequiereReparaciones,
 } from "@/domain/reparaciones";
 import { BotonCopiarReporteTelegram } from "./BotonCopiarReporteTelegram";
+import { MetaActualizacionBloque, metaMasReciente } from "./MetaActualizacionBloque";
 import {
   META_ESTADO_REPORTE,
   estadosReportePorDia,
@@ -131,12 +132,15 @@ function BloqueReporte({
   titulo,
   listo,
   onClick,
+  meta,
   children,
 }: {
   icono: ReactNode;
   titulo: string;
   listo?: boolean;
   onClick?: () => void;
+  /** Fecha/hora/usuario de la última actualización del bloque. */
+  meta?: { ts?: number | null; by?: string | null } | null;
   children: ReactNode;
 }) {
   const contenido = (
@@ -153,6 +157,7 @@ function BloqueReporte({
         {onClick && <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
       </div>
       {children}
+      {meta && <MetaActualizacionBloque ts={meta.ts} by={meta.by} />}
     </>
   );
   if (onClick) {
@@ -218,6 +223,46 @@ function TarjetaReporteDia({
   const hayAlgo =
     parteNumerico || controlOk || trabajosOk || reqOk || eventosOk || eventosDia.length > 0;
 
+  const metaParte = parteNumerico && snapshot
+    ? {
+        ts: snapshot.updated_at || snapshot.ts,
+        by: snapshot.updated_by,
+      }
+    : null;
+  const metaSalud = metaMasReciente(
+    reporte?.salud_reportada || (snapshot?.incidencias_salud ?? 0) > 0 || casosSaludAbiertos.length > 0
+      ? {
+          ts: reporte?.salud_updated_at || reporte?.updated_at || snapshot?.updated_at || snapshot?.ts,
+          by: reporte?.salud_updated_by || reporte?.updated_by || snapshot?.updated_by,
+        }
+      : null,
+    ...casosSaludAbiertos.map((c) => ({ ts: c.updated_at, by: c.updated_by })),
+  );
+  const metaControl = controlOk
+    ? { ts: controlDia?.updated_at, by: controlDia?.updated_by }
+    : null;
+  const metaTrabajos = trabajosOk
+    ? {
+        ts: reporte?.trabajos_updated_at || reporte?.updated_at,
+        by: reporte?.trabajos_updated_by || reporte?.updated_by,
+      }
+    : null;
+  const metaReq = reqOk
+    ? {
+        ts: reporte?.requerimientos_updated_at || reporte?.updated_at,
+        by: reporte?.requerimientos_updated_by || reporte?.updated_by,
+      }
+    : null;
+  const metaNovedades = metaMasReciente(
+    eventosOk
+      ? {
+          ts: reporte?.eventos_updated_at || reporte?.updated_at,
+          by: reporte?.eventos_updated_by || reporte?.updated_by,
+        }
+      : null,
+    ...eventosDia.map((e) => ({ ts: e.updated_at, by: e.updated_by })),
+  );
+
   return (
     <div
       className={cn(
@@ -256,6 +301,7 @@ function TarjetaReporteDia({
                 snapshotAnterior={snapshotAnterior}
                 confirmado
                 onAbrir={onAbrirFase ? () => onAbrirFase("parte") : undefined}
+                meta={metaParte}
               />
             ) : onAbrirFase ? (
               <button
@@ -279,6 +325,13 @@ function TarjetaReporteDia({
               titulo="Incidencias salud"
               listo={Boolean(reporte?.salud_reportada) || (snapshot?.incidencias_salud ?? 0) > 0 || casosSaludAbiertos.length > 0}
               onClick={onAbrirFase ? () => onAbrirFase("salud") : undefined}
+              meta={
+                Boolean(reporte?.salud_reportada) ||
+                (snapshot?.incidencias_salud ?? 0) > 0 ||
+                casosSaludAbiertos.length > 0
+                  ? metaSalud
+                  : null
+              }
             >
               <p className="text-[11px] text-muted-foreground">
                 <span className="font-bold tabular-nums text-foreground">
@@ -316,7 +369,7 @@ function TarjetaReporteDia({
               )}
             </BloqueReporte>
 
-            <BloqueReporte icono={<ShieldCheck className="size-3.5 text-sky-400" />} titulo="Control" listo={controlOk} onClick={onAbrirFase ? () => onAbrirFase("control") : undefined}>
+            <BloqueReporte icono={<ShieldCheck className="size-3.5 text-sky-400" />} titulo="Control" listo={controlOk} onClick={onAbrirFase ? () => onAbrirFase("control") : undefined} meta={metaControl}>
               {controlOk ? (
                 <p className="text-[11px] text-muted-foreground">Control operativo revisado.</p>
               ) : (
@@ -324,7 +377,7 @@ function TarjetaReporteDia({
               )}
             </BloqueReporte>
 
-            <BloqueReporte icono={<Wrench className="size-3.5 text-amber-400" />} titulo="Trabajos" listo={trabajosOk} onClick={onAbrirFase ? () => onAbrirFase("trabajos") : undefined}>
+            <BloqueReporte icono={<Wrench className="size-3.5 text-amber-400" />} titulo="Trabajos" listo={trabajosOk} onClick={onAbrirFase ? () => onAbrirFase("trabajos") : undefined} meta={metaTrabajos}>
               {trabajosActivosDia && trabajosActivosDia.length > 0 ? (
                 <ul className="space-y-1">
                   {trabajosActivosDia.slice(0, 3).map((t) => (
@@ -345,13 +398,13 @@ function TarjetaReporteDia({
               )}
             </BloqueReporte>
 
-            <BloqueReporte icono={<Package className="size-3.5 text-violet-400" />} titulo="Requerimientos" listo={reqOk} onClick={onAbrirFase ? () => onAbrirFase("requerimientos") : undefined}>
+            <BloqueReporte icono={<Package className="size-3.5 text-violet-400" />} titulo="Requerimientos" listo={reqOk} onClick={onAbrirFase ? () => onAbrirFase("requerimientos") : undefined} meta={metaReq}>
               <p className="text-[11px] text-muted-foreground">
                 {reqOk ? "Bloque revisado." : "Sin revisión de requerimientos."}
               </p>
             </BloqueReporte>
 
-            <BloqueReporte icono={<CalendarPlus className="size-3.5 text-emerald-400" />} titulo="Novedades" listo={eventosOk} onClick={onAbrirFase ? () => onAbrirFase("novedades") : undefined}>
+            <BloqueReporte icono={<CalendarPlus className="size-3.5 text-emerald-400" />} titulo="Novedades" listo={eventosOk} onClick={onAbrirFase ? () => onAbrirFase("novedades") : undefined} meta={eventosOk || eventosDia.length > 0 ? metaNovedades : null}>
               {eventosDia.length > 0 ? (
                 <p className="text-[11px] text-muted-foreground">
                   {eventosDia.length} novedad{eventosDia.length === 1 ? "" : "es"}

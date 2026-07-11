@@ -4,7 +4,7 @@
 // El reporte diario se abre integrado en el mismo marco.
 // Vive dentro del AppShell global, con sidebar y TopBar compartidos.
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -131,6 +131,12 @@ export function FichaCentroView({ sesion }: Props) {
   const [errorNombre, setErrorNombre] = useState<string | null>(null);
   /** Nombre local tras guardar: no esperar Realtime para actualizar el título. */
   const [nombreLocal, setNombreLocal] = useState<string | null>(null);
+  /** Progreso del formulario integrado (evita badge stale hasta que llegue Realtime). */
+  const [progresoFormulario, setProgresoFormulario] = useState<{
+    completas: number;
+    total: number;
+    completo: boolean;
+  } | null>(null);
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
   const {
@@ -195,6 +201,9 @@ export function FichaCentroView({ sesion }: Props) {
     const parte = snapshotsHoy.some((s) => s.dia === hoyClave);
     const control = reporteControlDelDia(controlesHoy, centro.id, hoyClave);
     return estadoReporteDia(reporte, parte, {
+      saludReportada:
+        reporte?.salud_reportada === true ||
+        snapshotsHoy.some((s) => s.dia === hoyClave && (s.incidencias_salud ?? 0) > 0),
       controlRevisado: controlReportado(control),
       trabajosRevisados: reporte?.trabajos_revisados ?? false,
       requerimientosRevisados: reporte?.requerimientos_revisados ?? false,
@@ -252,12 +261,45 @@ export function FichaCentroView({ sesion }: Props) {
     () => snapshotsMarcas.filter((s) => s.dia === diaReporte),
     [snapshotsMarcas, diaReporte],
   );
+  useEffect(() => {
+    setProgresoFormulario(null);
+  }, [centro?.id, diaReporte, modoReporte]);
+
+  const onProgresoFormulario = useCallback(
+    (p: { completas: number; total: number; completo: boolean }) => {
+      setProgresoFormulario((prev) => {
+        if (
+          prev &&
+          prev.completas === p.completas &&
+          prev.total === p.total &&
+          prev.completo === p.completo
+        ) {
+          return prev;
+        }
+        return p;
+      });
+    },
+    [],
+  );
+
   const estadoDiaReporte = useMemo(() => {
     if (!centro) return "pendiente" as const;
+    if (modoReporte && progresoFormulario?.completo) return "completo" as const;
+    if (modoReporte && progresoFormulario && progresoFormulario.completas > 0) {
+      // Mientras el form tiene avance local, no mostrar "pendiente" stale.
+      if (progresoFormulario.completas === progresoFormulario.total) return "completo" as const;
+      if (progresoFormulario.completas === 1 && snapshotsDiaReporte.some((s) => s.dia === diaReporte)) {
+        return "solo_parte" as const;
+      }
+      return "parcial" as const;
+    }
     const reporte = reporteDelDia(reportesDiaReporte, centro.id, diaReporte);
     const parte = snapshotsDiaReporte.some((s) => s.dia === diaReporte);
     const control = reporteControlDelDia(controlesDiaReporte, centro.id, diaReporte);
     return estadoReporteDia(reporte, parte, {
+      saludReportada:
+        reporte?.salud_reportada === true ||
+        snapshotsDiaReporte.some((s) => s.dia === diaReporte && (s.incidencias_salud ?? 0) > 0),
       controlRevisado: controlReportado(control),
       trabajosRevisados: reporte?.trabajos_revisados ?? false,
       requerimientosRevisados: reporte?.requerimientos_revisados ?? false,
@@ -270,6 +312,8 @@ export function FichaCentroView({ sesion }: Props) {
     eventosDiaReporte,
     snapshotsDiaReporte,
     diaReporte,
+    modoReporte,
+    progresoFormulario,
   ]);
 
   function cambiarDiaReporte(nuevoDia: string) {
@@ -512,6 +556,7 @@ export function FichaCentroView({ sesion }: Props) {
           onCerrar={cerrarReporte}
           ocultarCerrar={false}
           etiquetaCerrar={reporteSoloTerreno ? "Volver al resumen" : "Cerrar"}
+          onProgresoChange={onProgresoFormulario}
         />
       </MarcoVista>
     );

@@ -6,6 +6,7 @@ import {
   type EventoReporte,
 } from "../domain/eventosReportes";
 import { registrarHistorial } from "./historial";
+import { notificarMutacionLive } from "./liveInvalidation";
 import { nuevoId, usuarioActual } from "./reposSupabase";
 import { supabase } from "./supabaseClient";
 
@@ -79,6 +80,7 @@ export async function guardarEventosReporteDia(datos: {
     eventos: eventos.length,
     eliminados: idsEliminar.length,
   });
+  notificarMutacionLive("eventos_reportes");
 }
 
 /** Crea una novedad del reporte diario (`eventos_reportes`). */
@@ -116,6 +118,7 @@ export async function crearEventoReporte(datos: {
     dia: fila.dia,
     titulo: fila.titulo,
   });
+  notificarMutacionLive("eventos_reportes");
   return id;
 }
 
@@ -141,6 +144,7 @@ export async function actualizarEventoReporte(
   const { error } = await supabase.from("eventos_reportes").update(fila).eq("id", id);
   if (error) throw new Error(`[reposEventosReportes] update: ${error.message}`);
   registrarHistorial("actualizar_evento_reporte", "evento_reporte", id, cambios);
+  notificarMutacionLive("eventos_reportes");
 }
 
 /** Elimina una novedad del reporte diario. */
@@ -148,4 +152,5 @@ export async function eliminarEventoReporte(id: string): Promise<void> {
   const { error } = await supabase.from("eventos_reportes").delete().eq("id", id);
   if (error) throw new Error(`[reposEventosReportes] delete: ${error.message}`);
   registrarHistorial("eliminar_evento_reporte", "evento_reporte", id);
+  notificarMutacionLive("eventos_reportes");
 }

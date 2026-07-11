@@ -32,6 +32,7 @@ import {
 import { supabase } from "./supabaseClient";
 import { getUsuario } from "./authSupabase";
 import { registrarHistorial } from "./historial";
+import { notificarMutacionLive } from "./liveInvalidation";
 import { desenvolver, type FilaSync } from "./desenvolver";
 
 // ---- Utilidades ----
@@ -486,6 +487,7 @@ async function upsertSnapshotOcupacion(
   if (error) {
     throw new Error(`[reposSupabase] upsert ocupaciones_centros: ${error.message}`);
   }
+  notificarMutacionLive("ocupaciones_centros");
 }
 
 /** Lee un centro por id desde Supabase (incluye `geom` normalizado). */
@@ -627,6 +629,7 @@ export async function guardarIncidenciasSaludDia(
     dia,
     incidencias_salud: Math.max(0, incidenciasSalud),
   });
+  notificarMutacionLive("ocupaciones_centros");
 }
 
 /** Quita solo el snapshot del parte numérico de un día; no modifica el centro. */
@@ -643,6 +646,7 @@ export async function eliminarParteNumericoDia(centroId: string, dia: string): P
     centro_id: centroId,
     dia,
   });
+  notificarMutacionLive("ocupaciones_centros");
 }
 
 /**

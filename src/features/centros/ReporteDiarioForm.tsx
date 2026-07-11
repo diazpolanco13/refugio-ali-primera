@@ -79,6 +79,12 @@ interface Props {
   ocultarCerrar?: boolean;
   /** Etiqueta del botón cerrar (p. ej. «Volver al portal»). */
   etiquetaCerrar?: string;
+  /** Notifica al padre el progreso local (para el badge Completo sin esperar Realtime). */
+  onProgresoChange?: (progreso: {
+    completas: number;
+    total: number;
+    completo: boolean;
+  }) => void;
 }
 
 interface ParteForm {
@@ -168,6 +174,7 @@ export function ReporteDiarioForm({
   faseInicial,
   ocultarCerrar = false,
   etiquetaCerrar = "Cerrar",
+  onProgresoChange,
 }: Props) {
   const base = normalizarCentro(centro);
   const diaReporte = diaReporteProp ?? claveDia(Date.now());
@@ -399,6 +406,16 @@ export function ReporteDiarioForm({
     };
   });
 
+  const completasNav = fasesNav.filter((f) => f.completa).length;
+  const reporteFormCompleto = completasNav === fasesNav.length && fasesNav.length > 0;
+  useEffect(() => {
+    onProgresoChange?.({
+      completas: completasNav,
+      total: fasesNav.length,
+      completo: reporteFormCompleto,
+    });
+  }, [completasNav, fasesNav.length, reporteFormCompleto, onProgresoChange]);
+
   const refugiados = poblacionCentro({ ...centro, ocupacion, total_afectados: totalAfectados });
 
   /**
@@ -411,6 +428,7 @@ export function ReporteDiarioForm({
     trabajos_revisados?: boolean;
     requerimientos_revisados?: boolean;
     eventos_revisados?: boolean;
+    toques?: ("salud" | "trabajos" | "requerimientos" | "eventos")[];
   }): Promise<void> {
     await guardarReporteDiario({
       centro_id: centro.id,
@@ -418,18 +436,29 @@ export function ReporteDiarioForm({
       comidas: normalizarComidas(reporteExistente?.comidas),
       atenciones_medicas_detalle: reporteExistente?.atenciones_medicas_detalle ?? [],
       atenciones_medicas: reporteExistente?.atenciones_medicas ?? 0,
-      salud_reportada: reporteExistente?.salud_reportada ?? false,
+      // Preferir estado local: tras confirmar salud, Realtime puede ir atrasado.
+      salud_reportada:
+        saludConfirmadaOk ||
+        (reporteExistente?.salud_reportada ?? false) ||
+        (snapHoy != null && (snapHoy.incidencias_salud ?? 0) > 0),
       eventos_revisados:
         overrides?.eventos_revisados ?? (eventosRevisados || eventosReporte.length > 0),
       trabajos_revisados: overrides?.trabajos_revisados ?? trabajosRevisados,
       requerimientos_revisados: overrides?.requerimientos_revisados ?? requerimientosRevisados,
       observaciones: reporteExistente?.observaciones ?? "",
+      toques: overrides?.toques,
     });
   }
 
   async function guardarParte() {
     setErrorGuardado(null);
     setConfirmandoParte(true);
+    const prevConfirmado = parteConfirmadoOk;
+    const prevDesmarcado = parteDesmarcadoOk;
+    const prevBaseline = baselineParte.current;
+    baselineParte.current = { ...parteActual };
+    setParteConfirmadoOk(true);
+    setParteDesmarcadoOk(false);
     try {
       const centroActualizado = {
         ...centro,
@@ -458,10 +487,10 @@ export function ReporteDiarioForm({
           omitirPersonal: true,
         });
       }
-      baselineParte.current = { ...parteActual };
-      setParteConfirmadoOk(true);
-      setParteDesmarcadoOk(false);
     } catch (err) {
+      baselineParte.current = prevBaseline;
+      setParteConfirmadoOk(prevConfirmado);
+      setParteDesmarcadoOk(prevDesmarcado);
       console.error("[ReporteDiarioForm] error guardando parte:", err);
       setErrorGuardado(err instanceof Error ? err.message : "No se pudo guardar el parte.");
     } finally {
@@ -472,6 +501,10 @@ export function ReporteDiarioForm({
   async function guardarSalud() {
     setErrorGuardado(null);
     setConfirmandoSalud(true);
+    // Optimista: el icono/progreso y el badge del padre no deben esperar Realtime.
+    const prevConfirmada = saludConfirmadaOk;
+    baselineIncidenciasSalud.current = incidenciasSalud;
+    setSaludConfirmadaOk(true);
     try {
       await guardarIncidenciasSaludDia(centro, diaReporte, incidenciasSalud);
       await guardarReporteDiario({
@@ -485,10 +518,10 @@ export function ReporteDiarioForm({
         trabajos_revisados: trabajosRevisados,
         requerimientos_revisados: requerimientosRevisados,
         observaciones: reporteExistente?.observaciones ?? "",
+        toques: ["salud"],
       });
-      baselineIncidenciasSalud.current = incidenciasSalud;
-      setSaludConfirmadaOk(true);
     } catch (err) {
+      setSaludConfirmadaOk(prevConfirmada);
       console.error("[ReporteDiarioForm] error guardando salud:", err);
       setErrorGuardado(
         err instanceof Error ? err.message : "No se pudo guardar las incidencias de salud.",
@@ -501,6 +534,8 @@ export function ReporteDiarioForm({
   async function desmarcarSalud() {
     setErrorGuardado(null);
     setConfirmandoSalud(true);
+    const prevConfirmada = saludConfirmadaOk;
+    setSaludConfirmadaOk(false);
     try {
       await guardarReporteDiario({
         centro_id: centro.id,
@@ -513,9 +548,10 @@ export function ReporteDiarioForm({
         trabajos_revisados: trabajosRevisados,
         requerimientos_revisados: requerimientosRevisados,
         observaciones: reporteExistente?.observaciones ?? "",
+        toques: ["salud"],
       });
-      setSaludConfirmadaOk(false);
     } catch (err) {
+      setSaludConfirmadaOk(prevConfirmada);
       setErrorGuardado(
         err instanceof Error ? err.message : "No se pudo desmarcar la revisión de salud.",
       );
@@ -527,11 +563,15 @@ export function ReporteDiarioForm({
   async function desmarcarParte() {
     setErrorGuardado(null);
     setConfirmandoParte(true);
+    const prevConfirmado = parteConfirmadoOk;
+    const prevDesmarcado = parteDesmarcadoOk;
+    setParteConfirmadoOk(false);
+    setParteDesmarcadoOk(true);
     try {
       await eliminarParteNumericoDia(centro.id, diaReporte);
-      setParteConfirmadoOk(false);
-      setParteDesmarcadoOk(true);
     } catch (err) {
+      setParteConfirmadoOk(prevConfirmado);
+      setParteDesmarcadoOk(prevDesmarcado);
       setErrorGuardado(err instanceof Error ? err.message : "No se pudo desmarcar el parte.");
     } finally {
       setConfirmandoParte(false);
@@ -541,13 +581,19 @@ export function ReporteDiarioForm({
   async function guardarControl() {
     setErrorGuardado(null);
     setGuardandoBloque("control");
+    const prevControl = control;
+    const prevBaseline = baselineControl.current;
+    const prevHeredado = controlHeredado;
+    const actualizado = { ...control, revisado: true };
+    setControl(actualizado);
+    baselineControl.current = controlDatos(actualizado);
+    setControlHeredado(false);
     try {
-      await guardarReporteControlDia({ ...control, revisado: true });
-      const actualizado = { ...control, revisado: true };
-      setControl(actualizado);
-      baselineControl.current = controlDatos(actualizado);
-      setControlHeredado(false);
+      await guardarReporteControlDia(actualizado);
     } catch (err) {
+      setControl(prevControl);
+      baselineControl.current = prevBaseline;
+      setControlHeredado(prevHeredado);
       setErrorGuardado(err instanceof Error ? err.message : "No se pudo guardar control.");
     } finally {
       setGuardandoBloque(null);
@@ -557,10 +603,12 @@ export function ReporteDiarioForm({
   async function desmarcarControl() {
     setErrorGuardado(null);
     setGuardandoBloque("control");
+    const prevRevisado = control.revisado;
+    setControl((p) => ({ ...p, revisado: false }));
     try {
       await guardarReporteControlDia({ ...control, revisado: false });
-      setControl((p) => ({ ...p, revisado: false }));
     } catch (err) {
+      setControl((p) => ({ ...p, revisado: prevRevisado }));
       setErrorGuardado(err instanceof Error ? err.message : "No se pudo desmarcar control.");
     } finally {
       setGuardandoBloque(null);
@@ -569,9 +617,13 @@ export function ReporteDiarioForm({
 
   async function guardarTrabajosRevision() {
     setGuardandoBloque("trabajos");
+    const prev = trabajosRevisados;
+    setTrabajosRevisados(true);
     try {
-      await guardarFlagsReporte({ trabajos_revisados: true });
-      setTrabajosRevisados(true);
+      await guardarFlagsReporte({ trabajos_revisados: true, toques: ["trabajos"] });
+    } catch (err) {
+      setTrabajosRevisados(prev);
+      setErrorGuardado(err instanceof Error ? err.message : "No se pudo confirmar trabajos.");
     } finally {
       setGuardandoBloque(null);
     }
@@ -579,9 +631,13 @@ export function ReporteDiarioForm({
 
   async function desmarcarTrabajosRevision() {
     setGuardandoBloque("trabajos");
+    const prev = trabajosRevisados;
+    setTrabajosRevisados(false);
     try {
-      await guardarFlagsReporte({ trabajos_revisados: false });
-      setTrabajosRevisados(false);
+      await guardarFlagsReporte({ trabajos_revisados: false, toques: ["trabajos"] });
+    } catch (err) {
+      setTrabajosRevisados(prev);
+      setErrorGuardado(err instanceof Error ? err.message : "No se pudo desmarcar trabajos.");
     } finally {
       setGuardandoBloque(null);
     }
@@ -589,9 +645,15 @@ export function ReporteDiarioForm({
 
   async function guardarRequerimientosRevision() {
     setGuardandoBloque("requerimientos");
+    const prev = requerimientosRevisados;
+    setRequerimientosRevisados(true);
     try {
-      await guardarFlagsReporte({ requerimientos_revisados: true });
-      setRequerimientosRevisados(true);
+      await guardarFlagsReporte({ requerimientos_revisados: true, toques: ["requerimientos"] });
+    } catch (err) {
+      setRequerimientosRevisados(prev);
+      setErrorGuardado(
+        err instanceof Error ? err.message : "No se pudo confirmar requerimientos.",
+      );
     } finally {
       setGuardandoBloque(null);
     }
@@ -599,9 +661,15 @@ export function ReporteDiarioForm({
 
   async function desmarcarRequerimientosRevision() {
     setGuardandoBloque("requerimientos");
+    const prev = requerimientosRevisados;
+    setRequerimientosRevisados(false);
     try {
-      await guardarFlagsReporte({ requerimientos_revisados: false });
-      setRequerimientosRevisados(false);
+      await guardarFlagsReporte({ requerimientos_revisados: false, toques: ["requerimientos"] });
+    } catch (err) {
+      setRequerimientosRevisados(prev);
+      setErrorGuardado(
+        err instanceof Error ? err.message : "No se pudo desmarcar requerimientos.",
+      );
     } finally {
       setGuardandoBloque(null);
     }
@@ -621,12 +689,14 @@ export function ReporteDiarioForm({
   }
 
   async function confirmarRevisionEventos(valor: boolean) {
+    const prev = eventosRevisados;
     setEventosRevisados(valor);
     setErrorGuardado(null);
     setGuardandoBloque("eventos");
     try {
-      await guardarFlagsReporte({ eventos_revisados: valor });
+      await guardarFlagsReporte({ eventos_revisados: valor, toques: ["eventos"] });
     } catch (err) {
+      setEventosRevisados(prev);
       setErrorGuardado(err instanceof Error ? err.message : "No se pudo guardar la revisión.");
     } finally {
       setGuardandoBloque(null);
@@ -636,9 +706,13 @@ export function ReporteDiarioForm({
   async function guardarEventos() {
     setErrorGuardado(null);
     setGuardandoBloque("eventos");
+    const prevRevisados = eventosRevisados;
+    const prevBaseline = baselineEventos.current;
+    const prevIds = idsEventosExistentes;
+    setEventosRevisados(true);
+    baselineEventos.current = eventosReporte;
     try {
-      await guardarFlagsReporte({ eventos_revisados: true });
-      setEventosRevisados(true);
+      await guardarFlagsReporte({ eventos_revisados: true, toques: ["eventos"] });
       await guardarEventosReporteDia({
         centro_id: centro.id,
         dia: diaReporte,
@@ -646,8 +720,10 @@ export function ReporteDiarioForm({
         idsExistentes: idsEventosExistentes,
       });
       setIdsEventosExistentes(eventosReporte.map((e) => e.id));
-      baselineEventos.current = eventosReporte;
     } catch (err) {
+      setEventosRevisados(prevRevisados);
+      baselineEventos.current = prevBaseline;
+      setIdsEventosExistentes(prevIds);
       setErrorGuardado(err instanceof Error ? err.message : "No se pudo guardar novedades.");
     } finally {
       setGuardandoBloque(null);
@@ -657,10 +733,12 @@ export function ReporteDiarioForm({
   async function desmarcarNovedades() {
     setErrorGuardado(null);
     setGuardandoBloque("eventos");
+    const prev = eventosRevisados;
+    setEventosRevisados(false);
     try {
-      await guardarFlagsReporte({ eventos_revisados: false });
-      setEventosRevisados(false);
+      await guardarFlagsReporte({ eventos_revisados: false, toques: ["eventos"] });
     } catch (err) {
+      setEventosRevisados(prev);
       setErrorGuardado(err instanceof Error ? err.message : "No se pudo desmarcar novedades.");
     } finally {
       setGuardandoBloque(null);

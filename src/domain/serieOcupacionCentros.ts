@@ -24,6 +24,9 @@ export interface SnapshotOcupacion {
   /** Contador manual de incidencias de salud del día (parte Telegram). */
   incidencias_salud: number;
   ocupacion: Vulnerables;
+  /** Meta de la última escritura del snapshot (parte / salud en ocupaciones). */
+  updated_at?: number;
+  updated_by?: string;
 }
 
 /**

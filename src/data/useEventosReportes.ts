@@ -7,6 +7,7 @@ import {
   type EventoReporte,
 } from "../domain/eventosReportes";
 import { supabase } from "./supabaseClient";
+import { suscribirMutacionLive } from "./liveInvalidation";
 
 interface Opciones {
   centroId?: string;
@@ -56,6 +57,9 @@ export function useEventosReportes(opts: Opciones = {}): {
 
     recargarRef.current = cargar;
     void cargar();
+    const unsub = suscribirMutacionLive("eventos_reportes", () => {
+      void cargar();
+    });
 
     const channel = supabase
       .channel(channelName)
@@ -74,6 +78,7 @@ export function useEventosReportes(opts: Opciones = {}): {
 
     return () => {
       cancelado = true;
+      unsub();
       void supabase.removeChannel(channel);
     };
   }, [centroId, dia, desde]);
