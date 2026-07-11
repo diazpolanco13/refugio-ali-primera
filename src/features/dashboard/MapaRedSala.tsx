@@ -23,7 +23,9 @@ export function MapaRedSala({ centros, onAbrirCentro }: Props) {
   const [mostrarParteMarcador, setMostrarParteMarcador] = useState(true);
   const [mostrarLeyenda, setMostrarLeyenda] = useState(true);
   const [mostrarCintaTotales, setMostrarCintaTotales] = useState(false);
-  const [unidadFiltro, setUnidadFiltro] = useState<ClaveUnidadSebin | null>(null);
+  const [unidadesFiltro, setUnidadesFiltro] = useState<Set<ClaveUnidadSebin>>(
+    () => new Set(),
+  );
 
   const onSeleccionar = useCallback(
     (id: string | null) => {
@@ -32,6 +34,15 @@ export function MapaRedSala({ centros, onAbrirCentro }: Props) {
     },
     [onAbrirCentro],
   );
+
+  function alternarUnidadFiltro(clave: ClaveUnidadSebin) {
+    setUnidadesFiltro((prev) => {
+      const next = new Set(prev);
+      if (next.has(clave)) next.delete(clave);
+      else next.add(clave);
+      return next;
+    });
+  }
 
   return (
     <div className="relative h-full min-h-[280px] w-full overflow-hidden rounded-xl border border-border">
@@ -49,8 +60,9 @@ export function MapaRedSala({ centros, onAbrirCentro }: Props) {
         onCambiarMostrarLeyenda={setMostrarLeyenda}
         mostrarCintaTotales={mostrarCintaTotales}
         onCambiarMostrarCintaTotales={setMostrarCintaTotales}
-        unidadFiltro={unidadFiltro}
-        onCambiarUnidadFiltro={setUnidadFiltro}
+        unidadesFiltro={unidadesFiltro}
+        onAlternarUnidadFiltro={alternarUnidadFiltro}
+        onLimpiarUnidadesFiltro={() => setUnidadesFiltro(new Set())}
         detalleAbierto={false}
       />
     </div>

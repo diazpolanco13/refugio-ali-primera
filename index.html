@@ -37,6 +37,29 @@
         transition: width 0.35s ease;
       }
       #app-splash .msg { font-size: 0.8125rem; color: #a3a3a3; }
+      /* Aviso tipo “cookies”: caché/PWA obsoleta tras un deploy.
+         Vive fuera de #root por si React no llega a montar. */
+      #aviso-app-obsoleta {
+        display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 10000;
+        padding: max(0.75rem, env(safe-area-inset-bottom)) 1rem 1rem;
+        font-family: system-ui, sans-serif; pointer-events: none;
+      }
+      #aviso-app-obsoleta.visible { display: block; }
+      #aviso-app-obsoleta .caja {
+        pointer-events: auto; margin: 0 auto; max-width: 28rem;
+        border: 1px solid #404040; border-radius: 0.75rem;
+        background: #171717; color: #fafafa; box-shadow: 0 -8px 32px rgba(0,0,0,.45);
+        padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.75rem;
+      }
+      #aviso-app-obsoleta h2 { margin: 0; font-size: 0.95rem; font-weight: 600; }
+      #aviso-app-obsoleta p { margin: 0; font-size: 0.8125rem; line-height: 1.4; color: #a3a3a3; }
+      #aviso-app-obsoleta button {
+        appearance: none; border: 0; border-radius: 0.5rem; cursor: pointer;
+        background: #0d9488; color: #fafafa; font: inherit; font-weight: 600;
+        font-size: 0.875rem; padding: 0.65rem 1rem; width: 100%;
+      }
+      #aviso-app-obsoleta button:disabled { opacity: 0.65; cursor: wait; }
+      #aviso-app-obsoleta button:focus-visible { outline: 2px solid #2dd4bf; outline-offset: 2px; }
       @media (prefers-reduced-motion: reduce) {
         #app-splash, #app-splash .barra > div { transition: none; }
       }
@@ -53,6 +76,23 @@
       <div class="msg" id="app-splash-msg">Iniciando…</div>
     </div>
     <div id="root"></div>
+    <div
+      id="aviso-app-obsoleta"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="aviso-app-obsoleta-titulo"
+      aria-describedby="aviso-app-obsoleta-texto"
+      hidden
+    >
+      <div class="caja">
+        <h2 id="aviso-app-obsoleta-titulo">Hay que actualizar la aplicación</h2>
+        <p id="aviso-app-obsoleta-texto">
+          Este dispositivo tiene una versión antigua guardada y la pantalla no puede cargar.
+          No pierde su sesión: pulse el botón, espere unos segundos y entrará de nuevo.
+        </p>
+        <button type="button" id="aviso-app-obsoleta-btn">Actualizar ahora</button>
+      </div>
+    </div>
     <script>
       // Progreso pseudo-real: no se puede medir la descarga de módulos ES, así
       // que la barra avanza asintóticamente hacia el 90% y React la completa
@@ -71,6 +111,107 @@
           if (barra) barra.style.width = progreso.toFixed(1) + "%";
         }, 200);
         window.__appSplash = { detener: function () { clearInterval(timer); } };
+
+        // Recuperación ante PWA/caché obsoleta (chunks .js que ya no existen).
+        // Debe vivir aquí: si fallan los módulos, React puede no montar nunca.
+        var aviso = document.getElementById("aviso-app-obsoleta");
+        var btn = document.getElementById("aviso-app-obsoleta-btn");
+        var mostrado = false;
+        var recuperando = false;
+        // Tras pulsar “Actualizar ahora” la URL trae ?_act=…: no reabrir el aviso
+        // en esta carga (evita el bucle si algo más falla en localhost).
+        var postRecuperacion = false;
+        try {
+          postRecuperacion = new URL(window.location.href).searchParams.has("_act");
+        } catch (e) {}
+
+        function textoPareceModuloRoto(t) {
+          if (!t) return false;
+          t = String(t).toLowerCase();
+          return (
+            t.indexOf("failed to load module script") !== -1 ||
+            t.indexOf("failed to fetch dynamically imported module") !== -1 ||
+            t.indexOf("error loading dynamically imported module") !== -1 ||
+            t.indexOf("importing a module script failed") !== -1 ||
+            (t.indexOf("module script") !== -1 && t.indexOf("mime type") !== -1) ||
+            (t.indexOf("module") !== -1 && t.indexOf('mime type of "text/html"') !== -1)
+          );
+        }
+
+        function mostrarAviso() {
+          if (mostrado || postRecuperacion || !aviso) return;
+          mostrado = true;
+          window.__appSplash && window.__appSplash.detener();
+          var splash = document.getElementById("app-splash");
+          if (splash) splash.classList.add("oculto");
+          aviso.hidden = false;
+          aviso.classList.add("visible");
+          // Avisa a React (si llegó a montar) para que tome el control del UI.
+          try {
+            window.dispatchEvent(new CustomEvent("app:obsoleta"));
+          } catch (e) {}
+        }
+
+        async function recuperar() {
+          if (recuperando || !btn) return;
+          recuperando = true;
+          btn.disabled = true;
+          btn.textContent = "Actualizando…";
+          try {
+            if ("serviceWorker" in navigator) {
+              var regs = await navigator.serviceWorker.getRegistrations();
+              for (var i = 0; i < regs.length; i++) await regs[i].unregister();
+            }
+            if ("caches" in window) {
+              var keys = await caches.keys();
+              for (var j = 0; j < keys.length; j++) await caches.delete(keys[j]);
+            }
+          } catch (e) {}
+          var url = new URL(window.location.href);
+          url.searchParams.set("_act", String(Date.now()));
+          window.location.replace(url.toString());
+        }
+
+        window.addEventListener(
+          "error",
+          function (ev) {
+            var msgErr = (ev && ev.message) || "";
+            // Solo mensajes de módulo ES rotos — no cualquier <script> .js fallido
+            // (Cap, extensiones, Vite en localhost generaban falsos positivos).
+            if (textoPareceModuloRoto(msgErr)) mostrarAviso();
+          },
+          true
+        );
+        window.addEventListener("unhandledrejection", function (ev) {
+          var r = ev && ev.reason;
+          var m = r && (r.message || r);
+          if (textoPareceModuloRoto(m)) mostrarAviso();
+        });
+        window.addEventListener("app:obsoleta", function () {
+          mostrarAviso();
+        });
+        if (btn) btn.addEventListener("click", function () { void recuperar(); });
+
+        // Usuario que ya había instalado la app: si el splash sigue y #root
+        // vacío, casi seguro hay caché rota (en la 1ª visita puede tardar más).
+        // En localhost el arranque de Vite puede ser lento: no aplicar este
+        // atajo (el fallo real de módulos ya dispara el aviso).
+        var esLocal =
+          location.hostname === "localhost" ||
+          location.hostname === "127.0.0.1";
+        if (!esLocal && !postRecuperacion) {
+          window.setTimeout(function () {
+            var yaInstalada = false;
+            try { yaInstalada = !!localStorage.getItem("app-instalada"); } catch (e) {}
+            if (!yaInstalada) return;
+            var root = document.getElementById("root");
+            var splashEl = document.getElementById("app-splash");
+            var splashVisible = splashEl && !splashEl.classList.contains("oculto");
+            if (splashVisible && root && !root.hasChildNodes()) mostrarAviso();
+          }, 16000);
+        }
+
+        window.__avisoAppObsoleta = { mostrar: mostrarAviso, recuperar: recuperar };
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>

@@ -32,7 +32,6 @@ import { Button } from "@/components/ui/button";
 import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
 import { CentrosMap, type CentrosMapHandle } from "./CentrosMap";
 import { DetalleCentro } from "./DetalleCentro";
-import { CentroForm } from "./CentroForm";
 import { TableroCentros } from "./TableroCentros";
 import { PanelCentros, calcularEstadosFilas } from "./PanelCentros";
 import { ControlesMapaFlotantes } from "./ControlesMapaFlotantes";
@@ -61,7 +60,6 @@ export function CentrosView() {
   );
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
-  const [editando, setEditando] = useState<CentroTransitorio | null>(null);
   const [modoMarcador, setModoMarcador] = useState<ModoMarcadorCentros>(
     () => cargarModoMarcadorCentros() ?? "color",
   );
@@ -74,10 +72,25 @@ export function CentrosView() {
   const [mostrarCintaTotales, setMostrarCintaTotales] = useState(
     () => cargarMostrarCintaTotales() ?? true,
   );
-  const [unidadFiltroMapa, setUnidadFiltroMapa] = useState<ClaveUnidadSebin | null>(null);
+  const [unidadesFiltroMapa, setUnidadesFiltroMapa] = useState<Set<ClaveUnidadSebin>>(
+    () => new Set(),
+  );
   const [expandidos, setExpandidos] = useState<Set<ClaveUnidadSebin>>(() => new Set());
   const [exportando, setExportando] = useState(false);
   const mapaRef = useRef<CentrosMapHandle>(null);
+
+  function alternarUnidadFiltro(clave: ClaveUnidadSebin) {
+    setUnidadesFiltroMapa((prev) => {
+      const next = new Set(prev);
+      if (next.has(clave)) next.delete(clave);
+      else next.add(clave);
+      return next;
+    });
+  }
+
+  function limpiarUnidadesFiltro() {
+    setUnidadesFiltroMapa(new Set());
+  }
 
   useEffect(() => {
     guardarBaseMapaCentros(baseMapa);
@@ -100,7 +113,7 @@ export function CentrosView() {
   }, [mostrarCintaTotales]);
 
   useEffect(() => {
-    if (modoMarcador !== "color") setUnidadFiltroMapa(null);
+    if (modoMarcador !== "color") setUnidadesFiltroMapa(new Set());
   }, [modoMarcador]);
 
   useEffect(() => {
@@ -194,10 +207,6 @@ export function CentrosView() {
     setDetalleAbierto((prev) => !prev);
   }
 
-  function cerrarFormulario() {
-    setEditando(null);
-  }
-
   useEffect(() => {
     if (!seleccionado) return;
     const centro = centros.find((c) => c.id === seleccionado);
@@ -242,8 +251,9 @@ export function CentrosView() {
               onCambiarMostrarLeyenda={setMostrarLeyendaMarcador}
               mostrarCintaTotales={mostrarCintaTotales}
               onCambiarMostrarCintaTotales={setMostrarCintaTotales}
-              unidadFiltro={unidadFiltroMapa}
-              onCambiarUnidadFiltro={setUnidadFiltroMapa}
+              unidadesFiltro={unidadesFiltroMapa}
+              onAlternarUnidadFiltro={alternarUnidadFiltro}
+              onLimpiarUnidadesFiltro={limpiarUnidadesFiltro}
               detalleAbierto={detalleAbierto}
               onToggleDetalle={toggleDetalle}
               onExportar={() => void exportarVista()}
@@ -260,15 +270,16 @@ export function CentrosView() {
             />
 
             {mostrarCintaTotales && (
-              <div className="map-controls-overlay pointer-events-none absolute inset-x-3 bottom-8 z-10 md:bottom-auto md:left-1/2 md:top-3 md:w-[calc(100%-29rem)] md:-translate-x-1/2">
+              <div className="map-controls-overlay pointer-events-none absolute inset-x-3 bottom-3 z-10 md:bottom-auto md:left-1/2 md:top-3 md:w-[calc(100%-29rem)] md:-translate-x-1/2">
                 <TotalesMapaCentros centros={centros} />
               </div>
             )}
 
             <PanelCentros
               centros={centros}
-              unidadFiltro={unidadFiltroMapa}
-              onSeleccionarUnidad={setUnidadFiltroMapa}
+              unidadesFiltro={unidadesFiltroMapa}
+              onAlternarUnidad={alternarUnidadFiltro}
+              onLimpiarFiltro={limpiarUnidadesFiltro}
               expandidos={expandidos}
               onSetExpandido={setExpandido}
               seleccionado={seleccionado}
@@ -297,20 +308,11 @@ export function CentrosView() {
             <DetalleCentro
               centro={centroSel}
               puedeEditar={puedeEditar}
-              onEditar={() => setEditando(centroSel)}
+              onEditar={() => navigate(`/centro/${centroSel.id}?vista=coordinacion`)}
             />
           </PanelFlotante>
         )}
       </div>
-
-      {editando && (
-        <CentroForm
-          centro={editando}
-          soloLectura={!puedeEditar}
-          puedeEliminar={puedeEliminar}
-          onCerrar={cerrarFormulario}
-        />
-      )}
     </>
   );
 }

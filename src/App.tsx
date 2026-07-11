@@ -2,11 +2,13 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Login } from "./features/auth/Login";
 import { initAuth, useSesion, type Sesion } from "./data/authSupabase";
+import { AvisoActualizacionApp } from "./components/AvisoActualizacionApp";
 import { MarcaAgua } from "./components/MarcaAgua";
 import { PantallaCarga } from "./components/PantallaCarga";
 import { EnDesarrollo } from "./components/EnDesarrollo";
 import { SectionSuspense } from "./components/SectionSuspense";
 import { AppShell } from "./layouts/AppShell";
+import { señalarAppObsoleta, esErrorModuloObsoleto } from "./lib/avisoAppObsoleta";
 import { ocultarSplash } from "./lib/splash";
 import { rutaInicialDeRol, rutaPermitidaParaRol } from "./domain/permisos";
 import { DashboardViewSkeleton } from "./features/dashboard/DashboardViewSkeleton";
@@ -173,7 +175,13 @@ export function App() {
     // La planilla pública no necesita restaurar sesión: evita una ida a Supabase
     // Auth antes de pintar. (En /censo el bootstrap ligero ni siquiera monta App.)
     const sesionLista = esCenso ? Promise.resolve() : initAuth();
-    const chunkListo = precargarRutaInicial(window.location.pathname).catch(() => undefined);
+    const chunkListo = precargarRutaInicial(window.location.pathname).catch((err) => {
+      // Solo avisar si es el fallo típico de chunk obsoleto (no cualquier error
+      // de red/compilación en localhost).
+      console.warn("[app] Fallo al precargar la ruta inicial:", err);
+      if (esErrorModuloObsoleto(err)) señalarAppObsoleta();
+      return undefined;
+    });
     void Promise.allSettled([sesionLista, chunkListo]).then(() => setArrancando(false));
   }, []);
 
@@ -189,17 +197,28 @@ export function App() {
   // del gate de sesión para que los operadores accedan directo desde el enlace.
   if (location.pathname.startsWith("/censo")) {
     return (
-      <Suspense fallback={<PantallaCarga />}>
-        <CensoView />
-      </Suspense>
+      <>
+        <AvisoActualizacionApp />
+        <Suspense fallback={<PantallaCarga />}>
+          <CensoView />
+        </Suspense>
+      </>
     );
   }
 
-  if (!sesion) return <Login />;
+  if (!sesion) {
+    return (
+      <>
+        <AvisoActualizacionApp />
+        <Login />
+      </>
+    );
+  }
   const mostrarMarcaAgua = sesion.user.marca_agua !== false;
 
   return (
     <>
+      <AvisoActualizacionApp />
       <Routes>
         <Route
           path="/dashboard"

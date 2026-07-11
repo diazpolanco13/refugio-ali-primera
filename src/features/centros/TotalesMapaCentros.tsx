@@ -27,7 +27,7 @@ function KpiMapa({
   return (
     <Card
       size="sm"
-      className="min-w-0 border-white/10 bg-background/60 py-2 shadow-lg shadow-black/25 backdrop-blur-md"
+      className="min-w-[7rem] shrink-0 border-white/10 bg-background/60 py-2 shadow-lg shadow-black/25 backdrop-blur-md sm:min-w-0"
     >
       <CardContent className="flex items-center gap-2 px-2.5 sm:px-3">
         <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/5 text-primary ring-1 ring-white/10">
@@ -64,7 +64,7 @@ export function TotalesMapaCentros({ centros, className }: Props) {
   return (
     <div
       className={cn(
-        "pointer-events-auto grid grid-cols-2 gap-1.5 sm:grid-cols-5 sm:gap-2",
+        "pointer-events-auto flex gap-1.5 overflow-x-auto scrollbar-oculto sm:grid sm:grid-cols-5 sm:gap-2 sm:overflow-visible",
         className,
       )}
     >

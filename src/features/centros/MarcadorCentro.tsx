@@ -14,11 +14,6 @@ interface Props {
   seleccionado: boolean;
   /** Si false, el marcador se muestra gris (filtro por otra dirección). */
   resaltado?: boolean;
-  /**
-   * Cuando hay un filtro de dirección activo y este marcador está resaltado,
-   * el núcleo muestra "?" en lugar del N.°.
-   */
-  simboloFiltro?: boolean;
   mostrarParte: boolean;
   /** Damnificados alojados. */
   refugiados?: number;
@@ -64,19 +59,17 @@ function SemaforoEstado({ color }: { color: string }) {
   );
 }
 
-/** Núcleo circular con el N.° del campamento (o "?" si hay filtro activo). */
+/** Núcleo circular con el N.° del campamento. */
 function NucleoNumero({
   nro,
   color,
   resaltado,
   seleccionado,
-  simboloFiltro = false,
 }: {
   nro: number;
   color: string;
   resaltado: boolean;
   seleccionado: boolean;
-  simboloFiltro?: boolean;
 }) {
   return (
     <span
@@ -87,14 +80,7 @@ function NucleoNumero({
       )}
       style={{ backgroundColor: color }}
     >
-      <span
-        className={cn(
-          "font-bold leading-none text-white",
-          simboloFiltro ? "text-[11px]" : "text-[9px] tabular-nums",
-        )}
-      >
-        {simboloFiltro ? "?" : nro}
-      </span>
+      <span className="text-[9px] font-bold tabular-nums leading-none text-white">{nro}</span>
     </span>
   );
 }
@@ -108,7 +94,6 @@ export function MarcadorCentro({
   color,
   seleccionado,
   resaltado = true,
-  simboloFiltro = false,
   mostrarParte,
   refugiados = 0,
   personalTotal = 0,
@@ -116,7 +101,6 @@ export function MarcadorCentro({
   onClick,
 }: Props) {
   const colorMarcador = resaltado ? color : COLOR_MARCADOR_ATENUADO;
-  const mostrarSimbolo = simboloFiltro && resaltado;
   const titulo =
     `N.° ${nro} · ${refugiados.toLocaleString("es")} damnificados · ${personalTotal.toLocaleString("es")} personal operativo`;
 
@@ -150,7 +134,6 @@ export function MarcadorCentro({
               color={colorMarcador}
               resaltado={resaltado}
               seleccionado={seleccionado}
-              simboloFiltro={mostrarSimbolo}
             />
           </div>
           {mostrarParte && resaltado && (
@@ -185,14 +168,7 @@ export function MarcadorCentro({
         style={{ backgroundColor: colorMarcador }}
         aria-hidden
       >
-        <span
-          className={cn(
-            "font-bold leading-none text-white",
-            mostrarSimbolo ? "text-[9px]" : "text-[8px] tabular-nums",
-          )}
-        >
-          {mostrarSimbolo ? "?" : nro}
-        </span>
+        <span className="text-[8px] font-bold tabular-nums leading-none text-white">{nro}</span>
       </span>
     </span>
   );

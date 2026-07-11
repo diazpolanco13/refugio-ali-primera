@@ -44,8 +44,10 @@ interface Props {
   onCambiarMostrarLeyenda: (mostrar: boolean) => void;
   mostrarCintaTotales: boolean;
   onCambiarMostrarCintaTotales: (mostrar: boolean) => void;
-  unidadFiltro: ClaveUnidadSebin | null;
-  onCambiarUnidadFiltro: (clave: ClaveUnidadSebin | null) => void;
+  /** Direcciones SEBIN activas (vacío = ver todas). */
+  unidadesFiltro: ReadonlySet<ClaveUnidadSebin>;
+  onAlternarUnidadFiltro: (clave: ClaveUnidadSebin) => void;
+  onLimpiarUnidadesFiltro: () => void;
   /** Indica si el panel DetalleCentro está abierto (estado "presionado" del botón "detalles"). */
   detalleAbierto: boolean;
   /** Alternar (abrir/cerrar) el panel de detalle completo del centro seleccionado. */
@@ -75,8 +77,9 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     onCambiarMostrarLeyenda,
     mostrarCintaTotales,
     onCambiarMostrarCintaTotales,
-    unidadFiltro,
-    onCambiarUnidadFiltro,
+    unidadesFiltro,
+    onAlternarUnidadFiltro,
+    onLimpiarUnidadesFiltro,
     detalleAbierto,
     onToggleDetalle,
     onExportar,
@@ -111,7 +114,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     detalleAbierto,
     modoMarcador,
     mostrarParteMarcador,
-    unidadFiltro,
+    unidadesFiltro,
     onSeleccionar,
     onToggleDetalle,
   });
@@ -121,7 +124,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     detalleAbierto,
     modoMarcador,
     mostrarParteMarcador,
-    unidadFiltro,
+    unidadesFiltro,
     onSeleccionar,
     onToggleDetalle,
   };
@@ -346,8 +349,9 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       vistos.add(c.id);
       const metaUnidad = metaUnidadSebinCentro(c);
       const claveUnidad = unidadSebinDe(c);
-      const hayFiltro = cbRef.current.unidadFiltro != null;
-      const resaltado = !hayFiltro || cbRef.current.unidadFiltro === claveUnidad;
+      const filtro = cbRef.current.unidadesFiltro;
+      const hayFiltro = filtro.size > 0;
+      const resaltado = !hayFiltro || filtro.has(claveUnidad);
       let marcador = marcadores.current.get(c.id);
       if (!marcador) {
         const anchor = document.createElement("div");
@@ -375,7 +379,6 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
           color={metaUnidad.color}
           seleccionado={cbRef.current.seleccionado === c.id}
           resaltado={resaltado}
-          simboloFiltro={hayFiltro && resaltado}
           mostrarParte={cbRef.current.mostrarParteMarcador}
           refugiados={refugiados}
           personalTotal={personalTotal}
@@ -409,7 +412,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     sincronizarMarcadores();
     aplicarVistaDefectoSiCorresponde();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [centros, seleccionado, modoMarcador, mostrarParteMarcador, unidadFiltro]);
+  }, [centros, seleccionado, modoMarcador, mostrarParteMarcador, unidadesFiltro]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -517,8 +520,9 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       {modoMarcador === "color" && mostrarLeyenda && (
         <LeyendaUnidadesSebin
           unidadesPresentes={unidadesPresentes}
-          unidadSeleccionada={unidadFiltro}
-          onSeleccionarUnidad={onCambiarUnidadFiltro}
+          unidadesFiltro={unidadesFiltro}
+          onAlternarUnidad={onAlternarUnidadFiltro}
+          onLimpiarFiltro={onLimpiarUnidadesFiltro}
         />
       )}
     </div>

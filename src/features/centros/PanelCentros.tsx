@@ -32,9 +32,10 @@ import {
 
 interface Props {
   centros: CentroTransitorio[];
-  /** Dirección SEBIN activa en el mapa (`null` = ver todas). */
-  unidadFiltro: ClaveUnidadSebin | null;
-  onSeleccionarUnidad: (clave: ClaveUnidadSebin | null) => void;
+  /** Direcciones SEBIN activas en el mapa (vacío = ver todas). */
+  unidadesFiltro: ReadonlySet<ClaveUnidadSebin>;
+  onAlternarUnidad: (clave: ClaveUnidadSebin) => void;
+  onLimpiarFiltro: () => void;
   expandidos: Set<ClaveUnidadSebin>;
   onSetExpandido: (clave: ClaveUnidadSebin, abierto: boolean) => void;
   seleccionado: string | null;
@@ -45,12 +46,13 @@ interface Props {
 
 /**
  * Panel lateral del mapa: búsqueda, listado por dirección interna SEBIN
- * y filtro exclusivo (opaca el resto en el mapa).
+ * y filtro multi-selección (opaca el resto en el mapa).
  */
 export function PanelCentros({
   centros,
-  unidadFiltro,
-  onSeleccionarUnidad,
+  unidadesFiltro,
+  onAlternarUnidad,
+  onLimpiarFiltro,
   expandidos,
   onSetExpandido,
   seleccionado,
@@ -93,17 +95,15 @@ export function PanelCentros({
     if (window.innerWidth < 640) onCambiarAbierto(false);
   }
 
-  /** Clic en una dirección: filtra el mapa (toggle si ya estaba activa). */
+  /** Clic en una dirección: añade/quita del filtro (multi-selección). */
   function elegirUnidad(clave: ClaveUnidadSebin) {
-    const siguiente = unidadFiltro === clave ? null : clave;
-    onSeleccionarUnidad(siguiente);
-    if (siguiente) onSetExpandido(clave, true);
+    onAlternarUnidad(clave);
   }
 
   const unidadesConCampamentos = catalogoUnidades.filter(
     (u) => u.clave !== "sin_asignar" && (centrosPorUnidad.get(u.clave)?.length ?? 0) > 0,
   );
-  const hayFiltro = unidadFiltro != null;
+  const hayFiltro = unidadesFiltro.size > 0;
 
   return (
     <div
@@ -119,7 +119,7 @@ export function PanelCentros({
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Lista de campamentos
             </p>
-            <p className="text-[10px] text-muted-foreground/80">Por dirección interna SEBIN</p>
+            <p className="text-[10px] text-muted-foreground/80">Por unidad responsable</p>
           </div>
           <button
             type="button"
@@ -180,7 +180,7 @@ export function PanelCentros({
         ) : (
           <div className="space-y-0.5">
             {unidadesConCampamentos.map((u) => {
-              const activa = unidadFiltro === u.clave;
+              const activa = unidadesFiltro.has(u.clave);
               const atenuada = hayFiltro && !activa;
               const centrosUnidad = centrosPorUnidad.get(u.clave) ?? [];
               const grupoAbierto = expandidos.has(u.clave);
@@ -207,8 +207,8 @@ export function PanelCentros({
                       onClick={() => elegirUnidad(u.clave)}
                       title={
                         activa
-                          ? "Quitar filtro (ver todas las direcciones)"
-                          : "Filtrar mapa: opacar el resto y marcar esta dirección"
+                          ? "Quitar esta dirección del filtro"
+                          : "Añadir esta dirección al filtro del mapa"
                       }
                       aria-pressed={activa}
                       className={cn(
@@ -221,11 +221,7 @@ export function PanelCentros({
                         style={{ borderColor: u.color }}
                         aria-hidden
                       >
-                        {activa ? (
-                          <span className="text-sm font-bold leading-none text-foreground">?</span>
-                        ) : (
-                          <LogoCuerpo src={LOGO_SEBIN} priority="low" />
-                        )}
+                        <LogoCuerpo src={LOGO_SEBIN} priority="low" />
                       </span>
                       <span className="flex-1 truncate text-foreground">{u.label}</span>
                       {alertasGrupo > 0 && (
@@ -281,17 +277,17 @@ export function PanelCentros({
                 <div
                   className={cn(
                     "flex items-center gap-0.5 rounded-lg transition-opacity",
-                    unidadFiltro === "sin_asignar" && "bg-primary/10 ring-1 ring-primary/40",
-                    hayFiltro && unidadFiltro !== "sin_asignar" && "opacity-35",
+                    unidadesFiltro.has("sin_asignar") && "bg-primary/10 ring-1 ring-primary/40",
+                    hayFiltro && !unidadesFiltro.has("sin_asignar") && "opacity-35",
                   )}
                 >
                   <button
                     type="button"
                     onClick={() => elegirUnidad("sin_asignar")}
-                    aria-pressed={unidadFiltro === "sin_asignar"}
+                    aria-pressed={unidadesFiltro.has("sin_asignar")}
                     className={cn(
                       "flex flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs",
-                      unidadFiltro === "sin_asignar"
+                      unidadesFiltro.has("sin_asignar")
                         ? "font-semibold text-primary"
                         : "opacity-80",
                     )}
@@ -335,10 +331,11 @@ export function PanelCentros({
             {hayFiltro && (
               <button
                 type="button"
-                onClick={() => onSeleccionarUnidad(null)}
+                onClick={onLimpiarFiltro}
                 className="mt-2 w-full rounded-md border border-border/60 px-2 py-1.5 text-[10px] text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
               >
                 Ver todas las direcciones
+                {unidadesFiltro.size > 1 ? ` (${unidadesFiltro.size} activas)` : ""}
               </button>
             )}
 
@@ -353,7 +350,7 @@ export function PanelCentros({
       </div>
 
       <div className="shrink-0 border-t border-border px-3 py-1.5 text-[9.5px] leading-snug text-muted-foreground/80">
-        Tocá una dirección para filtrar el mapa (? = seleccionados; el resto se opaca). Íconos{" "}
+        Tocá una o varias unidades responsables para filtrar el mapa (el resto se opaca). Íconos{" "}
         <span className="font-semibold text-red-500">rojos</span> /{" "}
         <span className="font-semibold text-amber-400">ámbar</span>: déficit Esfera.
       </div>

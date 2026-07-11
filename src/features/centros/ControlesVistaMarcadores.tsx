@@ -62,10 +62,10 @@ export function PanelTogglesVistaMapa({
       <FilaToggle
         id="toggle-leyenda-sebin"
         icono={<List className="size-3.5 shrink-0 text-muted-foreground" />}
-        etiqueta="Leyenda SEBIN"
+        etiqueta="Unidades responsables"
         checked={mostrarLeyenda}
         onCheckedChange={onCambiarMostrarLeyenda}
-        ariaLabel="Mostrar u ocultar la leyenda de direcciones SEBIN"
+        ariaLabel="Mostrar u ocultar el filtro de unidades responsables"
         conBorde
         deshabilitado={!vistaColor}
       />
@@ -77,7 +77,7 @@ export function PanelTogglesVistaMapa({
           : mostrarParte
             ? "Puntos de color con conteo debajo."
             : mostrarLeyenda
-              ? "Toca una dirección en la leyenda para filtrar."
+              ? "Toque una o varias unidades responsables para filtrar."
               : "Solo puntos de color por dirección SEBIN."}
       </p>
     </div>

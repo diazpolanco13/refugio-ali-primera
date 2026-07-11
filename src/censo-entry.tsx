@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import { AvisoActualizacionApp } from "./components/AvisoActualizacionApp";
 import { CensoView } from "./features/censo/CensoView";
 import { DenunciaView } from "./features/terreno/DenunciaView";
 import { TerrenoView } from "./features/terreno/TerrenoView";
@@ -28,6 +29,7 @@ export function mount(): void {
 
   createRoot(root).render(
     <StrictMode>
+      <AvisoActualizacionApp />
       {esDenuncia ? <DenunciaView /> : esTerreno ? <TerrenoView /> : <CensoView />}
     </StrictMode>,
   );
