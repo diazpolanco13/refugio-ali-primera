@@ -1,0 +1,1769 @@
+{
+    "type": "personas",
+    "mode": "single",
+    "data": {
+        "bioIdidentification": "d5ca02e1-5bfe-4927-a962-5508c521c8c6",
+        "createdAt": "2023-11-14T13:36:58.053Z",
+        "extensionDocuments": [],
+        "id": "fbc2e1ac-9a63-433b-a0a1-20067b456d46",
+        "identificationClasification": {
+            "createdAt": "2022-11-14T16:26:35.363Z",
+            "description": "Ciudadano Venezolano",
+            "id": "bb0dd5f6",
+            "name": "Venezolano",
+            "status": true
+        },
+        "identificationClasificationId": "bb0dd5f6",
+        "identificationDocuments": [
+            {
+                "cancellationReasonId": null,
+                "createdAt": "2023-11-14T13:36:58.097Z",
+                "dateOfExpirity": "2027-11-26",
+                "dateOfIssue": "2017-11-27",
+                "documentClasification": {
+                    "code": "N/A",
+                    "createdAt": "2021-07-13T14:37:19.327Z",
+                    "description": null,
+                    "documentTypeId": "da12015f",
+                    "id": "83f71f7e",
+                    "name": "C\u00e9dula venezolano",
+                    "status": false,
+                    "type": null
+                },
+                "documentClasificationId": "83f71f7e",
+                "documentNumber": "17089732",
+                "documentType": {
+                    "createdAt": "2021-07-13T14:37:16.217Z",
+                    "description": null,
+                    "id": "da12015f",
+                    "name": "C\u00e9dula",
+                    "status": true
+                },
+                "documentTypeId": "da12015f",
+                "id": "7e315b6b-af50-41af-9619-047c8f7e026c",
+                "idx": 23018077,
+                "legacyTransactionId": null,
+                "letter": "V",
+                "orgDateOfIssue": "2017-11-27",
+                "orgOfficeDescription": "Oficina Maracaibo I",
+                "orgOfficeId": "1257acb3",
+                "personIdentificationId": "fbc2e1ac-9a63-433b-a0a1-20067b456d46",
+                "serial": null,
+                "status": "VIGENTE"
+            }
+        ],
+        "identificationType": {
+            "createdAt": "2022-11-14T16:26:35.000Z",
+            "description": "Venezolano cedulado",
+            "id": "aa96bd7d",
+            "name": "Venezolano cedulado",
+            "status": true
+        },
+        "identificationTypeId": "aa96bd7d",
+        "identity": [
+            {
+                "age": 40,
+                "birthCertificate": {
+                    "ano": null,
+                    "book": null,
+                    "certifierNumber": null,
+                    "city": null,
+                    "cityId": null,
+                    "cityName": "MARACAIBO",
+                    "civilRegistryOffice": null,
+                    "civilRegistryOfficeId": null,
+                    "createdAt": "2023-11-14T13:36:58.863Z",
+                    "dataGroupValidityId": null,
+                    "dateBirth": "1985-09-13",
+                    "folio": null,
+                    "id": "5f652618-f928-404e-bebf-c8c3c06d8e4e",
+                    "identityId": "7e84f9df-8e06-4746-9ceb-32fb23104121",
+                    "idx": 8589142,
+                    "location": {
+                        "code": "VEN",
+                        "createdAt": "2021-08-24T20:10:14.543Z",
+                        "description": "Venezolana",
+                        "geographicType": "country",
+                        "id": "4f7ece10",
+                        "legacyCode": "VEN",
+                        "name": "Venezuela",
+                        "parent": null,
+                        "status": true
+                    },
+                    "locationId": "4f7ece10",
+                    "medicalCenterId": null,
+                    "modeBirth": null,
+                    "otherBirthPlaceAddress": null,
+                    "otherBirthPlaceDetail": null,
+                    "tome": null
+                },
+                "birthDate": "1985-09-13",
+                "civilState": {
+                    "createdAt": "2021-09-30T21:02:42.000Z",
+                    "description": null,
+                    "id": "ed1a08ec",
+                    "legacyCode": 1,
+                    "name": "Soltero",
+                    "status": true
+                },
+                "civilStateId": "ed1a08ec",
+                "country": null,
+                "countryId": null,
+                "createdAt": "2023-11-14T13:36:58.327Z",
+                "dataGroupValidityId": null,
+                "deathCertificate": null,
+                "documents": null,
+                "education": null,
+                "educationId": null,
+                "firstName": "Carlos",
+                "firstSurname": "Diaz",
+                "foreignIdentification": null,
+                "fullName": "Carlos Diaz",
+                "gender": "M",
+                "geographicId": "4f7ece10",
+                "id": "7e84f9df-8e06-4746-9ceb-32fb23104121",
+                "idx": 9828267,
+                "personIdentificationId": "fbc2e1ac-9a63-433b-a0a1-20067b456d46",
+                "profession": null,
+                "professionId": null,
+                "secondName": "Eduardo",
+                "secondSurname": "Polanco"
+            }
+        ],
+        "idx": 9944111,
+        "indigenousIdentification": null,
+        "isInclusion": false,
+        "legacyIdentifier": "FBCC2E516DDE0C36E030320A0B0A02E7",
+        "migrationIdentification": {
+            "createdAt": "2023-11-14T13:36:59.067Z",
+            "id": "e629240d-43b0-4d3e-8153-3dd45b7234c5",
+            "identificationTypeId": "aa96bd7d",
+            "legacyIdentifier": "FBCC2E516DDE0C36E030320A0B0A02E7",
+            "personIdentificationId": "fbc2e1ac-9a63-433b-a0a1-20067b456d46"
+        },
+        "objection": {
+            "createdAt": "2021-08-07T10:39:00.947Z",
+            "description": "C\u00e9dula sin problemas",
+            "id": "c24fcc47",
+            "name": "C\u00e9dula sin problemas",
+            "objectionLegacyCode": "99",
+            "objectionType": {
+                "createdAt": "2021-08-07T10:39:00.377Z",
+                "description": "C\u00e9dula sin problemas",
+                "id": "300a26c3",
+                "name": "C\u00e9dula sin problemas",
+                "objectionLegacyCode": "00",
+                "status": true
+            },
+            "status": true
+        },
+        "objectionId": "c24fcc47",
+        "objectionPersons": [],
+        "passportDocuments": [
+            {
+                "cancellationReason": null,
+                "cancellationReasonId": null,
+                "createdAt": "2023-11-14T13:37:00.303Z",
+                "dateOfExpirity": "2031-08-19",
+                "dateOfIssue": "2021-08-20",
+                "documentClasification": {
+                    "code": "P-V",
+                    "createdAt": "2022-12-01T18:35:06.810Z",
+                    "description": null,
+                    "documentTypeId": "431b50e5",
+                    "id": "7724c7eb",
+                    "name": "Pasaporte venezolano",
+                    "status": false,
+                    "type": null
+                },
+                "documentClasificationId": "7724c7eb",
+                "documentNumber": "160581526",
+                "documentType": {
+                    "createdAt": "2021-07-13T14:37:16.230Z",
+                    "description": null,
+                    "id": "431b50e5",
+                    "name": "Pasaporte",
+                    "status": true
+                },
+                "documentTypeId": "431b50e5",
+                "id": "d30dd1f9-3b3a-46bc-b5e9-e6d7964dd3f1",
+                "idx": 23018081,
+                "legacyTransactionId": "75F6D568C7CA4CFBB6A394FE5E216240",
+                "letter": null,
+                "orgDateOfIssue": null,
+                "orgOfficeDescription": null,
+                "orgOfficeId": null,
+                "personIdentificationId": "fbc2e1ac-9a63-433b-a0a1-20067b456d46",
+                "serial": null,
+                "status": "VIGENTE"
+            },
+            {
+                "cancellationReason": null,
+                "cancellationReasonId": null,
+                "createdAt": "2023-11-14T13:37:00.190Z",
+                "dateOfExpirity": "2019-04-29",
+                "dateOfIssue": "2014-04-30",
+                "documentClasification": {
+                    "code": "P-V",
+                    "createdAt": "2022-12-01T18:35:06.810Z",
+                    "description": null,
+                    "documentTypeId": "431b50e5",
+                    "id": "7724c7eb",
+                    "name": "Pasaporte venezolano",
+                    "status": false,
+                    "type": null
+                },
+                "documentClasificationId": "7724c7eb",
+                "documentNumber": "088370842",
+                "documentType": {
+                    "createdAt": "2021-07-13T14:37:16.230Z",
+                    "description": null,
+                    "id": "431b50e5",
+                    "name": "Pasaporte",
+                    "status": true
+                },
+                "documentTypeId": "431b50e5",
+                "id": "5efa86dd-eb34-48ae-80b0-e46ad68f4e4e",
+                "idx": 23018079,
+                "legacyTransactionId": "3A3F5E5C84364990BB77635690A30D49",
+                "letter": null,
+                "orgDateOfIssue": null,
+                "orgOfficeDescription": null,
+                "orgOfficeId": null,
+                "personIdentificationId": "fbc2e1ac-9a63-433b-a0a1-20067b456d46",
+                "serial": null,
+                "status": "ANULADO"
+            }
+        ],
+        "personalFeatures": null,
+        "photo": {
+            "comment": null,
+            "createdAt": "2023-11-14T13:37:01.813Z",
+            "id": "80f12546-d1fd-4946-9da5-8dc5bccf9200",
+            "idx": 17010048,
+            "imageTypeId": "4298e10a",
+            "isPrintable": true,
+            "personIdentificationId": "fbc2e1ac-9a63-433b-a0a1-20067b456d46",
+            "reasonNotSign": null
+        },
+        "photos": [
+            "V-17089732-186c1dea.jpg"
+        ],
+        "savedAt": "2026-07-10T02:26:09.000Z",
+        "synchronized": true,
+        "user": null,
+        "visaDocuments": [],
+        "primer_nombre": "Carlos",
+        "segundo_nombre": "Eduardo",
+        "primer_apellido": "Diaz",
+        "segundo_apellido": "Polanco",
+        "nombres": "Carlos Eduardo",
+        "apellidos": "Diaz Polanco",
+        "nombre_completo": "Carlos Eduardo Diaz Polanco",
+        "operationalProfiling": null,
+        "militaryData": {
+            "Anomalia": {},
+            "CIS": {
+                "Gasto": {
+                    "MedicinaAltoCosto": [],
+                    "TratamientoProlongado": []
+                },
+                "Investigacion": {
+                    "FeDeVida": []
+                },
+                "ServicioMedico": {
+                    "Programa": {
+                        "Apoyo": [],
+                        "CartaAval": [],
+                        "Reembolso": []
+                    }
+                }
+            },
+            "Componente": {
+                "abreviatura": "GN",
+                "descripcion": "GUARDIA NACIONAL BOLIVARIANA",
+                "nombre": ""
+            },
+            "Credito": {
+                "Prestamo": {}
+            },
+            "Familiar": [
+                {
+                    "FeDeVida": {
+                        "DatoBasico": {
+                            "Cedula": "",
+                            "Correo": {},
+                            "Direccion": {
+                                "apartamento": "",
+                                "calleavenida": "",
+                                "casa": ""
+                            },
+                            "NombreCompleto": "",
+                            "Parentesco": "",
+                            "Situacion": "",
+                            "Telefono": {}
+                        },
+                        "direccionex": "",
+                        "estatus": false,
+                        "fechacreacion": "0001-01-01T00:00:00.000Z",
+                        "fechaex": "0001-01-01T00:00:00.000Z",
+                        "idf": "",
+                        "numero": "",
+                        "paisex": "",
+                        "tipo": 0
+                    },
+                    "Persona": {
+                        "Correo": {},
+                        "DatoBasico": {
+                            "apellidoprimero": "DIAZ ",
+                            "apellidosegundo": "",
+                            "cedula": "4747532",
+                            "estadocivil": "",
+                            "fechadefuncion": "0001-01-01T00:00:00.000Z",
+                            "fechanacimiento": "1952-10-19T19:30:00-04:30",
+                            "nacionalidad": "V",
+                            "nombreprimero": "HERMES RAFAEL",
+                            "nombresegundo": "",
+                            "nropersona": 1024128,
+                            "sexo": "M"
+                        },
+                        "DatoFinanciero": [],
+                        "DatoFisico": {
+                            "peso": "",
+                            "talla": ""
+                        },
+                        "DatoFisionomico": {
+                            "colorcabello": "",
+                            "colorojos": "",
+                            "colorpiel": "",
+                            "estatura": 0,
+                            "gruposanguineo": "",
+                            "senaparticular": ""
+                        },
+                        "PartidaNacimiento": {
+                            "acta": "",
+                            "ano": "",
+                            "folio": "",
+                            "img": "",
+                            "libro": "",
+                            "registro": ""
+                        },
+                        "RedSocial": {},
+                        "Telefono": {}
+                    },
+                    "Tif": {
+                        "Componente": {
+                            "abreviatura": "",
+                            "descripcion": "",
+                            "nombre": ""
+                        },
+                        "Grado": {},
+                        "fechacreacion": "0001-01-01T00:00:00.000Z",
+                        "fechavencimiento": "0001-01-01T00:00:00.000Z",
+                        "id": "",
+                        "idf": "",
+                        "ip": "",
+                        "motivo": "",
+                        "usuario": ""
+                    },
+                    "adoptado": false,
+                    "beneficio": true,
+                    "condicion": 0,
+                    "condicionpago": "",
+                    "documento": 0,
+                    "documentopadre": "",
+                    "donante": "",
+                    "esmilitar": false,
+                    "estatuscarnet": 0,
+                    "estatuspension": false,
+                    "estudia": 0,
+                    "fechaafiliacion": "0001-01-01T00:00:00.000Z",
+                    "gruposanguineo": "",
+                    "historiamedica": "",
+                    "id": "",
+                    "parentesco": "PD",
+                    "razonpago": "",
+                    "situacionpago": "",
+                    "_saime": {
+                        "letter": "V",
+                        "cedula": "4747532",
+                        "rif": "V047475321",
+                        "primer_nombre": "Hermes",
+                        "segundo_nombre": "Rafael",
+                        "primer_apellido": "Diaz",
+                        "nombre_completo": "Hermes Diaz",
+                        "photos": [
+                            "V-4747532-eb7c1460.jpg"
+                        ]
+                    }
+                },
+                {
+                    "FeDeVida": {
+                        "DatoBasico": {
+                            "Cedula": "",
+                            "Correo": {},
+                            "Direccion": {
+                                "apartamento": "",
+                                "calleavenida": "",
+                                "casa": ""
+                            },
+                            "NombreCompleto": "",
+                            "Parentesco": "",
+                            "Situacion": "",
+                            "Telefono": {}
+                        },
+                        "direccionex": "",
+                        "estatus": false,
+                        "fechacreacion": "0001-01-01T00:00:00.000Z",
+                        "fechaex": "0001-01-01T00:00:00.000Z",
+                        "idf": "",
+                        "numero": "",
+                        "paisex": "",
+                        "tipo": 0
+                    },
+                    "Persona": {
+                        "Correo": {},
+                        "DatoBasico": {
+                            "apellidoprimero": "POLANCO  ",
+                            "apellidosegundo": "",
+                            "cedula": "7876551",
+                            "estadocivil": "",
+                            "fechadefuncion": "0001-01-01T00:00:00.000Z",
+                            "fechanacimiento": "1961-10-19T19:30:00-04:30",
+                            "nacionalidad": "V",
+                            "nombreprimero": "GAUDIS DEL CONSUELO",
+                            "nombresegundo": "",
+                            "nropersona": 1024129,
+                            "sexo": "F"
+                        },
+                        "DatoFinanciero": [],
+                        "DatoFisico": {
+                            "peso": "",
+                            "talla": ""
+                        },
+                        "DatoFisionomico": {
+                            "colorcabello": "",
+                            "colorojos": "",
+                            "colorpiel": "",
+                            "estatura": 0,
+                            "gruposanguineo": "",
+                            "senaparticular": ""
+                        },
+                        "PartidaNacimiento": {
+                            "acta": "",
+                            "ano": "",
+                            "folio": "",
+                            "img": "",
+                            "libro": "",
+                            "registro": ""
+                        },
+                        "RedSocial": {},
+                        "Telefono": {}
+                    },
+                    "Tif": {
+                        "Componente": {
+                            "abreviatura": "",
+                            "descripcion": "",
+                            "nombre": ""
+                        },
+                        "Grado": {},
+                        "fechacreacion": "0001-01-01T00:00:00.000Z",
+                        "fechavencimiento": "0001-01-01T00:00:00.000Z",
+                        "id": "",
+                        "idf": "",
+                        "ip": "",
+                        "motivo": "",
+                        "usuario": ""
+                    },
+                    "adoptado": false,
+                    "beneficio": true,
+                    "condicion": 0,
+                    "condicionpago": "",
+                    "documento": 0,
+                    "documentopadre": "",
+                    "donante": "",
+                    "esmilitar": false,
+                    "estatuscarnet": 0,
+                    "estatuspension": false,
+                    "estudia": 0,
+                    "fechaafiliacion": "0001-01-01T00:00:00.000Z",
+                    "gruposanguineo": "",
+                    "historiamedica": "",
+                    "id": "",
+                    "parentesco": "PD",
+                    "razonpago": "",
+                    "situacionpago": "",
+                    "_saime": {
+                        "letter": "V",
+                        "cedula": "7876551",
+                        "rif": "V078765514",
+                        "primer_nombre": "Gaudis",
+                        "segundo_nombre": "Del Consuelo",
+                        "primer_apellido": "Polanco",
+                        "segundo_apellido": "G",
+                        "nombre_completo": "Gaudis Polanco",
+                        "photos": [
+                            "V-7876551-6c34d656.jpg"
+                        ]
+                    }
+                }
+            ],
+            "Fideicomiso": {
+                "Componente": 4,
+                "cuentabancaria": "01020172100000008455",
+                "grado": 143,
+                "motivoparalizacion": "",
+                "numerohijos": 0
+            },
+            "Grado": {
+                "abreviatura": "TCNEL",
+                "descripcion": "TENIENTE CORONEL",
+                "nombre": "1400"
+            },
+            "HistorialMilitar": [
+                {
+                    "categoria": "EFE",
+                    "clase": "OFI",
+                    "componente": "GN",
+                    "dhistorica": "null",
+                    "dreconocido": "null",
+                    "fresuelto": "0001-01-01T00:00:00.000Z",
+                    "grado": "TTE",
+                    "gradoresuelto": "0000000",
+                    "nresuelto": "null",
+                    "numeroresuelto": "0",
+                    "posicion": "null",
+                    "razon": "X",
+                    "situacion": "ACT"
+                },
+                {
+                    "categoria": "EFE",
+                    "clase": "OFI",
+                    "componente": "GN",
+                    "dhistorica": "null",
+                    "dreconocido": "null",
+                    "fresuelto": "0001-01-01T00:00:00.000Z",
+                    "grado": "1ER TTE",
+                    "gradoresuelto": "018484",
+                    "nresuelto": "null",
+                    "numeroresuelto": "63",
+                    "posicion": "null",
+                    "razon": "CGR",
+                    "situacion": "ACT"
+                },
+                {
+                    "categoria": "EFE",
+                    "clase": "OFI",
+                    "componente": "GN",
+                    "dhistorica": "null",
+                    "dreconocido": "null",
+                    "fresuelto": "0001-01-01T00:00:00.000Z",
+                    "grado": "CAP",
+                    "gradoresuelto": "014714",
+                    "nresuelto": "null",
+                    "numeroresuelto": "37",
+                    "posicion": "null",
+                    "razon": "CGR",
+                    "situacion": "ACT"
+                }
+            ],
+            "Pension": {
+                "DatoFinanciero": {
+                    "autorizado": "",
+                    "cuenta": "",
+                    "institucion": "",
+                    "prioridad": "",
+                    "tipo": "",
+                    "titular": ""
+                },
+                "causal": "S",
+                "componente": "GN",
+                "grado": "TCNEL",
+                "pprestaciones": 63
+            },
+            "Persona": {
+                "Correo": {
+                    "principal": "DIAZPOLANCO13@GMAIL.COM"
+                },
+                "DatoBasico": {
+                    "apellidoprimero": "DIAZ POLANCO",
+                    "apellidosegundo": "",
+                    "cedula": "17089732",
+                    "estadocivil": "S",
+                    "fechadefuncion": "0001-01-01T00:00:00.000Z",
+                    "fechanacimiento": "1985-09-12T20:00:00-04:00",
+                    "nacionalidad": "V",
+                    "nombreprimero": "CARLOS EDUARDO",
+                    "nombresegundo": "",
+                    "nropersona": 1024116,
+                    "sexo": "M"
+                },
+                "DatoFinanciero": [
+                    {
+                        "autorizado": "",
+                        "cuenta": "",
+                        "institucion": "S",
+                        "prioridad": "",
+                        "tipo": "CA",
+                        "titular": ""
+                    }
+                ],
+                "DatoFisico": {
+                    "peso": "55",
+                    "talla": "s"
+                },
+                "DatoFisionomico": {
+                    "colorcabello": "NE",
+                    "colorojos": "MA",
+                    "colorpiel": "BL",
+                    "estatura": 1.72,
+                    "gruposanguineo": "O+",
+                    "senaparticular": ""
+                },
+                "Direccion": [
+                    {
+                        "apartamento": "",
+                        "calleavenida": "MACARACUAI",
+                        "casa": "SN",
+                        "ciudad": "S",
+                        "estado": "VE-M",
+                        "municipio": "EL HATILLO",
+                        "parroquia": "EL HATILLO"
+                    }
+                ],
+                "PartidaNacimiento": {
+                    "acta": "",
+                    "ano": "",
+                    "folio": "",
+                    "img": "",
+                    "libro": "",
+                    "registro": ""
+                },
+                "RedSocial": {},
+                "Telefono": {
+                    "domiciliario": "(0412) 931-70-99",
+                    "movil": "(0412) 931-70-99"
+                },
+                "foto": "foto.jpg"
+            },
+            "Tim": {
+                "Componente": {
+                    "abreviatura": "GN",
+                    "descripcion": "GUARDIA NACIONAL BOLIVARIANA",
+                    "nombre": ""
+                },
+                "Grado": {
+                    "abreviatura": "TCNEL",
+                    "descripcion": "TENIENTE CORONEL"
+                },
+                "apellido": "DIAZ POLANCO",
+                "estatus": 3,
+                "fechacreacion": "2025-10-22T10:23:20.608-04:00",
+                "fechavencimiento": "2032-10-21T20:00:00-04:00",
+                "id": "17089732",
+                "idf": "",
+                "ip": "192.168.14.47",
+                "motivo": "C",
+                "nombre": "CARLOS EDUARDO",
+                "serial": "CCS00493751",
+                "usuario": "CCS"
+            },
+            "appnomina": false,
+            "apppace": true,
+            "appsaman": true,
+            "areconocido": 0,
+            "categoria": "EFE",
+            "clase": "OFI",
+            "codigocomponente": "9732",
+            "dreconocido": 0,
+            "estatuscarnet": 3,
+            "fascenso": "2025-07-04T20:00:00-04:00",
+            "fingreso": "2008-07-04T19:30:00-04:30",
+            "fresuelto": "2025-06-30T20:00:00-04:00",
+            "fretiro": "0001-01-01T00:00:00.000Z",
+            "id": "17089732",
+            "mreconocido": 0,
+            "nresuelto": "060436",
+            "numerohistoria": "237980",
+            "pasearetiro": false,
+            "pespecial": 0,
+            "posicion": 13,
+            "pprof": 0,
+            "pxnoascenso": 0,
+            "related_images": [
+                {
+                    "id": "17089732",
+                    "image_type": "firma",
+                    "object_key": "military/17089732/firma_0936de59.webp",
+                    "content_hash": "0936de5995ddafcee503c772fc934c87",
+                    "uploaded_at": "2026-03-09T16:40:32.972208032Z"
+                },
+                {
+                    "id": "17089732",
+                    "image_type": "foto",
+                    "object_key": "military/17089732/foto_1625a588.webp",
+                    "content_hash": "1625a5881306219bc1490c4ab91519d0",
+                    "uploaded_at": "2026-03-09T16:40:33.087227486Z"
+                },
+                {
+                    "id": "17089732",
+                    "image_type": "huella",
+                    "object_key": "military/17089732/huella_4422c13e.webp",
+                    "content_hash": "4422c13e2824f60d61adaa5547443743",
+                    "uploaded_at": "2026-03-09T16:40:33.121079367Z"
+                },
+                {
+                    "id": "17089732",
+                    "image_type": "foto",
+                    "object_key": "military/17089732/ifoto_4b0dff73.webp",
+                    "content_hash": "4b0dff73cf7d55530409735f5d75fdba",
+                    "uploaded_at": "2026-03-09T16:40:33.255876375Z"
+                }
+            ],
+            "situacion": "ACT",
+            "situacionpago": "",
+            "tiemposervicio": "17A 8M 4D"
+        },
+        "militarData": {
+            "id": "0034c04b-c659-49a6-aadf-80ed69567153",
+            "createdAt": "2026-03-24T07:56:03.846Z",
+            "updatedAt": "2026-07-10T03:03:01.264Z",
+            "deletedAt": null,
+            "Persona": {
+                "foto": "foto.jpg",
+                "Correo": {
+                    "principal": "DIAZPOLANCO13@GMAIL.COM"
+                },
+                "Telefono": {
+                    "movil": "(0412) 931-70-99",
+                    "domiciliario": "(0412) 931-70-99"
+                },
+                "Direccion": [
+                    {
+                        "casa": "SN",
+                        "ciudad": "S",
+                        "estado": "VE-M",
+                        "municipio": "EL HATILLO",
+                        "parroquia": "EL HATILLO",
+                        "apartamento": "",
+                        "calleavenida": "MACARACUAI"
+                    }
+                ],
+                "RedSocial": {},
+                "DatoBasico": {
+                    "sexo": "M",
+                    "cedula": "17089732",
+                    "nropersona": 1024116,
+                    "estadocivil": "S",
+                    "nacionalidad": "V",
+                    "nombreprimero": "CARLOS EDUARDO",
+                    "nombresegundo": "",
+                    "fechadefuncion": "0001-01-01T00:00:00.000Z",
+                    "apellidoprimero": "DIAZ POLANCO",
+                    "apellidosegundo": "",
+                    "fechanacimiento": "1985-09-12T20:00:00-04:00"
+                },
+                "DatoFisico": {
+                    "peso": "55",
+                    "talla": "s"
+                },
+                "DatoFinanciero": [
+                    {
+                        "tipo": "CA",
+                        "cuenta": "",
+                        "titular": "",
+                        "prioridad": "",
+                        "autorizado": "",
+                        "institucion": "S"
+                    }
+                ],
+                "DatoFisionomico": {
+                    "estatura": 1.72,
+                    "colorojos": "MA",
+                    "colorpiel": "BL",
+                    "colorcabello": "NE",
+                    "gruposanguineo": "O+",
+                    "senaparticular": ""
+                },
+                "PartidaNacimiento": {
+                    "ano": "",
+                    "img": "",
+                    "acta": "",
+                    "folio": "",
+                    "libro": "",
+                    "registro": ""
+                }
+            },
+            "categoria": "EFE",
+            "situacion": "ACT",
+            "clase": "OFI",
+            "fingreso": "2008-07-05T00:00:00.000Z",
+            "fascenso": "2025-07-05T00:00:00.000Z",
+            "fretiro": "0001-01-01T00:00:00.000Z",
+            "areconocido": 0,
+            "mreconocido": 0,
+            "dreconocido": 0,
+            "pxnoascenso": 0,
+            "situacionpago": "",
+            "pprof": 0,
+            "pespecial": 0,
+            "nresuelto": "060436",
+            "fresuelto": "2025-07-01T00:00:00.000Z",
+            "posicion": 13,
+            "Componente": {
+                "nombre": "",
+                "abreviatura": "GN",
+                "descripcion": "GUARDIA NACIONAL BOLIVARIANA"
+            },
+            "Grado": {
+                "nombre": "1400",
+                "abreviatura": "TCNEL",
+                "descripcion": "TENIENTE CORONEL"
+            },
+            "Tim": {
+                "id": "17089732",
+                "ip": "192.168.14.47",
+                "idf": "",
+                "Grado": {
+                    "abreviatura": "TCNEL",
+                    "descripcion": "TENIENTE CORONEL"
+                },
+                "motivo": "C",
+                "nombre": "CARLOS EDUARDO",
+                "serial": "CCS00493751",
+                "estatus": 3,
+                "usuario": "CCS",
+                "apellido": "DIAZ POLANCO",
+                "Componente": {
+                    "nombre": "",
+                    "abreviatura": "GN",
+                    "descripcion": "GUARDIA NACIONAL BOLIVARIANA"
+                },
+                "fechacreacion": "2025-10-22T10:23:20.608-04:00",
+                "fechavencimiento": "2032-10-21T20:00:00-04:00"
+            },
+            "Familiar": [
+                {
+                    "id": "",
+                    "Tif": {
+                        "id": "",
+                        "ip": "",
+                        "idf": "",
+                        "Grado": {},
+                        "motivo": "",
+                        "usuario": "",
+                        "Componente": {
+                            "nombre": "",
+                            "abreviatura": "",
+                            "descripcion": ""
+                        },
+                        "fechacreacion": "0001-01-01T00:00:00.000Z",
+                        "fechavencimiento": "0001-01-01T00:00:00.000Z"
+                    },
+                    "Persona": {
+                        "Correo": {},
+                        "Telefono": {},
+                        "RedSocial": {},
+                        "DatoBasico": {
+                            "sexo": "M",
+                            "cedula": "4747532",
+                            "nropersona": 1024128,
+                            "estadocivil": "",
+                            "nacionalidad": "V",
+                            "nombreprimero": "HERMES RAFAEL",
+                            "nombresegundo": "",
+                            "fechadefuncion": "0001-01-01T00:00:00.000Z",
+                            "apellidoprimero": "DIAZ ",
+                            "apellidosegundo": "",
+                            "fechanacimiento": "1952-10-19T19:30:00-04:30"
+                        },
+                        "DatoFisico": {
+                            "peso": "",
+                            "talla": ""
+                        },
+                        "DatoFinanciero": [],
+                        "DatoFisionomico": {
+                            "estatura": 0,
+                            "colorojos": "",
+                            "colorpiel": "",
+                            "colorcabello": "",
+                            "gruposanguineo": "",
+                            "senaparticular": ""
+                        },
+                        "PartidaNacimiento": {
+                            "ano": "",
+                            "img": "",
+                            "acta": "",
+                            "folio": "",
+                            "libro": "",
+                            "registro": ""
+                        }
+                    },
+                    "donante": "",
+                    "estudia": 0,
+                    "FeDeVida": {
+                        "idf": "",
+                        "tipo": 0,
+                        "numero": "",
+                        "paisex": "",
+                        "estatus": false,
+                        "fechaex": "0001-01-01T00:00:00.000Z",
+                        "DatoBasico": {
+                            "Cedula": "",
+                            "Correo": {},
+                            "Telefono": {},
+                            "Direccion": {
+                                "casa": "",
+                                "apartamento": "",
+                                "calleavenida": ""
+                            },
+                            "Situacion": "",
+                            "Parentesco": "",
+                            "NombreCompleto": ""
+                        },
+                        "direccionex": "",
+                        "fechacreacion": "0001-01-01T00:00:00.000Z"
+                    },
+                    "adoptado": false,
+                    "beneficio": true,
+                    "condicion": 0,
+                    "documento": 0,
+                    "esmilitar": false,
+                    "razonpago": "",
+                    "parentesco": "PD",
+                    "condicionpago": "",
+                    "estatuscarnet": 0,
+                    "situacionpago": "",
+                    "documentopadre": "",
+                    "estatuspension": false,
+                    "gruposanguineo": "",
+                    "historiamedica": "",
+                    "fechaafiliacion": "0001-01-01T00:00:00.000Z"
+                },
+                {
+                    "id": "",
+                    "Tif": {
+                        "id": "",
+                        "ip": "",
+                        "idf": "",
+                        "Grado": {},
+                        "motivo": "",
+                        "usuario": "",
+                        "Componente": {
+                            "nombre": "",
+                            "abreviatura": "",
+                            "descripcion": ""
+                        },
+                        "fechacreacion": "0001-01-01T00:00:00.000Z",
+                        "fechavencimiento": "0001-01-01T00:00:00.000Z"
+                    },
+                    "Persona": {
+                        "Correo": {},
+                        "Telefono": {},
+                        "RedSocial": {},
+                        "DatoBasico": {
+                            "sexo": "F",
+                            "cedula": "7876551",
+                            "nropersona": 1024129,
+                            "estadocivil": "",
+                            "nacionalidad": "V",
+                            "nombreprimero": "GAUDIS DEL CONSUELO",
+                            "nombresegundo": "",
+                            "fechadefuncion": "0001-01-01T00:00:00.000Z",
+                            "apellidoprimero": "POLANCO  ",
+                            "apellidosegundo": "",
+                            "fechanacimiento": "1961-10-19T19:30:00-04:30"
+                        },
+                        "DatoFisico": {
+                            "peso": "",
+                            "talla": ""
+                        },
+                        "DatoFinanciero": [],
+                        "DatoFisionomico": {
+                            "estatura": 0,
+                            "colorojos": "",
+                            "colorpiel": "",
+                            "colorcabello": "",
+                            "gruposanguineo": "",
+                            "senaparticular": ""
+                        },
+                        "PartidaNacimiento": {
+                            "ano": "",
+                            "img": "",
+                            "acta": "",
+                            "folio": "",
+                            "libro": "",
+                            "registro": ""
+                        }
+                    },
+                    "donante": "",
+                    "estudia": 0,
+                    "FeDeVida": {
+                        "idf": "",
+                        "tipo": 0,
+                        "numero": "",
+                        "paisex": "",
+                        "estatus": false,
+                        "fechaex": "0001-01-01T00:00:00.000Z",
+                        "DatoBasico": {
+                            "Cedula": "",
+                            "Correo": {},
+                            "Telefono": {},
+                            "Direccion": {
+                                "casa": "",
+                                "apartamento": "",
+                                "calleavenida": ""
+                            },
+                            "Situacion": "",
+                            "Parentesco": "",
+                            "NombreCompleto": ""
+                        },
+                        "direccionex": "",
+                        "fechacreacion": "0001-01-01T00:00:00.000Z"
+                    },
+                    "adoptado": false,
+                    "beneficio": true,
+                    "condicion": 0,
+                    "documento": 0,
+                    "esmilitar": false,
+                    "razonpago": "",
+                    "parentesco": "PD",
+                    "condicionpago": "",
+                    "estatuscarnet": 0,
+                    "situacionpago": "",
+                    "documentopadre": "",
+                    "estatuspension": false,
+                    "gruposanguineo": "",
+                    "historiamedica": "",
+                    "fechaafiliacion": "0001-01-01T00:00:00.000Z"
+                }
+            ],
+            "HistorialMilitar": [
+                {
+                    "clase": "OFI",
+                    "grado": "TTE",
+                    "razon": "X",
+                    "posicion": "null",
+                    "categoria": "EFE",
+                    "fresuelto": "0001-01-01T00:00:00.000Z",
+                    "nresuelto": "null",
+                    "situacion": "ACT",
+                    "componente": "GN",
+                    "dhistorica": "null",
+                    "dreconocido": "null",
+                    "gradoresuelto": "0000000",
+                    "numeroresuelto": "0"
+                },
+                {
+                    "clase": "OFI",
+                    "grado": "1ER TTE",
+                    "razon": "CGR",
+                    "posicion": "null",
+                    "categoria": "EFE",
+                    "fresuelto": "0001-01-01T00:00:00.000Z",
+                    "nresuelto": "null",
+                    "situacion": "ACT",
+                    "componente": "GN",
+                    "dhistorica": "null",
+                    "dreconocido": "null",
+                    "gradoresuelto": "018484",
+                    "numeroresuelto": "63"
+                },
+                {
+                    "clase": "OFI",
+                    "grado": "CAP",
+                    "razon": "CGR",
+                    "posicion": "null",
+                    "categoria": "EFE",
+                    "fresuelto": "0001-01-01T00:00:00.000Z",
+                    "nresuelto": "null",
+                    "situacion": "ACT",
+                    "componente": "GN",
+                    "dhistorica": "null",
+                    "dreconocido": "null",
+                    "gradoresuelto": "014714",
+                    "numeroresuelto": "37"
+                }
+            ],
+            "appsaman": true,
+            "apppace": true,
+            "appnomina": false,
+            "tiemposervicio": "17A 8M 4D",
+            "Pension": {
+                "grado": "TCNEL",
+                "causal": "S",
+                "componente": "GN",
+                "pprestaciones": 63,
+                "DatoFinanciero": {
+                    "tipo": "",
+                    "cuenta": "",
+                    "titular": "",
+                    "prioridad": "",
+                    "autorizado": "",
+                    "institucion": ""
+                }
+            },
+            "Fideicomiso": {
+                "grado": 143,
+                "Componente": 4,
+                "numerohijos": 0,
+                "cuentabancaria": "01020172100000008455",
+                "motivoparalizacion": ""
+            },
+            "Anomalia": {},
+            "codigocomponente": "9732",
+            "numerohistoria": "237980",
+            "estatuscarnet": 3,
+            "pasearetiro": false,
+            "CIS": {
+                "Gasto": {
+                    "MedicinaAltoCosto": [],
+                    "TratamientoProlongado": []
+                },
+                "Investigacion": {
+                    "FeDeVida": []
+                },
+                "ServicioMedico": {
+                    "Programa": {
+                        "Apoyo": [],
+                        "CartaAval": [],
+                        "Reembolso": []
+                    }
+                }
+            },
+            "Credito": {
+                "Prestamo": {}
+            },
+            "related_images": [
+                {
+                    "id": "17089732",
+                    "image_type": "firma",
+                    "object_key": "military/17089732/firma_0936de59.webp",
+                    "uploaded_at": "2026-03-09T16:40:32.972208032Z",
+                    "content_hash": "0936de5995ddafcee503c772fc934c87"
+                },
+                {
+                    "id": "17089732",
+                    "image_type": "foto",
+                    "object_key": "military/17089732/foto_1625a588.webp",
+                    "uploaded_at": "2026-03-09T16:40:33.087227486Z",
+                    "content_hash": "1625a5881306219bc1490c4ab91519d0"
+                },
+                {
+                    "id": "17089732",
+                    "image_type": "huella",
+                    "object_key": "military/17089732/huella_4422c13e.webp",
+                    "uploaded_at": "2026-03-09T16:40:33.121079367Z",
+                    "content_hash": "4422c13e2824f60d61adaa5547443743"
+                },
+                {
+                    "id": "17089732",
+                    "image_type": "foto",
+                    "object_key": "military/17089732/ifoto_4b0dff73.webp",
+                    "uploaded_at": "2026-03-09T16:40:33.255876375Z",
+                    "content_hash": "4b0dff73cf7d55530409735f5d75fdba"
+                }
+            ],
+            "createdBy": null,
+            "updatedBy": null,
+            "deletedBy": null
+        },
+        "migratorios": [],
+        "sipolnab": null,
+        "fiscalData": {
+            "id": "0361ba64-9a0c-4559-b82e-a106f0662e67",
+            "createdAt": "2026-03-24T07:56:03.846Z",
+            "updatedAt": "2026-03-24T07:56:03.846Z",
+            "deletedAt": null,
+            "rif": "V170897320",
+            "rifLetter": "V",
+            "cedula": "17089732",
+            "razonSocial": "DIAZ POLANCO, CARLOS EDUARDO",
+            "apellidos": "DIAZ POLANCO",
+            "nombres": "CARLOS EDUARDO",
+            "correo": "DIAZPOLANCO13@GMAIL.COM",
+            "tipoPersona": "PERSONA NATURAL VENEZOLANO",
+            "fechaNacimiento": null,
+            "estadoCivil": "SOLTERO",
+            "fechaConstitucion": null,
+            "telefonos": "0212-9885601, 0412-9317099",
+            "estado": "MIRANDA",
+            "municipio": "EL HATILLO",
+            "parroquia": "EL HATILLO",
+            "direccion": "AVENIDA PRINCIPAL DE MACARACUAY, URBANIZACION EL ENCANTADO HUMBOLDT, EDIFICIO TORRE J PISO  10, APARTAMENTO 7, BAJANDO POR HIDROCAPITAL DE MACARACUAY",
+            "dependencia": "GERENCIA REGIONAL DE TRIBUTOS INTERNOS REGI\u00d3N CAPITAL",
+            "source": "CONTRIBUYENTE",
+            "sourceRecordId": "f115082a-bd16-4535-96e7-ead1bf1f24c4",
+            "validFrom": "2026-03-09T16:40:33.487Z",
+            "validTo": null,
+            "isCurrent": true,
+            "rawPayload": {
+                "id": "f115082a-bd16-4535-96e7-ead1bf1f24c4",
+                "rif": "V170897320",
+                "letra": "V",
+                "cedula": "17089732",
+                "correo": "DIAZPOLANCO13@GMAIL.COM",
+                "estado": "MIRANDA",
+                "nombres": "CARLOS EDUARDO",
+                "apellidos": "DIAZ POLANCO",
+                "direccion": "AVENIDA PRINCIPAL DE MACARACUAY, URBANIZACION EL ENCANTADO HUMBOLDT, EDIFICIO TORRE J PISO  10, APARTAMENTO 7, BAJANDO POR HIDROCAPITAL DE MACARACUAY",
+                "municipio": "EL HATILLO",
+                "parroquia": "EL HATILLO",
+                "telefonos": "0212-9885601, 0412-9317099",
+                "dependencia": "GERENCIA REGIONAL DE TRIBUTOS INTERNOS REGI\u00d3N CAPITAL",
+                "estadoCivil": "SOLTERO",
+                "razonSocial": "DIAZ POLANCO, CARLOS EDUARDO",
+                "tipoPersona": "PERSONA NATURAL VENEZOLANO",
+                "aggregatedAt": "2026-03-09T16:40:33.487Z",
+                "aggregatedBy": "FiscalDataAggregatorService",
+                "fechaNacimiento": null,
+                "fechaConstitucion": null
+            },
+            "createdBy": null,
+            "updatedBy": null,
+            "deletedBy": null
+        },
+        "fiscalHistory": [
+            {
+                "id": "0361ba64-9a0c-4559-b82e-a106f0662e67",
+                "createdAt": "2026-03-24T07:56:03.846Z",
+                "updatedAt": "2026-03-24T07:56:03.846Z",
+                "deletedAt": null,
+                "rif": "V170897320",
+                "rifLetter": "V",
+                "cedula": "17089732",
+                "razonSocial": "DIAZ POLANCO, CARLOS EDUARDO",
+                "apellidos": "DIAZ POLANCO",
+                "nombres": "CARLOS EDUARDO",
+                "correo": "DIAZPOLANCO13@GMAIL.COM",
+                "tipoPersona": "PERSONA NATURAL VENEZOLANO",
+                "fechaNacimiento": null,
+                "estadoCivil": "SOLTERO",
+                "fechaConstitucion": null,
+                "telefonos": "0212-9885601, 0412-9317099",
+                "estado": "MIRANDA",
+                "municipio": "EL HATILLO",
+                "parroquia": "EL HATILLO",
+                "direccion": "AVENIDA PRINCIPAL DE MACARACUAY, URBANIZACION EL ENCANTADO HUMBOLDT, EDIFICIO TORRE J PISO  10, APARTAMENTO 7, BAJANDO POR HIDROCAPITAL DE MACARACUAY",
+                "dependencia": "GERENCIA REGIONAL DE TRIBUTOS INTERNOS REGI\u00d3N CAPITAL",
+                "source": "CONTRIBUYENTE",
+                "sourceRecordId": "f115082a-bd16-4535-96e7-ead1bf1f24c4",
+                "validFrom": "2026-03-09T16:40:33.487Z",
+                "validTo": null,
+                "isCurrent": true,
+                "rawPayload": {
+                    "id": "f115082a-bd16-4535-96e7-ead1bf1f24c4",
+                    "rif": "V170897320",
+                    "letra": "V",
+                    "cedula": "17089732",
+                    "correo": "DIAZPOLANCO13@GMAIL.COM",
+                    "estado": "MIRANDA",
+                    "nombres": "CARLOS EDUARDO",
+                    "apellidos": "DIAZ POLANCO",
+                    "direccion": "AVENIDA PRINCIPAL DE MACARACUAY, URBANIZACION EL ENCANTADO HUMBOLDT, EDIFICIO TORRE J PISO  10, APARTAMENTO 7, BAJANDO POR HIDROCAPITAL DE MACARACUAY",
+                    "municipio": "EL HATILLO",
+                    "parroquia": "EL HATILLO",
+                    "telefonos": "0212-9885601, 0412-9317099",
+                    "dependencia": "GERENCIA REGIONAL DE TRIBUTOS INTERNOS REGI\u00d3N CAPITAL",
+                    "estadoCivil": "SOLTERO",
+                    "razonSocial": "DIAZ POLANCO, CARLOS EDUARDO",
+                    "tipoPersona": "PERSONA NATURAL VENEZOLANO",
+                    "aggregatedAt": "2026-03-09T16:40:33.487Z",
+                    "aggregatedBy": "FiscalDataAggregatorService",
+                    "fechaNacimiento": null,
+                    "fechaConstitucion": null
+                },
+                "createdBy": null,
+                "updatedBy": null,
+                "deletedBy": null
+            }
+        ],
+        "relationsData": null,
+        "photoPersons": [
+            {
+                "id": "bbd2b3cf-d6f4-431b-a07a-969b7b647f8d",
+                "fuente": "SAIME",
+                "calidadFuente": "A1",
+                "createdAt": "2026-03-24T07:56:03.846Z",
+                "updatedAt": "2026-03-24T07:56:03.846Z",
+                "createdBy": null,
+                "updatedBy": null,
+                "photo": {
+                    "id": "a7de2ca1-fbcb-4a18-98be-3281abbc0309",
+                    "url": "V-17089732-186c1dea.jpg",
+                    "type": "PROFILE",
+                    "name": "SAIME-80f12546-d1fd-4946-9da5-8dc5bccf9200",
+                    "description": "Foto de identificaci\u00f3n de SAIME",
+                    "createdAt": "2026-03-24T07:56:03.846Z",
+                    "updatedAt": "2026-03-24T07:56:03.846Z",
+                    "createdBy": null,
+                    "updatedBy": null
+                }
+            }
+        ],
+        "onfaloId": "aa9048ee-4440-47e7-8873-f2421ca21b53",
+        "hasRecimEntry": false,
+        "cedula": "17089732",
+        "cedulaLetter": "V",
+        "sb2": null,
+        "criminalData": null,
+        "politicalData": null,
+        "repatriados": [],
+        "dataTelecom": {
+            "id": "1c99ba7b-e1d0-4938-bba5-3284c18f576f",
+            "suscriptorPhones": [],
+            "relationPhones": []
+        },
+        "prohibitions": [
+            {
+                "id": "c82ed933-5c09-4579-aad7-8789cee97f3d",
+                "createdAt": "2026-03-24T07:56:03.846Z",
+                "updatedAt": "2026-07-10T03:03:01.245Z",
+                "deletedAt": null,
+                "prohibitionId": "d866f5a9-18a0-4774-bd52-59af4fa2d03a",
+                "startDate": "2024-04-11",
+                "endDate": null,
+                "prohibitionTypeId": "79cd6278",
+                "migrationIdentificationId": "e629240d-43b0-4d3e-8153-3dd45b7234c5",
+                "legacyCode": null,
+                "havePermission": false,
+                "status": true,
+                "prohibitionType": {
+                    "id": "79cd6278",
+                    "code": 10,
+                    "name": "Militar Activo",
+                    "status": true,
+                    "createdAt": "2022-09-22T18:57:54.947Z",
+                    "description": null
+                },
+                "lastCheckedAt": "2026-07-10T03:03:01.289Z",
+                "isActive": true,
+                "reason": "Militar Activo",
+                "officialDocumentNumber": "00",
+                "observation": "Militar Activo",
+                "securityAgencyId": "56cc3028-45c3-4ec2-a487-adb210c96629",
+                "firstName": "Carlos",
+                "firstSurname": "Diaz",
+                "secondName": "Eduardo",
+                "secondSurname": "Polanco",
+                "geographicId": "4f7ece10",
+                "documentId": "7e315b6b-af50-41af-9619-047c8f7e026c",
+                "letter": "V",
+                "documentNumber": "17089732",
+                "serial": null,
+                "documentTypeId": "da12015f",
+                "documentClasificationId": "83f71f7e",
+                "documentGeographicId": "4f7ece10",
+                "civilStateId": "ed1a08ec",
+                "gender": "M",
+                "birthDate": "1985-09-13",
+                "isPermission": false,
+                "userId": null,
+                "type": "Imputaci\u00f3n",
+                "securityAgency": {
+                    "id": "56cc3028-45c3-4ec2-a487-adb210c96629",
+                    "name": "MILITAR ACTIVO",
+                    "status": true,
+                    "legacyId": "540246",
+                    "courtType": null,
+                    "createdAt": "2023-03-12T19:16:37.387Z",
+                    "circuitName": null,
+                    "securityAgencyTypeId": "487ed32a"
+                },
+                "user": null,
+                "createdBy": null,
+                "updatedBy": null,
+                "deletedBy": null
+            }
+        ],
+        "policeData": null,
+        "ivssData": [],
+        "nominaRecords": [],
+        "pioData": null,
+        "orgMemberships": [],
+        "politicalPartyMemberships": [],
+        "gacetaData": {
+            "cargoHistory": [],
+            "hasGacetaRecords": false,
+            "acts": []
+        },
+        "cargoActual": null,
+        "ultimoCargoConocido": null,
+        "organismoActual": null,
+        "vehicles": [],
+        "fiscalRelations": [
+            {
+                "type": "MADRE",
+                "targetNode": {
+                    "id": "V078765514",
+                    "label": "PersonaLightweight",
+                    "letter": "V",
+                    "cedula": "7876551",
+                    "nombre": "Gaudis Polanco",
+                    "photoUrl": "V-7876551-6c34d656.jpg"
+                },
+                "properties": {
+                    "createdAt": {
+                        "year": {
+                            "low": 2026,
+                            "high": 0
+                        },
+                        "month": {
+                            "low": 7,
+                            "high": 0
+                        },
+                        "day": {
+                            "low": 10,
+                            "high": 0
+                        },
+                        "hour": {
+                            "low": 3,
+                            "high": 0
+                        },
+                        "minute": {
+                            "low": 3,
+                            "high": 0
+                        },
+                        "second": {
+                            "low": 2,
+                            "high": 0
+                        },
+                        "nanosecond": {
+                            "low": 298000000,
+                            "high": 0
+                        },
+                        "timeZoneOffsetSeconds": {
+                            "low": 0,
+                            "high": 0
+                        }
+                    },
+                    "relationshipType": "MADRE",
+                    "parentescoCode": "PD",
+                    "source": "ipsfa",
+                    "updatedAt": {
+                        "year": {
+                            "low": 2026,
+                            "high": 0
+                        },
+                        "month": {
+                            "low": 7,
+                            "high": 0
+                        },
+                        "day": {
+                            "low": 10,
+                            "high": 0
+                        },
+                        "hour": {
+                            "low": 3,
+                            "high": 0
+                        },
+                        "minute": {
+                            "low": 3,
+                            "high": 0
+                        },
+                        "second": {
+                            "low": 2,
+                            "high": 0
+                        },
+                        "nanosecond": {
+                            "low": 298000000,
+                            "high": 0
+                        },
+                        "timeZoneOffsetSeconds": {
+                            "low": 0,
+                            "high": 0
+                        }
+                    },
+                    "direction": "outgoing"
+                }
+            },
+            {
+                "type": "MADRE",
+                "targetNode": {
+                    "id": "V047475321",
+                    "label": "PersonaLightweight",
+                    "letter": "V",
+                    "cedula": "4747532",
+                    "nombre": "Hermes Diaz",
+                    "photoUrl": "V-4747532-eb7c1460.jpg"
+                },
+                "properties": {
+                    "createdAt": {
+                        "year": {
+                            "low": 2026,
+                            "high": 0
+                        },
+                        "month": {
+                            "low": 7,
+                            "high": 0
+                        },
+                        "day": {
+                            "low": 10,
+                            "high": 0
+                        },
+                        "hour": {
+                            "low": 3,
+                            "high": 0
+                        },
+                        "minute": {
+                            "low": 3,
+                            "high": 0
+                        },
+                        "second": {
+                            "low": 2,
+                            "high": 0
+                        },
+                        "nanosecond": {
+                            "low": 34000000,
+                            "high": 0
+                        },
+                        "timeZoneOffsetSeconds": {
+                            "low": 0,
+                            "high": 0
+                        }
+                    },
+                    "relationshipType": "MADRE",
+                    "parentescoCode": "PD",
+                    "source": "ipsfa",
+                    "updatedAt": {
+                        "year": {
+                            "low": 2026,
+                            "high": 0
+                        },
+                        "month": {
+                            "low": 7,
+                            "high": 0
+                        },
+                        "day": {
+                            "low": 10,
+                            "high": 0
+                        },
+                        "hour": {
+                            "low": 3,
+                            "high": 0
+                        },
+                        "minute": {
+                            "low": 3,
+                            "high": 0
+                        },
+                        "second": {
+                            "low": 2,
+                            "high": 0
+                        },
+                        "nanosecond": {
+                            "low": 34000000,
+                            "high": 0
+                        },
+                        "timeZoneOffsetSeconds": {
+                            "low": 0,
+                            "high": 0
+                        }
+                    },
+                    "direction": "outgoing"
+                }
+            },
+            {
+                "type": "SOCIO",
+                "targetNode": {
+                    "id": "J501373337",
+                    "label": "EntidadJuridica",
+                    "rif": "J501373337",
+                    "razonSocial": "APIDEVELOPER, C.A.,"
+                },
+                "properties": {
+                    "createdAt": {
+                        "year": {
+                            "low": 2026,
+                            "high": 0
+                        },
+                        "month": {
+                            "low": 3,
+                            "high": 0
+                        },
+                        "day": {
+                            "low": 9,
+                            "high": 0
+                        },
+                        "hour": {
+                            "low": 16,
+                            "high": 0
+                        },
+                        "minute": {
+                            "low": 40,
+                            "high": 0
+                        },
+                        "second": {
+                            "low": 33,
+                            "high": 0
+                        },
+                        "nanosecond": {
+                            "low": 808000000,
+                            "high": 0
+                        },
+                        "timeZoneOffsetSeconds": {
+                            "low": 0,
+                            "high": 0
+                        }
+                    },
+                    "razonSocial": "APIDEVELOPER, C.A.,",
+                    "relationshipType": "SOCIO",
+                    "source": "contribuyente_relations",
+                    "rifRelacion": "J501373337",
+                    "updatedAt": {
+                        "year": {
+                            "low": 2026,
+                            "high": 0
+                        },
+                        "month": {
+                            "low": 7,
+                            "high": 0
+                        },
+                        "day": {
+                            "low": 10,
+                            "high": 0
+                        },
+                        "hour": {
+                            "low": 3,
+                            "high": 0
+                        },
+                        "minute": {
+                            "low": 3,
+                            "high": 0
+                        },
+                        "second": {
+                            "low": 1,
+                            "high": 0
+                        },
+                        "nanosecond": {
+                            "low": 675000000,
+                            "high": 0
+                        },
+                        "timeZoneOffsetSeconds": {
+                            "low": 0,
+                            "high": 0
+                        }
+                    },
+                    "direction": "outgoing"
+                }
+            },
+            {
+                "type": "DIRECTIVO",
+                "targetNode": {
+                    "id": "J501373337",
+                    "label": "EntidadJuridica",
+                    "rif": "J501373337",
+                    "razonSocial": "APIDEVELOPER, C.A.,"
+                },
+                "properties": {
+                    "createdAt": {
+                        "year": {
+                            "low": 2026,
+                            "high": 0
+                        },
+                        "month": {
+                            "low": 3,
+                            "high": 0
+                        },
+                        "day": {
+                            "low": 9,
+                            "high": 0
+                        },
+                        "hour": {
+                            "low": 16,
+                            "high": 0
+                        },
+                        "minute": {
+                            "low": 40,
+                            "high": 0
+                        },
+                        "second": {
+                            "low": 33,
+                            "high": 0
+                        },
+                        "nanosecond": {
+                            "low": 751000000,
+                            "high": 0
+                        },
+                        "timeZoneOffsetSeconds": {
+                            "low": 0,
+                            "high": 0
+                        }
+                    },
+                    "razonSocial": "APIDEVELOPER, C.A.,",
+                    "relationshipType": "DIRECTIVO",
+                    "source": "contribuyente_relations",
+                    "rifRelacion": "J501373337",
+                    "updatedAt": {
+                        "year": {
+                            "low": 2026,
+                            "high": 0
+                        },
+                        "month": {
+                            "low": 7,
+                            "high": 0
+                        },
+                        "day": {
+                            "low": 10,
+                            "high": 0
+                        },
+                        "hour": {
+                            "low": 3,
+                            "high": 0
+                        },
+                        "minute": {
+                            "low": 3,
+                            "high": 0
+                        },
+                        "second": {
+                            "low": 1,
+                            "high": 0
+                        },
+                        "nanosecond": {
+                            "low": 443000000,
+                            "high": 0
+                        },
+                        "timeZoneOffsetSeconds": {
+                            "low": 0,
+                            "high": 0
+                        }
+                    },
+                    "direction": "outgoing"
+                }
+            }
+        ],
+        "companiesWithPartners": [
+            {
+                "rif": "J501373337",
+                "razonSocial": "APIDEVELOPER, C.A.,",
+                "tipoRelacion": "SOCIO, DIRECTIVO",
+                "partners": [
+                    {
+                        "rif": "V188148146",
+                        "letter": "V",
+                        "cedula": "18814814",
+                        "nombre": "Luis Diaz",
+                        "photos": [
+                            "V-18814814-1948d648.jpg"
+                        ],
+                        "tipoRelacion": "COMISARIO",
+                        "isLightweight": true,
+                        "photoUrl": "V-18814814-1948d648.jpg"
+                    },
+                    {
+                        "rif": "V194774075",
+                        "letter": "V",
+                        "cedula": "19477407",
+                        "nombre": "Jhon Habacuc Chavez Garcia",
+                        "photos": [
+                            "V-19477407-7c1f0316.jpg"
+                        ],
+                        "tipoRelacion": "REPRESENTANTE LEGAL, SOCIO, DIRECTIVO",
+                        "isLightweight": false,
+                        "personId": "ed801377-f895-4c0d-92c1-a183b8691d64",
+                        "photoUrl": "V-19477407-7c1f0316.jpg"
+                    }
+                ]
+            }
+        ]
+    }
+}

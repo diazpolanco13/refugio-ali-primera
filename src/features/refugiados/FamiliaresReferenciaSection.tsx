@@ -135,6 +135,7 @@ export function FamiliaresReferenciaSection({ detalle, puedeEditar }: Props) {
                         <SelectItem value="separado">Separado</SelectItem>
                         <SelectItem value="desaparecido">Desaparecido</SelectItem>
                         <SelectItem value="contacto_perdido">Contacto perdido</SelectItem>
+                        <SelectItem value="fallecido">Fallecido</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -216,6 +216,132 @@ export async function crearRefugiado(
   return id;
 }
 
+export interface ResultadoUpsertRefugiado {
+  id: string;
+  creado: boolean;
+}
+
+/**
+ * Encuentra o crea la identidad de una persona por cédula en una sola
+ * llamada atómica (RPC `SECURITY DEFINER`). La RLS de `refugiados` oculta a
+ * supervisor/operador cualquier persona que no crearon ellos mismos ni está
+ * alojada en su propio centro (blindaje_lectura_refugiados); un buscar+crear
+ * hecho en el cliente choca con `refugiados_cedula_norm_uq` en cuanto la
+ * persona ya existe pero es invisible para esa sesión. La RPC resuelve el
+ * find-or-create del lado del servidor, sin ese punto ciego.
+ */
+export async function upsertRefugiadoIdentidad(
+  datos: DatosPersonalesRefugiado,
+  centroId?: string,
+): Promise<ResultadoUpsertRefugiado> {
+  let cedula: string | null = null;
+  let cedula_norm: string | null = null;
+  let tipo_doc: TipoDoc | null = datos.tipo_doc ?? null;
+  if (datos.cedula) {
+    const norm = normalizarCedula(datos.cedula, datos.tipo_doc ?? "V");
+    cedula = norm.cedula;
+    cedula_norm = norm.cedula_norm;
+    tipo_doc = norm.tipo_doc;
+  }
+  const { data, error } = await supabase.rpc("upsert_refugiado_identidad", {
+    p_cedula: cedula,
+    p_tipo_doc: tipo_doc,
+    p_cedula_norm: cedula_norm,
+    p_primer_nombre: datos.primer_nombre.trim(),
+    p_segundo_nombre: (datos.segundo_nombre ?? "").trim(),
+    p_primer_apellido: (datos.primer_apellido ?? "").trim(),
+    p_segundo_apellido: (datos.segundo_apellido ?? "").trim(),
+    p_fecha_nacimiento: datos.fecha_nacimiento ?? null,
+    p_sexo: datos.sexo ?? null,
+  });
+  if (error) {
+    throw new Error(`[reposRefugiados] upsert identidad: ${error.message}`);
+  }
+  const resultado = data as { id: string; creado: boolean };
+  if (resultado.creado && centroId) {
+    try {
+      await asignarCodigoFicha(resultado.id, centroId);
+    } catch (e) {
+      console.warn("[reposRefugiados] codigo_ficha:", e);
+    }
+  }
+  registrarHistorial(
+    resultado.creado ? "registrar_refugiado" : "editar_refugiado",
+    "refugiado",
+    resultado.id,
+    { cedula_norm },
+  );
+  return resultado;
+}
+
+export interface OtroCentroActivo {
+  centroId: string;
+  /** Fecha (AAAA-MM-DD) de ingreso al otro campamento. */
+  fechaIngreso: string | null;
+  /** Epoch ms de cuándo se creó ese alojamiento (fecha + hora exacta). */
+  creadaTs: number | null;
+  esJefe: boolean;
+  /** Username de quién lo registró en ese otro campamento. */
+  registradoPor: string | null;
+}
+
+export interface EstadoNominalCedulaRed {
+  registrado: boolean;
+  refugiadoId: string | null;
+  enEsteCentro: boolean;
+  esJefeAqui: boolean;
+  familiaAqui: string | null;
+  otrosCentros: OtroCentroActivo[];
+}
+
+/**
+ * Estado de una cédula en toda la red (RPC `SECURITY DEFINER`, bypassa la RLS
+ * a propósito): solo expone `centro_id`s y flags, nunca datos personales, para
+ * que el aviso "ya activo en otro campamento" y el bloqueo de duplicados
+ * funcionen sin importar en qué centro esté alojada la persona ni quién la
+ * creó. Ver `upsertRefugiadoIdentidad` para el porqué.
+ */
+export async function estadoNominalCedulaRed(
+  cedulaNorm: string,
+  centroId: string,
+): Promise<EstadoNominalCedulaRed> {
+  const { data, error } = await supabase.rpc("estado_nominal_cedula", {
+    p_cedula_norm: cedulaNorm,
+    p_centro_id: centroId,
+  });
+  if (error) {
+    throw new Error(`[reposRefugiados] estado nominal: ${error.message}`);
+  }
+  const r = data as {
+    registrado: boolean;
+    refugiado_id: string | null;
+    en_este_centro: boolean;
+    es_jefe_aqui: boolean;
+    familia_aqui: string | null;
+    otros_centros: {
+      centro_id: string;
+      fecha_ingreso: string | null;
+      creada_ts: number | null;
+      es_jefe: boolean;
+      registrado_por: string | null;
+    }[];
+  };
+  return {
+    registrado: r.registrado,
+    refugiadoId: r.refugiado_id,
+    enEsteCentro: r.en_este_centro,
+    esJefeAqui: r.es_jefe_aqui,
+    familiaAqui: r.familia_aqui,
+    otrosCentros: (r.otros_centros ?? []).map((o) => ({
+      centroId: o.centro_id,
+      fechaIngreso: o.fecha_ingreso,
+      creadaTs: o.creada_ts,
+      esJefe: o.es_jefe,
+      registradoPor: o.registrado_por,
+    })),
+  };
+}
+
 /** Actualiza datos personales de una persona. */
 export async function actualizarRefugiado(
   id: string,
@@ -406,6 +532,34 @@ export async function actualizarFotoFamiliar(
     })
     .eq("id", familiaId);
   if (error) throw new Error(`[reposRefugiados] update foto familiar: ${error.message}`);
+}
+
+/** Guarda el conteo rápido de damnificación de un hogar (miembros esperados + pérdidas). */
+export async function actualizarDamnificacionFamilia(
+  familiaId: string,
+  datos: {
+    miembros_damnificados_declarados?: number | null;
+    fallecidos_confirmados?: number;
+    desaparecidos?: number;
+  },
+): Promise<void> {
+  const now = Date.now();
+  const fila: Record<string, unknown> = { updated_at: now, updated_by: usuarioActual() };
+  if (datos.miembros_damnificados_declarados !== undefined) {
+    fila.miembros_damnificados_declarados = datos.miembros_damnificados_declarados;
+  }
+  if (datos.fallecidos_confirmados !== undefined) {
+    fila.fallecidos_confirmados = Math.max(0, datos.fallecidos_confirmados);
+  }
+  if (datos.desaparecidos !== undefined) {
+    fila.desaparecidos = Math.max(0, datos.desaparecidos);
+  }
+  const { error } = await supabase.from("familias_centro").update(fila).eq("id", familiaId);
+  if (error) throw new Error(`[reposRefugiados] update damnificacion: ${error.message}`);
+  registrarHistorial("editar_damnificacion", "familia", familiaId, {
+    fallecidos_confirmados: datos.fallecidos_confirmados,
+    desaparecidos: datos.desaparecidos,
+  });
 }
 
 export async function actualizarSeguimiento(

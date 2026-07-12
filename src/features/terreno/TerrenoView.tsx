@@ -1,7 +1,8 @@
 // Portal público de trabajo en terreno (/terreno, sin login): una sola URL
 // para repartir a los funcionarios. Accesos activos: Reporte, Geolocalización,
-// Autoridades y Capacidad. El Censo queda visible pero bloqueado. Acepta
-// ?centro=<id> / ?t=<token> para llegar ya apuntado a un campamento.
+// Autoridades, Capacidad y Censo (registro nominal por cédula vía Nexus, ver
+// /censo). Acepta ?centro=<id> / ?t=<token> para llegar ya apuntado a un
+// campamento.
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -69,6 +70,13 @@ function urlReporteCentro(centroId: string): string {
   // Aterriza en el resumen del reporte (con «COPIAR REPORTE»); el formulario
   // se abre desde «Editar reporte».
   return `/centros/reportes/${encodeURIComponent(centroId)}?vista=reporte`;
+}
+
+function urlCensoCentro(centroId: string): string {
+  // /censo es una ruta pública (antes del gate de sesión en App.tsx) que
+  // resuelve su propio token/instrucciones; no hace falta abrir sesión antes
+  // de navegar, a diferencia del Reporte.
+  return `/censo?centro=${encodeURIComponent(centroId)}`;
 }
 
 const CLASE_BOTON_CUADRADO =
@@ -360,6 +368,15 @@ export function TerrenoView() {
     } else {
       setPantalla("capacidad");
     }
+  }
+
+  function abrirCenso() {
+    if (!centroValido) {
+      setErrorEntrar("Abra el enlace o código QR de su campamento para acceder al censo.");
+      return;
+    }
+    // /censo maneja sus propias instrucciones y token de sesión al llegar.
+    window.location.href = urlCensoCentro(centroValido);
   }
 
   function cambiarInstruccionesSiempre(valor: boolean) {
@@ -794,22 +811,22 @@ export function TerrenoView() {
               <LineaActualizacion ts={capacidadTs} resaltar={capacidadOk} />
             </button>
 
-            <div
-              role="button"
-              aria-disabled="true"
-              aria-label="Censo: acceso desactivado"
+            <button
+              type="button"
+              onClick={abrirCenso}
+              disabled={cargandoCentros || !centroValido}
               className={cn(
                 CLASE_BOTON_CUADRADO,
-                "pointer-events-none cursor-not-allowed opacity-55 hover:border-border hover:bg-card",
+                (cargandoCentros || !centroValido) && "pointer-events-none opacity-70",
               )}
             >
-              <Users className="size-10 text-muted-foreground" aria-hidden="true" />
-              <span className="text-sm font-semibold text-muted-foreground">Censo</span>
+              <Users className="size-10 text-primary" aria-hidden="true" />
+              <span className="text-sm font-semibold">Censo</span>
               <span className="flex items-center gap-1 text-[0.6875rem] leading-tight text-muted-foreground">
                 <LockKeyhole className="size-3 shrink-0" aria-hidden="true" />
-                Acceso desactivado
+                {token && centro ? "Registro nominal · entra con el QR" : "Registro nominal · con usuario"}
               </span>
-            </div>
+            </button>
           </nav>
         )}
 

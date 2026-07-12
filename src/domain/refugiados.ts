@@ -70,14 +70,16 @@ export interface FamiliarReferencia {
   estado_doc?: EstadoDocumento;
 }
 
-/** Familiar separado/desaparecido (trazabilidad reunificación). */
+/** Familiar separado, desaparecido o fallecido (trazabilidad reunificación / pérdidas). */
 export interface FamiliarSeparado {
   id: string;
   nombre: string;
   parentesco: string;
   ultima_ubicacion?: string;
   contacto?: string;
-  estado: "desaparecido" | "separado" | "contacto_perdido";
+  estado: "desaparecido" | "separado" | "contacto_perdido" | "fallecido";
+  edad_aproximada?: number | null;
+  fecha_fallecimiento?: string | null;
   notas?: string;
 }
 
@@ -163,6 +165,7 @@ export type EstatusVivienda =
   | "inabitable"
   | "parcial_habitable"
   | "habitable_con_riesgo"
+  | "sin_dano"
   | "sin_verificar";
 
 export interface MetaEstatusVivienda {
@@ -176,6 +179,7 @@ export const ESTATUS_VIVIENDA: MetaEstatusVivienda[] = [
   { valor: "inabitable", label: "Declarada inabitable", color: "#f97316" },
   { valor: "parcial_habitable", label: "Parcialmente habitable", color: "#eab308" },
   { valor: "habitable_con_riesgo", label: "Habitable con riesgo", color: "#84cc16" },
+  { valor: "sin_dano", label: "Sin daño (evacuación preventiva)", color: "#22c55e" },
   { valor: "sin_verificar", label: "Sin verificar", color: "#94a3b8" },
 ];
 
@@ -252,6 +256,11 @@ export interface FamiliaCentro {
   consentimiento_foto_familiar?: boolean;
   familiares_referencia: FamiliarReferencia[];
   familiares_separados: FamiliarSeparado[];
+  /** Cuántos miembros de la familia nuclear se declararon damnificados (dato declarado, no el conteo real de miembros registrados). */
+  miembros_damnificados_declarados: number | null;
+  /** Conteo rápido de pérdidas: fuente de verdad para el nivel de afectación, independiente de si hay detalle nominal en familiares_separados. */
+  fallecidos_confirmados: number;
+  desaparecidos: number;
   updated_at: number;
   updated_by: string;
 }
@@ -557,6 +566,7 @@ export function normalizarEstatusVivienda(raw: string | null | undefined): Estat
     "inabitable",
     "parcial_habitable",
     "habitable_con_riesgo",
+    "sin_dano",
     "sin_verificar",
   ];
   return validos.includes(raw as EstatusVivienda) ? (raw as EstatusVivienda) : "sin_verificar";
@@ -682,7 +692,7 @@ export function normalizarFamiliaresReferencia(raw: unknown): FamiliarReferencia
 
 export function normalizarFamiliaresSeparados(raw: unknown): FamiliarSeparado[] {
   if (!Array.isArray(raw)) return [];
-  const estados = ["desaparecido", "separado", "contacto_perdido"] as const;
+  const estados = ["desaparecido", "separado", "contacto_perdido", "fallecido"] as const;
   return raw
     .filter((f): f is FamiliarSeparado => typeof f?.id === "string" && typeof f?.nombre === "string")
     .map((f) => ({
@@ -694,6 +704,8 @@ export function normalizarFamiliaresSeparados(raw: unknown): FamiliarSeparado[] 
       estado: estados.includes(f.estado as (typeof estados)[number])
         ? (f.estado as FamiliarSeparado["estado"])
         : "separado",
+      edad_aproximada: typeof f.edad_aproximada === "number" ? f.edad_aproximada : null,
+      fecha_fallecimiento: typeof f.fecha_fallecimiento === "string" ? f.fecha_fallecimiento : null,
       notas: typeof f.notas === "string" ? f.notas : undefined,
     }));
 }
@@ -782,6 +794,13 @@ export function normalizarFamiliaCentro(
     consentimiento_foto_familiar: Boolean(raw.consentimiento_foto_familiar),
     familiares_referencia: normalizarFamiliaresReferencia(raw.familiares_referencia),
     familiares_separados: normalizarFamiliaresSeparados(raw.familiares_separados),
+    miembros_damnificados_declarados:
+      typeof raw.miembros_damnificados_declarados === "number"
+        ? raw.miembros_damnificados_declarados
+        : null,
+    fallecidos_confirmados:
+      typeof raw.fallecidos_confirmados === "number" ? raw.fallecidos_confirmados : 0,
+    desaparecidos: typeof raw.desaparecidos === "number" ? raw.desaparecidos : 0,
     updated_at: raw.updated_at ?? 0,
     updated_by: raw.updated_by ?? "",
   };

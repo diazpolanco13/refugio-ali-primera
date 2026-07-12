@@ -22,6 +22,7 @@ import {
   nombreCompleto,
 } from "@/domain/refugiados";
 import { puedeVerSaludMental } from "@/domain/permisos";
+import { META_NIVEL_AFECTACION, nivelAfectacionHogar } from "@/domain/nivelAfectacionHogar";
 import { useSesion } from "@/data/authSupabase";
 import { useAlojamientoDetalle } from "@/data/useAlojamientoDetalle";
 import { useRefugiadosRed } from "@/data/useRefugiadosRed";
@@ -123,6 +124,14 @@ export function FichaRefugiadoView({
   const esDuplicado = centrosDup && centrosDup.length >= 2;
   const metaEstado = META_ESTADO_ALOJAMIENTO[alojamiento.estado];
   const nombreCampamento = nombresCentros.get(alojamiento.centro_id) ?? alojamiento.centro_id;
+  const nivelFamilia =
+    META_NIVEL_AFECTACION[
+      nivelAfectacionHogar(
+        alojamiento.residencia?.estatus_vivienda ?? "sin_verificar",
+        alojamiento.familia?.fallecidos_confirmados ?? 0,
+        alojamiento.familia?.desaparecidos ?? 0,
+      )
+    ];
 
   async function confirmarEgreso() {
     setProcesando(true);
@@ -195,6 +204,14 @@ export function FichaRefugiadoView({
               </Badge>
             )}
             {alojamiento.es_jefe_familia && <Badge variant="outline">Jefe de familia</Badge>}
+            {alojamiento.familia && (
+              <Badge
+                variant="outline"
+                style={{ borderColor: nivelFamilia.color, color: nivelFamilia.color }}
+              >
+                {nivelFamilia.emoji} {nivelFamilia.label}
+              </Badge>
+            )}
           </div>
         }
       />

@@ -3,13 +3,13 @@
 import {
   asociarRefugiadoAFamilia,
   actualizarContacto,
-  actualizarRefugiado,
-  buscarRefugiadoPorCedula,
   crearFamilia,
   crearRefugiado,
-  listarAlojamientosActivosRefugiado,
+  estadoNominalCedulaRed,
   listarMiembrosFamilia,
   registrarAlojamiento,
+  upsertRefugiadoIdentidad,
+  type EstadoNominalCedulaRed,
 } from "./reposRefugiados";
 import { supabase } from "./supabaseClient";
 import type { PersonaNexusCenso } from "@/domain/nexusPersona";
@@ -53,13 +53,12 @@ export async function registrarPersonaNexusEnNominal(opts: {
   );
   if (!cedula_norm) throw new Error("Cédula inválida");
 
-  let existente = await buscarRefugiadoPorCedula(cedula_norm);
-  let creado = false;
-  let refugiadoId: string;
-
-  if (existente) {
-    refugiadoId = existente.id;
-    await actualizarRefugiado(refugiadoId, {
+  // Find-or-create atómico en el servidor: un buscar+crear hecho en el
+  // cliente choca con refugiados_cedula_norm_uq en cuanto la persona ya
+  // existe pero la RLS la oculta (creada por otro usuario o alojada en otro
+  // centro — blindaje_lectura_refugiados).
+  const { id: refugiadoId, creado } = await upsertRefugiadoIdentidad(
+    {
       primer_nombre: opts.persona.primer_nombre,
       segundo_nombre: opts.persona.segundo_nombre,
       primer_apellido: opts.persona.primer_apellido,
@@ -68,30 +67,21 @@ export async function registrarPersonaNexusEnNominal(opts: {
       sexo: sexoNexus(opts.persona.sexo),
       cedula,
       tipo_doc,
-    });
-  } else {
-    refugiadoId = await crearRefugiado(
-      {
-        primer_nombre: opts.persona.primer_nombre,
-        segundo_nombre: opts.persona.segundo_nombre,
-        primer_apellido: opts.persona.primer_apellido,
-        segundo_apellido: opts.persona.segundo_apellido,
-        fecha_nacimiento: opts.persona.fecha_nacimiento,
-        sexo: sexoNexus(opts.persona.sexo),
-        cedula,
-        tipo_doc,
-      },
-      opts.centroId,
-    );
-    creado = true;
-  }
+    },
+    opts.centroId,
+  );
 
   // Teléfonos: si el funcionario confirmó alguno con la persona, esos mandan
   // (el primero como principal, el resto alternos). Sin confirmación se
   // conserva el comportamiento previo: primer teléfono que trajo Nexus.
-  const confirmados = (opts.telefonosConfirmados ?? []).filter(Boolean);
-  const telPrincipal = confirmados[0] ?? opts.persona.telefonos?.[0];
-  if (telPrincipal) {
+  // OJO: se guarda DESPUÉS de crear el alojamiento (más abajo), no aquí: la
+  // RLS de refugiados_update exige que ya exista un alojamiento de esta
+  // persona en un centro del operador/supervisor, que todavía no existe en
+  // este punto para una persona nueva en este campamento.
+  async function guardarTelefonosConfirmados(): Promise<void> {
+    const confirmados = (opts.telefonosConfirmados ?? []).filter(Boolean);
+    const telPrincipal = confirmados[0] ?? opts.persona.telefonos?.[0];
+    if (!telPrincipal) return;
     try {
       await actualizarContacto(refugiadoId, {
         telefono_principal: telPrincipal,
@@ -106,18 +96,19 @@ export async function registrarPersonaNexusEnNominal(opts: {
     }
   }
 
-  const activos = await listarAlojamientosActivosRefugiado(refugiadoId);
-  const enEste = activos.find((a) => a.centro_id === opts.centroId);
-  const otrosCentros = activos
-    .filter((a) => a.centro_id !== opts.centroId)
-    .map((a) => a.centro_id);
+  // También bypassa la RLS a propósito (misma razón que el upsert de arriba):
+  // listar alojamientos por refugiado_id se filtra a los centros del
+  // operador, así que "otros centros" salía incompleto para una sesión de
+  // un solo campamento.
+  const estado = await estadoNominalCedulaRed(cedula_norm, opts.centroId);
+  const otrosCentros = estado.otrosCentros.map((o) => o.centroId);
 
   let familiaId = opts.familiaId ?? null;
   if (opts.esJefe) {
-    if (!familiaId && enEste?.familia_id && enEste.es_jefe_familia) {
+    if (!familiaId && estado.familiaAqui && estado.esJefeAqui) {
       // Ya es jefe de un hogar en este campamento: se reanuda ese hogar en
       // lugar de crear una familia duplicada.
-      familiaId = enEste.familia_id;
+      familiaId = estado.familiaAqui;
     }
     if (!familiaId) {
       const nombreHogar = `Hogar ${tipo_doc}-${cedula} · ${opts.persona.primer_apellido}`.trim();
@@ -134,12 +125,13 @@ export async function registrarPersonaNexusEnNominal(opts: {
       es_jefe_familia: true,
       parentesco_jefe: "",
     });
+    await guardarTelefonosConfirmados();
     return {
       refugiadoId,
       alojamientoId,
       familiaId,
       creado,
-      yaEstabaEnCentro: Boolean(enEste),
+      yaEstabaEnCentro: estado.enEsteCentro,
       otrosCentros,
     };
   }
@@ -154,26 +146,20 @@ export async function registrarPersonaNexusEnNominal(opts: {
     es_jefe_familia: false,
     parentesco_jefe: (opts.parentescoJefe || "Otro familiar").trim(),
   });
+  await guardarTelefonosConfirmados();
 
   return {
     refugiadoId,
     alojamientoId,
     familiaId,
     creado,
-    yaEstabaEnCentro: Boolean(enEste),
+    yaEstabaEnCentro: estado.enEsteCentro,
     otrosCentros,
   };
 }
 
 /** Situación de una cédula en la base nominal, para avisar antes de registrar. */
-export interface EstadoNominalCedula {
-  registrado: boolean;
-  refugiadoId: string | null;
-  enEsteCentro: boolean;
-  esJefeAqui: boolean;
-  familiaAqui: string | null;
-  otrosCentros: string[];
-}
+export type EstadoNominalCedula = EstadoNominalCedulaRed;
 
 export async function estadoNominalPorCedula(
   cedula: string,
@@ -190,20 +176,9 @@ export async function estadoNominalPorCedula(
   };
   const { cedula_norm } = normalizarCedula(cedula, tipoDocNexus(letra.toUpperCase()));
   if (!cedula_norm) return vacio;
-  const existente = await buscarRefugiadoPorCedula(cedula_norm);
-  if (!existente) return vacio;
-  const activos = await listarAlojamientosActivosRefugiado(existente.id);
-  const enEste = activos.find((a) => a.centro_id === centroId);
-  return {
-    registrado: true,
-    refugiadoId: existente.id,
-    enEsteCentro: Boolean(enEste),
-    esJefeAqui: Boolean(enEste?.es_jefe_familia),
-    familiaAqui: enEste?.familia_id ?? null,
-    otrosCentros: activos
-      .filter((a) => a.centro_id !== centroId)
-      .map((a) => a.centro_id),
-  };
+  // RPC SECURITY DEFINER: ve toda la red (solo centro_ids/flags, sin PII),
+  // no solo los centros asignados a esta sesión. Ver upsertRefugiadoIdentidad.
+  return estadoNominalCedulaRed(cedula_norm, centroId);
 }
 
 /** Alta de un miembro sin documento (típicamente menores) directo al hogar activo. */

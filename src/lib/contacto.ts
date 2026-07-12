@@ -23,9 +23,10 @@ export function telHref(raw: string): string {
   return `tel:${digitosTelefono(raw)}`;
 }
 
-export function whatsappHref(raw: string): string | null {
+export function whatsappHref(raw: string, mensaje?: string): string | null {
   const intl = telefonoInternacional(raw);
-  return intl ? `https://wa.me/${intl}` : null;
+  if (!intl) return null;
+  return mensaje ? `https://wa.me/${intl}?text=${encodeURIComponent(mensaje)}` : `https://wa.me/${intl}`;
 }
 
 /** Abre chat de Telegram por número (muy usado en Venezuela). */

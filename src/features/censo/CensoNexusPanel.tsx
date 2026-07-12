@@ -4,13 +4,20 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Baby,
+  Building2,
   Check,
   Home,
   Loader2,
   MapPin,
+  MessageCircle,
+  Minus,
+  Plus,
   RefreshCw,
   Search,
+  ShieldAlert,
   ShieldCheck,
+  Skull,
+  Trash2,
   UserPlus,
   Users,
   AlertTriangle,
@@ -36,7 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { buscarPersonaNexusConCache } from "@/data/reposNexus";
+import { buscarPersonaNexusConCache, esNexusNoDisponible } from "@/data/reposNexus";
 import {
   estadoNominalPorCedula,
   miembrosHogarActual,
@@ -44,16 +51,80 @@ import {
   registrarPersonaNexusEnNominal,
   type EstadoNominalCedula,
 } from "@/data/reposCensoNexus";
-import { listarCentrosCenso } from "@/data/reposCenso";
+import {
+  listarCentrosCenso,
+  obtenerCentroTerreno,
+  type AnalistaContactoTerreno,
+} from "@/data/reposCenso";
+import {
+  actualizarDamnificacionFamilia,
+  guardarFamiliaresReferencia,
+  guardarResidenciaAfectada,
+  type OtroCentroActivo,
+} from "@/data/reposRefugiados";
+import { nuevoId } from "@/data/reposSupabase";
 import { asegurarSesionTerreno } from "@/data/loginTerreno";
 import { inicialesPersona, type FamiliarNexus, type PersonaNexusCenso } from "@/domain/nexusPersona";
+import {
+  META_NIVEL_AFECTACION,
+  nivelAfectacionHogar,
+} from "@/domain/nivelAfectacionHogar";
 import {
   PARENTESCOS_JEFE,
   calcularEdad,
   formatearCedula,
+  type EstatusVivienda,
+  type FamiliarSeparado,
   type SexoRefugiado,
 } from "@/domain/refugiados";
+import {
+  EstadoNexusApi,
+  type NexusEnLinea,
+  type SenalConsultaNexus,
+} from "@/features/censo/EstadoNexusApi";
+import { whatsappHref } from "@/lib/contacto";
 import { cn } from "@/lib/utils";
+
+const SEVERIDAD_VIVIENDA_OPCIONES: { valor: EstatusVivienda; label: string; emoji: string }[] = [
+  { valor: "destruida", label: "Colapsada / destruida", emoji: "🔴" },
+  { valor: "inabitable", label: "Inhabitable / insegura", emoji: "🟠" },
+  { valor: "habitable_con_riesgo", label: "Daños menores", emoji: "🟡" },
+  { valor: "sin_dano", label: "Sin daño", emoji: "🟢" },
+];
+
+const UBICACIONES_VIVIENDA = ["Caracas", "Miranda", "Vargas (La Guaira)"] as const;
+
+function nuevaPerdidaVacia(): FamiliarSeparado {
+  return { id: nuevoId(), nombre: "", parentesco: "Otro familiar", estado: "fallecido" };
+}
+
+function StepperInline({
+  value,
+  onChange,
+  min = 0,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        type="button"
+        size="icon"
+        variant="outline"
+        className="size-7"
+        onClick={() => onChange(Math.max(min, value - 1))}
+      >
+        <Minus className="size-3.5" />
+      </Button>
+      <span className="w-6 text-center text-sm font-semibold tabular-nums">{value}</span>
+      <Button type="button" size="icon" variant="outline" className="size-7" onClick={() => onChange(value + 1)}>
+        <Plus className="size-3.5" />
+      </Button>
+    </div>
+  );
+}
 
 type Letra = "V" | "E";
 
@@ -116,6 +187,41 @@ function fechaCorta(ts: number): string {
   });
 }
 
+function fechaHoraCorta(ts: number): string {
+  return new Date(ts).toLocaleString("es-VE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/** Cuándo y con qué detalle se registró en otro campamento (mejor dato disponible). */
+function detalleOtroRegistro(o: OtroCentroActivo): string {
+  if (o.creadaTs) return `Registrado el ${fechaHoraCorta(o.creadaTs)}`;
+  if (o.fechaIngreso) return `Ingresó el ${o.fechaIngreso}`;
+  return "Fecha de registro no disponible";
+}
+
+function mensajeReporteDuplicado(
+  persona: PersonaNexusCenso,
+  estado: EstadoNominalCedula,
+  centroNombreActual: string,
+  nombreCentroFn: (id: string) => string,
+): string {
+  const otros = estado.otrosCentros
+    .map((o) => `${nombreCentroFn(o.centroId)} — ${detalleOtroRegistro(o)}`)
+    .join("; ");
+  return [
+    "Posible registro duplicado — Censo por cédula",
+    `Cédula: ${formatearCedula(persona.cedula, persona.letra === "E" ? "E" : "V")} — ${persona.nombre_completo}`,
+    `Registrando en: ${centroNombreActual}`,
+    `Ya figura activo en: ${otros}`,
+    "¿Es traslado, duplicado o error? Por favor confirmar.",
+  ].join("\n");
+}
+
 export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambiarCentro }: Props) {
   const [sesionLista, setSesionLista] = useState(false);
   const [errorSesion, setErrorSesion] = useState("");
@@ -143,6 +249,27 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
   const [cedulaJefe, setCedulaJefe] = useState<string | null>(null);
   const [miembros, setMiembros] = useState<MiembroHogar[]>([]);
 
+  // ¿Persona buscada es jefe/a de familia? null = sin responder (se pregunta
+  // antes de mostrar la sección de damnificación, que es del hogar, no de
+  // cualquier persona). Solo aplica mientras no hay hogar creado.
+  const [esJefe, setEsJefe] = useState<boolean | null>(null);
+
+  // Contexto del terremoto: se captura una sola vez, al crear el hogar.
+  const [estatusVivienda, setEstatusVivienda] = useState<EstatusVivienda | null>(null);
+  const [ubicacionVivienda, setUbicacionVivienda] = useState("");
+  const [ubicacionOtro, setUbicacionOtro] = useState("");
+  const [miembrosDamnificados, setMiembrosDamnificados] = useState(0);
+  const [fallecidosCount, setFallecidosCount] = useState(0);
+  const [desaparecidosCount, setDesaparecidosCount] = useState(0);
+  const [detallePerdidas, setDetallePerdidas] = useState<FamiliarSeparado[]>([]);
+  const [detalleAbierto, setDetalleAbierto] = useState(false);
+  // Nivel de afectación del hogar recién creado, para el badge del header.
+  const [nivelHogar, setNivelHogar] = useState<{
+    estatusVivienda: EstatusVivienda;
+    fallecidos: number;
+    desaparecidos: number;
+  } | null>(null);
+
   // Familiares que Nexus sugirió para el jefe del hogar. Sobreviven a la
   // creación del hogar para poder marcarlos después de verificar al jefe.
   const [famSugeridos, setFamSugeridos] = useState<FamiliarNexus[]>([]);
@@ -156,10 +283,19 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
 
   // Nombres legibles de campamentos para los avisos (fallback: el id).
   const [nombresCentros, setNombresCentros] = useState<Record<string, string>>({});
+  // Analistas SAE de este campamento, para el botón "Reportar por WhatsApp"
+  // cuando una cédula ya figura activa en otro centro.
+  const [analistasContacto, setAnalistasContacto] = useState<AnalistaContactoTerreno[]>([]);
+  // Confirmación explícita de continuar pese al aviso de duplicado — no se
+  // puede crear el hogar / agregar al familiar sin marcarla primero.
+  const [confirmoDuplicado, setConfirmoDuplicado] = useState(false);
 
   const [menorAbierto, setMenorAbierto] = useState(false);
   const [menor, setMenor] = useState<FormMenor>(formMenorVacio);
   const [errorMenor, setErrorMenor] = useState("");
+  /** null = comprobando; false = Nexus caído (solo caché / planilla). */
+  const [nexusEnLinea, setNexusEnLinea] = useState<NexusEnLinea>(null);
+  const [senalConsulta, setSenalConsulta] = useState<SenalConsultaNexus | null>(null);
 
   useEffect(() => {
     let cancel = false;
@@ -203,11 +339,37 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
     };
   }, [sesionLista]);
 
+  useEffect(() => {
+    if (!sesionLista || !tokenTerreno) return;
+    let cancel = false;
+    obtenerCentroTerreno(tokenTerreno)
+      .then((c) => {
+        if (!cancel) setAnalistasContacto(c?.analistas_contacto ?? []);
+      })
+      .catch(() => {
+        /* el botón de WhatsApp simplemente no aparece */
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [sesionLista, tokenTerreno]);
+
   const nombreCentro = (id: string) => nombresCentros[id] ?? id;
 
   async function refrescarMiembros(id: string) {
     const lista = await miembrosHogarActual(id);
     setMiembros(lista);
+  }
+
+  function resetDamnificacion() {
+    setEstatusVivienda(null);
+    setUbicacionVivienda("");
+    setUbicacionOtro("");
+    setMiembrosDamnificados(0);
+    setFallecidosCount(0);
+    setDesaparecidosCount(0);
+    setDetallePerdidas([]);
+    setDetalleAbierto(false);
   }
 
   async function onBuscar(
@@ -227,6 +389,11 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
     setTelsAgregados([]);
     setTelNuevo("");
     setAgregandoTel(false);
+    setConfirmoDuplicado(false);
+    if (!familiaId) {
+      setEsJefe(null);
+      resetDamnificacion();
+    }
     setBuscando(true);
     try {
       const [ficha, estado] = await Promise.all([
@@ -240,9 +407,16 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
       setPersona(p);
       setEstadoNominal(estado);
       setOrigenFicha({ desdeCache: ficha.desdeCache, consultadaTs: ficha.consultadaTs });
+      // Consulta viva exitosa ⇒ Nexus está arriba (sin otro hit a /health).
+      if (!ficha.desdeCache) {
+        setSenalConsulta({ ts: Date.now(), resultado: "ok" });
+      }
       if (!familiaId) {
-        // Sin hogar activo: la persona buscada será el jefe; sus familiares
-        // sugeridos se conservan para marcarlos tras crear el hogar.
+        // Ya es jefe activo en este campamento (reanudar hogar): no hace
+        // falta volver a preguntar, se salta directo a la sección de hogar.
+        if (estado?.esJefeAqui) setEsJefe(true);
+        // Sin hogar activo: la persona buscada podría ser el jefe; sus
+        // familiares sugeridos se conservan para marcarlos tras crear el hogar.
         setFamSugeridos(p.familiares);
         const sel: Record<string, boolean> = {};
         const par: Record<string, string> = {};
@@ -262,6 +436,10 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
       }
     } catch (err) {
       setErrorBusqueda(err instanceof Error ? err.message : "Error al consultar");
+      // Fallo de infraestructura ⇒ el banner pasa a fuera de línea.
+      if (esNexusNoDisponible(err)) {
+        setSenalConsulta({ ts: Date.now(), resultado: "caida" });
+      }
     } finally {
       setBuscando(false);
     }
@@ -269,6 +447,10 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
 
   async function onCrearHogar() {
     if (!persona) return;
+    if (!estatusVivienda) {
+      setErrorBusqueda("Indique la severidad de la vivienda antes de crear el hogar.");
+      return;
+    }
     setGuardando(true);
     setMensaje("");
     setErrorBusqueda("");
@@ -282,6 +464,29 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
       setFamiliaId(r.familiaId);
       setCedulaJefe(persona.cedula);
       setAvisoOtros(r.otrosCentros);
+
+      const ubicacion = (ubicacionVivienda === "Otro" ? ubicacionOtro : ubicacionVivienda).trim();
+      try {
+        await guardarResidenciaAfectada({
+          familia_id: r.familiaId,
+          centro_id: centroId,
+          estatus_vivienda: estatusVivienda,
+          estado_federativo: ubicacion || undefined,
+        });
+        await actualizarDamnificacionFamilia(r.familiaId, {
+          miembros_damnificados_declarados: miembrosDamnificados || null,
+          fallecidos_confirmados: fallecidosCount,
+          desaparecidos: desaparecidosCount,
+        });
+        if (detallePerdidas.length > 0) {
+          await guardarFamiliaresReferencia(r.familiaId, [], detallePerdidas);
+        }
+        setNivelHogar({ estatusVivienda, fallecidos: fallecidosCount, desaparecidos: desaparecidosCount });
+      } catch {
+        // El hogar y la persona ya quedaron registrados; la damnificación se
+        // puede completar después desde la ficha del hogar si esto falla.
+      }
+
       await refrescarMiembros(r.familiaId);
       setMensaje(
         r.yaEstabaEnCentro
@@ -292,11 +497,20 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
       setEstadoNominal(null);
       setOrigenFicha(null);
       setCedula("");
+      resetDamnificacion();
     } catch (err) {
       setErrorBusqueda(err instanceof Error ? err.message : "No se pudo crear el hogar");
     } finally {
       setGuardando(false);
     }
+  }
+
+  function volverABuscarJefe() {
+    setPersona(null);
+    setEstadoNominal(null);
+    setOrigenFicha(null);
+    setEsJefe(null);
+    setCedula("");
   }
 
   async function onAgregarComoFamiliar() {
@@ -363,7 +577,7 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
       await refrescarMiembros(familiaId);
       setMensaje(
         ok
-          ? `Se agregaron ${ok} familiar(es) al hogar.`
+          ? `Se agregaron ${ok} familiar(es) al hogar. Puede seguir digitando cédulas para agregar más adultos.`
           : "No se pudo agregar ninguno.",
       );
       if (fallos.length) setErrorBusqueda(fallos.join(" · "));
@@ -372,6 +586,14 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
         for (const f of marcados) n[f.cedula] = false;
         return n;
       });
+      // La caja de búsqueda queda con la última cédula tecleada manualmente
+      // (p. ej. la del jefe, al crear el hogar); limpiarla evita que parezca
+      // "ya usada" y no invite a seguir agregando adultos.
+      setPersona(null);
+      setEstadoNominal(null);
+      setOrigenFicha(null);
+      setCedula("");
+      setConfirmoDuplicado(false);
     } catch (err) {
       setErrorBusqueda(err instanceof Error ? err.message : "No se pudieron agregar");
     } finally {
@@ -443,6 +665,10 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
     setMenorAbierto(false);
     setMenor(formMenorVacio());
     setErrorMenor("");
+    setEsJefe(null);
+    setConfirmoDuplicado(false);
+    resetDamnificacion();
+    setNivelHogar(null);
     setMensaje("Hogar cerrado. Puede iniciar otro con la cédula del siguiente jefe.");
   }
 
@@ -483,6 +709,12 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
 
   const personaYaEnHogar = Boolean(
     persona && hayHogar && cedulasMiembros.has(soloDigitos(persona.cedula)),
+  );
+
+  // Bloquea "crear hogar" / "agregar" mientras haya un aviso de duplicado
+  // cross-centro sin que el censista lo confirme explícitamente.
+  const hayDuplicadoSinConfirmar = Boolean(
+    estadoNominal && estadoNominal.otrosCentros.length > 0 && !confirmoDuplicado,
   );
 
   const jefeHogar = useMemo(() => miembros.find((m) => m.es_jefe) ?? null, [miembros]);
@@ -531,6 +763,8 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
         ) : null}
       </div>
 
+      <EstadoNexusApi onEstado={setNexusEnLinea} senalConsulta={senalConsulta} />
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
@@ -564,6 +798,22 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
                 <Badge variant="secondary" className="shrink-0">
                   {miembros.length} {miembros.length === 1 ? "miembro" : "miembros"}
                 </Badge>
+                {nivelHogar ? (
+                  (() => {
+                    const nivel = META_NIVEL_AFECTACION[
+                      nivelAfectacionHogar(nivelHogar.estatusVivienda, nivelHogar.fallecidos, nivelHogar.desaparecidos)
+                    ];
+                    return (
+                      <Badge
+                        variant="outline"
+                        className="shrink-0"
+                        style={{ borderColor: nivel.color, color: nivel.color }}
+                      >
+                        {nivel.emoji} {nivel.label}
+                      </Badge>
+                    );
+                  })()
+                ) : null}
               </div>
               {/* Orden recomendado del levantamiento. */}
               <ol className="space-y-1 text-xs text-muted-foreground">
@@ -696,14 +946,127 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
                     </Badge>
                   ) : null}
                 </div>
-                {estadoNominal && estadoNominal.otrosCentros.length > 0 ? (
-                  <p className="text-xs text-amber-700 dark:text-amber-400 pt-1">
-                    Figura activa en: {estadoNominal.otrosCentros.map(nombreCentro).join(", ")}.
-                  </p>
-                ) : null}
               </div>
             </div>
 
+            {estadoNominal && estadoNominal.otrosCentros.length > 0 ? (
+              <div className="space-y-3 rounded-lg border-2 border-destructive/60 bg-destructive/10 p-3">
+                <p className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                  <ShieldAlert className="size-4 shrink-0" />
+                  Esta persona ya figura activa en otro campamento
+                </p>
+                <ul className="space-y-1.5">
+                  {estadoNominal.otrosCentros.map((o) => (
+                    <li
+                      key={o.centroId}
+                      className="rounded-md border border-destructive/30 bg-background/60 px-2.5 py-2 text-sm"
+                    >
+                      <p className="font-medium">
+                        {nombreCentro(o.centroId)}
+                        {o.esJefe ? " · jefe/a de hogar" : ""}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {detalleOtroRegistro(o)}
+                        {o.registradoPor ? ` · por ${o.registradoPor}` : ""}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs leading-snug text-muted-foreground">
+                  Puede ser: <strong className="text-foreground">(1)</strong> un intento de registro
+                  duplicado, <strong className="text-foreground">(2)</strong> un traslado real de
+                  campamento cuyo registro anterior no se cerró, o{" "}
+                  <strong className="text-foreground">(3)</strong> un error del sistema. No continúe sin
+                  aclararlo con la persona.
+                </p>
+                {analistasContacto.filter((a) => a.whatsapp).length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {analistasContacto
+                      .filter((a) => a.whatsapp)
+                      .map((a) => {
+                        const href = whatsappHref(
+                          a.whatsapp!,
+                          mensajeReporteDuplicado(persona, estadoNominal, centroNombre, nombreCentro),
+                        );
+                        if (!href) return null;
+                        return (
+                          <Button
+                            key={a.nombre}
+                            asChild
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+                          >
+                            <a href={href} target="_blank" rel="noreferrer">
+                              <MessageCircle className="size-3.5" />
+                              Reportar a {a.nombre} (WhatsApp)
+                            </a>
+                          </Button>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    No hay analista SAE con WhatsApp configurado para este campamento; repórtelo por otra
+                    vía antes de continuar.
+                  </p>
+                )}
+                <label className="flex items-start gap-2 pt-1 text-sm">
+                  <Checkbox
+                    checked={confirmoDuplicado}
+                    onCheckedChange={(v) => setConfirmoDuplicado(Boolean(v))}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    Entiendo el riesgo y quiero continuar de todas formas (confirmé con la persona que es
+                    un traslado o un error, no un duplicado).
+                  </span>
+                </label>
+              </div>
+            ) : null}
+
+            {/* Se pregunta antes de mostrar dirección/teléfonos/damnificación:
+                esas preguntas son del hogar, no tiene sentido hacérselas a
+                quien no lo va a crear. */}
+            {!hayHogar ? (
+              <div className="rounded-lg border bg-muted/40 px-3 py-2.5 space-y-2">
+                <p className="text-sm font-medium">¿Es usted el Jefe o Jefa de Familia?</p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={esJefe === true ? "default" : "outline"}
+                    onClick={() => setEsJefe(true)}
+                  >
+                    Sí
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={esJefe === false ? "default" : "outline"}
+                    onClick={() => setEsJefe(false)}
+                  >
+                    No
+                  </Button>
+                </div>
+                {esJefe === false ? (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-xs text-muted-foreground">
+                      Busque al jefe/a de familia para crear el hogar. Podrá agregar a{" "}
+                      {persona.nombre_completo} después, desde el hogar ya creado.
+                    </p>
+                    <Button type="button" variant="outline" size="sm" onClick={volverABuscarJefe}>
+                      <Search className="size-3.5" />
+                      Buscar al Jefe/a de Familia
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {hayHogar || esJefe === true ? (
+              <>
             {/* Procedencia: clave para detectar a quien no viene de la zona
                 afectada (indigencia, oportunismo). Verificar de palabra. */}
             <div className="rounded-lg border bg-muted/40 px-3 py-2.5 space-y-1">
@@ -875,7 +1238,12 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
                     variant="ghost"
                     size="sm"
                     className="h-7 shrink-0 text-xs"
-                    disabled={buscando}
+                    disabled={buscando || nexusEnLinea === false}
+                    title={
+                      nexusEnLinea === false
+                        ? "Nexus está fuera de línea; no se puede reconsultar"
+                        : "Volver a consultar Nexus"
+                    }
                     onClick={() =>
                       onBuscar(undefined, {
                         forzarNexus: true,
@@ -891,18 +1259,216 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
               </div>
             ) : null}
 
-            <Separator />
-
             {!hayHogar ? (
+              <div className="space-y-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <Building2 className="size-4" />
+                  Damnificación por el terremoto
+                </p>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Severidad de la vivienda (obligatorio)</Label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {SEVERIDAD_VIVIENDA_OPCIONES.map((op) => (
+                      <Button
+                        key={op.valor}
+                        type="button"
+                        size="sm"
+                        variant={estatusVivienda === op.valor ? "default" : "outline"}
+                        className="h-auto justify-start py-2 text-xs"
+                        onClick={() => setEstatusVivienda(op.valor)}
+                      >
+                        {op.emoji} {op.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">
+                    Ubicación de la vivienda afectada (opcional)
+                  </Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[...UBICACIONES_VIVIENDA, "Otro"].map((op) => (
+                      <Button
+                        key={op}
+                        type="button"
+                        size="sm"
+                        variant={ubicacionVivienda === op ? "default" : "outline"}
+                        onClick={() => setUbicacionVivienda(op)}
+                      >
+                        {op}
+                      </Button>
+                    ))}
+                  </div>
+                  {ubicacionVivienda === "Otro" ? (
+                    <Input
+                      placeholder="Estado"
+                      value={ubicacionOtro}
+                      onChange={(e) => setUbicacionOtro(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  ) : null}
+                </div>
+
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs text-muted-foreground flex-1">
+                    Miembros de la familia damnificados (incluyéndolo)
+                  </Label>
+                  <StepperInline value={miembrosDamnificados} onChange={setMiembrosDamnificados} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Fallecidos confirmados</Label>
+                    <StepperInline value={fallecidosCount} onChange={setFallecidosCount} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Desaparecidos</Label>
+                    <StepperInline value={desaparecidosCount} onChange={setDesaparecidosCount} />
+                  </div>
+                </div>
+
+                {fallecidosCount > 0 || desaparecidosCount > 0 ? (
+                  <div className="space-y-2">
+                    {!detalleAbierto ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          setDetalleAbierto(true);
+                          if (detallePerdidas.length === 0) {
+                            setDetallePerdidas([nuevaPerdidaVacia()]);
+                          }
+                        }}
+                      >
+                        <Skull className="size-3.5" />
+                        + Agregar detalle (opcional)
+                      </Button>
+                    ) : (
+                      <div className="space-y-2">
+                        {detallePerdidas.map((f, i) => (
+                          <div key={f.id} className="grid grid-cols-2 gap-1.5 rounded-md border p-2">
+                            <Input
+                              placeholder="Nombre aproximado"
+                              value={f.nombre}
+                              onChange={(e) =>
+                                setDetallePerdidas((prev) =>
+                                  prev.map((x, j) => (j === i ? { ...x, nombre: e.target.value } : x)),
+                                )
+                              }
+                              className="h-8 text-xs"
+                            />
+                            <Select
+                              value={f.parentesco}
+                              onValueChange={(v) =>
+                                setDetallePerdidas((prev) =>
+                                  prev.map((x, j) => (j === i ? { ...x, parentesco: v } : x)),
+                                )
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {PARENTESCOS_JEFE.map((p) => (
+                                  <SelectItem key={p} value={p}>
+                                    {p}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              placeholder="Edad aproximada"
+                              type="number"
+                              inputMode="numeric"
+                              min={0}
+                              max={120}
+                              value={f.edad_aproximada ?? ""}
+                              onChange={(e) =>
+                                setDetallePerdidas((prev) =>
+                                  prev.map((x, j) =>
+                                    j === i
+                                      ? { ...x, edad_aproximada: e.target.value ? Number(e.target.value) : null }
+                                      : x,
+                                  ),
+                                )
+                              }
+                              className="h-8 text-xs"
+                            />
+                            <div className="flex items-center gap-1.5">
+                              <Select
+                                value={f.estado}
+                                onValueChange={(v) =>
+                                  setDetallePerdidas((prev) =>
+                                    prev.map((x, j) =>
+                                      j === i ? { ...x, estado: v as FamiliarSeparado["estado"] } : x,
+                                    ),
+                                  )
+                                }
+                              >
+                                <SelectTrigger className="h-8 flex-1 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="fallecido">Fallecido</SelectItem>
+                                  <SelectItem value="desaparecido">Desaparecido</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 shrink-0 text-rose-400"
+                                onClick={() =>
+                                  setDetallePerdidas((prev) => prev.filter((_, j) => j !== i))
+                                }
+                              >
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setDetallePerdidas((prev) => [...prev, nuevaPerdidaVacia()])}
+                        >
+                          <Plus className="size-3.5" />
+                          Agregar otro
+                        </Button>
+                      </div>
+                    )}
+                    <p className="text-[11px] text-muted-foreground">
+                      El censo es válido solo con el conteo de arriba; este detalle es opcional.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+              </>
+            ) : null}
+
+            {hayHogar || esJefe === true ? <Separator /> : null}
+
+            {!hayHogar && esJefe === true ? (
               <div className="flex flex-col sm:flex-row gap-2">
-                <Button className="flex-1" disabled={guardando} onClick={onCrearHogar}>
+                <Button
+                  className="flex-1"
+                  disabled={guardando || !estatusVivienda || hayDuplicadoSinConfirmar}
+                  onClick={onCrearHogar}
+                >
                   {guardando ? <Loader2 className="size-4 animate-spin" /> : <Home className="size-4" />}
                   {estadoNominal?.esJefeAqui
                     ? "Verificar y reanudar su hogar"
                     : "Verificar y crear hogar"}
                 </Button>
               </div>
-            ) : personaYaEnHogar ? (
+            ) : !hayHogar ? null : personaYaEnHogar ? (
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 <Check className="size-4 text-emerald-600" />
                 Esta persona ya es miembro del hogar actual.
@@ -921,7 +1487,11 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
                     ))}
                   </SelectContent>
                 </Select>
-                <Button className="flex-1" disabled={guardando} onClick={onAgregarComoFamiliar}>
+                <Button
+                  className="flex-1"
+                  disabled={guardando || hayDuplicadoSinConfirmar}
+                  onClick={onAgregarComoFamiliar}
+                >
                   {guardando ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
                   Agregar al hogar como {parentescoDirecto}
                 </Button>

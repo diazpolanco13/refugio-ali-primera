@@ -1,0 +1,39 @@
+{
+    "ok": true,
+    "letra": "V",
+    "cedula": "17089732",
+    "primer_nombre": "Carlos",
+    "segundo_nombre": "Eduardo",
+    "primer_apellido": "Diaz",
+    "segundo_apellido": "Polanco",
+    "nombre_completo": "Carlos Eduardo Diaz Polanco",
+    "sexo": "M",
+    "edad": 40,
+    "fecha_nacimiento": "1985-09-13",
+    "estado_civil": "Soltero",
+    "foto_nombre": "V-17089732-186c1dea.jpg",
+    "tiene_foto_saime": true,
+    "telefonos": [
+        "0212-9885601",
+        "0412-9317099"
+    ],
+    "direccion_fiscal": "AVENIDA PRINCIPAL DE MACARACUAY, URBANIZACION EL ENCANTADO HUMBOLDT, EDIFICIO TORRE J PISO  10, APARTAMENTO 7, BAJANDO POR HIDROCAPITAL DE MACARACUAY",
+    "familiares": [
+        {
+            "letra": "V",
+            "cedula": "7876551",
+            "nombre": "Gaudis Polanco",
+            "parentesco": "Padre/Madre",
+            "foto_nombre": "V-7876551-6c34d656.jpg",
+            "fuente": "ipsfa"
+        },
+        {
+            "letra": "V",
+            "cedula": "4747532",
+            "nombre": "Hermes Diaz",
+            "parentesco": "Padre/Madre",
+            "foto_nombre": "V-4747532-eb7c1460.jpg",
+            "fuente": "ipsfa"
+        }
+    ]
+}

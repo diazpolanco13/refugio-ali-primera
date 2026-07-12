@@ -1,0 +1,21 @@
+Base URL   https://api.onfalo.nexus.ia.ve
+sk_campament_4dda4e74be57a8cb603211cd10964e87
+Endpoint
+
+POST /v1/person/search/external/full/{letra}/{cedula}
+Parámetro Valores Ejemplo
+letra V, E, J V (venezolano), E (extranjero), J (jurídico)
+cedula número sin letra 12345678
+
+Headers
+
+X-Api-Key: <NEXUS_API_KEY en Dokploy nexus-vpn — no pegar aquí>
+X-Tenant-Id: sp3
+Content-Type: application/json
+
+---
+Gateway en producción (Dokploy compose nexus-vpn):
+  https://nexus.m0n1t0r-d3-3v3nt0s.net
+  Auth: Bearer JWT Supabase o X-Gateway-Secret
+
+Documentación de la implementación: README.md

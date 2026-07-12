@@ -44,6 +44,7 @@ async function rpcSetofPaginado<T>(
 export interface AnalistaContactoTerreno {
   nombre: string;
   telegram: string | null;
+  whatsapp: string | null;
 }
 
 export interface CentroCenso {
