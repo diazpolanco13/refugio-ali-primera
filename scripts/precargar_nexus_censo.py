@@ -92,14 +92,34 @@ def autenticar(url: str, anon_key: str) -> str:
     return token
 
 
+PAGE_SIZE = 1000
+
+
 def rest_get(url: str, anon_key: str, token: str, path: str) -> list:
-    req = urllib.request.Request(
-        f"{url}/rest/v1/{path}",
-        headers={"apikey": anon_key, "Authorization": f"Bearer {token}"},
-        method="GET",
-    )
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    """GET paginado: PostgREST limita cada respuesta a PAGE_SIZE filas
+    (visto en producción: 998/2 de 1000 en la primera prueba), así que hay
+    que pedir por bloques con `Range` hasta que una página vuelva vacía."""
+    acumulado: list = []
+    desde = 0
+    while True:
+        hasta = desde + PAGE_SIZE - 1
+        req = urllib.request.Request(
+            f"{url}/rest/v1/{path}",
+            headers={
+                "apikey": anon_key,
+                "Authorization": f"Bearer {token}",
+                "Range-Unit": "items",
+                "Range": f"{desde}-{hasta}",
+            },
+            method="GET",
+        )
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            pagina = json.loads(resp.read().decode("utf-8"))
+        acumulado.extend(pagina)
+        if len(pagina) < PAGE_SIZE:
+            break
+        desde += PAGE_SIZE
+    return acumulado
 
 
 def upsert_nexus_consulta(url: str, anon_key: str, token: str, fila: dict) -> None:
@@ -166,7 +186,7 @@ def main() -> int:
         anon_key,
         token,
         "censo_registros?select=documento_norm,tipo_doc"
-        "&documento_norm=not.is.null&tipo_doc=in.(V,E)",
+        "&documento_norm=not.is.null&tipo_doc=in.(V,E)&order=id",
     )
     vistos: set[tuple[str, str]] = set()
     candidatos: list[tuple[str, str]] = []
@@ -183,7 +203,9 @@ def main() -> int:
         vistos.add(clave)
         candidatos.append(clave)
 
-    ya_cacheadas_raw = rest_get(url, anon_key, token, "nexus_consultas?select=letra,cedula")
+    ya_cacheadas_raw = rest_get(
+        url, anon_key, token, "nexus_consultas?select=letra,cedula&order=letra,cedula"
+    )
     ya_cacheadas = {(f["letra"], f["cedula"]) for f in ya_cacheadas_raw}
 
     pendientes = [c for c in candidatos if c not in ya_cacheadas]
