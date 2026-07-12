@@ -26,3 +26,7 @@ scripts/__pycache__/
 nexusEndPoint/runtime/
 nexusEndPoint/vpn.txt
 nexusEndPoint/*.ovpn
+
+# Tokens de terreno (enlaces ?t= personales / públicos)
+accesosQR.txt
+censo/censo-manual/enlaces-terreno-centros.md

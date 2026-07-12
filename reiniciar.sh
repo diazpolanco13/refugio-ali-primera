@@ -6,27 +6,31 @@
 # accede desde el frontend vía supabase-js. Solo queda el servidor de Vite.
 #
 # Uso:
-#   ./reiniciar.sh          Reinicia el frontend (lo deja en segundo plano)
+#   ./reiniciar.sh          Reinicia el frontend e indica cómo abrir Dokploy
 #   ./reiniciar.sh update   Trae cambios de git (ff-only) y reinicia
 #   ./reiniciar.sh stop     Solo detiene el frontend
+#   ./reiniciar.sh dokploy  Muestra cómo acceder al panel Dokploy (:3000)
 #   ./reiniciar.sh logs     Muestra los logs en vivo (Ctrl-C para salir)
 #   ./reiniciar.sh build    Compila el build de producción y lo sirve en :4173
-#                           (MUCHO más rápido para probar desde conexiones
-#                           lentas: 9 archivos empaquetados en vez de cientos
-#                           de módulos sueltos del dev server)
 #
 # En cada arranque reinstala dependencias automáticamente si cambió
 # package-lock.json (p. ej. tras un git pull) — así "todo se actualiza bien".
 # Los logs se guardan en .dev-logs/frontend.log
 #
 # OJO: esto es SOLO el entorno de DESARROLLO (Vite). NO toca producción.
-# La producción corre en Dokploy y se actualiza aparte (ver CLAUDE.md).
+#
+# Dokploy: corre en ESTE mismo VPS en :3000, pero el firewall BLOQUEA el 3000
+# desde fuera. Por eso desde tu PC/navegador local hace falta un túnel SSH
+# (o Port Forward de Cursor), NO un ssh -L lanzado desde el propio servidor.
 set -uo pipefail
 
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOGS="$RAIZ/.dev-logs"
-PUERTO_WEB=5173
+PUERTO_WEB=5180
 PUERTO_PREVIEW=4173
+PUERTO_DOKPLOY=3000
+DOKPLOY_SSH="root@38.242.223.182"
+DOKPLOY_IP="38.242.223.182"
 
 detener() {
   echo "→ Deteniendo procesos en el puerto $PUERTO_WEB…"
@@ -58,10 +62,38 @@ instalar_deps() { # $1=dir  $2=nombre
   fi
 }
 
+# Comprueba Dokploy en este host y recuerda cómo abrirlo DESDE TU PC.
+# (Antes el script decía "túnel activo" solo porque Docker escucha :3000 aquí;
+#  eso no abre localhost:3000 en tu navegador de Windows/Cursor local.)
+mostrar_acceso_dokploy() {
+  local ok_local=0
+  if curl -sf -o /dev/null --connect-timeout 2 "http://127.0.0.1:${PUERTO_DOKPLOY}/" 2>/dev/null; then
+    ok_local=1
+    echo "→ Dokploy responde en este VPS (127.0.0.1:$PUERTO_DOKPLOY)."
+  else
+    echo "⚠ Dokploy no responde en 127.0.0.1:$PUERTO_DOKPLOY (¿contenedor caído?)."
+  fi
+
+  echo
+  echo "  Acceso al panel (el puerto $PUERTO_DOKPLOY está cerrado al exterior):"
+  echo "  1) En tu PC (PowerShell / terminal LOCAL, no en el VPS):"
+  echo "       ssh -L ${PUERTO_DOKPLOY}:localhost:${PUERTO_DOKPLOY} ${DOKPLOY_SSH}"
+  echo "     Luego abre:  http://localhost:${PUERTO_DOKPLOY}/"
+  echo "  2) O en Cursor (Remote SSH): pestaña Ports → Forward Port → ${PUERTO_DOKPLOY}"
+  echo "     y abre el localhost que Cursor te muestre."
+  if [ "$ok_local" -eq 1 ]; then
+    echo "  (Desde una shell YA dentro del VPS sí puedes: curl http://127.0.0.1:${PUERTO_DOKPLOY}/ )"
+  fi
+}
+
 case "${1:-restart}" in
   stop)
     detener
     echo "Frontend detenido."
+    exit 0
+    ;;
+  dokploy)
+    mostrar_acceso_dokploy
     exit 0
     ;;
   logs)
@@ -70,6 +102,8 @@ case "${1:-restart}" in
     ;;
   build)
     mkdir -p "$LOGS"
+    mostrar_acceso_dokploy
+    echo
     instalar_deps "$RAIZ" "frontend"
     echo "→ Compilando build de producción…"
     ( cd "$RAIZ" && npm run build ) || { echo "✗ Falló el build."; exit 1; }
@@ -99,6 +133,8 @@ case "${1:-restart}" in
 esac
 
 mkdir -p "$LOGS"
+mostrar_acceso_dokploy
+echo
 detener
 
 # Dependencias del frontend (se saltan si ya están al día).
@@ -109,10 +145,13 @@ echo "→ Levantando frontend (:$PUERTO_WEB)…"
 
 esperar "http://localhost:$PUERTO_WEB/" "frontend"
 
-IP="$(curl -s -4 -m 3 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')"
+IP="$(curl -s -4 -m 3 ifconfig.me 2>/dev/null || echo "$DOKPLOY_IP")"
 echo
 echo "Listo. Frontend de desarrollo en segundo plano:"
 echo "  • Frontend:  http://localhost:$PUERTO_WEB/"
 [ -n "$IP" ] && echo "               (desde la red / teléfono: http://$IP:$PUERTO_WEB/)"
-echo "  • Logs    :  ./reiniciar.sh logs   (o mira $LOGS/)"
+echo "  • Dokploy :  http://localhost:$PUERTO_DOKPLOY/  ← solo tras el túnel en TU PC"
+echo "               (comando: ssh -L ${PUERTO_DOKPLOY}:localhost:${PUERTO_DOKPLOY} ${DOKPLOY_SSH})"
+echo "  • Logs    :  ./reiniciar.sh logs"
 echo "  • Detener :  ./reiniciar.sh stop"
+echo "  • Ayuda Dokploy: ./reiniciar.sh dokploy"

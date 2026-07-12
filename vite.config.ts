@@ -10,6 +10,12 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  // Puerto distinto del default de Vite (5173) para no chocar con otros
+  // proyectos en la misma máquina / túneles SSH locales.
+  server: {
+    port: 5180,
+    strictPort: true,
+  },
   // Sin proxy: la PWA habla directo con Supabase (Postgres, Auth, Realtime,
   // Storage) vía supabase-js. Ya no hay backend Fastify propio que proxyar.
   optimizeDeps: {
