@@ -627,9 +627,11 @@ function ReporteExpandido({
 
       {!onAbrirReporte && reportando && (
         <ReporteDiarioForm
+          key={diaSel}
           centro={centro}
           diaReporte={diaSel}
           faseInicial={faseFormulario}
+          permitirDiaPasado={puedeEditarPasado === true}
           onCerrar={() => {
             setReportando(false);
             setFaseFormulario(undefined);
@@ -762,7 +764,11 @@ function ReporteCompacto({ centro, puedeEditar, onAbrirReporte }: Props) {
       )}
 
       {!onAbrirReporte && reportando && (
-        <ReporteDiarioForm centro={centro} onCerrar={() => setReportando(false)} />
+        <ReporteDiarioForm
+          centro={centro}
+          permitirDiaPasado={false}
+          onCerrar={() => setReportando(false)}
+        />
       )}
     </div>
   );

@@ -468,10 +468,18 @@ export function etiquetaRespuesta(valor: RespuestaLevantamiento): string {
  * `normalizarCentro()` al leer para tener valores garantizados.
  * `geom` puede ser `null` si aún no se tiene la coordenada exacta.
  */
+/** Id fijo del campamento sandbox (no cuenta en KPIs ni partes de la red). */
+export const ID_CENTRO_PRUEBA = "centro-prueba";
+
 export interface CentroTransitorio {
   id: string;
   nro: number;
   nombre: string;
+  /**
+   * Campamento de desarrollo/pruebas: visible en mapa y ficha, excluido de
+   * agregados de red (KPIs, partes, PDF, Telegram).
+   */
+  es_prueba?: boolean;
   /**
    * Si varios edificios forman un solo campamento oficial (p. ej. Gran Colombia),
    * comparten el mismo `complejoId` y el mismo `nro`. En totales de red cuentan
@@ -575,6 +583,20 @@ export interface CentroNormalizado extends CentroTransitorio {
   novedades: string;
   supervision: SupervisionCentro;
   requerimientos: ItemRequerimiento[];
+}
+
+/** ¿Es el campamento sandbox de pruebas? */
+export function esCentroDePrueba(c: { id: string; es_prueba?: boolean }): boolean {
+  return c.es_prueba === true || c.id === ID_CENTRO_PRUEBA;
+}
+
+export function idCentroEsPrueba(centroId: string): boolean {
+  return centroId === ID_CENTRO_PRUEBA;
+}
+
+/** Centros que sí entran en totales y partes de la red. */
+export function centrosDeProduccion(centros: CentroTransitorio[]): CentroTransitorio[] {
+  return centros.filter((c) => !esCentroDePrueba(c));
 }
 
 /** Rellena defaults de los campos mutables para leer un centro con seguridad. */
@@ -702,18 +724,27 @@ export const PERSONAL_VACIO: PersonalCentro = {
   justicia_defensoria: 0,
 };
 
+/** Tope por categoría: por encima se considera dato corrupto (p. ej. teléfono pegado). */
+export const MAX_PERSONAL_CATEGORIA = 2_000;
+
+function enteroPersonalNoNegativo(valor: unknown): number {
+  const n = Math.max(0, Math.floor(Number(valor) || 0));
+  if (n > MAX_PERSONAL_CATEGORIA) return 0;
+  return n;
+}
+
 export function normalizarPersonal(
   p: Partial<PersonalCentro> | null | undefined,
 ): PersonalCentro {
   const base = { ...PERSONAL_VACIO, ...(p ?? {}) };
   return {
-    funcionarios: Math.max(0, Number(base.funcionarios) || 0),
-    trabajadores: Math.max(0, Number(base.trabajadores) || 0),
-    medicos: Math.max(0, Number(base.medicos) || 0),
-    psicologos: Math.max(0, Number(base.psicologos) || 0),
-    justicia_tjs: Math.max(0, Number(base.justicia_tjs) || 0),
-    justicia_mp: Math.max(0, Number(base.justicia_mp) || 0),
-    justicia_defensoria: Math.max(0, Number(base.justicia_defensoria) || 0),
+    funcionarios: enteroPersonalNoNegativo(base.funcionarios),
+    trabajadores: enteroPersonalNoNegativo(base.trabajadores),
+    medicos: enteroPersonalNoNegativo(base.medicos),
+    psicologos: enteroPersonalNoNegativo(base.psicologos),
+    justicia_tjs: enteroPersonalNoNegativo(base.justicia_tjs),
+    justicia_mp: enteroPersonalNoNegativo(base.justicia_mp),
+    justicia_defensoria: enteroPersonalNoNegativo(base.justicia_defensoria),
   };
 }
 

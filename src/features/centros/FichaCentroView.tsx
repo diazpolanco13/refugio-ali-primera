@@ -46,8 +46,10 @@ import {
   type EstadoReporteDia,
 } from "@/domain/reporteDiario";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import { esCentroDePrueba } from "@/domain/centrosTransitorios";
 import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
 import { VistaEncabezado } from "@/components/VistaEncabezado";
+import { BadgePruebaCentro } from "@/components/BadgePruebaCentro";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -336,7 +338,9 @@ export function FichaCentroView({ sesion }: Props) {
   ]);
 
   function cambiarDiaReporte(nuevoDia: string) {
-    const clamped = nuevoDia > hoyClave ? hoyClave : nuevoDia;
+    let clamped = nuevoDia > hoyClave ? hoyClave : nuevoDia;
+    // En el editor, sin permiso de fechas pasadas solo se admite hoy.
+    if (modoReporte && !puedeEditarPasado) clamped = hoyClave;
     setDiaReporte(clamped);
     setSearchParams(
       (prev) => {
@@ -355,7 +359,8 @@ export function FichaCentroView({ sesion }: Props) {
 
   function abrirReporte(fase?: string) {
     const next = new URLSearchParams({ vista: "reporte", reportar: "1" });
-    if (diaReporte !== hoyClave) next.set("dia", diaReporte);
+    // Solo admin/analista SAE pueden abrir el editor de un día pasado.
+    if (puedeEditarPasado && diaReporte !== hoyClave) next.set("dia", diaReporte);
     if (fase) next.set("fase", fase);
     setSearchParams(next, { replace: true });
   }
@@ -431,8 +436,30 @@ export function FichaCentroView({ sesion }: Props) {
   // Sincronizar día del reporte con ?dia= en pestaña Reporte o modo formulario.
   useEffect(() => {
     if (seccionActiva !== "reporte" && !modoReporte) return;
-    setDiaReporte(diaDesdeParam(searchParams.get("dia"), hoyClave));
-  }, [seccionActiva, modoReporte, searchParams, hoyClave]);
+    const diaUrl = diaDesdeParam(searchParams.get("dia"), hoyClave);
+    // Editor sin permiso de pasado: forzar hoy (pueden ver historial en la
+    // pestaña Reporte, pero no abrir el formulario de un día anterior).
+    if (modoReporte && !puedeEditarPasado && diaUrl !== hoyClave) {
+      setDiaReporte(hoyClave);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("dia");
+          return next;
+        },
+        { replace: true },
+      );
+      return;
+    }
+    setDiaReporte(diaUrl);
+  }, [
+    seccionActiva,
+    modoReporte,
+    searchParams,
+    hoyClave,
+    puedeEditarPasado,
+    setSearchParams,
+  ]);
 
   // Redirigir ?vista=capacidad (URL antigua) a la pestaña unificada.
   useEffect(() => {
@@ -590,6 +617,7 @@ export function FichaCentroView({ sesion }: Props) {
               marcasPorDia={marcasPorDia}
               leyenda={leyendaCalendario}
               compacto
+              soloHoy={!puedeEditarPasado}
               className="h-9 min-w-0 flex-1 sm:h-8 sm:flex-none"
             />
             <BadgeEstadoReporte estado={estadoDiaReporte} destacado />
@@ -605,6 +633,7 @@ export function FichaCentroView({ sesion }: Props) {
           onCerrar={cerrarReporte}
           ocultarCerrar={false}
           etiquetaCerrar={reporteSoloTerreno ? "Volver al resumen" : "Cerrar"}
+          permitirDiaPasado={puedeEditarPasado}
           onProgresoChange={onProgresoFormulario}
         />
       </MarcoVista>
@@ -623,15 +652,18 @@ export function FichaCentroView({ sesion }: Props) {
         acento="sky"
         titulo={titulo}
         tituloExtra={
-          puedeEditar ? (
-            <BotonEditarSeccion
-              titulo="Editar nombre del campamento"
-              onClick={() => {
-                setErrorNombre(null);
-                setEditandoNombre(true);
-              }}
-            />
-          ) : undefined
+          <>
+            {esCentroDePrueba(centro) ? <BadgePruebaCentro /> : null}
+            {puedeEditar ? (
+              <BotonEditarSeccion
+                titulo="Editar nombre del campamento"
+                onClick={() => {
+                  setErrorNombre(null);
+                  setEditandoNombre(true);
+                }}
+              />
+            ) : null}
+          </>
         }
         descripcion={centro.parroquia || "Ficha del campamento en la red"}
         acciones={

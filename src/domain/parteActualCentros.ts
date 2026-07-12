@@ -2,6 +2,7 @@ import {
   normalizarCentro,
   normalizarPersonal,
   PERSONAL_VACIO,
+  MAX_PERSONAL_CATEGORIA,
   totalPersonalOperativo,
   type CentroTransitorio,
   type PersonalCentro,
@@ -44,9 +45,12 @@ function personalConTotal(
   personal: Partial<PersonalCentro> | null | undefined,
   total: number,
 ): PersonalCentro {
-  const objetivo = Math.max(0, Number(total) || 0);
   const normalizado = normalizarPersonal(personal);
   const totalBase = totalPersonalOperativo(normalizado);
+  // Totales absurdos (dato corrupto en el snapshot) no deben reescribir el desglose.
+  const objetivoRaw = Math.max(0, Math.floor(Number(total) || 0));
+  const objetivo =
+    objetivoRaw > MAX_PERSONAL_CATEGORIA * 7 ? totalBase : objetivoRaw;
   if (objetivo === 0 && totalBase > 0) return normalizado;
   if (totalBase === objetivo) return normalizado;
   if (objetivo === 0) return { ...PERSONAL_VACIO };
@@ -71,7 +75,12 @@ function personalConTotal(
   return { ...PERSONAL_VACIO, funcionarios: objetivo };
 }
 
-function ocupacionConTotal(
+/**
+ * Alinea el desglose etario al total reportado del parte.
+ * Si el censo y el total no cuadran (p. ej. ajustes históricos que solo
+ * tocaron `total_afectados`), la diferencia se absorbe en `adultos_h`.
+ */
+export function ocupacionAlineadaAlTotal(
   ocupacion: Partial<Vulnerables> | null | undefined,
   total: number,
 ): Vulnerables {
@@ -101,7 +110,7 @@ export function aplicarParteActualACentro(
     ...centro,
     total_afectados: snapshot.total_afectados ?? base.total_afectados,
     familias_ocupadas: snapshot.familias ?? base.familias_ocupadas,
-    ocupacion: ocupacionConTotal(
+    ocupacion: ocupacionAlineadaAlTotal(
       snapshot.ocupacion ?? base.ocupacion,
       snapshot.total_afectados ?? base.total_afectados,
     ),

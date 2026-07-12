@@ -1,7 +1,7 @@
 // Formulario del REPORTE DEL DÍA (formato Telegram): 6 bloques —
 // Parte, Salud, Control, Trabajos, Requerimientos, Novedades.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarPlus,
   Package,
@@ -32,17 +32,20 @@ import type { EventoReporte } from "@/domain/eventosReportes";
 import {
   normalizarComidas,
   reporteDelDia,
+  ultimosDiasReporte,
 } from "@/domain/reporteDiario";
+import { ocupacionAlineadaAlTotal } from "@/domain/parteActualCentros";
 import {
   normalizarCentro,
   poblacionCentro,
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
-import { normalizarVulnerables, type Vulnerables } from "@/domain/tipos";
+import { type Vulnerables } from "@/domain/tipos";
 import type { ReporteControlDia } from "@/domain/controlReporte";
 import { CONTROL_VACIO, reporteControlDelDia } from "@/domain/controlReporte";
 import { DesgloseDemografico } from "@/features/censo/DesgloseDemografico";
 import { BloqueConfirmacionReporte } from "./BloqueConfirmacionReporte";
+import { ultimoSnapshotAntes } from "./ParteNumericoResumen";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -79,6 +82,11 @@ interface Props {
   ocultarCerrar?: boolean;
   /** Etiqueta del botón cerrar (p. ej. «Volver al portal»). */
   etiquetaCerrar?: string;
+  /**
+   * Si es false, no se permiten mutaciones en días distintos de hoy
+   * (admin/analista SAE pasan true vía `puedeEditarReportesPasados`).
+   */
+  permitirDiaPasado?: boolean;
   /** Notifica al padre el progreso local (para el badge Completo sin esperar Realtime). */
   onProgresoChange?: (progreso: {
     completas: number;
@@ -174,11 +182,13 @@ export function ReporteDiarioForm({
   faseInicial,
   ocultarCerrar = false,
   etiquetaCerrar = "Cerrar",
+  permitirDiaPasado = false,
   onProgresoChange,
 }: Props) {
   const base = normalizarCentro(centro);
   const diaReporte = diaReporteProp ?? claveDia(Date.now());
   const esDiaPasado = diaReporte !== claveDia(Date.now());
+  const edicionPasadoBloqueada = esDiaPasado && !permitirDiaPasado;
 
   const [ocupacion, setOcupacion] = useState<Vulnerables>(base.ocupacion);
   const [totalAfectados, setTotalAfectados] = useState(base.total_afectados);
@@ -228,7 +238,15 @@ export function ReporteDiarioForm({
 
   const baselineEventos = useRef<EventoReporte[]>([]);
 
-  const snapshots = useOcupacionesCentros({ centroId: centro.id, desde: diaReporte });
+  // Ventana fija (no depende del día seleccionado): al navegar entre fechas el
+  // parte del día ya está en memoria y no hay hueco async que deje el formulario
+  // pegado al estado vigente del campamento.
+  const hoyClaveForm = useMemo(() => claveDia(Date.now()), []);
+  const desdeVentana = useMemo(
+    () => ultimosDiasReporte(40, hoyClaveForm)[0],
+    [hoyClaveForm],
+  );
+  const snapshots = useOcupacionesCentros({ centroId: centro.id, desde: desdeVentana });
   const parteHoyEnBd = snapshots.some((s) => s.dia === diaReporte);
   const snapHoy = snapshots.find((s) => s.dia === diaReporte);
 
@@ -240,25 +258,116 @@ export function ReporteDiarioForm({
   const { casos: casosSalud } = useCasosSaludCentros({ centroId: centro.id });
   const { eventos: eventosExistentes } = useEventosReportes({ centroId: centro.id, dia: diaReporte });
 
-  // Al corregir un día pasado, el parte se precarga desde el snapshot de ESE
-  // día (no desde el estado vigente del centro).
-  const parteInicializadoPasado = useRef(false);
-  useEffect(() => {
-    if (!esDiaPasado || parteInicializadoPasado.current || !snapHoy) return;
-    const ocupacionDia = normalizarVulnerables(snapHoy.ocupacion);
-    setOcupacion(ocupacionDia);
-    setTotalAfectados(snapHoy.total_afectados);
-    setFamilias(snapHoy.familias);
-    baselineParte.current = {
-      ocupacion: ocupacionDia,
-      totalAfectados: snapHoy.total_afectados,
-      familias: snapHoy.familias,
-    };
-    parteInicializadoPasado.current = true;
-  }, [esDiaPasado, snapHoy]);
-
-  const [contextoCargado, setContextoCargado] = useState(false);
+  // Día cuya demografía ya se cargó en el formulario. Se resetea al cambiar
+  // `diaReporte` para que flechas/calendario recarguen el parte de ESE día.
+  const parteDiaSincronizado = useRef<string | null>(null);
   const incidenciasInicializado = useRef(false);
+  const controlTocado = useRef(false);
+  const [contextoCargado, setContextoCargado] = useState(false);
+  const [precargadoReporte, setPrecargadoReporte] = useState(false);
+  const [precargadoEventos, setPrecargadoEventos] = useState(false);
+
+  useEffect(() => {
+    parteDiaSincronizado.current = null;
+    incidenciasInicializado.current = false;
+    controlTocado.current = false;
+    setPrecargadoReporte(false);
+    setPrecargadoEventos(false);
+    setParteConfirmadoOk(false);
+    setParteDesmarcadoOk(false);
+    setSaludConfirmadaOk(false);
+    setEventosBorradorPendiente(false);
+    setEventosReporte([]);
+    setIdsEventosExistentes([]);
+    setTrabajosRevisados(false);
+    setRequerimientosRevisados(false);
+    setEventosRevisados(false);
+    setControl({
+      ...CONTROL_VACIO,
+      centro_id: centro.id,
+      dia: diaReporte,
+    });
+    baselineControl.current = controlDatos({
+      ...CONTROL_VACIO,
+      centro_id: centro.id,
+      dia: diaReporte,
+    });
+    setControlHeredado(false);
+    baselineEventos.current = [];
+  }, [diaReporte, centro.id]);
+
+  // Precarga el parte del día seleccionado (snapshot de ese día; si no hay,
+  // carry-forward del anterior en días pasados; hoy sin snapshot → centro).
+  useEffect(() => {
+    if (parteDiaSincronizado.current === diaReporte) return;
+
+    if (snapHoy) {
+      const ocupacionDia = ocupacionAlineadaAlTotal(
+        snapHoy.ocupacion,
+        snapHoy.total_afectados,
+      );
+      setOcupacion(ocupacionDia);
+      setTotalAfectados(snapHoy.total_afectados);
+      setFamilias(snapHoy.familias);
+      baselineParte.current = {
+        ocupacion: ocupacionDia,
+        totalAfectados: snapHoy.total_afectados,
+        familias: snapHoy.familias,
+      };
+      parteDiaSincronizado.current = diaReporte;
+      return;
+    }
+
+    // Esperar la 1ª carga de la ventana: lista vacía = aún no llegó el select.
+    if (snapshots.length === 0) return;
+
+    if (!esDiaPasado) {
+      baselineParte.current = {
+        ocupacion: base.ocupacion,
+        totalAfectados: base.total_afectados,
+        familias: base.familias_ocupadas,
+      };
+      setOcupacion(base.ocupacion);
+      setTotalAfectados(base.total_afectados);
+      setFamilias(base.familias_ocupadas);
+      parteDiaSincronizado.current = diaReporte;
+      return;
+    }
+
+    const previo = ultimoSnapshotAntes(snapshots, diaReporte);
+    if (previo) {
+      const ocupacionDia = ocupacionAlineadaAlTotal(
+        previo.ocupacion,
+        previo.total_afectados,
+      );
+      setOcupacion(ocupacionDia);
+      setTotalAfectados(previo.total_afectados);
+      setFamilias(previo.familias);
+      baselineParte.current = {
+        ocupacion: ocupacionDia,
+        totalAfectados: previo.total_afectados,
+        familias: previo.familias,
+      };
+    } else {
+      setOcupacion(base.ocupacion);
+      setTotalAfectados(base.total_afectados);
+      setFamilias(base.familias_ocupadas);
+      baselineParte.current = {
+        ocupacion: base.ocupacion,
+        totalAfectados: base.total_afectados,
+        familias: base.familias_ocupadas,
+      };
+    }
+    parteDiaSincronizado.current = diaReporte;
+  }, [
+    diaReporte,
+    snapHoy,
+    snapshots,
+    esDiaPasado,
+    base.ocupacion,
+    base.total_afectados,
+    base.familias_ocupadas,
+  ]);
 
   useEffect(() => {
     if (contextoCargado) return;
@@ -269,7 +378,6 @@ export function ReporteDiarioForm({
   // (select async), así que se reevalúa cada vez que `controles` carga o
   // cambia, hasta que el usuario toque el bloque o exista el control de HOY
   // en BD (ese caso lo cubre el efecto de `controlHoy` más abajo).
-  const controlTocado = useRef(false);
   useEffect(() => {
     if (controlTocado.current || control.revisado) return;
     if (reporteControlDelDia(controles, centro.id, diaReporte)) return;
@@ -325,7 +433,6 @@ export function ReporteDiarioForm({
     reporteExistente?.salud_reportada,
   ]);
 
-  const [precargadoReporte, setPrecargadoReporte] = useState(false);
   useEffect(() => {
     if (precargadoReporte || !reporteExistente) return;
     setTrabajosRevisados(reporteExistente.trabajos_revisados);
@@ -344,7 +451,6 @@ export function ReporteDiarioForm({
     }
   }, [controlHoy?.updated_at]);
 
-  const [precargadoEventos, setPrecargadoEventos] = useState(false);
   useEffect(() => {
     if (precargadoEventos || eventosExistentes.length === 0) return;
     setEventosReporte(eventosExistentes);
@@ -424,12 +530,30 @@ export function ReporteDiarioForm({
    * botones "Confirmar" del tab llaman a esto en el mismo tick en que marcan
    * el estado local (aún stale): el valor explícito gana sobre el useState.
    */
+  const MSG_PASADO_BLOQUEADO =
+    "Solo admin y analista SAE pueden editar reportes de fechas pasadas.";
+
+  function bloquearSiPasado(): boolean {
+    if (!edicionPasadoBloqueada) return false;
+    setErrorGuardado(MSG_PASADO_BLOQUEADO);
+    return true;
+  }
+
+  /**
+   * Upsert de la fila del día preservando lo ya guardado (comidas, salud,
+   * observaciones). Los flags de revisión aceptan `overrides` porque los
+   * botones "Confirmar" del tab llaman a esto en el mismo tick en que marcan
+   * el estado local (aún stale): el valor explícito gana sobre el useState.
+   */
   async function guardarFlagsReporte(overrides?: {
     trabajos_revisados?: boolean;
     requerimientos_revisados?: boolean;
     eventos_revisados?: boolean;
     toques?: ("salud" | "trabajos" | "requerimientos" | "eventos")[];
   }): Promise<void> {
+    if (edicionPasadoBloqueada) {
+      throw new Error(MSG_PASADO_BLOQUEADO);
+    }
     await guardarReporteDiario({
       centro_id: centro.id,
       dia: diaReporte,
@@ -451,6 +575,7 @@ export function ReporteDiarioForm({
   }
 
   async function guardarParte() {
+    if (bloquearSiPasado()) return;
     setErrorGuardado(null);
     setConfirmandoParte(true);
     const prevConfirmado = parteConfirmadoOk;
@@ -499,6 +624,7 @@ export function ReporteDiarioForm({
   }
 
   async function guardarSalud() {
+    if (bloquearSiPasado()) return;
     setErrorGuardado(null);
     setConfirmandoSalud(true);
     // Optimista: el icono/progreso y el badge del padre no deben esperar Realtime.
@@ -532,6 +658,7 @@ export function ReporteDiarioForm({
   }
 
   async function desmarcarSalud() {
+    if (bloquearSiPasado()) return;
     setErrorGuardado(null);
     setConfirmandoSalud(true);
     const prevConfirmada = saludConfirmadaOk;
@@ -561,6 +688,7 @@ export function ReporteDiarioForm({
   }
 
   async function desmarcarParte() {
+    if (bloquearSiPasado()) return;
     setErrorGuardado(null);
     setConfirmandoParte(true);
     const prevConfirmado = parteConfirmadoOk;
@@ -579,6 +707,7 @@ export function ReporteDiarioForm({
   }
 
   async function guardarControl() {
+    if (bloquearSiPasado()) return;
     setErrorGuardado(null);
     setGuardandoBloque("control");
     const prevControl = control;
@@ -601,6 +730,7 @@ export function ReporteDiarioForm({
   }
 
   async function desmarcarControl() {
+    if (bloquearSiPasado()) return;
     setErrorGuardado(null);
     setGuardandoBloque("control");
     const prevRevisado = control.revisado;
@@ -616,6 +746,7 @@ export function ReporteDiarioForm({
   }
 
   async function guardarTrabajosRevision() {
+    if (bloquearSiPasado()) return;
     setGuardandoBloque("trabajos");
     const prev = trabajosRevisados;
     setTrabajosRevisados(true);
@@ -630,6 +761,7 @@ export function ReporteDiarioForm({
   }
 
   async function desmarcarTrabajosRevision() {
+    if (bloquearSiPasado()) return;
     setGuardandoBloque("trabajos");
     const prev = trabajosRevisados;
     setTrabajosRevisados(false);
@@ -644,6 +776,7 @@ export function ReporteDiarioForm({
   }
 
   async function guardarRequerimientosRevision() {
+    if (bloquearSiPasado()) return;
     setGuardandoBloque("requerimientos");
     const prev = requerimientosRevisados;
     setRequerimientosRevisados(true);
@@ -660,6 +793,7 @@ export function ReporteDiarioForm({
   }
 
   async function desmarcarRequerimientosRevision() {
+    if (bloquearSiPasado()) return;
     setGuardandoBloque("requerimientos");
     const prev = requerimientosRevisados;
     setRequerimientosRevisados(false);
@@ -689,6 +823,7 @@ export function ReporteDiarioForm({
   }
 
   async function confirmarRevisionEventos(valor: boolean) {
+    if (bloquearSiPasado()) return;
     const prev = eventosRevisados;
     setEventosRevisados(valor);
     setErrorGuardado(null);
@@ -704,6 +839,7 @@ export function ReporteDiarioForm({
   }
 
   async function guardarEventos() {
+    if (bloquearSiPasado()) return;
     setErrorGuardado(null);
     setGuardandoBloque("eventos");
     const prevRevisados = eventosRevisados;
@@ -731,6 +867,7 @@ export function ReporteDiarioForm({
   }
 
   async function desmarcarNovedades() {
+    if (bloquearSiPasado()) return;
     setErrorGuardado(null);
     setGuardandoBloque("eventos");
     const prev = eventosRevisados;
@@ -749,6 +886,8 @@ export function ReporteDiarioForm({
     day: "2-digit",
     month: "long",
   });
+
+  const formBloqueado = guardando || confirmandoParte || edicionPasadoBloqueada;
 
   const pieFormulario = (
     <div
@@ -783,6 +922,12 @@ export function ReporteDiarioForm({
             "pb-4 sm:pb-5",
           )}
         >
+          {edicionPasadoBloqueada && (
+            <p className="mb-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              Solo admin y analista SAE pueden editar reportes de fechas pasadas. Este formulario
+              queda en solo lectura.
+            </p>
+          )}
           {errorGuardado && (
             <p className="mb-3 text-xs leading-snug text-destructive sm:hidden">{errorGuardado}</p>
           )}
@@ -796,7 +941,7 @@ export function ReporteDiarioForm({
               revisado={parteHoyConfirmado}
               modificado={parteModificado}
               guardando={confirmandoParte}
-              deshabilitado={guardando}
+              deshabilitado={formBloqueado}
               onConfirmar={() => void guardarParte()}
               onDesmarcar={() => void desmarcarParte()}
               etiquetaGuardar="Guardar parte"
@@ -815,13 +960,13 @@ export function ReporteDiarioForm({
                   <Label htmlFor="reporte-afectados" className="text-[11px] text-muted-foreground">
                     Cantidad de afectados
                   </Label>
-                  <NumInput id="reporte-afectados" className="mt-1" value={totalAfectados} onChange={setTotalAfectados} />
+                  <NumInput id="reporte-afectados" className="mt-1" value={totalAfectados} onChange={setTotalAfectados} disabled={formBloqueado} />
                 </div>
                 <div>
                   <Label htmlFor="reporte-familias" className="text-[11px] text-muted-foreground">
                     N.° de familias
                   </Label>
-                  <NumInput id="reporte-familias" className="mt-1" value={familias} onChange={setFamilias} />
+                  <NumInput id="reporte-familias" className="mt-1" value={familias} onChange={setFamilias} disabled={formBloqueado} />
                 </div>
               </div>
             </div>
@@ -831,6 +976,7 @@ export function ReporteDiarioForm({
               <div className="mt-3">
                 <DesgloseDemografico
                   vulnerables={ocupacion}
+                  deshabilitado={formBloqueado}
                   onCampo={(campo, valor) => setOcupacion((prev) => ({ ...prev, [campo]: valor }))}
                 />
               </div>
@@ -847,7 +993,7 @@ export function ReporteDiarioForm({
               revisado={saludHoyConfirmada}
               modificado={saludModificada}
               guardando={confirmandoSalud}
-              deshabilitado={guardando || confirmandoParte}
+              deshabilitado={formBloqueado}
               onConfirmar={() => void guardarSalud()}
               onDesmarcar={() => void desmarcarSalud()}
               etiquetaGuardar="Guardar salud"
@@ -867,7 +1013,7 @@ export function ReporteDiarioForm({
                 className="mt-2 max-w-[8rem]"
                 value={incidenciasSalud}
                 onChange={setIncidenciasSalud}
-                disabled={guardando || confirmandoParte}
+                disabled={formBloqueado}
               />
             </div>
 
@@ -875,7 +1021,7 @@ export function ReporteDiarioForm({
               centroId={centro.id}
               hoyClave={diaReporte}
               incidenciasSalud={incidenciasSalud}
-              deshabilitado={guardando || confirmandoParte}
+              deshabilitado={formBloqueado}
             />
           </TabsContent>
 
@@ -891,7 +1037,7 @@ export function ReporteDiarioForm({
               }}
               onConfirmarRevision={() => void guardarControl()}
               onDesmarcarRevision={() => void desmarcarControl()}
-              deshabilitado={guardando || confirmandoParte}
+              deshabilitado={formBloqueado}
               guardando={guardandoBloque === "control"}
             />
           </TabsContent>
@@ -903,7 +1049,7 @@ export function ReporteDiarioForm({
               revisado={trabajosRevisados}
               onConfirmarRevision={guardarTrabajosRevision}
               onDesmarcarRevision={desmarcarTrabajosRevision}
-              deshabilitado={guardando || confirmandoParte}
+              deshabilitado={formBloqueado}
               guardando={guardandoBloque === "trabajos"}
             />
           </TabsContent>
@@ -915,7 +1061,7 @@ export function ReporteDiarioForm({
               revisado={requerimientosRevisados}
               onConfirmarRevision={guardarRequerimientosRevision}
               onDesmarcarRevision={desmarcarRequerimientosRevision}
-              deshabilitado={guardando || confirmandoParte}
+              deshabilitado={formBloqueado}
               guardando={guardandoBloque === "requerimientos"}
             />
           </TabsContent>
@@ -932,7 +1078,7 @@ export function ReporteDiarioForm({
               onBorradorPendienteChange={setEventosBorradorPendiente}
               onConfirmarRevision={() => void confirmarNovedades()}
               onDesmarcarRevision={() => void desmarcarNovedades()}
-              deshabilitado={guardando || confirmandoParte}
+              deshabilitado={formBloqueado}
               guardando={guardandoBloque === "eventos"}
             />
           </TabsContent>

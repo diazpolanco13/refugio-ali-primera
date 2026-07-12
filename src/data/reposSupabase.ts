@@ -24,6 +24,7 @@ import {
   type Sector,
 } from "../domain/tipos";
 import {
+  MAX_PERSONAL_CATEGORIA,
   normalizarCentro,
   normalizarPersonal,
   totalPersonalOperativo,
@@ -443,18 +444,31 @@ function filaSnapshotOcupacion(
   centro: CentroTransitorio,
   dia: string,
   ts: number,
-  opts: { omitirPersonal?: boolean; incidenciasSalud?: number } = {},
+  opts: {
+    omitirPersonal?: boolean;
+    incidenciasSalud?: number;
+    /** Si `omitirPersonal`, se reutiliza este total en lugar de escribir 0. */
+    personalTotalPreservado?: number;
+  } = {},
 ) {
   const norm = normalizarCentro(centro);
+  const personalCalculado = totalPersonalOperativo(normalizarPersonal(norm.personal));
+  let personalTotal: number;
+  if (opts.omitirPersonal) {
+    personalTotal = Math.max(0, Math.floor(Number(opts.personalTotalPreservado) || 0));
+  } else {
+    personalTotal = personalCalculado;
+  }
+  // Defensa: no persistir totales absurdos (dato corrupto en el blob).
+  if (personalTotal > MAX_PERSONAL_CATEGORIA * 7) personalTotal = 0;
+
   return {
     centro_id: centro.id,
     dia,
     ts,
     total_afectados: norm.total_afectados,
     familias: norm.familias_ocupadas,
-    personal_total: opts.omitirPersonal
-      ? 0
-      : totalPersonalOperativo(normalizarPersonal(norm.personal)),
+    personal_total: personalTotal,
     incidencias_salud: opts.incidenciasSalud ?? 0,
     ocupacion: normalizarVulnerables(norm.ocupacion),
     updated_at: ts,
@@ -469,20 +483,41 @@ async function upsertSnapshotOcupacion(
   opts: { omitirPersonal?: boolean; incidenciasSalud?: number } = {},
 ): Promise<void> {
   let incidencias = opts.incidenciasSalud;
-  if (incidencias == null) {
+  let personalPreservado: number | undefined;
+  if (incidencias == null || opts.omitirPersonal) {
     const { data } = await supabase
       .from("ocupaciones_centros")
-      .select("incidencias_salud")
+      .select("incidencias_salud, personal_total")
       .eq("centro_id", centro.id)
       .eq("dia", dia)
       .maybeSingle();
-    incidencias = data?.incidencias_salud ?? 0;
+    if (incidencias == null) incidencias = data?.incidencias_salud ?? 0;
+    if (opts.omitirPersonal) {
+      const actual = data?.personal_total;
+      if (actual != null && Number(actual) > 0 && Number(actual) <= MAX_PERSONAL_CATEGORIA * 7) {
+        personalPreservado = Number(actual);
+      } else {
+        // Sin fila del día (o total corrupto): heredar el último personal conocido.
+        const { data: previo } = await supabase
+          .from("ocupaciones_centros")
+          .select("personal_total")
+          .eq("centro_id", centro.id)
+          .lt("dia", dia)
+          .gt("personal_total", 0)
+          .lte("personal_total", MAX_PERSONAL_CATEGORIA * 7)
+          .order("dia", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        personalPreservado = previo?.personal_total != null ? Number(previo.personal_total) : 0;
+      }
+    }
   }
   const { error } = await supabase
     .from("ocupaciones_centros")
     .upsert(filaSnapshotOcupacion(centro, dia, ts, {
       omitirPersonal: opts.omitirPersonal,
       incidenciasSalud: incidencias,
+      personalTotalPreservado: personalPreservado,
     }), { onConflict: "centro_id,dia" });
   if (error) {
     throw new Error(`[reposSupabase] upsert ocupaciones_centros: ${error.message}`);
@@ -515,10 +550,15 @@ export async function obtenerCentroPorId(
 }
 
 async function upsertCentroVivo(centro: CentroTransitorio): Promise<void> {
-  const [lng, lat] = centro.geom?.coordinates ?? [null, null];
+  // Sanear personal antes de persistir (evita regrabar teléfonos/cedulas pegados).
+  const limpio: CentroTransitorio = {
+    ...centro,
+    personal: normalizarPersonal(centro.personal),
+  };
+  const [lng, lat] = limpio.geom?.coordinates ?? [null, null];
   const { error } = await supabase.rpc("upsert_centro", {
-    p_id: centro.id,
-    p_data: centro,
+    p_id: limpio.id,
+    p_data: limpio,
     p_lng: lng,
     p_lat: lat,
   });

@@ -5,9 +5,9 @@ import {
   totalHombres,
   totalMujeres,
   totalPoblacion,
-  normalizarVulnerables,
   type Vulnerables,
 } from "@/domain/tipos";
+import { ocupacionAlineadaAlTotal } from "@/domain/parteActualCentros";
 import type { SnapshotOcupacion } from "@/domain/serieOcupacionCentros";
 import {
   ChevronDown,
@@ -135,9 +135,15 @@ export function ParteNumericoResumen({
   meta,
 }: Props) {
   const [desgloseAbierto, setDesgloseAbierto] = useState(false);
-  const vuln = normalizarVulnerables(snapshot.ocupacion);
+  // El total reportado manda: si un ajuste histórico dejó el censo desfasado,
+  // alineamos el desglose para que al cambiar de día se vea la demografía
+  // coherente con Beneficiados/Familias de ese día.
+  const vuln = ocupacionAlineadaAlTotal(snapshot.ocupacion, snapshot.total_afectados);
   const vulnAnt = snapshotAnterior
-    ? normalizarVulnerables(snapshotAnterior.ocupacion)
+    ? ocupacionAlineadaAlTotal(
+        snapshotAnterior.ocupacion,
+        snapshotAnterior.total_afectados,
+      )
     : undefined;
 
   const refugiados = snapshot.total_afectados;
