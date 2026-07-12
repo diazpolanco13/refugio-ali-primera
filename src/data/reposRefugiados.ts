@@ -47,10 +47,17 @@ import {
   type TipoBeneficioFamiliar,
   type TipoBeneficio,
 } from "../domain/beneficios";
+import { esFalloDeRed, MENSAJE_SIN_CONEXION } from "@/lib/errorRed";
 import { normalizarGeom } from "./normalizarGeom";
 import { supabase } from "./supabaseClient";
 import { claveDia, usuarioActual } from "./reposSupabase";
 import { registrarHistorial } from "./historial";
+
+function errorRepos(contexto: string, message: string): Error {
+  console.warn(`[reposRefugiados] ${contexto}:`, message);
+  if (esFalloDeRed({ message })) return new Error(MENSAJE_SIN_CONEXION);
+  return new Error(`[reposRefugiados] ${contexto}: ${message}`);
+}
 
 export interface DatosPersonalesRefugiado {
   cedula?: string | null;
@@ -255,7 +262,7 @@ export async function upsertRefugiadoIdentidad(
     p_sexo: datos.sexo ?? null,
   });
   if (error) {
-    throw new Error(`[reposRefugiados] upsert identidad: ${error.message}`);
+    throw errorRepos("upsert identidad", error.message);
   }
   const resultado = data as { id: string; creado: boolean };
   if (resultado.creado && centroId) {

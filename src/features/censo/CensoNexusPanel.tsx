@@ -115,6 +115,7 @@ import {
 } from "@/features/censo/MigaPasosCenso";
 import { IconoTelegram } from "@/components/IconoTelegram";
 import { telegramHref, tieneTelefonoContacto } from "@/lib/contacto";
+import { mensajeErrorParaUsuario } from "@/lib/errorRed";
 import { copiarTexto } from "@/lib/portapapeles";
 import { cn } from "@/lib/utils";
 import { CENSO_BOTON_ACCION, CENSO_BOTON_SECUNDARIO, CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
@@ -617,9 +618,10 @@ export function CensoNexusPanel({
       } catch (e) {
         if (!cancel) {
           setErrorSesion(
-            e instanceof Error
-              ? e.message
-              : "No se pudo abrir sesión de terreno. Use el QR del campamento o inicie sesión.",
+            mensajeErrorParaUsuario(
+              e,
+              "No se pudo abrir sesión de terreno. Use el QR del campamento o inicie sesión.",
+            ),
           );
         }
       }
@@ -696,7 +698,7 @@ export function CensoNexusPanel({
       }, 80);
     } catch (err) {
       setErrorBusqueda(
-        err instanceof Error ? err.message : "No se pudo abrir el hogar.",
+        mensajeErrorParaUsuario(err, "No se pudo abrir el hogar."),
       );
     } finally {
       setAbriendoFamilia(false);
@@ -725,7 +727,7 @@ export function CensoNexusPanel({
     } catch (err) {
       setMensaje("");
       setErrorBusqueda(
-        err instanceof Error ? err.message : "No se pudo quitar al miembro del hogar.",
+        mensajeErrorParaUsuario(err, "No se pudo quitar al miembro del hogar."),
       );
     } finally {
       setEliminandoMiembro(false);
@@ -872,7 +874,7 @@ export function CensoNexusPanel({
         setParentescoDirecto(sugerido?.parentesco || "Otro familiar");
       }
     } catch (err) {
-      setErrorBusqueda(err instanceof Error ? err.message : "Error al consultar");
+      setErrorBusqueda(mensajeErrorParaUsuario(err, "Error al consultar"));
       // Fallo de infraestructura ⇒ el banner pasa a fuera de línea.
       if (esNexusNoDisponible(err)) {
         setSenalConsulta({ ts: Date.now(), resultado: "caida" });
@@ -941,7 +943,7 @@ export function CensoNexusPanel({
       setCedula("");
       // No resetear damnificación: así se puede volver a revisarla desde la miga.
     } catch (err) {
-      setErrorBusqueda(err instanceof Error ? err.message : "No se pudo crear el hogar");
+      setErrorBusqueda(mensajeErrorParaUsuario(err, "No se pudo crear el hogar"));
     } finally {
       setGuardando(false);
     }
@@ -983,7 +985,9 @@ export function CensoNexusPanel({
         refPasoHogar.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 50);
     } catch (err) {
-      setErrorBusqueda(err instanceof Error ? err.message : "No se pudo guardar la damnificación");
+      setErrorBusqueda(
+        mensajeErrorParaUsuario(err, "No se pudo guardar la damnificación"),
+      );
     } finally {
       setGuardando(false);
     }
@@ -1047,7 +1051,7 @@ export function CensoNexusPanel({
       setCedula("");
       setAgregarComoLider(false);
     } catch (err) {
-      setErrorBusqueda(err instanceof Error ? err.message : "No se pudo agregar");
+      setErrorBusqueda(mensajeErrorParaUsuario(err, "No se pudo agregar"));
     } finally {
       setGuardando(false);
     }
@@ -1107,7 +1111,7 @@ export function CensoNexusPanel({
       setCedula("");
       setConfirmoDuplicado(false);
     } catch (err) {
-      setErrorBusqueda(err instanceof Error ? err.message : "No se pudieron agregar");
+      setErrorBusqueda(mensajeErrorParaUsuario(err, "No se pudieron agregar"));
     } finally {
       setGuardando(false);
     }
@@ -1156,7 +1160,7 @@ export function CensoNexusPanel({
       setPestanaMiembros("adultos");
       setErrorMenor("");
     } catch (err) {
-      setErrorMenor(err instanceof Error ? err.message : "No se pudo agregar");
+      setErrorMenor(mensajeErrorParaUsuario(err, "No se pudo agregar"));
     } finally {
       setGuardando(false);
     }
