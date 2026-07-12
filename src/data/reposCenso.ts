@@ -62,6 +62,12 @@ export interface CentroCenso {
   capacidad_ts?: number | null;
   /** Analistas SAE del campamento (nombre + Telegram) vía `terreno_centro`. */
   analistas_contacto?: AnalistaContactoTerreno[];
+  /** Meta del parte numérico (último snapshot de ocupación). */
+  parte_personas?: number;
+  parte_familias?: number;
+  /** Censo nominal activo en el campamento. */
+  censados_personas?: number;
+  censados_familias?: number;
 }
 
 /** Funcionario que dirige el levantamiento en la escuela. */

@@ -87,7 +87,7 @@ import {
   type OtroCentroActivo,
 } from "@/data/reposRefugiados";
 import { nuevoId } from "@/data/reposSupabase";
-import { subirFotoRefugiado, supabaseDisponible } from "@/data/supabase";
+import { subirFotoRefugiado, supabaseDisponible, urlFotoRefugiado } from "@/data/supabase";
 import { asegurarSesionTerreno } from "@/data/loginTerreno";
 import { type FamiliarNexus, type PersonaNexusCenso } from "@/domain/nexusPersona";
 import {
@@ -331,27 +331,68 @@ interface ResumenFamiliaAqui {
 function AvatarMiembro({
   fotoUrl,
   nombre,
+  sinCedula = false,
 }: {
   fotoUrl: string | null;
   nombre: string;
+  /** Sin documento: borde ámbar si aún no hay foto (marca visual del flujo). */
+  sinCedula?: boolean;
 }) {
   const [rota, setRota] = useState(false);
-  const url = (fotoUrl ?? "").trim();
-  const mostrarFoto = url.length > 0 && !rota;
+  const [src, setSrc] = useState<string | null>(null);
+  const path = (fotoUrl ?? "").trim();
+
+  useEffect(() => {
+    let cancelado = false;
+    setRota(false);
+    if (!path) {
+      setSrc(null);
+      return;
+    }
+    if (path.startsWith("http") || path.startsWith("blob:") || path.startsWith("data:")) {
+      setSrc(path);
+      return;
+    }
+    void urlFotoRefugiado(path).then((u) => {
+      if (!cancelado) setSrc(u);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [path]);
+
+  const mostrarFoto = Boolean(src) && !rota;
+  const pedirFoto = sinCedula && !mostrarFoto;
 
   return (
-    <div className="relative size-11 shrink-0 overflow-hidden rounded-md border border-dashed border-border bg-muted/50">
+    <div
+      className={cn(
+        "relative size-11 shrink-0 overflow-hidden rounded-md border bg-muted/50",
+        pedirFoto
+          ? "border-amber-500/60 border-dashed"
+          : "border-dashed border-border",
+      )}
+    >
       {mostrarFoto ? (
         <img
-          src={url}
+          src={src!}
           alt={nombre}
           className="size-full object-cover"
           onError={() => setRota(true)}
         />
       ) : (
-        <div className="flex size-full flex-col items-center justify-center gap-0.5 text-muted-foreground">
+        <div
+          className={cn(
+            "flex size-full flex-col items-center justify-center gap-0.5",
+            pedirFoto
+              ? "text-amber-700 dark:text-amber-400"
+              : "text-muted-foreground",
+          )}
+        >
           <Camera className="size-4 opacity-70" />
-          <span className="text-[8px] font-medium leading-none">Sin foto</span>
+          <span className="text-[8px] font-medium leading-none">
+            {pedirFoto ? "¡Foto!" : "Sin foto"}
+          </span>
         </div>
       )}
     </div>
@@ -477,6 +518,12 @@ export function CensoNexusPanel({
   const [fotoPreviewUrl, setFotoPreviewUrl] = useState<string | null>(null);
   const inputFotoCamaraRef = useRef<HTMLInputElement | null>(null);
   const inputFotoGaleriaRef = useRef<HTMLInputElement | null>(null);
+  // Foto del alta sin cédula (menor / no documentado): estado aparte para no
+  // mezclarla con la foto de verificación del flujo por cédula.
+  const [fotoMenorArchivo, setFotoMenorArchivo] = useState<File | null>(null);
+  const [fotoMenorPreviewUrl, setFotoMenorPreviewUrl] = useState<string | null>(null);
+  const inputFotoMenorCamaraRef = useRef<HTMLInputElement | null>(null);
+  const inputFotoMenorGaleriaRef = useRef<HTMLInputElement | null>(null);
 
   const [familiaId, setFamiliaId] = useState<string | null>(null);
   const [, setCedulaJefe] = useState<string | null>(null);
@@ -690,6 +737,14 @@ export function CensoNexusPanel({
     setFotoArchivo(null);
   }
 
+  function limpiarFotoMenor() {
+    setFotoMenorPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setFotoMenorArchivo(null);
+  }
+
   function onElegirFoto(file: File | undefined) {
     if (!file || !file.type.startsWith("image/")) return;
     setFotoPreviewUrl((prev) => {
@@ -699,11 +754,21 @@ export function CensoNexusPanel({
     setFotoArchivo(file);
   }
 
+  function onElegirFotoMenor(file: File | undefined) {
+    if (!file || !file.type.startsWith("image/")) return;
+    setFotoMenorPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+    setFotoMenorArchivo(file);
+  }
+
   /** Sube la foto de campo tras el alta nominal (el id ya existe). */
-  async function persistirFotoCampo(refugiadoId: string) {
-    if (!fotoArchivo || !supabaseDisponible()) return;
+  async function persistirFotoCampo(refugiadoId: string, archivo?: File | null) {
+    const file = archivo ?? fotoArchivo;
+    if (!file || !supabaseDisponible()) return;
     try {
-      const path = await subirFotoRefugiado(refugiadoId, fotoArchivo);
+      const path = await subirFotoRefugiado(refugiadoId, file);
       await actualizarConsentimientoFoto(refugiadoId, true, path);
     } catch {
       // El registro ya quedó; la foto se puede completar en la ficha.
@@ -715,6 +780,12 @@ export function CensoNexusPanel({
       if (fotoPreviewUrl) URL.revokeObjectURL(fotoPreviewUrl);
     };
   }, [fotoPreviewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (fotoMenorPreviewUrl) URL.revokeObjectURL(fotoMenorPreviewUrl);
+    };
+  }, [fotoMenorPreviewUrl]);
 
   function resetDamnificacion() {
     setEstatusVivienda(null);
@@ -1039,7 +1110,7 @@ export function CensoNexusPanel({
     setGuardando(true);
     setMensaje("");
     try {
-      await registrarMiembroSinDocumento({
+      const r = await registrarMiembroSinDocumento({
         centroId,
         familiaId,
         primer_nombre: menor.primer_nombre,
@@ -1052,6 +1123,8 @@ export function CensoNexusPanel({
           (edadNum != null ? fechaAproximadaPorEdad(Math.max(0, edadNum)) : null),
         parentescoJefe: menor.parentesco,
       });
+      await persistirFotoCampo(r.refugiadoId, fotoMenorArchivo);
+      limpiarFotoMenor();
       await refrescarMiembros(familiaId);
       setMensaje(
         `Agregado al hogar sin documento: ${menor.primer_nombre} ${menor.primer_apellido}`,
@@ -1095,6 +1168,7 @@ export function CensoNexusPanel({
     resetDamnificacion();
     setNivelHogar(null);
     limpiarFotoLocal();
+    limpiarFotoMenor();
     setErrorBusqueda("");
     setMensaje(mensaje);
     setPasoEnfoque("cedula");
@@ -1510,7 +1584,11 @@ export function CensoNexusPanel({
                     <span className="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-muted-foreground">
                       {i + 1}
                     </span>
-                    <AvatarMiembro fotoUrl={m.fotoUrl} nombre={m.nombre} />
+                    <AvatarMiembro
+                      fotoUrl={m.fotoUrl}
+                      nombre={m.nombre}
+                      sinCedula={!m.cedula}
+                    />
                     <div className="min-w-0 flex-1 space-y-0.5">
                       <p className="truncate text-sm font-semibold leading-tight">
                         {m.nombre}
@@ -1728,6 +1806,112 @@ export function CensoNexusPanel({
                     sin verificación SAIME; si luego aparece la cédula, se completa en
                     la ficha.
                   </p>
+
+                  {/* Foto de campo: diferenciación visual de quien no tiene cédula. */}
+                  <div
+                    className={cn(
+                      "flex gap-3 rounded-xl border p-3",
+                      fotoMenorPreviewUrl
+                        ? "border-emerald-500/40 bg-emerald-500/5"
+                        : "border-amber-500/45 bg-amber-500/10",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => inputFotoMenorCamaraRef.current?.click()}
+                      className={cn(
+                        "relative flex size-[5.5rem] shrink-0 flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-colors",
+                        fotoMenorPreviewUrl
+                          ? "border-emerald-600/40 bg-muted"
+                          : "border-amber-500/50 bg-background hover:border-amber-500/80",
+                      )}
+                      aria-label={
+                        fotoMenorPreviewUrl
+                          ? "Cambiar foto (cámara)"
+                          : "Tomar foto con la cámara"
+                      }
+                    >
+                      {fotoMenorPreviewUrl ? (
+                        <img
+                          src={fotoMenorPreviewUrl}
+                          alt="Vista previa"
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <>
+                          <Camera className="size-7 text-amber-700 dark:text-amber-400" />
+                          <span className="mt-1 px-1 text-center text-[10px] font-medium leading-tight text-amber-800 dark:text-amber-300">
+                            Añadir foto
+                          </span>
+                        </>
+                      )}
+                    </button>
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <p className="text-sm font-semibold leading-snug">
+                        Foto de la persona
+                      </p>
+                      <p className="text-[11px] leading-snug text-muted-foreground">
+                        Sin cédula, la foto es la referencia visual del hogar. Tómela
+                        ahora con la cámara del teléfono.
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1 px-2 text-[11px]"
+                          onClick={() => inputFotoMenorCamaraRef.current?.click()}
+                        >
+                          <Camera className="size-3.5" />
+                          Cámara
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-1 px-2 text-[11px] text-muted-foreground"
+                          onClick={() => inputFotoMenorGaleriaRef.current?.click()}
+                        >
+                          <ImagePlus className="size-3.5" />
+                          Galería
+                        </Button>
+                        {fotoMenorPreviewUrl ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 gap-1 px-2 text-[11px] text-muted-foreground"
+                            onClick={limpiarFotoMenor}
+                          >
+                            <RotateCcw className="size-3.5" />
+                            Quitar
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                    <input
+                      ref={inputFotoMenorCamaraRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => {
+                        onElegirFotoMenor(e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                    <input
+                      ref={inputFotoMenorGaleriaRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        onElegirFotoMenor(e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <Label htmlFor="menor-pn" className="text-xs">

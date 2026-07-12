@@ -727,7 +727,7 @@ export function CensoListaCensadosPanel({
                   aria-selected={activa}
                   onClick={() => setPestana(tab.id)}
                   className={cn(
-                    "flex min-h-11 flex-col items-center justify-center gap-0.5 px-1.5 py-2 text-center transition-colors sm:flex-row sm:gap-1.5 sm:px-2",
+                    "flex min-h-11 cursor-pointer flex-col items-center justify-center gap-0.5 px-1.5 py-2 text-center transition-colors sm:flex-row sm:gap-1.5 sm:px-2",
                     i > 0 && "border-l border-border",
                     activa
                       ? "bg-primary text-primary-foreground"
