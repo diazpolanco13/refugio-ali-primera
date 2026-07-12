@@ -17,9 +17,14 @@ returns table(
   parte_personas int,
   parte_familias int,
   censados_personas int,
-  censados_familias int
+  censados_familias int,
+  reporte_ts bigint,
+  censo_ts bigint
 )
 language sql stable security definer set search_path = public as $$
+  with hoy as (
+    select (timezone('America/Caracas', now()))::date as dia
+  )
   select
     c.id,
     coalesce(nullif(trim(c.data->>'nombre'), ''), c.id) as nombre,
@@ -141,8 +146,70 @@ language sql stable security definer set search_path = public as $$
           and a.estado = 'activo'
           and a.familia_id is null
       ) then 1 else 0 end
-    )::int as censados_familias
+    )::int as censados_familias,
+    nullif(
+      greatest(
+        coalesce((
+          select max(r.updated_at)
+          from public.reportes_centros r
+          cross join hoy
+          where r.centro_id = c.id and r.dia = hoy.dia
+        ), 0),
+        coalesce((
+          select max(r.salud_updated_at)
+          from public.reportes_centros r
+          cross join hoy
+          where r.centro_id = c.id and r.dia = hoy.dia
+        ), 0),
+        coalesce((
+          select max(r.trabajos_updated_at)
+          from public.reportes_centros r
+          cross join hoy
+          where r.centro_id = c.id and r.dia = hoy.dia
+        ), 0),
+        coalesce((
+          select max(r.requerimientos_updated_at)
+          from public.reportes_centros r
+          cross join hoy
+          where r.centro_id = c.id and r.dia = hoy.dia
+        ), 0),
+        coalesce((
+          select max(r.eventos_updated_at)
+          from public.reportes_centros r
+          cross join hoy
+          where r.centro_id = c.id and r.dia = hoy.dia
+        ), 0),
+        coalesce((
+          select max(rc.updated_at)
+          from public.reportes_control_dia rc
+          cross join hoy
+          where rc.centro_id = c.id and rc.dia = hoy.dia
+        ), 0),
+        coalesce((
+          select max(greatest(coalesce(o.updated_at, 0), coalesce(o.ts, 0)))
+          from public.ocupaciones_centros o
+          cross join hoy
+          where o.centro_id = c.id and o.dia = hoy.dia
+        ), 0),
+        coalesce((
+          select max(greatest(coalesce(e.updated_at, 0), coalesce(e.ts, 0)))
+          from public.eventos_reportes e
+          cross join hoy
+          where e.centro_id = c.id and e.dia = hoy.dia
+        ), 0)
+      ),
+      0
+    )::bigint as reporte_ts,
+    nullif(
+      (
+        select max(greatest(coalesce(a.updated_at, 0), coalesce(a.creada_ts, 0)))
+        from public.alojamientos_refugiados a
+        where a.centro_id = c.id and a.estado = 'activo'
+      ),
+      0
+    )::bigint as censo_ts
   from public.centros c
+  cross join hoy
   where c.id = public.centro_de_token(p_token, 'personal') and not c.deleted;
 $$;
 

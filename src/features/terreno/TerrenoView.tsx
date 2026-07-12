@@ -4,11 +4,10 @@
 // /censo). Acepta ?centro=<id> / ?t=<token> para llegar ya apuntado a un
 // campamento.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   BedDouble,
-  CheckCircle2,
   ClipboardList,
   Landmark,
   Loader2,
@@ -50,7 +49,7 @@ import {
   verInstruccionesSiempre,
 } from "@/lib/instruccionesCampo";
 import { centroGeolocalizadoLocal } from "@/lib/geolocalizacionTerreno";
-import { formatearHoraActualizacionTerreno } from "@/lib/terrenoActualizacion";
+import { formatearHoraActualizacionTerreno, maxTimestamp } from "@/lib/terrenoActualizacion";
 import {
   actualizarAppCampo,
   type ProgresoActualizacionApp,
@@ -63,6 +62,14 @@ import {
   type SesionOperadorTerreno,
 } from "@/lib/terrenoFuncionario";
 import { FormularioIdentificacionFuncionario } from "@/features/censo/FormularioIdentificacionFuncionario";
+import { claveDia } from "@/data/reposSupabase";
+import { supabase } from "@/data/supabaseClient";
+import { controlReportado, normalizarReporteControlDia } from "@/domain/controlReporte";
+import {
+  estadoReporteDia,
+  eventosRevisados,
+  normalizarReporte,
+} from "@/domain/reporteDiario";
 import { cn } from "@/lib/utils";
 
 function centroDeLaUrl(): string {
@@ -93,31 +100,67 @@ function quitarTareaDeUrl(): void {
   window.history.replaceState({}, "", url.toString());
 }
 
-const CLASE_BOTON_CUADRADO =
-  "flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-card p-4 text-center shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary active:bg-primary/10 disabled:cursor-not-allowed";
+const CLASE_BOTON_LISTA =
+  "flex w-full cursor-pointer items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 text-left shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary active:bg-primary/10 disabled:cursor-not-allowed";
 
-function LineaActualizacion({
-  ts,
-  resaltar,
-}: {
-  ts: number | null;
-  resaltar?: boolean;
-}) {
+const CLASE_TITULO_TAREA = "block text-sm font-medium leading-tight text-foreground";
+const CLASE_ESTADO_TAREA = "mt-0.5 block text-xs leading-snug text-muted-foreground";
+const CLASE_ESTADO_PENDIENTE = "text-amber-800/90 dark:text-amber-200/90";
+
+function LineaActualizacion({ ts }: { ts: number | null }) {
   const texto = formatearHoraActualizacionTerreno(ts);
   if (!texto) return null;
   return (
-    <span
-      className={cn(
-        "text-[0.625rem] leading-tight tabular-nums",
-        resaltar
-          ? "text-emerald-600/75 dark:text-emerald-400/75"
-          : "text-muted-foreground/80",
-      )}
-    >
+    <span className="mt-0.5 block text-[0.625rem] leading-tight tabular-nums text-muted-foreground/80">
       Act. {texto}
     </span>
   );
 }
+
+function BotonTareaTerreno({
+  onClick,
+  disabled,
+  titulo,
+  estado,
+  actualizadoTs,
+  icono,
+  iconoCargando,
+  pendiente,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  titulo: string;
+  estado: string;
+  actualizadoTs?: number | null;
+  icono: ReactNode;
+  iconoCargando?: boolean;
+  /** Resalta el estado en ámbar cuando falta completar la tarea. */
+  pendiente?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(CLASE_BOTON_LISTA, disabled && "pointer-events-none opacity-70")}
+    >
+      <span className="flex size-8 shrink-0 items-center justify-center" aria-hidden="true">
+        {iconoCargando ? (
+          <Loader2 className="size-8 animate-spin text-primary" />
+        ) : (
+          icono
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={CLASE_TITULO_TAREA}>{titulo}</span>
+        <span className={cn(CLASE_ESTADO_TAREA, pendiente && CLASE_ESTADO_PENDIENTE)}>{estado}</span>
+        <LineaActualizacion ts={actualizadoTs ?? null} />
+      </span>
+    </button>
+  );
+}
+
+const CLASE_ICONO_TAREA = "size-8 text-primary";
 
 type Pantalla =
   | "menu"
@@ -160,6 +203,9 @@ export function TerrenoView() {
   const [progresoApp, setProgresoApp] = useState<ProgresoActualizacionApp | null>(
     null,
   );
+  const [reporteHoyCompleto, setReporteHoyCompleto] = useState<boolean | null>(null);
+  const [cargandoReporte, setCargandoReporte] = useState(false);
+  const [reporteTs, setReporteTs] = useState<number | null>(null);
 
   // Quita el marcador de cache-bust tras «Borrar caché y actualizar».
   useEffect(() => {
@@ -238,12 +284,117 @@ export function TerrenoView() {
     return { parte, censados, pct, faltan };
   }, [centro]);
   const censoCompleto = Boolean(censoResumen && censoResumen.faltan === 0);
-  const censoPendiente = Boolean(censoResumen && censoResumen.faltan > 0);
+  const censoTs = centro?.censo_ts ?? null;
   // Terminó la carga y no hay ningún campamento accesible: ni token válido ni
   // sesión autorizada. Desde este dispositivo no hay tarea posible.
   const accesoDenegado = !cargandoCentros && centros.length === 0;
   // Con QR: hay que identificarse antes del menú (usuarios temporales por persona).
   const requiereIdentificacion = Boolean(token && centroValido && !accesoDenegado);
+  const hoyClave = useMemo(() => claveDia(Date.now()), []);
+  const puedeConsultarReporte = Boolean(
+    centroValido && gateListo && (!requiereIdentificacion || operadorSesion),
+  );
+
+  useEffect(() => {
+    if (!puedeConsultarReporte || !centroValido) {
+      setReporteHoyCompleto(null);
+      setReporteTs(centro?.reporte_ts ?? null);
+      setCargandoReporte(false);
+      return;
+    }
+    let cancelado = false;
+    setCargandoReporte(true);
+
+    async function cargarEstadoReporte() {
+      try {
+        const [repRes, ctrlRes, snapRes, evtRes] = await Promise.all([
+          supabase
+            .from("reportes_centros")
+            .select("*")
+            .eq("centro_id", centroValido)
+            .eq("dia", hoyClave)
+            .maybeSingle(),
+          supabase
+            .from("reportes_control_dia")
+            .select("*")
+            .eq("centro_id", centroValido)
+            .eq("dia", hoyClave)
+            .maybeSingle(),
+          supabase
+            .from("ocupaciones_centros")
+            .select("incidencias_salud, updated_at, ts")
+            .eq("centro_id", centroValido)
+            .eq("dia", hoyClave)
+            .maybeSingle(),
+          supabase
+            .from("eventos_reportes")
+            .select("id, updated_at, ts")
+            .eq("centro_id", centroValido)
+            .eq("dia", hoyClave),
+        ]);
+        if (cancelado) return;
+
+        const reporte = repRes.data
+          ? normalizarReporte({
+              ...(repRes.data as Record<string, unknown>),
+              centro_id: centroValido,
+              dia: hoyClave,
+            })
+          : null;
+        const control = ctrlRes.data
+          ? normalizarReporteControlDia({
+              ...(ctrlRes.data as Record<string, unknown>),
+              centro_id: centroValido,
+              dia: hoyClave,
+            })
+          : null;
+        const snap = snapRes.data as {
+          incidencias_salud?: number;
+          updated_at?: number;
+          ts?: number;
+        } | null;
+        const incidenciasSalud = Number(snap?.incidencias_salud ?? 0);
+        const totalEventos = evtRes.data?.length ?? 0;
+        const eventosTs = (evtRes.data ?? []).flatMap((e) => {
+          const fila = e as { updated_at?: number; ts?: number };
+          return [fila.updated_at, fila.ts];
+        });
+        setReporteTs(
+          maxTimestamp(
+            reporte?.updated_at,
+            reporte?.salud_updated_at,
+            reporte?.trabajos_updated_at,
+            reporte?.requerimientos_updated_at,
+            reporte?.eventos_updated_at,
+            control?.updated_at,
+            snap?.updated_at,
+            snap?.ts,
+            ...eventosTs,
+            centro?.reporte_ts,
+          ),
+        );
+        const estado = estadoReporteDia(reporte, Boolean(snapRes.data), {
+          saludReportada:
+            reporte?.salud_reportada === true || incidenciasSalud > 0,
+          controlRevisado: controlReportado(control),
+          trabajosRevisados: reporte?.trabajos_revisados ?? false,
+          requerimientosRevisados: reporte?.requerimientos_revisados ?? false,
+          eventosRevisados: eventosRevisados(reporte, totalEventos),
+        });
+        setReporteHoyCompleto(estado === "completo");
+      } catch {
+        if (!cancelado) setReporteHoyCompleto(null);
+      } finally {
+        if (!cancelado) setCargandoReporte(false);
+      }
+    }
+
+    void cargarEstadoReporte();
+    return () => {
+      cancelado = true;
+    };
+  }, [puedeConsultarReporte, centroValido, hoyClave, centro?.reporte_ts]);
+
   const mostrarBienvenida =
     requiereIdentificacion && gateListo && !operadorSesion && pantalla === "bienvenida";
   const mostrarIdentificacion =
@@ -438,6 +589,49 @@ export function TerrenoView() {
     operadorSesion,
     pantalla,
   ]);
+
+  const estadoReporteTerreno = useMemo(() => {
+    if (entrando) return "Abriendo el parte…";
+    if (cargandoCentros || cargandoReporte) return "Consultando estado…";
+    if (reporteHoyCompleto) return "Parte de hoy listo";
+    if (reporteTs ?? centro?.reporte_ts) return "En curso · faltan fases por cerrar";
+    return "Aún sin reporte de hoy";
+  }, [
+    entrando,
+    cargandoCentros,
+    cargandoReporte,
+    reporteHoyCompleto,
+    reporteTs,
+    centro?.reporte_ts,
+  ]);
+
+  const estadoCensoTerreno = useMemo(() => {
+    if (cargandoCentros) return "Consultando estado…";
+    if (censoCompleto && censoResumen) {
+      return `${censoResumen.censados.toLocaleString("es")} de ${censoResumen.parte.toLocaleString("es")} personas · al día`;
+    }
+    if (censoResumen) {
+      return `${censoResumen.censados.toLocaleString("es")} de ${censoResumen.parte.toLocaleString("es")} personas · faltan ${censoResumen.faltan.toLocaleString("es")}`;
+    }
+    if (!centro?.parte_personas) return "Por cédula · aún no hay parte del día";
+    return "Por cédula · registre damnificados del campamento";
+  }, [cargandoCentros, censoCompleto, censoResumen, centro?.parte_personas]);
+
+  const estadoGeoTerreno = geolocalizado
+    ? "Campamento ubicado en el mapa"
+    : "Falta marcar la ubicación con GPS";
+
+  const estadoAutoridadesTerreno = autoridadesOk
+    ? "Directorio del campamento registrado"
+    : "Falta registrar ente, política y seguridad";
+
+  const estadoCapacidadTerreno = capacidadOk
+    ? "Aforo y recursos registrados"
+    : "Falta registrar camas, agua y baños";
+
+  const reportePendiente =
+    !entrando && !cargandoCentros && !cargandoReporte && reporteHoyCompleto !== true;
+  const censoPendiente = !cargandoCentros && !censoCompleto;
 
   function cambiarInstruccionesSiempre(valor: boolean) {
     setVerInstruccionesSiempre(valor);
@@ -734,213 +928,112 @@ export function TerrenoView() {
             </p>
           </section>
         ) : (
-          <nav aria-label="Tareas de terreno" className="grid w-full grid-cols-2 gap-4">
-            <button
-              type="button"
+          <nav aria-label="Tareas de terreno" className="flex w-full flex-col gap-2">
+            <BotonTareaTerreno
               onClick={abrirReporte}
               disabled={entrando || cargandoCentros}
-              className={cn(
-                CLASE_BOTON_CUADRADO,
-                (entrando || cargandoCentros) && "pointer-events-none opacity-70",
-              )}
-            >
-              {entrando ? (
-                <Loader2 className="size-10 animate-spin text-primary" aria-hidden="true" />
-              ) : (
-                <ClipboardList className="size-10 text-primary" aria-hidden="true" />
-              )}
-              <span className="text-sm font-semibold">Reporte</span>
-              <span className="flex items-center gap-1 text-[0.6875rem] leading-tight text-muted-foreground">
-                <LockKeyhole className="size-3 shrink-0" aria-hidden="true" />
-                {entrando
-                  ? "Entrando al campamento…"
-                  : cargandoCentros
-                    ? "Verificando acceso…"
-                    : token && centro
-                      ? "Parte del día · entra con el QR"
-                      : "Parte del día · con usuario"}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={abrirGeolocalizacion}
-              disabled={cargandoCentros || !centroValido}
-              className={cn(
-                CLASE_BOTON_CUADRADO,
-                geolocalizado &&
-                  "border-emerald-500/45 bg-emerald-500/10 hover:border-emerald-500/60 hover:bg-emerald-500/15",
-                (cargandoCentros || !centroValido) && "pointer-events-none opacity-70",
-              )}
-            >
-              {geolocalizado ? (
-                <CheckCircle2 className="size-10 text-emerald-500" aria-hidden="true" />
-              ) : (
-                <MapPinned className="size-10 text-primary" aria-hidden="true" />
-              )}
-              <span
-                className={cn(
-                  "text-sm font-semibold",
-                  geolocalizado && "text-emerald-600 dark:text-emerald-400",
-                )}
-              >
-                {geolocalizado ? "Geolocalizado" : "Geolocalizar"}
-              </span>
-              <span
-                className={cn(
-                  "text-[0.6875rem] leading-tight",
-                  geolocalizado ? "text-emerald-600/80 dark:text-emerald-400/80" : "text-muted-foreground",
-                )}
-              >
-                {geolocalizado ? "Ubicación guardada · puede actualizar" : "GPS del campamento"}
-              </span>
-              <LineaActualizacion ts={geoTs} resaltar={geolocalizado} />
-            </button>
-
-            <button
-              type="button"
-              onClick={abrirAutoridades}
-              disabled={cargandoCentros || !centroValido}
-              className={cn(
-                CLASE_BOTON_CUADRADO,
-                autoridadesOk &&
-                  "border-emerald-500/45 bg-emerald-500/10 hover:border-emerald-500/60 hover:bg-emerald-500/15",
-                (cargandoCentros || !centroValido) && "pointer-events-none opacity-70",
-              )}
-            >
-              {autoridadesOk ? (
-                <CheckCircle2 className="size-10 text-emerald-500" aria-hidden="true" />
-              ) : (
-                <Landmark className="size-10 text-primary" aria-hidden="true" />
-              )}
-              <span
-                className={cn(
-                  "text-sm font-semibold",
-                  autoridadesOk && "text-emerald-600 dark:text-emerald-400",
-                )}
-              >
-                Autoridades
-              </span>
-              <span
-                className={cn(
-                  "text-[0.6875rem] leading-tight",
-                  autoridadesOk
-                    ? "text-emerald-600/80 dark:text-emerald-400/80"
-                    : "text-muted-foreground",
-                )}
-              >
-                {autoridadesOk ? "Directorio guardado · puede editar" : "Ente encargado · Política · Seguridad…"}
-              </span>
-              <LineaActualizacion ts={autoridadesTs} resaltar={autoridadesOk} />
-            </button>
-
-            <button
-              type="button"
-              onClick={abrirCapacidad}
-              disabled={cargandoCentros || !centroValido}
-              className={cn(
-                CLASE_BOTON_CUADRADO,
-                capacidadOk &&
-                  "border-emerald-500/45 bg-emerald-500/10 hover:border-emerald-500/60 hover:bg-emerald-500/15",
-                (cargandoCentros || !centroValido) && "pointer-events-none opacity-70",
-              )}
-            >
-              {capacidadOk ? (
-                <CheckCircle2 className="size-10 text-emerald-500" aria-hidden="true" />
-              ) : (
-                <BedDouble className="size-10 text-primary" aria-hidden="true" />
-              )}
-              <span
-                className={cn(
-                  "text-sm font-semibold",
-                  capacidadOk && "text-emerald-600 dark:text-emerald-400",
-                )}
-              >
-                Capacidad
-              </span>
-              <span
-                className={cn(
-                  "text-[0.6875rem] leading-tight",
-                  capacidadOk
-                    ? "text-emerald-600/80 dark:text-emerald-400/80"
-                    : "text-muted-foreground",
-                )}
-              >
-                {capacidadOk ? "Aforo y recursos · puede editar" : "Cupo · camas · agua…"}
-              </span>
-              <LineaActualizacion ts={capacidadTs} resaltar={capacidadOk} />
-            </button>
-
-            <button
-              type="button"
+              titulo="Reporte Diario"
+              estado={estadoReporteTerreno}
+              actualizadoTs={reporteTs ?? centro?.reporte_ts ?? null}
+              icono={<ClipboardList className={CLASE_ICONO_TAREA} />}
+              iconoCargando={entrando}
+              pendiente={reportePendiente}
+            />
+            <BotonTareaTerreno
               onClick={abrirCenso}
               disabled={cargandoCentros || !centroValido}
-              className={cn(
-                CLASE_BOTON_CUADRADO,
-                censoCompleto &&
-                  "border-emerald-500/45 bg-emerald-500/10 hover:border-emerald-500/60 hover:bg-emerald-500/15",
-                censoPendiente &&
-                  "border-amber-500/55 bg-amber-500/10 hover:border-amber-500/70 hover:bg-amber-500/15",
-                (cargandoCentros || !centroValido) && "pointer-events-none opacity-70",
-              )}
-            >
-              {censoCompleto ? (
-                <CheckCircle2 className="size-10 text-emerald-500" aria-hidden="true" />
-              ) : (
-                <Users
-                  className={cn(
-                    "size-10",
-                    censoPendiente ? "text-amber-600 dark:text-amber-400" : "text-primary",
-                  )}
-                  aria-hidden="true"
+              titulo="Censo"
+              estado={estadoCensoTerreno}
+              actualizadoTs={censoTs}
+              icono={<Users className={CLASE_ICONO_TAREA} />}
+              pendiente={censoPendiente}
+            />
+            <BotonTareaTerreno
+              onClick={abrirGeolocalizacion}
+              disabled={cargandoCentros || !centroValido}
+              titulo="Geolocalizar"
+              estado={estadoGeoTerreno}
+              actualizadoTs={geoTs}
+              icono={<MapPinned className={CLASE_ICONO_TAREA} />}
+              pendiente={!geolocalizado}
+            />
+            <BotonTareaTerreno
+              onClick={abrirAutoridades}
+              disabled={cargandoCentros || !centroValido}
+              titulo="Autoridades"
+              estado={estadoAutoridadesTerreno}
+              actualizadoTs={autoridadesTs}
+              icono={<Landmark className={CLASE_ICONO_TAREA} />}
+              pendiente={!autoridadesOk}
+            />
+            <BotonTareaTerreno
+              onClick={abrirCapacidad}
+              disabled={cargandoCentros || !centroValido}
+              titulo="Capacidad"
+              estado={estadoCapacidadTerreno}
+              actualizadoTs={capacidadTs}
+              icono={<BedDouble className={CLASE_ICONO_TAREA} />}
+              pendiente={!capacidadOk}
+            />
+          </nav>
+        )}
+
+        {!accesoDenegado && (
+          <section
+            aria-label="Actualizar aplicación"
+            className="w-full space-y-3 rounded-xl border border-amber-500/45 bg-amber-500/10 px-4 py-3.5"
+          >
+            <div className="flex items-start gap-3">
+              <RefreshCw
+                className="mt-0.5 size-8 shrink-0 text-amber-600 dark:text-amber-400"
+                aria-hidden="true"
+              />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">
+                  ¿No ve cambios recientes?
+                </p>
+                <p className="mt-0.5 text-xs leading-snug text-amber-950/80 dark:text-amber-100/80">
+                  La app se actualiza varias veces al día. Si algo se ve desactualizado,
+                  actualice antes de reportar o censar.
+                </p>
+              </div>
+            </div>
+            {actualizandoApp && progresoApp ? (
+              <div
+                className="space-y-2"
+                role="status"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="min-w-0 truncate text-muted-foreground">
+                    {progresoApp.etiqueta}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-foreground">
+                    {progresoApp.porcentaje}%
+                  </span>
+                </div>
+                <Progress
+                  value={progresoApp.porcentaje}
+                  className="h-2"
+                  aria-label={`Progreso de actualización: ${progresoApp.porcentaje}%`}
                 />
-              )}
-              <span
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void forzarActualizacionApp()}
+                disabled={actualizandoApp}
                 className={cn(
-                  "text-sm font-semibold",
-                  censoCompleto && "text-emerald-600 dark:text-emerald-400",
-                  censoPendiente && "text-amber-700 dark:text-amber-300",
+                  "flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-amber-600/50 bg-amber-600 text-sm font-medium text-white shadow-sm transition-colors",
+                  "hover:bg-amber-700 active:bg-amber-800 disabled:opacity-60 dark:border-amber-500/50 dark:bg-amber-600 dark:hover:bg-amber-500",
                 )}
               >
-                Censo
-              </span>
-              {censoResumen ? (
-                <>
-                  <span
-                    className={cn(
-                      "text-base font-bold tabular-nums leading-none",
-                      censoCompleto
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-amber-700 dark:text-amber-300",
-                    )}
-                  >
-                    {censoResumen.pct}%
-                  </span>
-                  <span
-                    className={cn(
-                      "px-0.5 text-[0.625rem] leading-snug",
-                      censoCompleto
-                        ? "text-emerald-600/80 dark:text-emerald-400/80"
-                        : "text-amber-800/90 dark:text-amber-200/90",
-                    )}
-                  >
-                    {censoResumen.censados.toLocaleString("es")}/
-                    {censoResumen.parte.toLocaleString("es")} vs parte
-                    {censoResumen.faltan > 0
-                      ? ` · faltan ${censoResumen.faltan.toLocaleString("es")}`
-                      : " · listo"}
-                  </span>
-                </>
-              ) : (
-                <span className="text-[0.6875rem] leading-tight text-muted-foreground">
-                  Registro nominal por cédula
-                  {centro?.parte_personas === 0 || centro?.parte_personas == null
-                    ? " · sin parte aún"
-                    : ""}
-                </span>
-              )}
-            </button>
-          </nav>
+                <RefreshCw className="size-4" />
+                Borrar caché y actualizar
+              </button>
+            )}
+          </section>
         )}
 
         {!accesoDenegado && centroValido && (
@@ -982,59 +1075,6 @@ export function TerrenoView() {
                 {instruccionesRestablecidas
                   ? "Listo: volverán a salir una vez en este dispositivo."
                   : "Volver a mostrar las instrucciones una vez"}
-              </button>
-            )}
-          </section>
-        )}
-
-        {!accesoDenegado && (
-          <section
-            aria-label="Actualizar aplicación (opcional)"
-            className="w-full space-y-2 rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-3"
-          >
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-muted-foreground">
-                Actualizar aplicación{" "}
-                <span className="font-normal">(opcional)</span>
-              </p>
-              <p className="text-xs leading-snug text-muted-foreground">
-                Solo si no ve cambios recientes. No es necesario al entrar por
-                primera vez.
-              </p>
-            </div>
-            {actualizandoApp && progresoApp ? (
-              <div
-                className="space-y-2"
-                role="status"
-                aria-live="polite"
-                aria-busy="true"
-              >
-                <div className="flex items-center justify-between gap-2 text-xs">
-                  <span className="min-w-0 truncate text-muted-foreground">
-                    {progresoApp.etiqueta}
-                  </span>
-                  <span className="shrink-0 tabular-nums text-foreground">
-                    {progresoApp.porcentaje}%
-                  </span>
-                </div>
-                <Progress
-                  value={progresoApp.porcentaje}
-                  className="h-2"
-                  aria-label={`Progreso de actualización: ${progresoApp.porcentaje}%`}
-                />
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void forzarActualizacionApp()}
-                disabled={actualizandoApp}
-                className={cn(
-                  "flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-background text-sm font-medium transition-colors",
-                  "hover:bg-accent disabled:opacity-60",
-                )}
-              >
-                <RefreshCw className="size-4" />
-                Borrar caché y actualizar
               </button>
             )}
           </section>

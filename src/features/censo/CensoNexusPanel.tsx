@@ -1538,8 +1538,9 @@ export function CensoNexusPanel({
             Censo por cédula
           </CardTitle>
           <CardDescription>
-            Empiece por el <strong className="font-medium text-foreground">jefe/a de familia</strong>.
-            Verifique la identidad y cree el hogar; luego agregue al resto.
+            Ubique a un adulto cedulado que pueda dar la información del hogar —
+            nombres y parentesco de los presentes, incluidos menores sin cédula.
+            El representante de la familia suele ser la mejor opción.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

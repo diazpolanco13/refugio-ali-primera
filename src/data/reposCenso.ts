@@ -68,6 +68,10 @@ export interface CentroCenso {
   /** Censo nominal activo en el campamento. */
   censados_personas?: number;
   censados_familias?: number;
+  /** Epoch ms de la última edición del reporte de hoy (portal /terreno). */
+  reporte_ts?: number | null;
+  /** Epoch ms del último alta/actualización en censo nominal. */
+  censo_ts?: number | null;
 }
 
 /** Funcionario que dirige el levantamiento en la escuela. */

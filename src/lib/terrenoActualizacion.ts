@@ -27,7 +27,16 @@ export function conActualizacionTerreno(
   return { ...normalizarTerrenoActualizado(actual), [clave]: ts };
 }
 
-/** Texto corto para la card: «hoy 14:30» o «9 jul · 14:30». */
+export function maxTimestamp(...values: (number | null | undefined)[]): number | null {
+  let max = 0;
+  for (const v of values) {
+    const n = Number(v);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return max > 0 ? max : null;
+}
+
+/** Texto corto para la card: «hoy, 14:30» o «12 jul 2026, 14:30». */
 export function formatearHoraActualizacionTerreno(ts: number | null | undefined): string | null {
   if (ts == null || !Number.isFinite(ts) || ts <= 0) return null;
   const d = new Date(ts);
@@ -38,7 +47,11 @@ export function formatearHoraActualizacionTerreno(ts: number | null | undefined)
     d.getFullYear() === hoy.getFullYear() &&
     d.getMonth() === hoy.getMonth() &&
     d.getDate() === hoy.getDate();
-  if (mismoDia) return `hoy ${hora}`;
-  const dia = d.toLocaleDateString("es-VE", { day: "numeric", month: "short" });
-  return `${dia} · ${hora}`;
+  if (mismoDia) return `hoy, ${hora}`;
+  const dia = d.toLocaleDateString("es-VE", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  return `${dia}, ${hora}`;
 }
