@@ -165,16 +165,16 @@ export function BotonBorrarCache({
         <button
           type="button"
           className={cn(
-            "flex w-full shrink-0 flex-col items-center gap-0.5 rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-3 text-center transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-primary",
+            "flex w-full shrink-0 flex-col items-center gap-0.5 rounded-xl border border-amber-500/55 bg-amber-500/15 px-4 py-3 text-center shadow-[0_0_0_1px_rgba(245,158,11,0.12)] transition-colors hover:border-amber-400/70 hover:bg-amber-500/25 focus-visible:outline-2 focus-visible:outline-amber-400",
             className,
           )}
           onClick={() => setAbierto(true)}
         >
-          <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <Download className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="flex items-center gap-2 text-sm font-semibold text-amber-100">
+            <Download className="size-4 shrink-0 text-amber-400" aria-hidden />
             Descargar nueva versión de la app
           </span>
-          <span className="text-[0.6875rem] leading-snug text-muted-foreground">
+          <span className="text-[0.6875rem] leading-snug text-amber-200/75">
             Se recomienda ejecutar si detecta alguna falla
           </span>
         </button>
