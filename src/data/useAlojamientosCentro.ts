@@ -146,7 +146,7 @@ export function useAlojamientosCentro(opts: Opciones): {
               plaza_modulo: "",
               motivo_egreso: "",
               destino_egreso: "",
-              seguimiento: { notas: [], apoyos: [] },
+              seguimiento: {},
               creada_ts: 0,
               creada_por: "",
               updated_at: 0,
