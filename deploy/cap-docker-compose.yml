@@ -1,0 +1,37 @@
+# Cap Standalone — referencia para Dokploy (compose raw).
+# Imagen oficial: https://github.com/tiagozip/cap
+services:
+  cap:
+    image: tiago2/cap:latest
+    restart: unless-stopped
+    environment:
+      ADMIN_KEY: ${ADMIN_KEY:?define ADMIN_KEY}
+      REDIS_URL: redis://valkey:6379
+      CORS_ORIGIN: https://m0n1t0r-d3-3v3nt0s.net,http://localhost:5180,http://localhost:5173,http://38.242.223.182:5180,http://38.242.223.182:5173,http://refugio-ali-primera.38.242.223.182.nip.io
+      RATELIMIT_IP_HEADER: x-forwarded-for
+    depends_on:
+      valkey:
+        condition: service_healthy
+    networks:
+      - dokploy-network
+
+  valkey:
+    image: valkey/valkey:9-alpine
+    restart: unless-stopped
+    volumes:
+      - valkey-data:/data
+    command: valkey-server --save 60 1 --loglevel warning --maxmemory-policy noeviction
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true
+
+volumes:
+  valkey-data:
