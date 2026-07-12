@@ -21,18 +21,28 @@ Uso:
         python3 scripts/precargar_nexus_censo.py --limit 500 --rate 2.5 \\
         --reporte /tmp/nexus_no_encontrados.jsonl
 
-Nunca corre en paralelo ni sin pausa: el gateway (nexusEndPoint/runtime/proxy.py)
-es un solo túnel OpenVPN hacia un API institucional ajeno, sin rate limiting
-propio. La disciplina de ritmo es responsabilidad de este script.
+    # Modo escalonado (experimental): simula ~5 dispositivos consultando por
+    # segundo en vez de una consulta a la vez.
+    NEXUS_SCRIPT_EMAIL=admin@refugio.app NEXUS_SCRIPT_PASSWORD=... \\
+        python3 scripts/precargar_nexus_censo.py --concurrency 5 --limit 50
+
+Por default corre secuencial (1 a la vez, --rate segundos entre cada una): el
+gateway (nexusEndPoint/runtime/proxy.py) es un solo túnel OpenVPN hacia un API
+institucional ajeno, sin rate limiting propio, así que la disciplina de ritmo
+es responsabilidad de este script. `--concurrency N` (N>1) es un modo opcional
+que escalona los envíos a N por segundo dejándolos correr en paralelo — probar
+siempre primero con --limit chico antes de escalar.
 """
 
 import argparse
 import json
 import os
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -165,7 +175,18 @@ def cedula_valida(cedula: str) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--rate", type=float, default=DEFAULT_RATE, help=f"Segundos entre consultas al gateway (default {DEFAULT_RATE})")
+    parser.add_argument("--rate", type=float, default=DEFAULT_RATE, help=f"Segundos entre consultas al gateway en modo secuencial (default {DEFAULT_RATE})")
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=1,
+        help=(
+            "Consultas en vuelo simultáneas (simula varios dispositivos). "
+            "1 = secuencial (default, comportamiento validado). >1 escalona los "
+            "envíos a razón de --concurrency por segundo (ej. 5 = 5/seg, una "
+            "cada 200ms, no todas de golpe) dejándolas correr en paralelo."
+        ),
+    )
     parser.add_argument("--limit", type=int, default=None, help="Tope de cédulas a procesar en esta corrida")
     parser.add_argument("--dry-run", action="store_true", help="Solo reporta qué haría, sin llamar al gateway ni escribir")
     parser.add_argument("--reporte", type=str, default=None, help="Ruta de archivo JSONL donde anotar los 'no encontrado'/errores")
@@ -224,56 +245,130 @@ def main() -> int:
         return 0
 
     reporte_fh = open(args.reporte, "a", encoding="utf-8") if args.reporte else None
-
     resumen = {"ok": 0, "no_encontrado": 0, "error": 0}
-    fallos_consecutivos = 0
+
+    def registrar_resultado(status: int | None, body: dict, letra: str, cedula: str) -> str:
+        """Escribe en nexus_consultas si corresponde. Devuelve el outcome
+        ('ok'/'no_encontrado'/'error'). No toca estado compartido (thread-safe)."""
+        if status == 200 and body.get("ok") is not False:
+            upsert_nexus_consulta(
+                url,
+                anon_key,
+                token,
+                {
+                    "letra": letra,
+                    "cedula": cedula,
+                    "data": body,
+                    "actualizado_ts": int(time.time() * 1000),
+                    "actualizado_por": "script:precarga_nexus",
+                },
+            )
+            return "ok"
+        if status == 404 or (status == 200 and body.get("ok") is False):
+            return "no_encontrado"
+        return "error"
+
     try:
-        for i, (letra, cedula) in enumerate(pendientes, start=1):
-            if i > 1:
-                time.sleep(args.rate)
+        if args.concurrency <= 1:
+            # Modo secuencial original: 1 consulta a la vez, --rate segundos entre cada una.
+            fallos_consecutivos = 0
+            for i, (letra, cedula) in enumerate(pendientes, start=1):
+                if i > 1:
+                    time.sleep(args.rate)
+                resultado = consultar_nexus(gateway, token, letra, cedula)
+                status, body = resultado["status"], resultado["body"]
+                outcome = registrar_resultado(status, body, letra, cedula)
+                resumen[outcome] += 1
+                if outcome == "ok":
+                    fallos_consecutivos = 0
+                    print(f"OK {i}/{len(pendientes)}: {letra}-{cedula}", file=sys.stderr)
+                elif outcome == "no_encontrado":
+                    fallos_consecutivos = 0
+                    print(f"NO_ENCONTRADO {i}/{len(pendientes)}: {letra}-{cedula}", file=sys.stderr)
+                    if reporte_fh:
+                        reporte_fh.write(json.dumps({"letra": letra, "cedula": cedula, "motivo": "no_encontrado"}, ensure_ascii=False) + "\n")
+                else:
+                    fallos_consecutivos += 1
+                    print(f"ERROR {i}/{len(pendientes)}: {letra}-{cedula} -> status={status} {body}", file=sys.stderr)
+                    if reporte_fh:
+                        reporte_fh.write(
+                            json.dumps({"letra": letra, "cedula": cedula, "motivo": "error", "status": status, "detalle": body}, ensure_ascii=False)
+                            + "\n"
+                        )
+                    if fallos_consecutivos >= args.circuit_breaker:
+                        print(
+                            f"ABORTADO: {fallos_consecutivos} fallos consecutivos del gateway. "
+                            "Reintente más tarde (posible caída del túnel/VPN).",
+                            file=sys.stderr,
+                        )
+                        break
+        else:
+            # Modo escalonado/concurrente: simula --concurrency "dispositivos" por
+            # segundo. Los envíos se espacian 1/concurrency segundos (nunca todos
+            # de golpe) pero corren en paralelo una vez enviados.
+            lock = threading.Lock()
+            abortado = threading.Event()
+            fallos_consecutivos = [0]
+            completados = [0]
+            stagger = 1.0 / args.concurrency
+            print(
+                f"Modo concurrente: {args.concurrency} en vuelo, ~{args.concurrency}/seg "
+                f"(envío cada {stagger:.3f}s)",
+                file=sys.stderr,
+            )
 
-            resultado = consultar_nexus(gateway, token, letra, cedula)
-            status = resultado["status"]
-            body = resultado["body"]
+            def procesar(letra: str, cedula: str):
+                resultado = consultar_nexus(gateway, token, letra, cedula)
+                status, body = resultado["status"], resultado["body"]
+                outcome = registrar_resultado(status, body, letra, cedula)
+                return outcome, status, body
 
-            if status == 200 and body.get("ok") is not False:
-                upsert_nexus_consulta(
-                    url,
-                    anon_key,
-                    token,
-                    {
-                        "letra": letra,
-                        "cedula": cedula,
-                        "data": body,
-                        "actualizado_ts": int(time.time() * 1000),
-                        "actualizado_por": "script:precarga_nexus",
-                    },
-                )
-                resumen["ok"] += 1
-                fallos_consecutivos = 0
-                print(f"OK {i}/{len(pendientes)}: {letra}-{cedula}", file=sys.stderr)
-            elif status == 404 or (status == 200 and body.get("ok") is False):
-                resumen["no_encontrado"] += 1
-                fallos_consecutivos = 0
-                print(f"NO_ENCONTRADO {i}/{len(pendientes)}: {letra}-{cedula}", file=sys.stderr)
-                if reporte_fh:
-                    reporte_fh.write(json.dumps({"letra": letra, "cedula": cedula, "motivo": "no_encontrado"}, ensure_ascii=False) + "\n")
-            else:
-                resumen["error"] += 1
-                fallos_consecutivos += 1
-                print(f"ERROR {i}/{len(pendientes)}: {letra}-{cedula} -> status={status} {body}", file=sys.stderr)
-                if reporte_fh:
-                    reporte_fh.write(
-                        json.dumps({"letra": letra, "cedula": cedula, "motivo": "error", "status": status, "detalle": body}, ensure_ascii=False)
-                        + "\n"
-                    )
-                if fallos_consecutivos >= args.circuit_breaker:
-                    print(
-                        f"ABORTADO: {fallos_consecutivos} fallos consecutivos del gateway. "
-                        "Reintente más tarde (posible caída del túnel/VPN).",
-                        file=sys.stderr,
-                    )
-                    break
+            def hacer_callback(letra: str, cedula: str):
+                def callback(fut):
+                    try:
+                        outcome, status, body = fut.result()
+                    except Exception as exc:  # noqa: BLE001
+                        outcome, status, body = "error", None, {"exception": str(exc)}
+                    with lock:
+                        completados[0] += 1
+                        n = completados[0]
+                        resumen[outcome] += 1
+                        if outcome == "ok":
+                            fallos_consecutivos[0] = 0
+                            print(f"OK {n}/{len(pendientes)}: {letra}-{cedula}", file=sys.stderr)
+                        elif outcome == "no_encontrado":
+                            fallos_consecutivos[0] = 0
+                            print(f"NO_ENCONTRADO {n}/{len(pendientes)}: {letra}-{cedula}", file=sys.stderr)
+                            if reporte_fh:
+                                reporte_fh.write(json.dumps({"letra": letra, "cedula": cedula, "motivo": "no_encontrado"}, ensure_ascii=False) + "\n")
+                        else:
+                            fallos_consecutivos[0] += 1
+                            print(f"ERROR {n}/{len(pendientes)}: {letra}-{cedula} -> status={status} {body}", file=sys.stderr)
+                            if reporte_fh:
+                                reporte_fh.write(
+                                    json.dumps({"letra": letra, "cedula": cedula, "motivo": "error", "status": status, "detalle": body}, ensure_ascii=False)
+                                    + "\n"
+                                )
+                            if fallos_consecutivos[0] >= args.circuit_breaker and not abortado.is_set():
+                                print(
+                                    f"ABORTADO: {fallos_consecutivos[0]} fallos consecutivos del gateway. "
+                                    "No se envían más consultas nuevas (las ya en vuelo terminan).",
+                                    file=sys.stderr,
+                                )
+                                abortado.set()
+
+                return callback
+
+            with ThreadPoolExecutor(max_workers=args.concurrency) as ex:
+                for idx, (letra, cedula) in enumerate(pendientes, start=1):
+                    if abortado.is_set():
+                        print(f"Deteniendo envíos nuevos en el ítem {idx}/{len(pendientes)}.", file=sys.stderr)
+                        break
+                    fut = ex.submit(procesar, letra, cedula)
+                    fut.add_done_callback(hacer_callback(letra, cedula))
+                    if idx < len(pendientes):
+                        time.sleep(stagger)
+                # Espera a que terminen las que ya estaban en vuelo antes de salir.
     finally:
         if reporte_fh:
             reporte_fh.close()
