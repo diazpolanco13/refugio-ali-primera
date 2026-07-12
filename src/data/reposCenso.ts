@@ -62,6 +62,12 @@ export interface CentroCenso {
   capacidad_ts?: number | null;
   /** Analistas SAE del campamento (nombre + Telegram) vía `terreno_centro`. */
   analistas_contacto?: AnalistaContactoTerreno[];
+  /** Meta del parte numérico (último snapshot de ocupación). */
+  parte_personas?: number;
+  parte_familias?: number;
+  /** Censo nominal activo en el campamento. */
+  censados_personas?: number;
+  censados_familias?: number;
 }
 
 /** Funcionario que dirige el levantamiento en la escuela. */
@@ -259,6 +265,55 @@ export function registroDesdeGuardado(fila: RegistroCensoGuardado): RegistroCens
   };
 }
 
+/** Fila de contexto del censo manual viejo para una cédula, mostrada como
+ * referencia de solo lectura en el flujo "Por cédula" — no se usa para
+ * autocompletar el alta nominal, el censador confirma con lo que ve/verifica. */
+export interface RegistroCensoViejoResumen {
+  creadoEn: string;
+  funcionarioNombre: string;
+  centroId: string;
+  direccion: string;
+  telefono: string;
+  jefeDocumento: string;
+  jefeTipoDoc: string | null;
+  parentescoJefe: string;
+}
+
+/** Busca en `censo_registros` (planilla vieja) una fila con esa cédula
+ * normalizada — la más reciente si hubiera más de una. Solo lectura: la RLS
+ * de `censo_registros` permite `select` a cualquier sesión autenticada. */
+export async function buscarCensoRegistroPorDocumento(
+  documentoNorm: string,
+): Promise<RegistroCensoViejoResumen | null> {
+  if (!documentoNorm) return null;
+  const { data, error } = await supabase
+    .from("censo_registros")
+    .select(
+      "creado_en, funcionario_nombre, centro_id, calle, casa_edificio, parroquia, municipio, estado_federativo, telefono, jefe_tipo_doc, jefe_documento, parentesco_jefe",
+    )
+    .eq("documento_norm", documentoNorm)
+    .order("creado_en", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+
+  const direccion = [data.calle, data.casa_edificio, data.parroquia, data.municipio, data.estado_federativo]
+    .map((v) => (v ?? "").trim())
+    .filter(Boolean)
+    .join(", ");
+
+  return {
+    creadoEn: data.creado_en,
+    funcionarioNombre: data.funcionario_nombre || "",
+    centroId: data.centro_id,
+    direccion,
+    telefono: data.telefono || "",
+    jefeDocumento: data.jefe_documento || "",
+    jefeTipoDoc: data.jefe_tipo_doc,
+    parentescoJefe: data.parentesco_jefe || "",
+  };
+}
+
 /** Lista de refugios activos (id + nombre). Requiere sesión autenticada. */
 export async function listarCentrosCenso(): Promise<CentroCenso[]> {
   const { data, error } = await supabase.rpc("censo_centros");
@@ -323,6 +378,31 @@ export async function listarRegistrosCenso(centroId: string): Promise<RegistroCe
       .rpc("censo_listado", { p_centro_id: centroId, p_token: tokenActual() })
       .range(desde, hasta),
   );
+}
+
+/** Ids de `censo_registros` ya marcados `procesado = true` en un centro (para
+ * pintar el badge "verificado" en la lista "Registrados"). Solo lectura
+ * directa a la tabla: la RLS de select es abierta a cualquier autenticado. */
+export async function listarIdsCensoProcesados(centroId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("censo_registros")
+    .select("id")
+    .eq("centro_id", centroId)
+    .eq("procesado", true);
+  if (error || !data) return new Set();
+  return new Set(data.map((f) => f.id as string));
+}
+
+/** Marca una fila del censo manual viejo como ya verificada en el censo
+ * nominal (alta exitosa vía "Por cédula"). Fire-and-forget: nunca debe
+ * interrumpir el flujo de alta si falla. */
+export function marcarCensoProcesado(documentoNorm: string, centroId: string): void {
+  if (!documentoNorm || !centroId) return;
+  void supabase
+    .rpc("censo_marcar_procesado", { p_documento_norm: documentoNorm, p_centro_id: centroId })
+    .then(({ error }) => {
+      if (error) console.warn("[reposCenso] marcarCensoProcesado:", error.message);
+    });
 }
 
 /** Declara completado el registro del refugio. Devuelve el total al momento del cierre. */

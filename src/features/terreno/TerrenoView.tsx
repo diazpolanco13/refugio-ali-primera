@@ -94,7 +94,7 @@ function quitarTareaDeUrl(): void {
 }
 
 const CLASE_BOTON_CUADRADO =
-  "flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-card p-4 text-center shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary active:bg-primary/10";
+  "flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-card p-4 text-center shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary active:bg-primary/10 disabled:cursor-not-allowed";
 
 function LineaActualizacion({
   ts,
@@ -227,6 +227,18 @@ export function TerrenoView() {
   // a la planilla o a la ficha del reporte).
   const centro = token ? centros[0] : centros.find((c) => c.id === centroParam);
   const centroValido = centro?.id ?? "";
+  /** Progreso censo nominal vs parte (solo si hay meta del parte). */
+  const censoResumen = useMemo(() => {
+    if (!centro) return null;
+    const parte = Math.max(0, Number(centro.parte_personas) || 0);
+    if (parte <= 0) return null;
+    const censados = Math.max(0, Number(centro.censados_personas) || 0);
+    const pct = Math.min(100, Math.round((censados / parte) * 100));
+    const faltan = Math.max(0, parte - censados);
+    return { parte, censados, pct, faltan };
+  }, [centro]);
+  const censoCompleto = Boolean(censoResumen && censoResumen.faltan === 0);
+  const censoPendiente = Boolean(censoResumen && censoResumen.faltan > 0);
   // Terminó la carga y no hay ningún campamento accesible: ni token válido ni
   // sesión autorizada. Desde este dispositivo no hay tarea posible.
   const accesoDenegado = !cargandoCentros && centros.length === 0;
@@ -865,15 +877,68 @@ export function TerrenoView() {
               disabled={cargandoCentros || !centroValido}
               className={cn(
                 CLASE_BOTON_CUADRADO,
+                censoCompleto &&
+                  "border-emerald-500/45 bg-emerald-500/10 hover:border-emerald-500/60 hover:bg-emerald-500/15",
+                censoPendiente &&
+                  "border-amber-500/55 bg-amber-500/10 hover:border-amber-500/70 hover:bg-amber-500/15",
                 (cargandoCentros || !centroValido) && "pointer-events-none opacity-70",
               )}
             >
-              <Users className="size-10 text-primary" aria-hidden="true" />
-              <span className="text-sm font-semibold">Censo</span>
-              <span className="flex items-center gap-1 text-[0.6875rem] leading-tight text-muted-foreground">
-                <LockKeyhole className="size-3 shrink-0" aria-hidden="true" />
-                {token && centro ? "Registro nominal · entra con el QR" : "Registro nominal · con usuario"}
+              {censoCompleto ? (
+                <CheckCircle2 className="size-10 text-emerald-500" aria-hidden="true" />
+              ) : (
+                <Users
+                  className={cn(
+                    "size-10",
+                    censoPendiente ? "text-amber-600 dark:text-amber-400" : "text-primary",
+                  )}
+                  aria-hidden="true"
+                />
+              )}
+              <span
+                className={cn(
+                  "text-sm font-semibold",
+                  censoCompleto && "text-emerald-600 dark:text-emerald-400",
+                  censoPendiente && "text-amber-700 dark:text-amber-300",
+                )}
+              >
+                Censo
               </span>
+              {censoResumen ? (
+                <>
+                  <span
+                    className={cn(
+                      "text-base font-bold tabular-nums leading-none",
+                      censoCompleto
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-amber-700 dark:text-amber-300",
+                    )}
+                  >
+                    {censoResumen.pct}%
+                  </span>
+                  <span
+                    className={cn(
+                      "px-0.5 text-[0.625rem] leading-snug",
+                      censoCompleto
+                        ? "text-emerald-600/80 dark:text-emerald-400/80"
+                        : "text-amber-800/90 dark:text-amber-200/90",
+                    )}
+                  >
+                    {censoResumen.censados.toLocaleString("es")}/
+                    {censoResumen.parte.toLocaleString("es")} vs parte
+                    {censoResumen.faltan > 0
+                      ? ` · faltan ${censoResumen.faltan.toLocaleString("es")}`
+                      : " · listo"}
+                  </span>
+                </>
+              ) : (
+                <span className="text-[0.6875rem] leading-tight text-muted-foreground">
+                  Registro nominal por cédula
+                  {centro?.parte_personas === 0 || centro?.parte_personas == null
+                    ? " · sin parte aún"
+                    : ""}
+                </span>
+              )}
             </button>
           </nav>
         )}

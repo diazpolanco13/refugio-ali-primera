@@ -71,10 +71,13 @@ import {
   type EstadoNominalCedula,
 } from "@/data/reposCensoNexus";
 import {
+  buscarCensoRegistroPorDocumento,
   listarCentrosCenso,
   obtenerCentroTerreno,
   type AnalistaContactoTerreno,
+  type RegistroCensoViejoResumen,
 } from "@/data/reposCenso";
+import { CEDULA_JEFE_NO_SE } from "@/domain/catalogosHumanitarios";
 import {
   actualizarConsentimientoFoto,
   actualizarDamnificacionFamilia,
@@ -84,7 +87,7 @@ import {
   type OtroCentroActivo,
 } from "@/data/reposRefugiados";
 import { nuevoId } from "@/data/reposSupabase";
-import { subirFotoRefugiado, supabaseDisponible } from "@/data/supabase";
+import { subirFotoRefugiado, supabaseDisponible, urlFotoRefugiado } from "@/data/supabase";
 import { asegurarSesionTerreno } from "@/data/loginTerreno";
 import { type FamiliarNexus, type PersonaNexusCenso } from "@/domain/nexusPersona";
 import {
@@ -113,6 +116,10 @@ import { IconoTelegram } from "@/components/IconoTelegram";
 import { telegramHref, tieneTelefonoContacto } from "@/lib/contacto";
 import { copiarTexto } from "@/lib/portapapeles";
 import { cn } from "@/lib/utils";
+
+/** Máximo de líderes de familia activos por hogar (ver supabase/familia_lideres.sql
+ * y MAX_LIDERES_FAMILIA en src/data/reposRefugiados.ts). */
+const MAX_LIDERES_FAMILIA = 2;
 
 const SEVERIDAD_VIVIENDA_OPCIONES: { valor: EstatusVivienda; label: string; emoji: string }[] = [
   { valor: "destruida", label: "Colapsada / destruida", emoji: "🔴" },
@@ -292,6 +299,12 @@ interface Props {
   onEstadoNexus?: (enLinea: NexusEnLinea) => void;
   /** Incrementar desde la cabecera de /censo para reiniciar el flujo (otra persona). */
   reinicioKey?: number;
+  /** Precarga y dispara la búsqueda de una cédula (ej. botón "Verificar" desde
+   * la lista "Registrados" del censo manual viejo). Cambiar `key` la dispara. */
+  cedulaPrecarga?: { letra: Letra; cedula: string; key: number } | null;
+  /** Abre directo un hogar ya existente (ej. botón "Agregar líder" desde
+   * "Censados"). Cambiar `key` la dispara. */
+  familiaPrecarga?: { familiaId: string; key: number } | null;
 }
 
 interface MiembroHogar {
@@ -318,27 +331,68 @@ interface ResumenFamiliaAqui {
 function AvatarMiembro({
   fotoUrl,
   nombre,
+  sinCedula = false,
 }: {
   fotoUrl: string | null;
   nombre: string;
+  /** Sin documento: borde ámbar si aún no hay foto (marca visual del flujo). */
+  sinCedula?: boolean;
 }) {
   const [rota, setRota] = useState(false);
-  const url = (fotoUrl ?? "").trim();
-  const mostrarFoto = url.length > 0 && !rota;
+  const [src, setSrc] = useState<string | null>(null);
+  const path = (fotoUrl ?? "").trim();
+
+  useEffect(() => {
+    let cancelado = false;
+    setRota(false);
+    if (!path) {
+      setSrc(null);
+      return;
+    }
+    if (path.startsWith("http") || path.startsWith("blob:") || path.startsWith("data:")) {
+      setSrc(path);
+      return;
+    }
+    void urlFotoRefugiado(path).then((u) => {
+      if (!cancelado) setSrc(u);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [path]);
+
+  const mostrarFoto = Boolean(src) && !rota;
+  const pedirFoto = sinCedula && !mostrarFoto;
 
   return (
-    <div className="relative size-11 shrink-0 overflow-hidden rounded-md border border-dashed border-border bg-muted/50">
+    <div
+      className={cn(
+        "relative size-11 shrink-0 overflow-hidden rounded-md border bg-muted/50",
+        pedirFoto
+          ? "border-amber-500/60 border-dashed"
+          : "border-dashed border-border",
+      )}
+    >
       {mostrarFoto ? (
         <img
-          src={url}
+          src={src!}
           alt={nombre}
           className="size-full object-cover"
           onError={() => setRota(true)}
         />
       ) : (
-        <div className="flex size-full flex-col items-center justify-center gap-0.5 text-muted-foreground">
+        <div
+          className={cn(
+            "flex size-full flex-col items-center justify-center gap-0.5",
+            pedirFoto
+              ? "text-amber-700 dark:text-amber-400"
+              : "text-muted-foreground",
+          )}
+        >
           <Camera className="size-4 opacity-70" />
-          <span className="text-[8px] font-medium leading-none">Sin foto</span>
+          <span className="text-[8px] font-medium leading-none">
+            {pedirFoto ? "¡Foto!" : "Sin foto"}
+          </span>
         </div>
       )}
     </div>
@@ -430,6 +484,8 @@ export function CensoNexusPanel({
   onCambiarCentro,
   onEstadoNexus,
   reinicioKey = 0,
+  cedulaPrecarga,
+  familiaPrecarga,
 }: Props) {
   const [sesionLista, setSesionLista] = useState(false);
   const [errorSesion, setErrorSesion] = useState("");
@@ -440,6 +496,9 @@ export function CensoNexusPanel({
   const [errorBusqueda, setErrorBusqueda] = useState("");
   const [persona, setPersona] = useState<PersonaNexusCenso | null>(null);
   const [estadoNominal, setEstadoNominal] = useState<EstadoNominalCedula | null>(null);
+  // Contexto de solo lectura del censo manual viejo (censo_registros), si esa
+  // cédula ya fue censada antes de existir este flujo por cédula.
+  const [registroViejo, setRegistroViejo] = useState<RegistroCensoViejoResumen | null>(null);
   // Procedencia de la ficha mostrada: caché propia (BD) o consulta viva a Nexus.
   const [origenFicha, setOrigenFicha] = useState<{
     desdeCache: boolean;
@@ -459,6 +518,12 @@ export function CensoNexusPanel({
   const [fotoPreviewUrl, setFotoPreviewUrl] = useState<string | null>(null);
   const inputFotoCamaraRef = useRef<HTMLInputElement | null>(null);
   const inputFotoGaleriaRef = useRef<HTMLInputElement | null>(null);
+  // Foto del alta sin cédula (menor / no documentado): estado aparte para no
+  // mezclarla con la foto de verificación del flujo por cédula.
+  const [fotoMenorArchivo, setFotoMenorArchivo] = useState<File | null>(null);
+  const [fotoMenorPreviewUrl, setFotoMenorPreviewUrl] = useState<string | null>(null);
+  const inputFotoMenorCamaraRef = useRef<HTMLInputElement | null>(null);
+  const inputFotoMenorGaleriaRef = useRef<HTMLInputElement | null>(null);
 
   const [familiaId, setFamiliaId] = useState<string | null>(null);
   const [, setCedulaJefe] = useState<string | null>(null);
@@ -469,10 +534,14 @@ export function CensoNexusPanel({
   );
   const [abriendoFamilia, setAbriendoFamilia] = useState(false);
 
-  // ¿Persona buscada es jefe/a de familia? null = sin responder (se pregunta
+  // ¿Persona buscada es líder de familia? null = sin responder (se pregunta
   // antes de mostrar la sección de damnificación, que es del hogar, no de
   // cualquier persona). Solo aplica mientras no hay hogar creado.
   const [esJefe, setEsJefe] = useState<boolean | null>(null);
+  // Si el líder no está presente: registrar igual a esta persona como
+  // miembro fundador del hogar (sin líder asignado todavía).
+  const [registrarSinLider, setRegistrarSinLider] = useState(false);
+  const [parentescoSinLider, setParentescoSinLider] = useState("Otro familiar");
 
   // Contexto del terremoto: se captura una sola vez, al crear el hogar.
   const [estatusVivienda, setEstatusVivienda] = useState<EstatusVivienda | null>(null);
@@ -496,6 +565,9 @@ export function CensoNexusPanel({
   const [seleccionFam, setSeleccionFam] = useState<Record<string, boolean>>({});
   const [parentescoFam, setParentescoFam] = useState<Record<string, string>>({});
   const [parentescoDirecto, setParentescoDirecto] = useState("Otro familiar");
+  // Al agregar a alguien a un hogar ya abierto: ¿es líder de familia? (hasta
+  // MAX_LIDERES_FAMILIA activos por hogar, ver reposRefugiados.ts).
+  const [agregarComoLider, setAgregarComoLider] = useState(false);
 
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -609,6 +681,7 @@ export function CensoNexusPanel({
       setResumenFamiliaAqui(null);
       setCedula("");
       setEsJefe(null);
+      setRegistrarSinLider(false);
       setConfirmoDuplicado(false);
       limpiarFotoLocal();
       setMensaje(
@@ -664,6 +737,14 @@ export function CensoNexusPanel({
     setFotoArchivo(null);
   }
 
+  function limpiarFotoMenor() {
+    setFotoMenorPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setFotoMenorArchivo(null);
+  }
+
   function onElegirFoto(file: File | undefined) {
     if (!file || !file.type.startsWith("image/")) return;
     setFotoPreviewUrl((prev) => {
@@ -673,11 +754,21 @@ export function CensoNexusPanel({
     setFotoArchivo(file);
   }
 
+  function onElegirFotoMenor(file: File | undefined) {
+    if (!file || !file.type.startsWith("image/")) return;
+    setFotoMenorPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+    setFotoMenorArchivo(file);
+  }
+
   /** Sube la foto de campo tras el alta nominal (el id ya existe). */
-  async function persistirFotoCampo(refugiadoId: string) {
-    if (!fotoArchivo || !supabaseDisponible()) return;
+  async function persistirFotoCampo(refugiadoId: string, archivo?: File | null) {
+    const file = archivo ?? fotoArchivo;
+    if (!file || !supabaseDisponible()) return;
     try {
-      const path = await subirFotoRefugiado(refugiadoId, fotoArchivo);
+      const path = await subirFotoRefugiado(refugiadoId, file);
       await actualizarConsentimientoFoto(refugiadoId, true, path);
     } catch {
       // El registro ya quedó; la foto se puede completar en la ficha.
@@ -689,6 +780,12 @@ export function CensoNexusPanel({
       if (fotoPreviewUrl) URL.revokeObjectURL(fotoPreviewUrl);
     };
   }, [fotoPreviewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (fotoMenorPreviewUrl) URL.revokeObjectURL(fotoMenorPreviewUrl);
+    };
+  }, [fotoMenorPreviewUrl]);
 
   function resetDamnificacion() {
     setEstatusVivienda(null);
@@ -713,6 +810,7 @@ export function CensoNexusPanel({
     setPersona(null);
     setEstadoNominal(null);
     setOrigenFicha(null);
+    setRegistroViejo(null);
     setAvisoOtros([]);
     setTelsConfirmados([]);
     setTelsAgregados([]);
@@ -721,23 +819,28 @@ export function CensoNexusPanel({
     setConfirmoDuplicado(false);
     setInfoSaimeAbierta(false);
     setResumenFamiliaAqui(null);
+    setAgregarComoLider(false);
     limpiarFotoLocal();
     if (!familiaId) {
       setEsJefe(null);
+      setRegistrarSinLider(false);
       resetDamnificacion();
     }
     setBuscando(true);
     try {
-      const [ficha, estado] = await Promise.all([
+      const [ficha, estado, viejo] = await Promise.all([
         buscarPersonaNexusConCache(letraBuscar, cedulaBuscar, {
           forzarNexus: opts?.forzarNexus,
         }),
         // El pre-chequeo nominal es informativo: si falla no bloquea la búsqueda.
         estadoNominalPorCedula(cedulaBuscar, letraBuscar, centroId).catch(() => null),
+        // Contexto del censo manual viejo: también informativo, nunca bloquea.
+        buscarCensoRegistroPorDocumento(soloDigitos(cedulaBuscar)).catch(() => null),
       ]);
       const p = ficha.persona;
       setPersona(p);
       setEstadoNominal(estado);
+      setRegistroViejo(viejo);
       setOrigenFicha({ desdeCache: ficha.desdeCache, consultadaTs: ficha.consultadaTs });
       // Consulta viva exitosa ⇒ Nexus está arriba (sin otro hit a /health).
       if (!ficha.desdeCache) {
@@ -786,16 +889,19 @@ export function CensoNexusPanel({
     setMensaje("");
     setErrorBusqueda("");
     try {
+      const esLider = esJefe === true;
       const r = await registrarPersonaNexusEnNominal({
         persona,
         centroId,
-        esJefe: true,
+        esJefe: esLider,
+        crearHogarSiFalta: !esLider,
+        parentescoJefe: esLider ? undefined : parentescoSinLider,
         telefonosConfirmados: telsConfirmados,
       });
       await persistirFotoCampo(r.refugiadoId);
       limpiarFotoLocal();
       setFamiliaId(r.familiaId);
-      setCedulaJefe(persona.cedula);
+      setCedulaJefe(esLider ? persona.cedula : null);
       setAvisoOtros(r.otrosCentros);
 
       const ubicacion = (ubicacionVivienda === "Otro" ? ubicacionOtro : ubicacionVivienda).trim();
@@ -885,6 +991,7 @@ export function CensoNexusPanel({
     setEstadoNominal(null);
     setOrigenFicha(null);
     setEsJefe(null);
+    setRegistrarSinLider(false);
     setCedula("");
   }
 
@@ -898,19 +1005,24 @@ export function CensoNexusPanel({
         persona,
         centroId,
         familiaId,
-        esJefe: false,
-        parentescoJefe: parentescoDirecto,
+        esJefe: agregarComoLider,
+        parentescoJefe: agregarComoLider ? undefined : parentescoDirecto,
         telefonosConfirmados: telsConfirmados,
       });
       await persistirFotoCampo(r.refugiadoId);
       limpiarFotoLocal();
       setAvisoOtros(r.otrosCentros);
       await refrescarMiembros(r.familiaId);
-      setMensaje(`Agregado al hogar: ${persona.nombre_completo}`);
+      setMensaje(
+        agregarComoLider
+          ? `Agregado como líder del hogar: ${persona.nombre_completo}`
+          : `Agregado al hogar: ${persona.nombre_completo}`,
+      );
       setPersona(null);
       setEstadoNominal(null);
       setOrigenFicha(null);
       setCedula("");
+      setAgregarComoLider(false);
     } catch (err) {
       setErrorBusqueda(err instanceof Error ? err.message : "No se pudo agregar");
     } finally {
@@ -998,7 +1110,7 @@ export function CensoNexusPanel({
     setGuardando(true);
     setMensaje("");
     try {
-      await registrarMiembroSinDocumento({
+      const r = await registrarMiembroSinDocumento({
         centroId,
         familiaId,
         primer_nombre: menor.primer_nombre,
@@ -1011,6 +1123,8 @@ export function CensoNexusPanel({
           (edadNum != null ? fechaAproximadaPorEdad(Math.max(0, edadNum)) : null),
         parentescoJefe: menor.parentesco,
       });
+      await persistirFotoCampo(r.refugiadoId, fotoMenorArchivo);
+      limpiarFotoMenor();
       await refrescarMiembros(familiaId);
       setMensaje(
         `Agregado al hogar sin documento: ${menor.primer_nombre} ${menor.primer_apellido}`,
@@ -1041,16 +1155,20 @@ export function CensoNexusPanel({
     setTelsAgregados([]);
     setTelNuevo("");
     setAgregandoTel(false);
+    setAgregarComoLider(false);
     setCedula("");
     setLetra("V");
     setPestanaMiembros("adultos");
     setMenor(formMenorVacio());
     setErrorMenor("");
     setEsJefe(null);
+    setRegistrarSinLider(false);
+    setParentescoSinLider("Otro familiar");
     setConfirmoDuplicado(false);
     resetDamnificacion();
     setNivelHogar(null);
     limpiarFotoLocal();
+    limpiarFotoMenor();
     setErrorBusqueda("");
     setMensaje(mensaje);
     setPasoEnfoque("cedula");
@@ -1073,6 +1191,27 @@ export function CensoNexusPanel({
     reiniciarFlujoCenso();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al pulsar Inicio del censo
   }, [reinicioKey]);
+
+  // Botón "Verificar" desde la lista "Registrados" del censo viejo: precarga
+  // la cédula y dispara la búsqueda de una.
+  useEffect(() => {
+    if (!cedulaPrecarga || cedulaPrecarga.key <= 0) return;
+    setLetra(cedulaPrecarga.letra);
+    setCedula(cedulaPrecarga.cedula);
+    void onBuscar(undefined, {
+      cedulaBuscar: cedulaPrecarga.cedula,
+      letraBuscar: cedulaPrecarga.letra,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cambiar cedulaPrecarga.key
+  }, [cedulaPrecarga?.key]);
+
+  // Botón "Agregar líder" desde "Censados": abre directo ese hogar (sin
+  // pasar por una búsqueda de cédula).
+  useEffect(() => {
+    if (!familiaPrecarga || familiaPrecarga.key <= 0) return;
+    void abrirFamiliaExistente(familiaPrecarga.familiaId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cambiar familiaPrecarga.key
+  }, [familiaPrecarga?.key]);
 
   function toggleTelefono(t: string) {
     setTelsConfirmados((prev) =>
@@ -1146,6 +1285,9 @@ export function CensoNexusPanel({
   const personaYaEnHogar = Boolean(
     persona && hayHogar && cedulasMiembros.has(soloDigitos(persona.cedula)),
   );
+
+  /** Líderes activos en el hogar abierto (ver MAX_LIDERES_FAMILIA en reposRefugiados.ts). */
+  const lideresActivosHogar = useMemo(() => miembros.filter((m) => m.es_jefe).length, [miembros]);
 
   // Bloquea "crear hogar" / "agregar" mientras haya un aviso de duplicado
   // cross-centro sin que el censista lo confirme explícitamente.
@@ -1442,7 +1584,11 @@ export function CensoNexusPanel({
                     <span className="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-muted-foreground">
                       {i + 1}
                     </span>
-                    <AvatarMiembro fotoUrl={m.fotoUrl} nombre={m.nombre} />
+                    <AvatarMiembro
+                      fotoUrl={m.fotoUrl}
+                      nombre={m.nombre}
+                      sinCedula={!m.cedula}
+                    />
                     <div className="min-w-0 flex-1 space-y-0.5">
                       <p className="truncate text-sm font-semibold leading-tight">
                         {m.nombre}
@@ -1660,6 +1806,112 @@ export function CensoNexusPanel({
                     sin verificación SAIME; si luego aparece la cédula, se completa en
                     la ficha.
                   </p>
+
+                  {/* Foto de campo: diferenciación visual de quien no tiene cédula. */}
+                  <div
+                    className={cn(
+                      "flex gap-3 rounded-xl border p-3",
+                      fotoMenorPreviewUrl
+                        ? "border-emerald-500/40 bg-emerald-500/5"
+                        : "border-amber-500/45 bg-amber-500/10",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => inputFotoMenorCamaraRef.current?.click()}
+                      className={cn(
+                        "relative flex size-[5.5rem] shrink-0 flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-colors",
+                        fotoMenorPreviewUrl
+                          ? "border-emerald-600/40 bg-muted"
+                          : "border-amber-500/50 bg-background hover:border-amber-500/80",
+                      )}
+                      aria-label={
+                        fotoMenorPreviewUrl
+                          ? "Cambiar foto (cámara)"
+                          : "Tomar foto con la cámara"
+                      }
+                    >
+                      {fotoMenorPreviewUrl ? (
+                        <img
+                          src={fotoMenorPreviewUrl}
+                          alt="Vista previa"
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <>
+                          <Camera className="size-7 text-amber-700 dark:text-amber-400" />
+                          <span className="mt-1 px-1 text-center text-[10px] font-medium leading-tight text-amber-800 dark:text-amber-300">
+                            Añadir foto
+                          </span>
+                        </>
+                      )}
+                    </button>
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <p className="text-sm font-semibold leading-snug">
+                        Foto de la persona
+                      </p>
+                      <p className="text-[11px] leading-snug text-muted-foreground">
+                        Sin cédula, la foto es la referencia visual del hogar. Tómela
+                        ahora con la cámara del teléfono.
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1 px-2 text-[11px]"
+                          onClick={() => inputFotoMenorCamaraRef.current?.click()}
+                        >
+                          <Camera className="size-3.5" />
+                          Cámara
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-1 px-2 text-[11px] text-muted-foreground"
+                          onClick={() => inputFotoMenorGaleriaRef.current?.click()}
+                        >
+                          <ImagePlus className="size-3.5" />
+                          Galería
+                        </Button>
+                        {fotoMenorPreviewUrl ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 gap-1 px-2 text-[11px] text-muted-foreground"
+                            onClick={limpiarFotoMenor}
+                          >
+                            <RotateCcw className="size-3.5" />
+                            Quitar
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                    <input
+                      ref={inputFotoMenorCamaraRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => {
+                        onElegirFotoMenor(e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                    <input
+                      ref={inputFotoMenorGaleriaRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        onElegirFotoMenor(e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <Label htmlFor="menor-pn" className="text-xs">
@@ -2032,6 +2284,35 @@ export function CensoNexusPanel({
               </div>
             ) : null}
 
+            {registroViejo ? (
+              <div className="space-y-1.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+                <p className="text-sm font-medium leading-snug">
+                  Ya fue censado/a el {fechaCorta(new Date(registroViejo.creadoEn).getTime())}
+                  {registroViejo.funcionarioNombre ? ` por ${registroViejo.funcionarioNombre}` : ""}
+                  {registroViejo.centroId !== centroId
+                    ? ` en el campamento ${nombreCentro(registroViejo.centroId)}`
+                    : ""}{" "}
+                  (censo manual anterior).
+                </p>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  Datos de esa planilla, solo como referencia — verifique con la persona:
+                  {registroViejo.direccion ? ` dirección "${registroViejo.direccion}"` : ""}
+                  {registroViejo.telefono ? `, teléfono ${registroViejo.telefono}` : ""}
+                  {registroViejo.parentescoJefe ? `, parentesco declarado "${registroViejo.parentescoJefe}"` : ""}
+                  .
+                </p>
+                {registroViejo.jefeDocumento && registroViejo.jefeDocumento !== CEDULA_JEFE_NO_SE ? (
+                  <p className="text-xs leading-snug text-muted-foreground">
+                    Según el censo anterior, el jefe de este hogar sería la cédula{" "}
+                    <span className="font-mono font-medium text-foreground">
+                      {formatearCedula(registroViejo.jefeDocumento, registroViejo.jefeTipoDoc === "E" ? "E" : "V")}
+                    </span>{" "}
+                    — puede buscarla primero para crear el hogar.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
             {/* Ya en este campamento: familia + acceso directo al hogar. */}
             {!hayHogar && estadoNominal?.enEsteCentro && estadoNominal.familiaAqui ? (
               <div className="space-y-2.5 rounded-lg border border-emerald-600/40 bg-emerald-600/10 px-3 py-3">
@@ -2086,62 +2367,8 @@ export function CensoNexusPanel({
               </div>
             ) : null}
 
-            {/* Se pregunta al censador antes de dirección/teléfonos/damnificación:
-                esas preguntas son del hogar; solo el jefe/a lo crea.
-                Si ya está registrado aquí, el acceso es «Ir a esa familia». */}
-            {!hayHogar && !(estadoNominal?.enEsteCentro && estadoNominal.familiaAqui) ? (
-              <div className="space-y-2 rounded-lg border bg-muted/40 px-3 py-3">
-                <p className="text-sm font-medium leading-snug">
-                  ¿Es esta persona el jefe de una familia?
-                </p>
-                <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-muted/30 shadow-sm">
-                  <button
-                    type="button"
-                    className={cn(
-                      "h-10 text-sm font-semibold transition-colors",
-                      esJefe === true
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-background text-foreground hover:bg-muted/80",
-                    )}
-                    onClick={() => setEsJefe(true)}
-                  >
-                    Sí
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(
-                      "h-10 border-l border-border text-sm font-semibold transition-colors",
-                      esJefe === false
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-background text-foreground hover:bg-muted/80",
-                    )}
-                    onClick={() => setEsJefe(false)}
-                  >
-                    No
-                  </button>
-                </div>
-                {esJefe === false ? (
-                  <div className="space-y-2 pt-1">
-                    <p className="text-xs text-muted-foreground">
-                      Busque primero al jefe/a de familia para crear el hogar. Después podrá
-                      agregar a {persona.nombre_completo} como miembro.
-                    </p>
-                    <Button
-                      type="button"
-                      size="default"
-                      className="h-10 w-full gap-2 text-sm font-semibold shadow-sm"
-                      onClick={volverABuscarJefe}
-                    >
-                      <Search className="size-4" />
-                      Buscar al jefe/a de familia
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            {hayHogar || esJefe === true ? (
-              <>
+            {/* Datos SAIME/Nexus: se muestran apenas hay ficha (antes de
+                preguntar si es líder), para verificar identidad en campo. */}
             <Collapsible
               open={infoSaimeAbierta}
               onOpenChange={setInfoSaimeAbierta}
@@ -2341,7 +2568,102 @@ export function CensoNexusPanel({
               </CollapsibleContent>
             </Collapsible>
 
-              </>
+            {/* Se pregunta al censador antes de damnificación (esas preguntas
+                son del hogar). Un hogar puede tener 1 o 2 líderes (ver
+                MAX_LIDERES_FAMILIA); si el líder no está presente, cualquier
+                adulto puede fundar el hogar igual. Si ya está registrado
+                aquí, el acceso es «Ir a esa familia». */}
+            {!hayHogar && !(estadoNominal?.enEsteCentro && estadoNominal.familiaAqui) ? (
+              <div className="space-y-2 rounded-lg border bg-muted/40 px-3 py-3">
+                <p className="text-sm font-medium leading-snug">
+                  ¿Es esta persona líder de familia?
+                </p>
+                <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-muted/30 shadow-sm">
+                  <button
+                    type="button"
+                    className={cn(
+                      "h-10 text-sm font-semibold transition-colors",
+                      esJefe === true
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-foreground hover:bg-muted/80",
+                    )}
+                    onClick={() => {
+                      setEsJefe(true);
+                      setRegistrarSinLider(false);
+                    }}
+                  >
+                    Sí
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "h-10 border-l border-border text-sm font-semibold transition-colors",
+                      esJefe === false
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-foreground hover:bg-muted/80",
+                    )}
+                    onClick={() => {
+                      setEsJefe(false);
+                      setRegistrarSinLider(false);
+                    }}
+                  >
+                    No
+                  </button>
+                </div>
+                {esJefe === false && !registrarSinLider ? (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-xs text-muted-foreground">
+                      Busque primero al líder de familia para crear el hogar. Después podrá
+                      agregar a {persona.nombre_completo} como miembro.
+                    </p>
+                    <Button
+                      type="button"
+                      size="default"
+                      className="h-10 w-full gap-2 text-sm font-semibold shadow-sm"
+                      onClick={volverABuscarJefe}
+                    >
+                      <Search className="size-4" />
+                      Buscar al líder de familia
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="default"
+                      className="h-10 w-full gap-2 border-amber-500/50 bg-amber-500/10 text-sm font-semibold text-amber-800 shadow-sm hover:bg-amber-500/20 hover:text-amber-900 dark:border-amber-500/40 dark:text-amber-300 dark:hover:bg-amber-500/15 dark:hover:text-amber-200"
+                      onClick={() => setRegistrarSinLider(true)}
+                    >
+                      <UserPlus className="size-4" />
+                      El líder no está aquí ahora — registrar igual
+                    </Button>
+                  </div>
+                ) : null}
+                {esJefe === false && registrarSinLider ? (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      Se registrará a {persona.nombre_completo} como primer miembro del hogar,
+                      sin líder asignado todavía. Cuando el líder aparezca, búsquelo por su
+                      cédula o busque a esta persona de nuevo para agregarlo al mismo hogar.
+                    </p>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium text-muted-foreground">
+                        Parentesco declarado (respecto al futuro líder)
+                      </Label>
+                      <Select value={parentescoSinLider} onValueChange={setParentescoSinLider}>
+                        <SelectTrigger className="h-10 w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PARENTESCOS_JEFE.map((p) => (
+                            <SelectItem key={p} value={p}>
+                              {p}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             ) : null}
 
             {hayHogar ? (
@@ -2353,27 +2675,46 @@ export function CensoNexusPanel({
                     Esta persona ya es miembro del hogar actual.
                   </p>
                 ) : (
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Select value={parentescoDirecto} onValueChange={setParentescoDirecto}>
-                      <SelectTrigger className="sm:w-[11rem]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PARENTESCOS_JEFE.map((p) => (
-                          <SelectItem key={p} value={p}>
-                            {p}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      className="flex-1"
-                      disabled={guardando || hayDuplicadoSinConfirmar}
-                      onClick={onAgregarComoFamiliar}
-                    >
-                      {guardando ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
-                      Agregar al hogar como {parentescoDirecto}
-                    </Button>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={agregarComoLider}
+                        disabled={lideresActivosHogar >= MAX_LIDERES_FAMILIA}
+                        onCheckedChange={(v) => setAgregarComoLider(Boolean(v))}
+                      />
+                      Es líder de familia
+                      {lideresActivosHogar >= MAX_LIDERES_FAMILIA ? (
+                        <span className="text-xs text-muted-foreground">
+                          (este hogar ya tiene {MAX_LIDERES_FAMILIA} líderes)
+                        </span>
+                      ) : null}
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      {!agregarComoLider ? (
+                        <Select value={parentescoDirecto} onValueChange={setParentescoDirecto}>
+                          <SelectTrigger className="sm:w-[11rem]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PARENTESCOS_JEFE.map((p) => (
+                              <SelectItem key={p} value={p}>
+                                {p}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : null}
+                      <Button
+                        className="flex-1"
+                        disabled={guardando || hayDuplicadoSinConfirmar}
+                        onClick={onAgregarComoFamiliar}
+                      >
+                        {guardando ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
+                        {agregarComoLider
+                          ? "Agregar al hogar como líder"
+                          : `Agregar al hogar como ${parentescoDirecto}`}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </>

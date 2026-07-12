@@ -11,6 +11,7 @@ import {
   upsertRefugiadoIdentidad,
   type EstadoNominalCedulaRed,
 } from "./reposRefugiados";
+import { marcarCensoProcesado } from "./reposCenso";
 import { supabase } from "./supabaseClient";
 import type { PersonaNexusCenso } from "@/domain/nexusPersona";
 import type { Refugiado, SexoRefugiado, TipoDoc } from "@/domain/refugiados";
@@ -43,6 +44,9 @@ export async function registrarPersonaNexusEnNominal(opts: {
   familiaId?: string | null;
   esJefe: boolean;
   parentescoJefe?: string;
+  /** Permite crear el hogar aunque esJefe sea false — la persona funda el
+   * hogar como miembro (no líder) porque el líder no está presente. */
+  crearHogarSiFalta?: boolean;
   /** Teléfonos confirmados con la persona (el primero queda como principal). */
   telefonosConfirmados?: string[];
 }): Promise<ResultadoAltaNexus> {
@@ -126,6 +130,7 @@ export async function registrarPersonaNexusEnNominal(opts: {
       parentesco_jefe: "",
     });
     await guardarTelefonosConfirmados();
+    marcarCensoProcesado(cedula_norm, opts.centroId);
     return {
       refugiadoId,
       alojamientoId,
@@ -137,7 +142,17 @@ export async function registrarPersonaNexusEnNominal(opts: {
   }
 
   if (!familiaId) {
-    throw new Error("Falta el hogar para agregar al familiar.");
+    if (!opts.crearHogarSiFalta) {
+      throw new Error("Falta el hogar para agregar al familiar.");
+    }
+    // Fundador sin líder presente: crea el hogar igual, sin marcar líder —
+    // el parentesco declarado queda respecto al líder que se asigne después.
+    const nombreHogar = `Hogar ${tipo_doc}-${cedula} · ${opts.persona.primer_apellido}`.trim();
+    familiaId = await crearFamilia({
+      centro_id: opts.centroId,
+      nombre: nombreHogar,
+      notas: `Fundado sin líder presente por ${tipo_doc}-${cedula}`,
+    });
   }
   const alojamientoId = await asociarRefugiadoAFamilia({
     refugiado_id: refugiadoId,
@@ -147,6 +162,7 @@ export async function registrarPersonaNexusEnNominal(opts: {
     parentesco_jefe: (opts.parentescoJefe || "Otro familiar").trim(),
   });
   await guardarTelefonosConfirmados();
+  marcarCensoProcesado(cedula_norm, opts.centroId);
 
   return {
     refugiadoId,
