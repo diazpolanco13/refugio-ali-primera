@@ -290,6 +290,8 @@ interface Props {
   onCambiarCentro?: () => void;
   /** Propaga el estado de Nexus al shell (/censo) para mostrar u ocultar la planilla manual. */
   onEstadoNexus?: (enLinea: NexusEnLinea) => void;
+  /** Incrementar desde la cabecera de /censo para reiniciar el flujo (otra persona). */
+  reinicioKey?: number;
 }
 
 interface MiembroHogar {
@@ -427,6 +429,7 @@ export function CensoNexusPanel({
   tokenTerreno,
   onCambiarCentro,
   onEstadoNexus,
+  reinicioKey = 0,
 }: Props) {
   const [sesionLista, setSesionLista] = useState(false);
   const [errorSesion, setErrorSesion] = useState("");
@@ -1063,6 +1066,13 @@ export function CensoNexusPanel({
       refPasoCedula.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 50);
   }
+
+  // Cabecera de /censo: «Inicio del censo» incrementa reinicioKey.
+  useEffect(() => {
+    if (reinicioKey <= 0) return;
+    reiniciarFlujoCenso();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al pulsar Inicio del censo
+  }, [reinicioKey]);
 
   function toggleTelefono(t: string) {
     setTelsConfirmados((prev) =>

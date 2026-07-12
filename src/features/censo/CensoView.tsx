@@ -12,12 +12,14 @@ import {
   Check,
   CheckCircle2,
   Flag,
-  Home,
+  LayoutGrid,
   Loader2,
   LocateFixed,
   MapPin,
+  MoreHorizontal,
   Pencil,
   RefreshCw,
+  RotateCcw,
   Search,
   Tent,
   Trash2,
@@ -91,8 +93,12 @@ import { GrupoOpcionesSegmentadas } from "@/features/censo/censoFormularioShared
 import { FormularioIdentificacionFuncionario } from "@/features/censo/FormularioIdentificacionFuncionario";
 import { type NexusEnLinea } from "@/features/censo/EstadoNexusApi";
 import { consultarEstadoNexusApi } from "@/data/reposNexus";
-import { BotonBorrarCache } from "@/components/BotonBorrarCache";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { MenuItemActualizarApp } from "@/components/BotonBorrarCache";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   INSTRUCCIONES_CENSO_KEY,
   debeMostrarInstrucciones,
@@ -274,7 +280,10 @@ export function CensoView() {
   const [modoCenso, setModoCenso] = useState<"nexus" | "manual" | "lista">("nexus");
   /** Planilla manual solo si Nexus no está en línea (null = comprobando). */
   const [nexusEnLinea, setNexusEnLinea] = useState<NexusEnLinea>(null);
-  const mostrarCensoManual = nexusEnLinea === false;  const [paso, setPaso] = useState<1 | 2 | 3>(1);
+  const mostrarCensoManual = nexusEnLinea === false;
+  const [paso, setPaso] = useState<1 | 2 | 3>(1);
+  /** Incrementa al pulsar «Inicio del censo» en la cabecera (reset del panel Nexus). */
+  const [reinicioKey, setReinicioKey] = useState(0);
   const [paso1Seccion, setPaso1Seccion] = useState<"centro" | "funcionario">(
     token || centroParam || guardada?.centroId ? "funcionario" : "centro",
   );
@@ -435,6 +444,23 @@ export function CensoView() {
   const mostrarFaltantesPaso2 =
     resaltarFaltantesPaso2 || (!paso2Completo && formularioPaso2Iniciado);
 
+  function inicioDelCenso() {
+    if (modoCenso === "lista") {
+      setModoCenso("nexus");
+      setReinicioKey((k) => k + 1);
+      return;
+    }
+    if (modoCenso === "manual") {
+      setEditandoId(null);
+      setRegistro(registroVacio());
+      setErrorGuardar("");
+      setResaltarFaltantesPaso2(false);
+      setPaso(2);
+      return;
+    }
+    setReinicioKey((k) => k + 1);
+  }
+
   function continuarAPaso2() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ centroId, funcionario }));
     setResaltarFaltantesPaso2(false);
@@ -584,18 +610,42 @@ export function CensoView() {
             </h1>
             <p className="text-xs opacity-80">Fecha: {fechaHoy}</p>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <TooltipProvider delayDuration={200}>
-              <BotonBorrarCache variante="header" />
-            </TooltipProvider>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+            <button
+              type="button"
+              onClick={inicioDelCenso}
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-primary-foreground/25 bg-primary-foreground/10 px-2.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary-foreground/20 sm:px-3 sm:text-sm"
+              aria-label="Inicio del censo: registrar otra persona"
+              title="Inicio del censo"
+            >
+              <RotateCcw className="size-3.5 shrink-0" aria-hidden />
+              <span className="hidden sm:inline">Inicio del censo</span>
+              <span className="sm:hidden">Inicio</span>
+            </button>
             <a
               href={urlPortalTerreno()}
-              aria-label="Volver al inicio"
-              title="Volver al inicio"
-              className="flex size-10 items-center justify-center rounded-xl bg-primary-foreground/15 transition-colors hover:bg-primary-foreground/25 active:bg-primary-foreground/30"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-primary-foreground/25 bg-primary-foreground/10 px-2.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary-foreground/20 sm:px-3 sm:text-sm"
+              aria-label="Volver al portal de terreno"
+              title="Portal de terreno"
             >
-              <Home className="size-5" />
+              <LayoutGrid className="size-3.5 shrink-0" aria-hidden />
+              <span>Portal</span>
             </a>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground transition-colors hover:bg-primary-foreground/20"
+                  aria-label="Más opciones"
+                  title="Más opciones"
+                >
+                  <MoreHorizontal className="size-4" aria-hidden />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <MenuItemActualizarApp />
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         {!mostrarInstrucciones && modoCenso === "manual" && (
@@ -717,6 +767,7 @@ export function CensoView() {
                 tokenTerreno={token}
                 onCambiarCentro={!token ? () => setCentroId("") : undefined}
                 onEstadoNexus={setNexusEnLinea}
+                reinicioKey={reinicioKey}
               />
             )}
           </div>
