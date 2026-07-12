@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import { Check, Copy, Download, QrCode as QrCodeIcon } from "lucide-react";
+import { Check, Download, Link2, QrCode as QrCodeIcon, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { telefonoInternacional } from "@/lib/contacto";
 import { copiarTexto } from "@/lib/portapapeles";
@@ -24,6 +24,8 @@ import {
   ubicacionCentro,
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
+
+type FeedbackCopia = "telegram" | "enlace" | null;
 
 /** Teléfono Telegram en formato internacional (+58…). */
 function telegramParaPortapapeles(raw: string | null | undefined): string | null {
@@ -87,9 +89,9 @@ export function AccesoTerrenoCentro({ centro }: { centro: CentroTransitorio }) {
   const analistasSae = useAnalistasSae();
   const [enlace, setEnlace] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
-  const [copiado, setCopiado] = useState(false);
+  const [copiado, setCopiado] = useState<FeedbackCopia>(null);
 
-  const textoCopiar = useMemo(
+  const textoTelegram = useMemo(
     () => (enlace ? textoPortapapelesTerreno(centro, enlace, analistasSae) : ""),
     [analistasSae, centro, enlace],
   );
@@ -118,12 +120,18 @@ export function AccesoTerrenoCentro({ centro }: { centro: CentroTransitorio }) {
 
   if (!enlace) return null;
 
-  async function copiarEnlace() {
-    if (!textoCopiar) return;
-    if (await copiarTexto(textoCopiar)) {
-      setCopiado(true);
-      window.setTimeout(() => setCopiado(false), 2000);
-    }
+  async function marcarCopiado(cual: Exclude<FeedbackCopia, null>) {
+    setCopiado(cual);
+    window.setTimeout(() => setCopiado(null), 2000);
+  }
+
+  async function copiarParaTelegram() {
+    if (!textoTelegram) return;
+    if (await copiarTexto(textoTelegram)) await marcarCopiado("telegram");
+  }
+
+  async function copiarSoloEnlace() {
+    if (await copiarTexto(enlace)) await marcarCopiado("enlace");
   }
 
   return (
@@ -152,15 +160,33 @@ export function AccesoTerrenoCentro({ centro }: { centro: CentroTransitorio }) {
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
-              variant="outline"
+              variant="default"
               size="sm"
               className="h-8 gap-1.5 text-xs"
-              onClick={copiarEnlace}
+              onClick={copiarParaTelegram}
             >
-              {copiado ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-              {copiado ? "Copiado" : "Copiar enlace"}
+              {copiado === "telegram" ? (
+                <Check className="size-3.5" />
+              ) : (
+                <Send className="size-3.5" />
+              )}
+              {copiado === "telegram" ? "Copiado" : "Copiar para telegram"}
             </Button>
-            <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={copiarSoloEnlace}
+            >
+              {copiado === "enlace" ? (
+                <Check className="size-3.5" />
+              ) : (
+                <Link2 className="size-3.5" />
+              )}
+              {copiado === "enlace" ? "Copiado" : "Copiar enlace"}
+            </Button>
+            <Button asChild variant="secondary" size="sm" className="h-8 gap-1.5 text-xs">
               <a href={qrDataUrl} download={`qr-terreno-${centro.id}.png`}>
                 <Download className="size-3.5" />
                 Descargar QR
