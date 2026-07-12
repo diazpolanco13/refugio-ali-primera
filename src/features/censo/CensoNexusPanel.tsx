@@ -24,6 +24,7 @@ import {
   ImagePlus,
   RotateCcw,
   ChevronDown,
+  ArrowRight,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -303,6 +304,15 @@ interface MiembroHogar {
   creadaTs: number;
 }
 
+/** Resumen del hogar al que ya pertenece una cédula en este campamento. */
+interface ResumenFamiliaAqui {
+  familiaId: string;
+  nombreJefe: string;
+  cedulaJefe: string | null;
+  total: number;
+  rolEnFamilia: string;
+}
+
 function AvatarMiembro({
   fotoUrl,
   nombre,
@@ -448,8 +458,13 @@ export function CensoNexusPanel({
   const inputFotoGaleriaRef = useRef<HTMLInputElement | null>(null);
 
   const [familiaId, setFamiliaId] = useState<string | null>(null);
-  const [cedulaJefe, setCedulaJefe] = useState<string | null>(null);
+  const [, setCedulaJefe] = useState<string | null>(null);
   const [miembros, setMiembros] = useState<MiembroHogar[]>([]);
+  /** Hogar al que ya pertenece la cédula buscada (si está en este campamento). */
+  const [resumenFamiliaAqui, setResumenFamiliaAqui] = useState<ResumenFamiliaAqui | null>(
+    null,
+  );
+  const [abriendoFamilia, setAbriendoFamilia] = useState(false);
 
   // ¿Persona buscada es jefe/a de familia? null = sin responder (se pregunta
   // antes de mostrar la sección de damnificación, que es del hogar, no de
@@ -574,6 +589,41 @@ export function CensoNexusPanel({
     setMiembros(lista);
   }
 
+  /** Abre en la vista de hogar un familia ya registrada (cédula duplicada en el campamento). */
+  async function abrirFamiliaExistente(id: string) {
+    setAbriendoFamilia(true);
+    setErrorBusqueda("");
+    setMensaje("");
+    try {
+      const lista = await miembrosHogarActual(id);
+      const jefe = lista.find((m) => m.es_jefe);
+      setFamiliaId(id);
+      setMiembros(lista);
+      setCedulaJefe(jefe?.cedula ?? null);
+      setPersona(null);
+      setEstadoNominal(null);
+      setOrigenFicha(null);
+      setResumenFamiliaAqui(null);
+      setCedula("");
+      setEsJefe(null);
+      setConfirmoDuplicado(false);
+      limpiarFotoLocal();
+      setMensaje(
+        `Hogar de ${jefe?.nombre ?? "la familia"} abierto. Puede agregar o quitar miembros.`,
+      );
+      setPasoEnfoque("hogar");
+      window.setTimeout(() => {
+        refPasoHogar.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    } catch (err) {
+      setErrorBusqueda(
+        err instanceof Error ? err.message : "No se pudo abrir el hogar.",
+      );
+    } finally {
+      setAbriendoFamilia(false);
+    }
+  }
+
   async function confirmarEliminarMiembro() {
     if (!eliminarMiembro || !familiaId) return;
     setEliminandoMiembro(true);
@@ -667,6 +717,7 @@ export function CensoNexusPanel({
     setAgregandoTel(false);
     setConfirmoDuplicado(false);
     setInfoSaimeAbierta(false);
+    setResumenFamiliaAqui(null);
     limpiarFotoLocal();
     if (!familiaId) {
       setEsJefe(null);
@@ -690,9 +741,8 @@ export function CensoNexusPanel({
         setSenalConsulta({ ts: Date.now(), resultado: "ok" });
       }
       if (!familiaId) {
-        // Ya es jefe activo en este campamento (reanudar hogar): no hace
-        // falta volver a preguntar, se salta directo a la sección de hogar.
-        if (estado?.esJefeAqui) setEsJefe(true);
+        // Si ya está en este campamento, "Ir a esa familia" reabre el hogar;
+        // no se fuerza el flujo de crear/reanudar vía damnificación.
         // Sin hogar activo: la persona buscada podría ser el jefe; sus
         // familiares sugeridos se conservan para marcarlos tras crear el hogar.
         setFamSugeridos(p.familiares);
@@ -982,6 +1032,7 @@ export function CensoNexusPanel({
     setPersona(null);
     setEstadoNominal(null);
     setOrigenFicha(null);
+    setResumenFamiliaAqui(null);
     setAvisoOtros([]);
     setTelsConfirmados([]);
     setTelsAgregados([]);
@@ -1029,6 +1080,48 @@ export function CensoNexusPanel({
   }
 
   const hayHogar = Boolean(familiaId);
+
+  // Si la cédula ya está en este campamento, cargar el resumen del hogar
+  // para mostrar a qué familia pertenece y el botón «Ir a esa familia».
+  useEffect(() => {
+    const famId =
+      estadoNominal?.enEsteCentro && estadoNominal.familiaAqui && !familiaId
+        ? estadoNominal.familiaAqui
+        : null;
+    if (!famId) {
+      setResumenFamiliaAqui(null);
+      return;
+    }
+    let cancel = false;
+    miembrosHogarActual(famId)
+      .then((lista) => {
+        if (cancel) return;
+        const jefe = lista.find((m) => m.es_jefe) ?? lista[0];
+        const yo = estadoNominal?.refugiadoId
+          ? lista.find((m) => m.refugiadoId === estadoNominal.refugiadoId)
+          : null;
+        setResumenFamiliaAqui({
+          familiaId: famId,
+          nombreJefe: jefe?.nombre ?? "Hogar",
+          cedulaJefe: jefe?.cedula ?? null,
+          total: lista.length,
+          rolEnFamilia: yo?.es_jefe
+            ? "Jefe/a de hogar"
+            : yo?.parentesco?.trim() || "Miembro del hogar",
+        });
+      })
+      .catch(() => {
+        if (!cancel) setResumenFamiliaAqui(null);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [
+    estadoNominal?.enEsteCentro,
+    estadoNominal?.familiaAqui,
+    estadoNominal?.refugiadoId,
+    familiaId,
+  ]);
 
   const cedulasMiembros = useMemo(
     () => new Set(miembros.map((m) => soloDigitos(m.cedula || ""))),
@@ -1929,9 +2022,64 @@ export function CensoNexusPanel({
               </div>
             ) : null}
 
+            {/* Ya en este campamento: familia + acceso directo al hogar. */}
+            {!hayHogar && estadoNominal?.enEsteCentro && estadoNominal.familiaAqui ? (
+              <div className="space-y-2.5 rounded-lg border border-emerald-600/40 bg-emerald-600/10 px-3 py-3">
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                  Ya registrado en este campamento
+                </p>
+                {resumenFamiliaAqui ? (
+                  <div className="space-y-0.5">
+                    <p className="text-sm leading-snug">
+                      Pertenece a la familia de{" "}
+                      <strong className="font-semibold text-foreground">
+                        {resumenFamiliaAqui.nombreJefe}
+                      </strong>
+                      {resumenFamiliaAqui.cedulaJefe ? (
+                        <span className="font-mono text-muted-foreground">
+                          {" "}
+                          (
+                          {formatearCedula(resumenFamiliaAqui.cedulaJefe, "V")}
+                          )
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {resumenFamiliaAqui.rolEnFamilia}
+                      {" · "}
+                      {resumenFamiliaAqui.total.toLocaleString("es")}{" "}
+                      {resumenFamiliaAqui.total === 1 ? "miembro" : "miembros"}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 className="size-3 animate-spin" />
+                    Cargando datos del hogar…
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  className="h-10 w-full gap-2 text-sm font-semibold shadow-sm"
+                  disabled={abriendoFamilia}
+                  onClick={() => {
+                    void abrirFamiliaExistente(estadoNominal.familiaAqui!);
+                  }}
+                >
+                  {abriendoFamilia ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Users className="size-4" />
+                  )}
+                  Ir a esa familia
+                  <ArrowRight className="size-4 opacity-80" />
+                </Button>
+              </div>
+            ) : null}
+
             {/* Se pregunta al censador antes de dirección/teléfonos/damnificación:
-                esas preguntas son del hogar; solo el jefe/a lo crea. */}
-            {!hayHogar ? (
+                esas preguntas son del hogar; solo el jefe/a lo crea.
+                Si ya está registrado aquí, el acceso es «Ir a esa familia». */}
+            {!hayHogar && !(estadoNominal?.enEsteCentro && estadoNominal.familiaAqui) ? (
               <div className="space-y-2 rounded-lg border bg-muted/40 px-3 py-3">
                 <p className="text-sm font-medium leading-snug">
                   ¿Es esta persona el jefe de una familia?
