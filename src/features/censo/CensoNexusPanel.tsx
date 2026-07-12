@@ -304,7 +304,7 @@ interface Props {
   /** Precarga y dispara la búsqueda de una cédula (ej. botón "Verificar" desde
    * la lista "Registrados" del censo manual viejo). Cambiar `key` la dispara. */
   cedulaPrecarga?: { letra: Letra; cedula: string; key: number } | null;
-  /** Abre directo un hogar ya existente (ej. botón "Agregar líder" desde
+  /** Abre directo un hogar ya existente (ej. botón "Editar familia" desde
    * "Censados"). Cambiar `key` la dispara. */
   familiaPrecarga?: { familiaId: string; key: number } | null;
 }
@@ -1230,7 +1230,7 @@ export function CensoNexusPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cambiar cedulaPrecarga.key
   }, [cedulaPrecarga?.key]);
 
-  // Botón "Agregar líder" desde "Censados": abre directo ese hogar (sin
+  // Botón "Editar familia" desde "Censados": abre directo ese hogar (sin
   // pasar por una búsqueda de cédula).
   useEffect(() => {
     if (!familiaPrecarga || familiaPrecarga.key <= 0) return;

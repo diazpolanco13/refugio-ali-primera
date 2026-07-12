@@ -296,7 +296,7 @@ export function CensoView() {
     setModoCenso("nexus");
     setCedulaPrecarga((prev) => ({ letra, cedula, key: (prev?.key ?? 0) + 1 }));
   }
-  /** Botón "Agregar líder" desde "Censados": abre ese hogar directo en el panel Nexus. */
+  /** Botón "Editar familia" desde "Censados": abre ese hogar directo en el panel Nexus. */
   const [familiaPrecarga, setFamiliaPrecarga] = useState<{
     familiaId: string;
     key: number;

@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Clock,
   Loader2,
+  Pencil,
   Search,
   Trash2,
   UserCheck,
@@ -234,72 +235,78 @@ function FilaFamilia({
     familia.jefe.familia?.nombre?.trim() ||
     `Familia ${nombreCompleto(familia.jefe.refugiado).split(/\s+/).slice(-1)[0] || ""}`.trim();
   const otros = familia.miembros.filter((m) => m.id !== familia.jefe.id);
-  const lideresActivos = familia.miembros.filter((m) => m.es_jefe_familia).length;
+  const puedeEditar =
+    Boolean(onAbrirFamilia) && Boolean(familia.jefe.familia_id);
 
   return (
     <Collapsible
       open={abierta}
       onOpenChange={setAbierta}
-      className="border-b border-border/60 last:border-b-0"
+      className="rounded-xl border border-border bg-card shadow-sm"
     >
-      <div className="flex items-center gap-1 px-1 py-2">
-        <span className="w-6 shrink-0 text-center text-xs font-semibold tabular-nums text-muted-foreground">
-          {numero}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium leading-tight">
-            {nombreCompleto(familia.jefe.refugiado)}
-          </p>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-            <span className="font-mono">{etiquetaCedula(familia.jefe)}</span>
-            <Badge variant="secondary" className="h-4 px-1 text-[10px]">
-              {familia.jefe.es_jefe_familia ? "Líder" : "Sin líder aún"}
-            </Badge>
-            {titulo ? (
-              <span className="truncate text-muted-foreground/80">{titulo}</span>
-            ) : null}
-          </p>
+      <div className="space-y-2 px-2.5 py-2.5">
+        <div className="flex items-start gap-2">
+          <span className="mt-0.5 w-6 shrink-0 text-center text-xs font-semibold tabular-nums text-muted-foreground">
+            {numero}
+          </span>
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="truncate text-sm font-medium leading-tight">
+              {nombreCompleto(familia.jefe.refugiado)}
+            </p>
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+              <span className="font-mono">{etiquetaCedula(familia.jefe)}</span>
+              <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                {familia.jefe.es_jefe_familia ? "Líder" : "Sin líder aún"}
+              </Badge>
+              {titulo ? (
+                <span className="truncate text-muted-foreground/80">{titulo}</span>
+              ) : null}
+            </p>
+          </div>
+          <CollapsibleTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-9 shrink-0"
+              title={abierta ? "Ocultar miembros" : "Ver miembros"}
+            >
+              <ChevronDown
+                className={cn(
+                  "size-4 transition-transform",
+                  abierta && "rotate-180",
+                )}
+              />
+            </Button>
+          </CollapsibleTrigger>
         </div>
-        <Badge variant="outline" className="h-6 shrink-0 tabular-nums">
-          {familia.miembros.length}{" "}
-          {familia.miembros.length === 1 ? "miembro" : "miembros"}
-        </Badge>
-        {onAbrirFamilia && familia.jefe.familia_id && lideresActivos < 2 ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-7 shrink-0 gap-1 text-xs"
-            title="Buscar y asignar el líder de esta familia"
-            onClick={() => onAbrirFamilia(familia.jefe.familia_id as string)}
-          >
-            <UserCheck className="size-3.5" />
-            Agregar líder
-          </Button>
-        ) : null}
-        <BotonEliminar
-          onClick={() => onEliminar(familia.jefe)}
-          eliminando={eliminandoId === familia.jefe.id}
-        />
-        <CollapsibleTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-8 shrink-0"
-            title={abierta ? "Ocultar miembros" : "Ver miembros"}
-          >
-            <ChevronDown
-              className={cn(
-                "size-4 transition-transform",
-                abierta && "rotate-180",
-              )}
-            />
-          </Button>
-        </CollapsibleTrigger>
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-2 pl-8">
+          <Badge variant="outline" className="h-7 shrink-0 tabular-nums">
+            {familia.miembros.length}{" "}
+            {familia.miembros.length === 1 ? "miembro" : "miembros"}
+          </Badge>
+          {puedeEditar ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0 gap-1.5 text-xs font-semibold"
+              title="Abrir este hogar para editar o agregar miembros"
+              onClick={() => onAbrirFamilia?.(familia.jefe.familia_id as string)}
+            >
+              <Pencil className="size-3.5" />
+              Editar familia
+            </Button>
+          ) : null}
+          <BotonEliminar
+            onClick={() => onEliminar(familia.jefe)}
+            eliminando={eliminandoId === familia.jefe.id}
+          />
+        </div>
       </div>
       <CollapsibleContent>
-        <div className="mb-2 ml-7 space-y-0 rounded-md border border-border/70 bg-muted/25 px-2 py-1">
+        <div className="mx-2.5 mb-2.5 space-y-0 rounded-lg border border-border/70 bg-muted/25 px-2 py-1">
           {otros.length === 0 ? (
             <p className="py-2 text-center text-[11px] text-muted-foreground">
               Solo está registrado el jefe/a de familia.
@@ -820,7 +827,7 @@ export function CensoListaCensadosPanel({
                 : "Aún no hay familias censadas en este campamento."}
             </p>
           ) : (
-            <div className="-mx-1">
+            <div className="space-y-2">
               {familiasFilas.map((f, i) => (
                 <FilaFamilia
                   key={f.key}
