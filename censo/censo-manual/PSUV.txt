@@ -1,0 +1,49 @@
+Tipo de Afectado	Nombre Completo	Cedula	Telefono
+Adulto	Zara de Luque	27852501	4165241884
+Niño	Mathias de Luque 8 años		
+Niño	Zoe de Luque 4 años		
+Niño	Noha Zambrano 5 meses		
+Adulto	Zalma de Luque	27852500	4122430496
+Niño	Ángel de Luque 4 años 		
+Adulto Mayor	Zoraya Josefina Tahhan Brito	5570615	4160128712
+Adulto	Héctor Osuna Tahhan	20029242	4167198441
+Adulto	Eduardo Alvarado Tahhan	15608710	4168085363
+Adulto Mayor	Alfredo de Luque	16619837	4243140047
+Adulto	Carlos Eduardo López	18901951	4267975208
+Adulto	Yesenia Méndez De López	16886368	4129093362
+Niño	Samuel Eduardo López Méndez	32991999	
+Niño	Santiago Emiro López Mendez 6 años		
+Adulto	Kharen Daniela López Méndez	32014934	4127156821
+Adulto Mayor	Norma Rivas	6431148	4262047891
+Adulto	Kenny Urbano	13379632	4127491137
+Adulto	Kennybel Urbano	32146355	4127491137
+Adulto	Norabel Flores	14547869	4241758443
+Adulto	Andrea Echeverría	11782360	4126481042
+Adulto	Nailevis Bello	28053841	4124293439
+Adulto	Yadira Álvarez	82238697	4241863530
+Niño	Roberto Quintero	33419403	4241463530
+Niño	Eloy Quintero	33419408	4242821005
+Adulto	Hogla Cruz Machado	12951622	4262924978
+Niño	Aldemar Guaramato	36168202	4262924978
+Adulto Mayor	Petra Aquilina Rivas	6414538	4242909042
+Adulto	Nickoll Niño	22904440	4142235269
+Niño	Eyruh Bello	36987575	4241890246
+Niño	Heitmar Escalona	33583312	4241890246
+Adulto	Naomy Urbano	26915685	4124213423
+Niño	Megan Urbano		
+Adulto	Gabriela Machado	19959302	414916476
+Adulto	Mirella Machado	6031972	424275861
+Adulto	Hogleidimar Rebeca Guaramato	27175749	4242356675
+Adulto	Yoiner Guedez	24332495	4242356675
+Niño	Daniel Isaac Guedez Piñerez		
+Niño	Vaiolett Valentina Guedez Guaramato 6 años		
+Niño	Savador Guedez 1año		
+Adulto	Hoglimar Guaramato	27175751	4242930651
+Niño	Ángel Guaramato	36510546	4242930651
+Niño	Jacob Jaramillo		
+Adulto	Dennis Rodriguez	17427804	4121324184
+Adulto	Denniuska Rodriguez	32752131	4121324184
+Adulto mayor	Rosaura De Acosta	6406648	4122136491
+Adulto Mayor	Gregorio Acosta	3826452	4122136491
+Adulto mayor	Aracelis Quilarque	6406649	4122136491
+Adulto mayor	Astry Quilarque		4122136491
