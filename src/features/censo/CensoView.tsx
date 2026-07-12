@@ -296,6 +296,15 @@ export function CensoView() {
     setModoCenso("nexus");
     setCedulaPrecarga((prev) => ({ letra, cedula, key: (prev?.key ?? 0) + 1 }));
   }
+  /** Botón "Agregar líder" desde "Censados": abre ese hogar directo en el panel Nexus. */
+  const [familiaPrecarga, setFamiliaPrecarga] = useState<{
+    familiaId: string;
+    key: number;
+  } | null>(null);
+  function abrirFamiliaEnNominal(familiaId: string) {
+    setModoCenso("nexus");
+    setFamiliaPrecarga((prev) => ({ familiaId, key: (prev?.key ?? 0) + 1 }));
+  }
   const [paso1Seccion, setPaso1Seccion] = useState<"centro" | "funcionario">(
     token || centroParam || guardada?.centroId ? "funcionario" : "centro",
   );
@@ -781,6 +790,7 @@ export function CensoView() {
                 onEstadoNexus={setNexusEnLinea}
                 reinicioKey={reinicioKey}
                 cedulaPrecarga={cedulaPrecarga}
+                familiaPrecarga={familiaPrecarga}
               />
             )}
           </div>
@@ -836,6 +846,7 @@ export function CensoView() {
                   centroId={centroId}
                   centroNombre={centroNombre || centroId}
                   onVerificarEnNominal={verificarEnNominal}
+                  onAbrirFamilia={abrirFamiliaEnNominal}
                 />
               </>
             )}

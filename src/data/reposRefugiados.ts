@@ -600,22 +600,21 @@ export async function crearFamilia(datos: {
   return (data as { id: string }).id;
 }
 
-async function buscarJefeActivoFamilia(
+/** Máximo de líderes de familia activos por hogar (ver supabase/familia_lideres.sql). */
+const MAX_LIDERES_FAMILIA = 2;
+
+async function contarLideresActivosFamilia(
   familiaId: string,
   excluirAlojamientoId?: string,
-): Promise<AlojamientoRefugiado | null> {
+): Promise<number> {
   const { data, error } = await supabase
     .from("alojamientos_refugiados")
-    .select("*")
+    .select("id")
     .eq("familia_id", familiaId)
     .neq("estado", "egresado")
-    .eq("es_jefe_familia", true)
-    .limit(2);
-  if (error) throw new Error(`[reposRefugiados] validar jefe familia: ${error.message}`);
-  const jefe = ((data ?? []) as AlojamientoRefugiado[])
-    .map(normalizarAlojamiento)
-    .find((a) => a.id !== excluirAlojamientoId);
-  return jefe ?? null;
+    .eq("es_jefe_familia", true);
+  if (error) throw new Error(`[reposRefugiados] contar líderes familia: ${error.message}`);
+  return ((data ?? []) as { id: string }[]).filter((a) => a.id !== excluirAlojamientoId).length;
 }
 
 async function validarReglasFamilia(datos: {
@@ -626,9 +625,11 @@ async function validarReglasFamilia(datos: {
 }): Promise<void> {
   if (!datos.familia_id) return;
   if (datos.es_jefe_familia) {
-    const jefe = await buscarJefeActivoFamilia(datos.familia_id, datos.alojamiento_id);
-    if (jefe) {
-      throw new Error("Este hogar ya tiene un jefe activo. Ajusta el jefe existente antes de asignar otro.");
+    const activos = await contarLideresActivosFamilia(datos.familia_id, datos.alojamiento_id);
+    if (activos >= MAX_LIDERES_FAMILIA) {
+      throw new Error(
+        `Este hogar ya tiene ${MAX_LIDERES_FAMILIA} líderes activos. Ajusta uno existente antes de asignar otro.`,
+      );
     }
     return;
   }

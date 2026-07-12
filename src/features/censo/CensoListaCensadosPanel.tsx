@@ -64,6 +64,8 @@ interface Props {
   centroNombre: string;
   /** Salta a "Por cédula" con esa cédula precargada (censo viejo → nominal). */
   onVerificarEnNominal?: (letra: "V" | "E", cedula: string) => void;
+  /** Abre ese hogar directo en "Por cédula" (para agregar/asignar un líder). */
+  onAbrirFamilia?: (familiaId: string) => void;
 }
 
 interface FamiliaFila {
@@ -219,17 +221,20 @@ function FilaFamilia({
   numero,
   onEliminar,
   eliminandoId,
+  onAbrirFamilia,
 }: {
   familia: FamiliaFila;
   numero: number;
   onEliminar: (a: AlojamientoEnriquecido) => void;
   eliminandoId: string | null;
+  onAbrirFamilia?: (familiaId: string) => void;
 }) {
   const [abierta, setAbierta] = useState(false);
   const titulo =
     familia.jefe.familia?.nombre?.trim() ||
     `Familia ${nombreCompleto(familia.jefe.refugiado).split(/\s+/).slice(-1)[0] || ""}`.trim();
   const otros = familia.miembros.filter((m) => m.id !== familia.jefe.id);
+  const lideresActivos = familia.miembros.filter((m) => m.es_jefe_familia).length;
 
   return (
     <Collapsible
@@ -248,7 +253,7 @@ function FilaFamilia({
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
             <span className="font-mono">{etiquetaCedula(familia.jefe)}</span>
             <Badge variant="secondary" className="h-4 px-1 text-[10px]">
-              Jefe/a
+              {familia.jefe.es_jefe_familia ? "Líder" : "Sin líder aún"}
             </Badge>
             {titulo ? (
               <span className="truncate text-muted-foreground/80">{titulo}</span>
@@ -259,6 +264,19 @@ function FilaFamilia({
           {familia.miembros.length}{" "}
           {familia.miembros.length === 1 ? "miembro" : "miembros"}
         </Badge>
+        {onAbrirFamilia && familia.jefe.familia_id && lideresActivos < 2 ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 shrink-0 gap-1 text-xs"
+            title="Buscar y asignar el líder de esta familia"
+            onClick={() => onAbrirFamilia(familia.jefe.familia_id as string)}
+          >
+            <UserCheck className="size-3.5" />
+            Agregar líder
+          </Button>
+        ) : null}
         <BotonEliminar
           onClick={() => onEliminar(familia.jefe)}
           eliminando={eliminandoId === familia.jefe.id}
@@ -356,7 +374,12 @@ function FilaCensoViejo({
   );
 }
 
-export function CensoListaCensadosPanel({ centroId, centroNombre, onVerificarEnNominal }: Props) {
+export function CensoListaCensadosPanel({
+  centroId,
+  centroNombre,
+  onVerificarEnNominal,
+  onAbrirFamilia,
+}: Props) {
   const [centro, setCentro] = useState<CentroTransitorio | null>(null);
   const [eliminarTarget, setEliminarTarget] =
     useState<AlojamientoEnriquecido | null>(null);
@@ -769,6 +792,7 @@ export function CensoListaCensadosPanel({ centroId, centroNombre, onVerificarEnN
                   numero={i + 1}
                   eliminandoId={eliminandoId}
                   onEliminar={pedirEliminar}
+                  onAbrirFamilia={onAbrirFamilia}
                 />
               ))}
             </div>

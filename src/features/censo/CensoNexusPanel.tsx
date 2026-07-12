@@ -117,6 +117,10 @@ import { telegramHref, tieneTelefonoContacto } from "@/lib/contacto";
 import { copiarTexto } from "@/lib/portapapeles";
 import { cn } from "@/lib/utils";
 
+/** Máximo de líderes de familia activos por hogar (ver supabase/familia_lideres.sql
+ * y MAX_LIDERES_FAMILIA en src/data/reposRefugiados.ts). */
+const MAX_LIDERES_FAMILIA = 2;
+
 const SEVERIDAD_VIVIENDA_OPCIONES: { valor: EstatusVivienda; label: string; emoji: string }[] = [
   { valor: "destruida", label: "Colapsada / destruida", emoji: "🔴" },
   { valor: "inabitable", label: "Inhabitable / insegura", emoji: "🟠" },
@@ -298,6 +302,9 @@ interface Props {
   /** Precarga y dispara la búsqueda de una cédula (ej. botón "Verificar" desde
    * la lista "Registrados" del censo manual viejo). Cambiar `key` la dispara. */
   cedulaPrecarga?: { letra: Letra; cedula: string; key: number } | null;
+  /** Abre directo un hogar ya existente (ej. botón "Agregar líder" desde
+   * "Censados"). Cambiar `key` la dispara. */
+  familiaPrecarga?: { familiaId: string; key: number } | null;
 }
 
 interface MiembroHogar {
@@ -437,6 +444,7 @@ export function CensoNexusPanel({
   onEstadoNexus,
   reinicioKey = 0,
   cedulaPrecarga,
+  familiaPrecarga,
 }: Props) {
   const [sesionLista, setSesionLista] = useState(false);
   const [errorSesion, setErrorSesion] = useState("");
@@ -479,10 +487,14 @@ export function CensoNexusPanel({
   );
   const [abriendoFamilia, setAbriendoFamilia] = useState(false);
 
-  // ¿Persona buscada es jefe/a de familia? null = sin responder (se pregunta
+  // ¿Persona buscada es líder de familia? null = sin responder (se pregunta
   // antes de mostrar la sección de damnificación, que es del hogar, no de
   // cualquier persona). Solo aplica mientras no hay hogar creado.
   const [esJefe, setEsJefe] = useState<boolean | null>(null);
+  // Si el líder no está presente: registrar igual a esta persona como
+  // miembro fundador del hogar (sin líder asignado todavía).
+  const [registrarSinLider, setRegistrarSinLider] = useState(false);
+  const [parentescoSinLider, setParentescoSinLider] = useState("Otro familiar");
 
   // Contexto del terremoto: se captura una sola vez, al crear el hogar.
   const [estatusVivienda, setEstatusVivienda] = useState<EstatusVivienda | null>(null);
@@ -506,6 +518,9 @@ export function CensoNexusPanel({
   const [seleccionFam, setSeleccionFam] = useState<Record<string, boolean>>({});
   const [parentescoFam, setParentescoFam] = useState<Record<string, string>>({});
   const [parentescoDirecto, setParentescoDirecto] = useState("Otro familiar");
+  // Al agregar a alguien a un hogar ya abierto: ¿es líder de familia? (hasta
+  // MAX_LIDERES_FAMILIA activos por hogar, ver reposRefugiados.ts).
+  const [agregarComoLider, setAgregarComoLider] = useState(false);
 
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -619,6 +634,7 @@ export function CensoNexusPanel({
       setResumenFamiliaAqui(null);
       setCedula("");
       setEsJefe(null);
+      setRegistrarSinLider(false);
       setConfirmoDuplicado(false);
       limpiarFotoLocal();
       setMensaje(
@@ -732,9 +748,11 @@ export function CensoNexusPanel({
     setConfirmoDuplicado(false);
     setInfoSaimeAbierta(false);
     setResumenFamiliaAqui(null);
+    setAgregarComoLider(false);
     limpiarFotoLocal();
     if (!familiaId) {
       setEsJefe(null);
+      setRegistrarSinLider(false);
       resetDamnificacion();
     }
     setBuscando(true);
@@ -800,16 +818,19 @@ export function CensoNexusPanel({
     setMensaje("");
     setErrorBusqueda("");
     try {
+      const esLider = esJefe === true;
       const r = await registrarPersonaNexusEnNominal({
         persona,
         centroId,
-        esJefe: true,
+        esJefe: esLider,
+        crearHogarSiFalta: !esLider,
+        parentescoJefe: esLider ? undefined : parentescoSinLider,
         telefonosConfirmados: telsConfirmados,
       });
       await persistirFotoCampo(r.refugiadoId);
       limpiarFotoLocal();
       setFamiliaId(r.familiaId);
-      setCedulaJefe(persona.cedula);
+      setCedulaJefe(esLider ? persona.cedula : null);
       setAvisoOtros(r.otrosCentros);
 
       const ubicacion = (ubicacionVivienda === "Otro" ? ubicacionOtro : ubicacionVivienda).trim();
@@ -899,6 +920,7 @@ export function CensoNexusPanel({
     setEstadoNominal(null);
     setOrigenFicha(null);
     setEsJefe(null);
+    setRegistrarSinLider(false);
     setCedula("");
   }
 
@@ -912,19 +934,24 @@ export function CensoNexusPanel({
         persona,
         centroId,
         familiaId,
-        esJefe: false,
-        parentescoJefe: parentescoDirecto,
+        esJefe: agregarComoLider,
+        parentescoJefe: agregarComoLider ? undefined : parentescoDirecto,
         telefonosConfirmados: telsConfirmados,
       });
       await persistirFotoCampo(r.refugiadoId);
       limpiarFotoLocal();
       setAvisoOtros(r.otrosCentros);
       await refrescarMiembros(r.familiaId);
-      setMensaje(`Agregado al hogar: ${persona.nombre_completo}`);
+      setMensaje(
+        agregarComoLider
+          ? `Agregado como líder del hogar: ${persona.nombre_completo}`
+          : `Agregado al hogar: ${persona.nombre_completo}`,
+      );
       setPersona(null);
       setEstadoNominal(null);
       setOrigenFicha(null);
       setCedula("");
+      setAgregarComoLider(false);
     } catch (err) {
       setErrorBusqueda(err instanceof Error ? err.message : "No se pudo agregar");
     } finally {
@@ -1055,12 +1082,15 @@ export function CensoNexusPanel({
     setTelsAgregados([]);
     setTelNuevo("");
     setAgregandoTel(false);
+    setAgregarComoLider(false);
     setCedula("");
     setLetra("V");
     setPestanaMiembros("adultos");
     setMenor(formMenorVacio());
     setErrorMenor("");
     setEsJefe(null);
+    setRegistrarSinLider(false);
+    setParentescoSinLider("Otro familiar");
     setConfirmoDuplicado(false);
     resetDamnificacion();
     setNivelHogar(null);
@@ -1100,6 +1130,14 @@ export function CensoNexusPanel({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cambiar cedulaPrecarga.key
   }, [cedulaPrecarga?.key]);
+
+  // Botón "Agregar líder" desde "Censados": abre directo ese hogar (sin
+  // pasar por una búsqueda de cédula).
+  useEffect(() => {
+    if (!familiaPrecarga || familiaPrecarga.key <= 0) return;
+    void abrirFamiliaExistente(familiaPrecarga.familiaId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cambiar familiaPrecarga.key
+  }, [familiaPrecarga?.key]);
 
   function toggleTelefono(t: string) {
     setTelsConfirmados((prev) =>
@@ -1173,6 +1211,9 @@ export function CensoNexusPanel({
   const personaYaEnHogar = Boolean(
     persona && hayHogar && cedulasMiembros.has(soloDigitos(persona.cedula)),
   );
+
+  /** Líderes activos en el hogar abierto (ver MAX_LIDERES_FAMILIA en reposRefugiados.ts). */
+  const lideresActivosHogar = useMemo(() => miembros.filter((m) => m.es_jefe).length, [miembros]);
 
   // Bloquea "crear hogar" / "agregar" mientras haya un aviso de duplicado
   // cross-centro sin que el censista lo confirme explícitamente.
@@ -2143,12 +2184,14 @@ export function CensoNexusPanel({
             ) : null}
 
             {/* Se pregunta al censador antes de dirección/teléfonos/damnificación:
-                esas preguntas son del hogar; solo el jefe/a lo crea.
+                esas preguntas son del hogar. Un hogar puede tener 1 o 2
+                líderes (ver MAX_LIDERES_FAMILIA); si el líder no está
+                presente, cualquier adulto puede fundar el hogar igual.
                 Si ya está registrado aquí, el acceso es «Ir a esa familia». */}
             {!hayHogar && !(estadoNominal?.enEsteCentro && estadoNominal.familiaAqui) ? (
               <div className="space-y-2 rounded-lg border bg-muted/40 px-3 py-3">
                 <p className="text-sm font-medium leading-snug">
-                  ¿Es esta persona el jefe de una familia?
+                  ¿Es esta persona líder de familia?
                 </p>
                 <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-muted/30 shadow-sm">
                   <button
@@ -2159,7 +2202,10 @@ export function CensoNexusPanel({
                         ? "bg-primary text-primary-foreground"
                         : "bg-background text-foreground hover:bg-muted/80",
                     )}
-                    onClick={() => setEsJefe(true)}
+                    onClick={() => {
+                      setEsJefe(true);
+                      setRegistrarSinLider(false);
+                    }}
                   >
                     Sí
                   </button>
@@ -2171,15 +2217,18 @@ export function CensoNexusPanel({
                         ? "bg-primary text-primary-foreground"
                         : "bg-background text-foreground hover:bg-muted/80",
                     )}
-                    onClick={() => setEsJefe(false)}
+                    onClick={() => {
+                      setEsJefe(false);
+                      setRegistrarSinLider(false);
+                    }}
                   >
                     No
                   </button>
                 </div>
-                {esJefe === false ? (
+                {esJefe === false && !registrarSinLider ? (
                   <div className="space-y-2 pt-1">
                     <p className="text-xs text-muted-foreground">
-                      Busque primero al jefe/a de familia para crear el hogar. Después podrá
+                      Busque primero al líder de familia para crear el hogar. Después podrá
                       agregar a {persona.nombre_completo} como miembro.
                     </p>
                     <Button
@@ -2189,14 +2238,49 @@ export function CensoNexusPanel({
                       onClick={volverABuscarJefe}
                     >
                       <Search className="size-4" />
-                      Buscar al jefe/a de familia
+                      Buscar al líder de familia
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="default"
+                      className="h-10 w-full gap-2 text-sm font-semibold"
+                      onClick={() => setRegistrarSinLider(true)}
+                    >
+                      El líder no está aquí ahora — registrar igual
+                    </Button>
+                  </div>
+                ) : null}
+                {esJefe === false && registrarSinLider ? (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      Se registrará a {persona.nombre_completo} como primer miembro del hogar,
+                      sin líder asignado todavía. Cuando el líder aparezca, búsquelo por su
+                      cédula o busque a esta persona de nuevo para agregarlo al mismo hogar.
+                    </p>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium text-muted-foreground">
+                        Parentesco declarado (respecto al futuro líder)
+                      </Label>
+                      <Select value={parentescoSinLider} onValueChange={setParentescoSinLider}>
+                        <SelectTrigger className="h-10 w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PARENTESCOS_JEFE.map((p) => (
+                            <SelectItem key={p} value={p}>
+                              {p}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 ) : null}
               </div>
             ) : null}
 
-            {hayHogar || esJefe === true ? (
+            {hayHogar || esJefe === true || registrarSinLider ? (
               <>
             <Collapsible
               open={infoSaimeAbierta}
@@ -2409,27 +2493,46 @@ export function CensoNexusPanel({
                     Esta persona ya es miembro del hogar actual.
                   </p>
                 ) : (
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Select value={parentescoDirecto} onValueChange={setParentescoDirecto}>
-                      <SelectTrigger className="sm:w-[11rem]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PARENTESCOS_JEFE.map((p) => (
-                          <SelectItem key={p} value={p}>
-                            {p}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      className="flex-1"
-                      disabled={guardando || hayDuplicadoSinConfirmar}
-                      onClick={onAgregarComoFamiliar}
-                    >
-                      {guardando ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
-                      Agregar al hogar como {parentescoDirecto}
-                    </Button>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={agregarComoLider}
+                        disabled={lideresActivosHogar >= MAX_LIDERES_FAMILIA}
+                        onCheckedChange={(v) => setAgregarComoLider(Boolean(v))}
+                      />
+                      Es líder de familia
+                      {lideresActivosHogar >= MAX_LIDERES_FAMILIA ? (
+                        <span className="text-xs text-muted-foreground">
+                          (este hogar ya tiene {MAX_LIDERES_FAMILIA} líderes)
+                        </span>
+                      ) : null}
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      {!agregarComoLider ? (
+                        <Select value={parentescoDirecto} onValueChange={setParentescoDirecto}>
+                          <SelectTrigger className="sm:w-[11rem]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PARENTESCOS_JEFE.map((p) => (
+                              <SelectItem key={p} value={p}>
+                                {p}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : null}
+                      <Button
+                        className="flex-1"
+                        disabled={guardando || hayDuplicadoSinConfirmar}
+                        onClick={onAgregarComoFamiliar}
+                      >
+                        {guardando ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
+                        {agregarComoLider
+                          ? "Agregar al hogar como líder"
+                          : `Agregar al hogar como ${parentescoDirecto}`}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </>
