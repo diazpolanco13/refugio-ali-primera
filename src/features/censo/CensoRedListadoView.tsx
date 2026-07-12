@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/select";
 import { VistaPagina } from "@/components/VistaPagina";
 import { cn } from "@/lib/utils";
+import { CENSO_BOTON_ACCION, CENSO_BOTON_SECUNDARIO, CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
 
 type FiltroSexo = "todos" | "M" | "F";
 
@@ -245,7 +246,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
             </div>
 
             <Select value={centroId} onValueChange={setCentroId}>
-              <SelectTrigger size="sm" className="w-48 max-w-full">
+              <SelectTrigger size="sm" className={cn(CENSO_SELECT_TRIGGER, "h-8 w-48 max-w-full")}>
                 <SelectValue placeholder="Campamento" />
               </SelectTrigger>
               <SelectContent>
@@ -259,7 +260,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
             </Select>
 
             <Select value={sexo} onValueChange={(v) => setSexo(v as FiltroSexo)}>
-              <SelectTrigger size="sm" className="w-32">
+              <SelectTrigger size="sm" className={cn(CENSO_SELECT_TRIGGER, "h-8 w-32")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -270,7 +271,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
             </Select>
 
             <Select value={orden} onValueChange={(v) => setOrden(v as OrdenRegistrosCenso)}>
-              <SelectTrigger size="sm" className="w-40">
+              <SelectTrigger size="sm" className={cn(CENSO_SELECT_TRIGGER, "h-8 w-40")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -391,10 +392,10 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               {errorEliminar && <p className="text-sm text-destructive">{errorEliminar}</p>}
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={eliminando}>Cancelar</AlertDialogCancel>
+              <AlertDialogFooter className="gap-2 sm:flex-col sm:space-x-0">
                 <AlertDialogAction
                   variant="destructive"
+                  className={CENSO_BOTON_ACCION}
                   disabled={eliminando}
                   onClick={(e) => {
                     e.preventDefault();
@@ -410,6 +411,12 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
                     "Eliminar"
                   )}
                 </AlertDialogAction>
+                <AlertDialogCancel
+                  className={CENSO_BOTON_SECUNDARIO}
+                  disabled={eliminando}
+                >
+                  Cancelar
+                </AlertDialogCancel>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

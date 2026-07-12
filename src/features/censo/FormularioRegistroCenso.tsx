@@ -26,6 +26,8 @@ import {
   camposFaltantesRegistro,
   claseGrupoFaltante,
   claseInputFaltante,
+  CENSO_BOTON_ACCION,
+  CENSO_SELECT_TRIGGER,
   esCampoFaltante,
   registroCensoCompleto,
 } from "./censoFormularioShared";
@@ -248,6 +250,7 @@ export function FormularioRegistroCenso({
             >
               <SelectTrigger
                 className={cn(
+                  CENSO_SELECT_TRIGGER,
                   "h-11 w-full",
                   mostrarFaltantes &&
                     esCampoFaltante("parentesco_jefe", faltantes) &&
@@ -483,7 +486,7 @@ export function FormularioRegistroCenso({
         </div>
         <Button
           type="submit"
-          className="h-12 w-full shrink-0 text-base sm:w-auto sm:min-w-[15rem]"
+          className={cn(CENSO_BOTON_ACCION, "shrink-0 sm:w-auto sm:min-w-[15rem]")}
           disabled={!completo || guardando}
         >
           {guardando ? (

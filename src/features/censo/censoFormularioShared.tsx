@@ -115,6 +115,21 @@ export function registroCensoCompleto(registro: RegistroCenso): boolean {
 export const claseInputFaltante =
   "border-amber-500/45 ring-1 ring-amber-500/15 focus-visible:border-amber-500/60 focus-visible:ring-amber-500/25";
 
+/** SelectTrigger del censo: se ve como control (borde + fondo), no como texto plano. */
+export const CENSO_SELECT_TRIGGER =
+  "border-2 border-border bg-muted font-semibold text-foreground shadow-sm hover:bg-muted/80 dark:bg-muted dark:hover:bg-muted/80 [&_svg]:text-foreground";
+
+/**
+ * Botón de acción a ancho completo (referencia: «Cerrar hogar e iniciar otro»).
+ * Usar en Buscar / Agregar / Crear hogar / etc.
+ */
+export const CENSO_BOTON_ACCION =
+  "h-11 w-full gap-2 rounded-xl px-4 text-sm font-semibold shadow-md";
+
+/** Botón secundario a ancho completo (cerrar búsqueda, outline, cancelar). */
+export const CENSO_BOTON_SECUNDARIO =
+  "h-11 w-full gap-2 rounded-xl border-2 border-border px-4 text-sm font-semibold shadow-md";
+
 export const claseGrupoFaltante = "rounded-lg ring-1 ring-amber-500/20 ring-offset-0";
 
 export function LabelCampoCenso({

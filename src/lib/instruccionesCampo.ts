@@ -3,7 +3,7 @@
 // siempre en cada entrada (primera visita); el usuario puede desactivar el
 // toggle o restablecerlas una sola vez desde /terreno.
 
-export const INSTRUCCIONES_CENSO_KEY = "censo_instrucciones_v2";
+export const INSTRUCCIONES_CENSO_KEY = "censo_instrucciones_v3";
 export const INSTRUCCIONES_REPORTE_KEY = "reporte_instrucciones_v1";
 export const INSTRUCCIONES_GEO_KEY = "geo_instrucciones_v1";
 export const INSTRUCCIONES_AUTORIDADES_KEY = "autoridades_instrucciones_v1";

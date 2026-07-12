@@ -61,6 +61,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { CENSO_BOTON_ACCION, CENSO_BOTON_SECUNDARIO, CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
 
 type TabCensoCentro = "resumen" | "personas";
 
@@ -310,7 +311,11 @@ export function CensoCentroPanel({
             >
               <SelectTrigger
                 size="sm"
-                className={cn("h-7 w-auto min-w-36 gap-1.5 text-[11px]", metaEstado.clase)}
+                className={cn(
+                  CENSO_SELECT_TRIGGER,
+                  "h-8 w-auto min-w-36 gap-1.5 text-[11px]",
+                  metaEstado.clase,
+                )}
               >
                 <SelectValue />
               </SelectTrigger>
@@ -558,10 +563,10 @@ export function CensoCentroPanel({
             </AlertDialogDescription>
           </AlertDialogHeader>
           {errorEliminar && <p className="text-sm text-destructive">{errorEliminar}</p>}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={eliminando}>Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="gap-2 sm:flex-col sm:space-x-0">
             <AlertDialogAction
               variant="destructive"
+              className={CENSO_BOTON_ACCION}
               disabled={eliminando}
               onClick={(e) => {
                 e.preventDefault();
@@ -577,6 +582,12 @@ export function CensoCentroPanel({
                 "Eliminar"
               )}
             </AlertDialogAction>
+            <AlertDialogCancel
+              className={CENSO_BOTON_SECUNDARIO}
+              disabled={eliminando}
+            >
+              Cancelar
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -602,9 +613,9 @@ export function CensoCentroPanel({
             <AlertDialogDescription>{textoConfirmacionEstado}</AlertDialogDescription>
           </AlertDialogHeader>
           {errorEstado && <p className="text-sm text-destructive">{errorEstado}</p>}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cambiandoEstado}>Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="gap-2 sm:flex-col sm:space-x-0">
             <AlertDialogAction
+              className={CENSO_BOTON_ACCION}
               disabled={cambiandoEstado}
               onClick={(e) => {
                 e.preventDefault();
@@ -620,6 +631,12 @@ export function CensoCentroPanel({
                 "Confirmar"
               )}
             </AlertDialogAction>
+            <AlertDialogCancel
+              className={CENSO_BOTON_SECUNDARIO}
+              disabled={cambiandoEstado}
+            >
+              Cancelar
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

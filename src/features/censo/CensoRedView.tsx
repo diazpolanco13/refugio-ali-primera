@@ -42,6 +42,7 @@ import {
 import { VistaPagina } from "@/components/VistaPagina";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
 import { TarjetaCensoResumen } from "./TarjetaCensoResumen";
 import { CensoRedTabs } from "./CensoRedTabs";
 
@@ -226,7 +227,7 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
             </div>
 
             <Select value={estado} onValueChange={(v) => setEstado(v as FiltroEstado)}>
-              <SelectTrigger size="sm" className="w-44">
+              <SelectTrigger size="sm" className={cn(CENSO_SELECT_TRIGGER, "h-8 w-44")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -239,7 +240,7 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
             </Select>
 
             <Select value={orden} onValueChange={(v) => setOrden(v as OrdenCenso)}>
-              <SelectTrigger size="sm" className="w-44">
+              <SelectTrigger size="sm" className={cn(CENSO_SELECT_TRIGGER, "h-8 w-44")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

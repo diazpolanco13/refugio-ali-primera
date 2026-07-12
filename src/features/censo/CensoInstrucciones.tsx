@@ -2,13 +2,12 @@ import {
   ArrowRight,
   Baby,
   BookOpen,
-  ClipboardList,
+  Camera,
+  CheckCircle2,
   Home,
-  ListChecks,
   Send,
   ShieldAlert,
   Users,
-  WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CENSO_BOTON_ACCION } from "@/features/censo/censoFormularioShared";
 import { telegramHref } from "@/lib/contacto";
 
 /** Soporte del censo (no mostrar en UI; solo enlace a Telegram). */
@@ -28,7 +28,7 @@ interface Props {
   onContinuar: () => void;
 }
 
-function BloqueInstruccion({
+function Consejo({
   icono: Icono,
   titulo,
   children,
@@ -50,7 +50,7 @@ function BloqueInstruccion({
   );
 }
 
-/** Pantalla de inicio: cómo censar por cédula (Nexus) y armar el hogar. */
+/** Consejos prácticos de campo antes de empezar el censo por cédula. */
 export function CensoInstrucciones({ onContinuar }: Props) {
   const enlaceTelegram = telegramHref(TELEGRAM_SOPORTE_CENSO);
 
@@ -59,87 +59,48 @@ export function CensoInstrucciones({ onContinuar }: Props) {
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <BookOpen className="size-4 text-primary" />
-          Instrucciones para el censo
+          Consejos para el censo
         </CardTitle>
         <CardDescription>
-          Lea esto una vez. El registro se hace por cédula y se agrupa por familia.
+          Tips rápidos de campo. La planilla guía el resto paso a paso.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-2">
-        <BloqueInstruccion icono={ClipboardList} titulo="¿Qué hace esta planilla?">
-          Registra a las{" "}
-          <strong className="font-medium text-foreground">personas damnificadas</strong> de un{" "}
-          <strong className="font-medium text-foreground">campamento</strong>, verificando la
-          identidad con la cédula y formando el{" "}
-          <strong className="font-medium text-foreground">hogar</strong> (jefe/a + familiares).
-          Cada alta se guarda al instante.
-        </BloqueInstruccion>
+        <Consejo icono={Home} titulo="Ubique al jefe o líder de una familia y empiece por él o ella">
+          Esa persona conoce quiénes de su hogar están en el refugio, puede señalarlos y
+          confirmar identidades. También ayuda a censar a los menores y a dar su
+          información (nombres, edades, parentesco) cuando no tienen cédula a la mano.
+        </Consejo>
 
-        <BloqueInstruccion icono={Home} titulo="Orden correcto (importante)">
-          <ol className="list-decimal space-y-1.5 pl-3.5">
-            <li>
-              <strong className="font-medium text-foreground">Empiece por el jefe o jefa</strong>{" "}
-              de familia (quien representa el hogar en el campamento).
-            </li>
-            <li>
-              Digite la cédula → verifique nombre y datos → confirme si es jefe/a.
-            </li>
-            <li>
-              Complete la{" "}
-              <strong className="font-medium text-foreground">damnificación</strong> (vivienda y
-              pérdidas) y cree el hogar.
-            </li>
-            <li>
-              Después agregue al resto: cónyuge, hijos con cédula y menores sin documento.
-            </li>
-          </ol>
-        </BloqueInstruccion>
+        <Consejo icono={Users} titulo="Luego priorice a los adultos con cédula">
+          Cónyuge y demás adultos presentes: verifique cada cédula con Nexus. Así el hogar
+          queda armado rápido con identidades confirmadas.
+        </Consejo>
 
-        <BloqueInstruccion icono={Baby} titulo="Niños y personas sin cédula">
-          Los menores (u otros sin documento) se agregan{" "}
-          <strong className="font-medium text-foreground">dentro del hogar ya creado</strong>, no
-          como un hogar aparte. Indique el parentesco con el jefe/a. No invente una cédula.
-        </BloqueInstruccion>
+        <Consejo icono={Baby} titulo="Menores y personas sin documento, al final">
+          Agréguelos dentro del hogar ya creado (pestaña «Menores / sin cédula»), con la
+          ayuda del jefe o líder. No invente una cédula.
+        </Consejo>
 
-        <BloqueInstruccion icono={ListChecks} titulo="Las tres pestañas">
-          <ul className="list-disc space-y-1.5 pl-3.5">
-            <li>
-              <strong className="font-medium text-foreground">Censo</strong> — registro por cédula
-              (vía principal).
-            </li>
-            <li>
-              <strong className="font-medium text-foreground">Censados</strong> — avance vs el
-              parte, lista de personas y familias (puede expandir cada hogar).
-            </li>
-            <li>
-              <strong className="font-medium text-foreground">Censo Manual</strong> — solo aparece
-              si Nexus está fuera de línea.
-            </li>
-          </ul>
-        </BloqueInstruccion>
+        <Consejo icono={Camera} titulo="Individualice a los menores con una foto">
+          Sin cédula, la foto es la referencia visual del hogar: tómela en el momento con
+          la cámara del teléfono para distinguir a cada niño o persona no documentada.
+        </Consejo>
 
-        <BloqueInstruccion icono={WifiOff} titulo="Si Nexus no está en línea">
-          Verá el aviso «Nexus fuera de línea». Puede usar cédulas ya consultadas (caché) o la
-          pestaña <strong className="font-medium text-foreground">Censo Manual</strong>. Cuando
-          Nexus vuelva, el manual se oculta solo.
-        </BloqueInstruccion>
+        <Consejo icono={CheckCircle2} titulo="Un hogar a la vez">
+          Termine la familia, revise el resumen y cierre el hogar antes de empezar otra.
+          Si varios censistas trabajan juntos, coordinen por zona para no duplicar.
+        </Consejo>
 
-        <BloqueInstruccion icono={ShieldAlert} titulo="Cédula ya registrada">
-          Si la cédula ya figura en otro campamento, la planilla se detiene y muestra fecha y
-          lugar. No cree un segundo hogar: reporte a los analistas SAE (Telegram / WhatsApp del
-          aviso) o confirme solo si le indican que debe continuar.
-        </BloqueInstruccion>
-
-        <BloqueInstruccion icono={Users} titulo="Varios censistas a la vez">
-          Varios dispositivos pueden censar el mismo campamento. Coordinen por zona o por
-          familias y revise <strong className="font-medium text-foreground">Censados</strong>{" "}
-          antes de registrar, para no duplicar personas.
-        </BloqueInstruccion>
+        <Consejo icono={ShieldAlert} titulo="Si la cédula ya está en otro campamento">
+          Deténgase. No cree un segundo registro: reporte a analistas SAE o confirme solo
+          si le indican que debe continuar.
+        </Consejo>
 
         {enlaceTelegram && (
-          <BloqueInstruccion icono={Send} titulo="¿Dudas o problemas?">
-            Si la cédula no aparece, el hogar no se crea o tiene un error de datos,{" "}
+          <Consejo icono={Send} titulo="¿Problemas técnicos?">
+            Si Nexus falla o una cédula no carga,{" "}
             <a
               href={enlaceTelegram}
               target="_blank"
@@ -149,12 +110,12 @@ export function CensoInstrucciones({ onContinuar }: Props) {
               escríbanos por Telegram
             </a>
             .
-          </BloqueInstruccion>
+          </Consejo>
         )}
       </CardContent>
 
       <CardFooter className="border-t border-border pt-4">
-        <Button type="button" className="h-11 w-full" onClick={onContinuar}>
+        <Button type="button" className={CENSO_BOTON_ACCION} onClick={onContinuar}>
           Entendido, comenzar
           <ArrowRight className="size-4" />
         </Button>

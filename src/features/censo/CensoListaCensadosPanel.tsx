@@ -57,6 +57,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { CENSO_BOTON_ACCION, CENSO_BOTON_SECUNDARIO } from "@/features/censo/censoFormularioShared";
 
 interface Props {
   centroId: string;
@@ -872,13 +873,11 @@ export function CensoListaCensadosPanel({
           {errorEliminar ? (
             <p className="text-sm text-destructive">{errorEliminar}</p>
           ) : null}
-          <AlertDialogFooter>
-            <AlertDialogCancel type="button" disabled={eliminandoId != null}>
-              Cancelar
-            </AlertDialogCancel>
+          <AlertDialogFooter className="gap-2 sm:flex-col sm:space-x-0">
             <AlertDialogAction
               type="button"
               variant="destructive"
+              className={CENSO_BOTON_ACCION}
               disabled={eliminandoId != null}
               onClick={(e) => {
                 e.preventDefault();
@@ -894,6 +893,13 @@ export function CensoListaCensadosPanel({
                 "Eliminar"
               )}
             </AlertDialogAction>
+            <AlertDialogCancel
+              type="button"
+              className={CENSO_BOTON_SECUNDARIO}
+              disabled={eliminandoId != null}
+            >
+              Cancelar
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

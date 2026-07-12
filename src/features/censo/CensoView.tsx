@@ -91,7 +91,7 @@ import { CensoInstrucciones } from "@/features/censo/CensoInstrucciones";
 import { CensoNexusPanel } from "@/features/censo/CensoNexusPanel";
 import { CensoListaCensadosPanel } from "@/features/censo/CensoListaCensadosPanel";
 import { SelectorCentroLista } from "@/features/censo/SelectorCentroLista";
-import { GrupoOpcionesSegmentadas } from "@/features/censo/censoFormularioShared";
+import { GrupoOpcionesSegmentadas, CENSO_BOTON_ACCION, CENSO_BOTON_SECUNDARIO, CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
 import { FormularioIdentificacionFuncionario } from "@/features/censo/FormularioIdentificacionFuncionario";
 import { type NexusEnLinea } from "@/features/censo/EstadoNexusApi";
 import { consultarEstadoNexusApi } from "@/data/reposNexus";
@@ -941,7 +941,7 @@ export function CensoView() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-11 w-full"
+                      className={CENSO_BOTON_SECUNDARIO}
                       onClick={capturarUbicacion}
                       disabled={geoEstado === "cargando"}
                     >
@@ -1246,6 +1246,7 @@ export function CensoView() {
                         >
                           <SelectTrigger
                             className={cn(
+                              CENSO_SELECT_TRIGGER,
                               "h-11 w-full",
                               mostrarFaltantesPaso2 &&
                                 esCampoFaltante("parentesco_jefe", faltantesPaso2) &&
@@ -1492,7 +1493,7 @@ export function CensoView() {
                     </div>
                     <Button
                       type="submit"
-                      className="h-12 w-full shrink-0 text-base sm:w-auto sm:min-w-[15rem]"
+                      className={cn(CENSO_BOTON_ACCION, "shrink-0 sm:w-auto sm:min-w-[15rem]")}
                       disabled={!paso2Completo || guardando}
                     >
                       {guardando ? (
@@ -1518,7 +1519,7 @@ export function CensoView() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-11 w-full"
+                      className={CENSO_BOTON_SECUNDARIO}
                       onClick={() => setPaso(3)}
                     >
                       <BarChart3 className="size-4" />
@@ -1925,7 +1926,7 @@ function PasoRegistrados({
             <Button
               type="button"
               className={cn(
-                "h-12 w-full text-base",
+                CENSO_BOTON_ACCION,
                 filas.length === 0 &&
                   "border border-violet-500/40 bg-violet-500/10 text-violet-800 hover:bg-violet-500/15 dark:text-violet-300",
               )}
@@ -1968,10 +1969,10 @@ function PasoRegistrados({
           {errorEliminar && (
             <p className="text-sm text-destructive">{errorEliminar}</p>
           )}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={eliminando}>Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="gap-2 sm:flex-col sm:space-x-0">
             <AlertDialogAction
               variant="destructive"
+              className={CENSO_BOTON_ACCION}
               disabled={eliminando}
               onClick={(e) => {
                 e.preventDefault();
@@ -1987,6 +1988,12 @@ function PasoRegistrados({
                 "Eliminar"
               )}
             </AlertDialogAction>
+            <AlertDialogCancel
+              className={CENSO_BOTON_SECUNDARIO}
+              disabled={eliminando}
+            >
+              Cancelar
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -2023,9 +2030,9 @@ function PasoRegistrados({
           {errorCompletar && (
             <p className="text-sm text-destructive">{errorCompletar}</p>
           )}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={completando}>Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="gap-2 sm:flex-col sm:space-x-0">
             <AlertDialogAction
+              className={CENSO_BOTON_ACCION}
               disabled={completando}
               onClick={(e) => {
                 e.preventDefault();
@@ -2041,6 +2048,12 @@ function PasoRegistrados({
                 "Sí, censo completado"
               )}
             </AlertDialogAction>
+            <AlertDialogCancel
+              className={CENSO_BOTON_SECUNDARIO}
+              disabled={completando}
+            >
+              Cancelar
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
