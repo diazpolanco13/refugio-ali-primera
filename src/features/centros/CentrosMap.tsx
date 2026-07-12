@@ -384,7 +384,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
           refugiados={refugiados}
           personalTotal={personalTotal}
           semaforoColor={
-            analisis.semaforo === "sin_datos" ? null : COLOR_SEMAFORO[analisis.semaforo]
+            analisis.semaforo === "rojo" ? COLOR_SEMAFORO.rojo : null
           }
           esPrueba={esCentroDePrueba(c)}
           onClick={() => cbRef.current.onSeleccionar(c.id)}

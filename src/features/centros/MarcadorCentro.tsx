@@ -20,7 +20,7 @@ interface Props {
   refugiados?: number;
   /** Personal operativo total desplegado en el centro. */
   personalTotal?: number;
-  /** Color del semáforo de ocupación. null = no mostrar. */
+  /** Color de alerta crítica (rojo). null = sin alerta → aro blanco / onda de la unidad. */
   semaforoColor?: string | null;
   /** Campamento sandbox: muestra marca «Prueba». */
   esPrueba?: boolean;
@@ -52,36 +52,34 @@ function ParteNumerico({
   );
 }
 
-function SemaforoEstado({ color }: { color: string }) {
-  return (
-    <span
-      className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-white shadow"
-      style={{ background: color }}
-      aria-hidden
-    />
-  );
-}
-
-/** Núcleo circular con el N.° del campamento. */
+/** Núcleo circular con el N.° del campamento.
+ * El aro toma el color del semáforo de ocupación (alerta); si no hay, queda blanco. */
 function NucleoNumero({
   nro,
   color,
+  colorAro,
   resaltado,
   seleccionado,
 }: {
   nro: number;
   color: string;
+  /** Color del aro (semáforo). null/undefined → blanco. */
+  colorAro?: string | null;
   resaltado: boolean;
   seleccionado: boolean;
 }) {
   return (
     <span
       className={cn(
-        "relative flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white px-1 shadow-md",
+        "relative flex h-5 min-w-5 items-center justify-center rounded-full border-2 px-1 shadow-md",
+        !colorAro && "border-white",
         resaltado && "marcador-latido-nucleo",
         seleccionado && resaltado && "ring-2 ring-white/90",
       )}
-      style={{ backgroundColor: color }}
+      style={{
+        backgroundColor: color,
+        ...(colorAro ? { borderColor: colorAro } : null),
+      }}
     >
       <span className="text-[9px] font-bold tabular-nums leading-none text-white">{nro}</span>
     </span>
@@ -135,13 +133,16 @@ export function MarcadorCentro({
             {resaltado && (
               <span
                 className="marcador-latido-aura absolute size-6 rounded-full"
-                style={{ backgroundColor: colorMarcador }}
+                style={{
+                  backgroundColor: semaforoColor ?? colorMarcador,
+                }}
                 aria-hidden
               />
             )}
             <NucleoNumero
               nro={nro}
               color={colorMarcador}
+              colorAro={resaltado ? semaforoColor : null}
               resaltado={resaltado}
               seleccionado={seleccionado}
             />
@@ -153,20 +154,18 @@ export function MarcadorCentro({
           )}
           {marcaPrueba}
         </div>
-        {semaforoColor && resaltado && (
-          <span className="absolute -bottom-0.5 -right-0.5">
-            <SemaforoEstado color={semaforoColor} />
-          </span>
-        )}
       </div>
     );
   }
+
+  /** Aro del logo: semáforo de ocupación si hay; si no, color de la unidad. */
+  const colorAroLogo = resaltado && semaforoColor ? semaforoColor : colorMarcador;
 
   const iconoCuerpo = (
     <span className="relative flex size-7 shrink-0 items-center justify-center">
       <span
         className="flex size-7 items-center justify-center overflow-hidden rounded-full border-2 bg-white"
-        style={{ borderColor: colorMarcador }}
+        style={{ borderColor: colorAroLogo }}
       >
         {logo ? (
           <LogoCuerpo src={logo} priority="high" />
@@ -200,11 +199,10 @@ export function MarcadorCentro({
             "rounded-full border-2 bg-background/95 p-0.5 pb-1.5 shadow-lg",
             seleccionado && resaltado && "ring-2 ring-white/90",
           )}
-          style={{ borderColor: colorMarcador }}
+          style={{ borderColor: colorAroLogo }}
         >
           {iconoCuerpo}
         </div>
-        {semaforoColor && resaltado && <SemaforoEstado color={semaforoColor} />}
         {marcaPrueba}
       </div>
     );
@@ -225,12 +223,11 @@ export function MarcadorCentro({
           "flex items-center gap-1 rounded-full border-2 bg-background/95 py-0.5 pl-0.5 pr-2 pb-1.5 shadow-lg",
           seleccionado && resaltado && "ring-2 ring-white/90",
         )}
-        style={{ borderColor: colorMarcador }}
+        style={{ borderColor: colorAroLogo }}
       >
         {iconoCuerpo}
         {resaltado && <ParteNumerico refugiados={refugiados} />}
       </div>
-      {semaforoColor && resaltado && <SemaforoEstado color={semaforoColor} />}
       {marcaPrueba}
     </div>
   );
