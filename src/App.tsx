@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Login } from "./features/auth/Login";
 import { initAuth, useSesion, type Sesion } from "./data/authSupabase";
 import { AvisoActualizacionApp } from "./components/AvisoActualizacionApp";
+import { BotonBorrarCacheFlotante } from "./components/BotonBorrarCacheFlotante";
 import { MarcaAgua } from "./components/MarcaAgua";
 import { PantallaCarga } from "./components/PantallaCarga";
 import { EnDesarrollo } from "./components/EnDesarrollo";
@@ -11,6 +12,7 @@ import { AppShell } from "./layouts/AppShell";
 import { señalarAppObsoleta, esErrorModuloObsoleto } from "./lib/avisoAppObsoleta";
 import { ocultarSplash } from "./lib/splash";
 import { rutaInicialDeRol, rutaPermitidaParaRol } from "./domain/permisos";
+import { useIsMobile } from "./hooks/use-mobile";
 import { DashboardViewSkeleton } from "./features/dashboard/DashboardViewSkeleton";
 import { MapaSectionSkeleton } from "./features/centros/MapaSectionSkeleton";
 import { TableroCampamentosSkeleton } from "./features/centros/TableroCampamentosSkeleton";
@@ -165,7 +167,15 @@ function RutaConSkeleton({
 export function App() {
   const sesion = useSesion();
   const location = useLocation();
+  const esMovil = useIsMobile();
   const [arrancando, setArrancando] = useState(true);
+
+  const enMapa =
+    location.pathname === "/centros/mapa" ||
+    location.pathname === "/centros" ||
+    location.pathname === "/";
+  /** En móvil + mapa el botón va en la columna de controles, no como FAB. */
+  const mostrarFabCache = !(esMovil && enMapa);
 
   useEffect(() => {
     const esCenso =
@@ -199,6 +209,7 @@ export function App() {
     return (
       <>
         <AvisoActualizacionApp />
+        {mostrarFabCache && <BotonBorrarCacheFlotante />}
         <Suspense fallback={<PantallaCarga />}>
           <CensoView />
         </Suspense>
@@ -210,6 +221,7 @@ export function App() {
     return (
       <>
         <AvisoActualizacionApp />
+        {mostrarFabCache && <BotonBorrarCacheFlotante />}
         <Login />
       </>
     );
@@ -219,6 +231,7 @@ export function App() {
   return (
     <>
       <AvisoActualizacionApp />
+      {mostrarFabCache && <BotonBorrarCacheFlotante />}
       <Routes>
         <Route
           path="/dashboard"

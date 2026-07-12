@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/tooltip";
 import { BASES_DISPONIBLES, type BaseMapa } from "@/map/estiloMapa";
 import { cn } from "@/lib/utils";
+import { BotonBorrarCache } from "@/components/BotonBorrarCache";
 import {
   PanelTogglesVistaMapa,
   type PropsTogglesVistaMapa,
@@ -282,6 +283,14 @@ export function ControlesMapaCentros({
             <MenuVistaMarcadores {...vistaMarcadores} />
           </ButtonGroup>
         )}
+
+        {/* Móvil: junto a los controles del mapa. En escritorio vive el FAB. */}
+        <ButtonGroup
+          orientation="vertical"
+          className="pointer-events-auto w-10 min-w-10 overflow-hidden rounded-xl border border-destructive/40 bg-card shadow-lg md:hidden"
+        >
+          <BotonBorrarCache variante="mapa" />
+        </ButtonGroup>
       </div>
     </TooltipProvider>
   );
