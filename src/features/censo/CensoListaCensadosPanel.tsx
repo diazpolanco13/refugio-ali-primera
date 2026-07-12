@@ -56,7 +56,6 @@ import {
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -466,7 +465,7 @@ export function CensoListaCensadosPanel({
     return [...snapshots].sort((a, b) => b.dia.localeCompare(a.dia))[0] ?? null;
   }, [snapshots]);
 
-  const { alojamientos, cargando } = useAlojamientosCentro({
+  const { alojamientos, cargando, quitarLocal } = useAlojamientosCentro({
     centroId,
     estado: "activo",
   });
@@ -558,12 +557,16 @@ export function CensoListaCensadosPanel({
 
   async function confirmarEliminar() {
     if (!eliminarTarget) return;
+    const id = eliminarTarget.id;
     setErrorEliminar(null);
-    setEliminandoId(eliminarTarget.id);
+    setEliminandoId(id);
     try {
-      await registrarEgreso(eliminarTarget.id, {
+      await registrarEgreso(id, {
         motivo: "Corrección de censo",
       });
+      // Actualización optimista: no depender solo de Realtime (a veces el
+      // evento no llega o reinserta si el payload omite `estado`).
+      quitarLocal(id);
       setEliminarTarget(null);
     } catch (err) {
       console.error("[CensoListaCensados] eliminar:", err);
@@ -684,38 +687,70 @@ export function CensoListaCensadosPanel({
               inputMode="search"
             />
           </div>
-          <Tabs
-            value={pestana}
-            onValueChange={(v) =>
-              setPestana(
-                v === "familias" ? "familias" : v === "anterior" ? "anterior" : "damnificados",
-              )
-            }
-            className="gap-0"
+          <div
+            role="tablist"
+            aria-label="Vistas del censo nominal"
+            className={cn(
+              "grid overflow-hidden rounded-xl border border-border bg-muted/40 shadow-sm",
+              censoViejo.length > 0 ? "grid-cols-3" : "grid-cols-2",
+            )}
           >
-            <TabsList className={cn("grid h-9 w-full", censoViejo.length > 0 ? "grid-cols-3" : "grid-cols-2")}>
-              <TabsTrigger value="damnificados" className="text-xs sm:text-sm">
-                Damnificados
-                <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 tabular-nums">
-                  {filtrados.length.toLocaleString("es")}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="familias" className="text-xs sm:text-sm">
-                Familias damnificadas
-                <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 tabular-nums">
-                  {familiasFilas.length.toLocaleString("es")}
-                </Badge>
-              </TabsTrigger>
-              {censoViejo.length > 0 ? (
-                <TabsTrigger value="anterior" className="text-xs sm:text-sm">
-                  Censo anterior
-                  <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 tabular-nums">
-                    {censoViejoFiltrado.length.toLocaleString("es")}
-                  </Badge>
-                </TabsTrigger>
-              ) : null}
-            </TabsList>
-          </Tabs>
+            {(
+              [
+                {
+                  id: "damnificados" as const,
+                  label: "Damnificados",
+                  conteo: filtrados.length,
+                },
+                {
+                  id: "familias" as const,
+                  label: "Familias",
+                  conteo: familiasFilas.length,
+                },
+                ...(censoViejo.length > 0
+                  ? [
+                      {
+                        id: "anterior" as const,
+                        label: "Censo anterior",
+                        conteo: censoViejoFiltrado.length,
+                      },
+                    ]
+                  : []),
+              ] as const
+            ).map((tab, i) => {
+              const activa = pestana === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activa}
+                  onClick={() => setPestana(tab.id)}
+                  className={cn(
+                    "flex min-h-11 flex-col items-center justify-center gap-0.5 px-1.5 py-2 text-center transition-colors sm:flex-row sm:gap-1.5 sm:px-2",
+                    i > 0 && "border-l border-border",
+                    activa
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-foreground hover:bg-muted/80",
+                  )}
+                >
+                  <span className="text-[11px] font-semibold leading-tight sm:text-xs">
+                    {tab.label}
+                  </span>
+                  <span
+                    className={cn(
+                      "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums",
+                      activa
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {tab.conteo.toLocaleString("es")}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </CardHeader>
         <CardContent className="pt-0">
           {pestana === "anterior" ? (

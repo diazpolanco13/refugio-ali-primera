@@ -2183,105 +2183,8 @@ export function CensoNexusPanel({
               </div>
             ) : null}
 
-            {/* Se pregunta al censador antes de dirección/teléfonos/damnificación:
-                esas preguntas son del hogar. Un hogar puede tener 1 o 2
-                líderes (ver MAX_LIDERES_FAMILIA); si el líder no está
-                presente, cualquier adulto puede fundar el hogar igual.
-                Si ya está registrado aquí, el acceso es «Ir a esa familia». */}
-            {!hayHogar && !(estadoNominal?.enEsteCentro && estadoNominal.familiaAqui) ? (
-              <div className="space-y-2 rounded-lg border bg-muted/40 px-3 py-3">
-                <p className="text-sm font-medium leading-snug">
-                  ¿Es esta persona líder de familia?
-                </p>
-                <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-muted/30 shadow-sm">
-                  <button
-                    type="button"
-                    className={cn(
-                      "h-10 text-sm font-semibold transition-colors",
-                      esJefe === true
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-background text-foreground hover:bg-muted/80",
-                    )}
-                    onClick={() => {
-                      setEsJefe(true);
-                      setRegistrarSinLider(false);
-                    }}
-                  >
-                    Sí
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(
-                      "h-10 border-l border-border text-sm font-semibold transition-colors",
-                      esJefe === false
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-background text-foreground hover:bg-muted/80",
-                    )}
-                    onClick={() => {
-                      setEsJefe(false);
-                      setRegistrarSinLider(false);
-                    }}
-                  >
-                    No
-                  </button>
-                </div>
-                {esJefe === false && !registrarSinLider ? (
-                  <div className="space-y-2 pt-1">
-                    <p className="text-xs text-muted-foreground">
-                      Busque primero al líder de familia para crear el hogar. Después podrá
-                      agregar a {persona.nombre_completo} como miembro.
-                    </p>
-                    <Button
-                      type="button"
-                      size="default"
-                      className="h-10 w-full gap-2 text-sm font-semibold shadow-sm"
-                      onClick={volverABuscarJefe}
-                    >
-                      <Search className="size-4" />
-                      Buscar al líder de familia
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="default"
-                      className="h-10 w-full gap-2 text-sm font-semibold"
-                      onClick={() => setRegistrarSinLider(true)}
-                    >
-                      El líder no está aquí ahora — registrar igual
-                    </Button>
-                  </div>
-                ) : null}
-                {esJefe === false && registrarSinLider ? (
-                  <div className="space-y-2 pt-1">
-                    <p className="text-xs text-muted-foreground leading-snug">
-                      Se registrará a {persona.nombre_completo} como primer miembro del hogar,
-                      sin líder asignado todavía. Cuando el líder aparezca, búsquelo por su
-                      cédula o busque a esta persona de nuevo para agregarlo al mismo hogar.
-                    </p>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-medium text-muted-foreground">
-                        Parentesco declarado (respecto al futuro líder)
-                      </Label>
-                      <Select value={parentescoSinLider} onValueChange={setParentescoSinLider}>
-                        <SelectTrigger className="h-10 w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PARENTESCOS_JEFE.map((p) => (
-                            <SelectItem key={p} value={p}>
-                              {p}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            {hayHogar || esJefe === true || registrarSinLider ? (
-              <>
+            {/* Datos SAIME/Nexus: se muestran apenas hay ficha (antes de
+                preguntar si es líder), para verificar identidad en campo. */}
             <Collapsible
               open={infoSaimeAbierta}
               onOpenChange={setInfoSaimeAbierta}
@@ -2481,7 +2384,102 @@ export function CensoNexusPanel({
               </CollapsibleContent>
             </Collapsible>
 
-              </>
+            {/* Se pregunta al censador antes de damnificación (esas preguntas
+                son del hogar). Un hogar puede tener 1 o 2 líderes (ver
+                MAX_LIDERES_FAMILIA); si el líder no está presente, cualquier
+                adulto puede fundar el hogar igual. Si ya está registrado
+                aquí, el acceso es «Ir a esa familia». */}
+            {!hayHogar && !(estadoNominal?.enEsteCentro && estadoNominal.familiaAqui) ? (
+              <div className="space-y-2 rounded-lg border bg-muted/40 px-3 py-3">
+                <p className="text-sm font-medium leading-snug">
+                  ¿Es esta persona líder de familia?
+                </p>
+                <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-muted/30 shadow-sm">
+                  <button
+                    type="button"
+                    className={cn(
+                      "h-10 text-sm font-semibold transition-colors",
+                      esJefe === true
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-foreground hover:bg-muted/80",
+                    )}
+                    onClick={() => {
+                      setEsJefe(true);
+                      setRegistrarSinLider(false);
+                    }}
+                  >
+                    Sí
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "h-10 border-l border-border text-sm font-semibold transition-colors",
+                      esJefe === false
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-foreground hover:bg-muted/80",
+                    )}
+                    onClick={() => {
+                      setEsJefe(false);
+                      setRegistrarSinLider(false);
+                    }}
+                  >
+                    No
+                  </button>
+                </div>
+                {esJefe === false && !registrarSinLider ? (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-xs text-muted-foreground">
+                      Busque primero al líder de familia para crear el hogar. Después podrá
+                      agregar a {persona.nombre_completo} como miembro.
+                    </p>
+                    <Button
+                      type="button"
+                      size="default"
+                      className="h-10 w-full gap-2 text-sm font-semibold shadow-sm"
+                      onClick={volverABuscarJefe}
+                    >
+                      <Search className="size-4" />
+                      Buscar al líder de familia
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="default"
+                      className="h-10 w-full gap-2 border-amber-500/50 bg-amber-500/10 text-sm font-semibold text-amber-800 shadow-sm hover:bg-amber-500/20 hover:text-amber-900 dark:border-amber-500/40 dark:text-amber-300 dark:hover:bg-amber-500/15 dark:hover:text-amber-200"
+                      onClick={() => setRegistrarSinLider(true)}
+                    >
+                      <UserPlus className="size-4" />
+                      El líder no está aquí ahora — registrar igual
+                    </Button>
+                  </div>
+                ) : null}
+                {esJefe === false && registrarSinLider ? (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      Se registrará a {persona.nombre_completo} como primer miembro del hogar,
+                      sin líder asignado todavía. Cuando el líder aparezca, búsquelo por su
+                      cédula o busque a esta persona de nuevo para agregarlo al mismo hogar.
+                    </p>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium text-muted-foreground">
+                        Parentesco declarado (respecto al futuro líder)
+                      </Label>
+                      <Select value={parentescoSinLider} onValueChange={setParentescoSinLider}>
+                        <SelectTrigger className="h-10 w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PARENTESCOS_JEFE.map((p) => (
+                            <SelectItem key={p} value={p}>
+                              {p}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             ) : null}
 
             {hayHogar ? (
