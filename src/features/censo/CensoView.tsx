@@ -835,6 +835,7 @@ export function CensoView() {
                 <CensoListaCensadosPanel
                   centroId={centroId}
                   centroNombre={centroNombre || centroId}
+                  onVerificarEnNominal={verificarEnNominal}
                 />
               </>
             )}

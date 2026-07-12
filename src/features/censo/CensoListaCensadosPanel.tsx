@@ -3,14 +3,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  Check,
   ChevronDown,
   Clock,
   Loader2,
   Search,
   Trash2,
+  UserCheck,
   Users,
 } from "lucide-react";
 import { useAlojamientosCentro } from "@/data/useAlojamientosCentro";
+import {
+  listarIdsCensoProcesados,
+  listarRegistrosCenso,
+  type RegistroCensoGuardado,
+} from "@/data/reposCenso";
 import { registrarEgreso } from "@/data/reposRefugiados";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import { supabase } from "@/data/supabaseClient";
@@ -55,6 +62,8 @@ import { cn } from "@/lib/utils";
 interface Props {
   centroId: string;
   centroNombre: string;
+  /** Salta a "Por cédula" con esa cédula precargada (censo viejo → nominal). */
+  onVerificarEnNominal?: (letra: "V" | "E", cedula: string) => void;
 }
 
 interface FamiliaFila {
@@ -294,16 +303,113 @@ function FilaFamilia({
   );
 }
 
-export function CensoListaCensadosPanel({ centroId, centroNombre }: Props) {
+function FilaCensoViejo({
+  fila,
+  numero,
+  verificado,
+  onVerificar,
+}: {
+  fila: RegistroCensoGuardado;
+  numero: number;
+  verificado: boolean;
+  /** Undefined si el registro no tiene cédula V/E utilizable en Nexus. */
+  onVerificar?: () => void;
+}) {
+  const nombre = [fila.primer_nombre, fila.segundo_nombre, fila.primer_apellido, fila.segundo_apellido]
+    .filter(Boolean)
+    .join(" ");
+  const doc = fila.documento
+    ? `${fila.tipo_doc === "P" ? "PP " : (fila.tipo_doc ?? "V") + "-"}${fila.documento}`
+    : "Sin cédula";
+
+  return (
+    <div className="flex items-center gap-2 border-b border-border/60 px-1 py-2.5 last:border-b-0">
+      <span className="w-6 shrink-0 text-center text-xs font-semibold tabular-nums text-muted-foreground">
+        {numero}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium leading-tight">{nombre}</p>
+        <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{doc}</p>
+      </div>
+      {verificado ? (
+        <Badge className="h-6 shrink-0 gap-1 border-transparent bg-emerald-600/15 px-1.5 text-[10px] text-emerald-700 dark:text-emerald-400">
+          <Check className="size-3" />
+          Verificado
+        </Badge>
+      ) : onVerificar ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 shrink-0 gap-1 text-xs"
+          onClick={onVerificar}
+        >
+          <UserCheck className="size-3.5" />
+          Verificar
+        </Button>
+      ) : (
+        <Badge variant="outline" className="h-6 shrink-0 px-1.5 text-[10px] text-muted-foreground">
+          Sin cédula
+        </Badge>
+      )}
+    </div>
+  );
+}
+
+export function CensoListaCensadosPanel({ centroId, centroNombre, onVerificarEnNominal }: Props) {
   const [centro, setCentro] = useState<CentroTransitorio | null>(null);
   const [eliminarTarget, setEliminarTarget] =
     useState<AlojamientoEnriquecido | null>(null);
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
   const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
-  const [pestana, setPestana] = useState<"damnificados" | "familias">(
+  const [pestana, setPestana] = useState<"damnificados" | "familias" | "anterior">(
     "damnificados",
   );
+  const [censoViejo, setCensoViejo] = useState<RegistroCensoGuardado[]>([]);
+  const [procesadosViejo, setProcesadosViejo] = useState<Set<string>>(new Set());
+  const [cargandoViejo, setCargandoViejo] = useState(true);
+
+  useEffect(() => {
+    let cancelado = false;
+    setCargandoViejo(true);
+    Promise.all([listarRegistrosCenso(centroId), listarIdsCensoProcesados(centroId)])
+      .then(([lista, procesados]) => {
+        if (cancelado) return;
+        setCensoViejo(lista);
+        setProcesadosViejo(procesados);
+        setCargandoViejo(false);
+      })
+      .catch((err) => {
+        console.warn("[CensoListaCensados] censo anterior:", err);
+        if (!cancelado) setCargandoViejo(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [centroId]);
+
+  const verificadosViejo = useMemo(
+    () => censoViejo.filter((f) => procesadosViejo.has(f.id)).length,
+    [censoViejo, procesadosViejo],
+  );
+
+  const censoViejoFiltrado = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    const qDigits = q.replace(/\D/g, "");
+    const lista = [...censoViejo].sort((a, b) =>
+      (a.primer_apellido || "").localeCompare(b.primer_apellido || ""),
+    );
+    if (!q) return lista;
+    return lista.filter((f) => {
+      const nombre = [f.primer_nombre, f.segundo_nombre, f.primer_apellido, f.segundo_apellido]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (nombre.includes(q)) return true;
+      return Boolean(qDigits) && (f.documento || "").includes(qDigits);
+    });
+  }, [censoViejo, busqueda]);
 
   useEffect(() => {
     let cancelado = false;
@@ -530,6 +636,14 @@ export function CensoListaCensadosPanel({ centroId, centroNombre }: Props) {
               el reporte diario del campamento.
             </p>
           )}
+          {censoViejo.length > 0 ? (
+            <BarraAvance
+              etiqueta="Censo anterior verificado"
+              actual={verificadosViejo}
+              meta={censoViejo.length}
+              pct={Math.round((verificadosViejo / censoViejo.length) * 100)}
+            />
+          ) : null}
         </CardContent>
       </Card>
 
@@ -550,11 +664,13 @@ export function CensoListaCensadosPanel({ centroId, centroNombre }: Props) {
           <Tabs
             value={pestana}
             onValueChange={(v) =>
-              setPestana(v === "familias" ? "familias" : "damnificados")
+              setPestana(
+                v === "familias" ? "familias" : v === "anterior" ? "anterior" : "damnificados",
+              )
             }
             className="gap-0"
           >
-            <TabsList className="grid h-9 w-full grid-cols-2">
+            <TabsList className={cn("grid h-9 w-full", censoViejo.length > 0 ? "grid-cols-3" : "grid-cols-2")}>
               <TabsTrigger value="damnificados" className="text-xs sm:text-sm">
                 Damnificados
                 <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 tabular-nums">
@@ -567,11 +683,53 @@ export function CensoListaCensadosPanel({ centroId, centroNombre }: Props) {
                   {familiasFilas.length.toLocaleString("es")}
                 </Badge>
               </TabsTrigger>
+              {censoViejo.length > 0 ? (
+                <TabsTrigger value="anterior" className="text-xs sm:text-sm">
+                  Censo anterior
+                  <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 tabular-nums">
+                    {censoViejoFiltrado.length.toLocaleString("es")}
+                  </Badge>
+                </TabsTrigger>
+              ) : null}
             </TabsList>
           </Tabs>
         </CardHeader>
         <CardContent className="pt-0">
-          {cargando ? (
+          {pestana === "anterior" ? (
+            cargandoViejo ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
+            ) : censoViejoFiltrado.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                {busqueda.trim()
+                  ? "Ningún resultado para esa búsqueda."
+                  : "No hay registros del censo manual anterior para este campamento."}
+              </p>
+            ) : (
+              <>
+                <p className="mb-1 text-[11px] leading-snug text-muted-foreground">
+                  Personas censadas antes de este flujo por cédula. "Verificado" =
+                  ya se confirmó su identidad con Nexus/SAIME y quedó agrupada en
+                  una familia del censo nominal.
+                </p>
+                <ul className="-mx-1">
+                  {censoViejoFiltrado.map((f, i) => (
+                    <li key={f.id}>
+                      <FilaCensoViejo
+                        fila={f}
+                        numero={i + 1}
+                        verificado={procesadosViejo.has(f.id)}
+                        onVerificar={
+                          onVerificarEnNominal && f.documento && (f.tipo_doc === "V" || f.tipo_doc === "E")
+                            ? () => onVerificarEnNominal(f.tipo_doc as "V" | "E", f.documento)
+                            : undefined
+                        }
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )
+          ) : cargando ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               Cargando…
             </p>
@@ -617,12 +775,18 @@ export function CensoListaCensadosPanel({ centroId, centroNombre }: Props) {
           )}
 
           {!cargando &&
+          pestana !== "anterior" &&
           ((pestana === "damnificados" && filtrados.length > 0) ||
             (pestana === "familias" && familiasFilas.length > 0)) ? (
             <p className="mt-2 text-center text-[11px] text-muted-foreground">
               {pestana === "damnificados"
                 ? `${filtrados.length.toLocaleString("es")} de ${alojamientos.length.toLocaleString("es")}`
                 : `${familiasFilas.length.toLocaleString("es")} familia${familiasFilas.length === 1 ? "" : "s"}`}
+            </p>
+          ) : null}
+          {pestana === "anterior" && !cargandoViejo && censoViejoFiltrado.length > 0 ? (
+            <p className="mt-2 text-center text-[11px] text-muted-foreground">
+              {verificadosViejo.toLocaleString("es")} de {censoViejo.length.toLocaleString("es")} verificados
             </p>
           ) : null}
         </CardContent>
