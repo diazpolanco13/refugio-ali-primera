@@ -85,15 +85,20 @@ import {
 } from "@/data/reposCenso";
 import { CensoInstrucciones } from "@/features/censo/CensoInstrucciones";
 import { CensoNexusPanel } from "@/features/censo/CensoNexusPanel";
+import { CensoListaCensadosPanel } from "@/features/censo/CensoListaCensadosPanel";
 import { SelectorCentroLista } from "@/features/censo/SelectorCentroLista";
 import { GrupoOpcionesSegmentadas } from "@/features/censo/censoFormularioShared";
 import { FormularioIdentificacionFuncionario } from "@/features/censo/FormularioIdentificacionFuncionario";
+import { type NexusEnLinea } from "@/features/censo/EstadoNexusApi";
+import { consultarEstadoNexusApi } from "@/data/reposNexus";
+import { BotonBorrarCache } from "@/components/BotonBorrarCache";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   INSTRUCCIONES_CENSO_KEY,
   debeMostrarInstrucciones,
   marcarInstruccionesVistas,
 } from "@/lib/instruccionesCampo";
-import { tokenTerrenoActual } from "@/lib/tokenTerreno";
+import { tokenTerrenoActual, urlPortalTerreno } from "@/lib/tokenTerreno";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "censo_funcionario_v1";
@@ -265,9 +270,11 @@ export function CensoView() {
   const [mostrarInstrucciones, setMostrarInstrucciones] = useState(() =>
     debeMostrarInstrucciones(INSTRUCCIONES_CENSO_KEY),
   );
-  /** Por cédula (Nexus → nominal) o planilla manual (staging censo_registros). */
-  const [modoCenso, setModoCenso] = useState<"nexus" | "manual">("nexus");
-  const [paso, setPaso] = useState<1 | 2 | 3>(1);
+  /** Censo por cédula (Nexus), planilla manual (staging) o lista de censados. */
+  const [modoCenso, setModoCenso] = useState<"nexus" | "manual" | "lista">("nexus");
+  /** Planilla manual solo si Nexus no está en línea (null = comprobando). */
+  const [nexusEnLinea, setNexusEnLinea] = useState<NexusEnLinea>(null);
+  const mostrarCensoManual = nexusEnLinea === false;  const [paso, setPaso] = useState<1 | 2 | 3>(1);
   const [paso1Seccion, setPaso1Seccion] = useState<"centro" | "funcionario">(
     token || centroParam || guardada?.centroId ? "funcionario" : "centro",
   );
@@ -345,6 +352,28 @@ export function CensoView() {
   }, [token]);
 
   const centroNombre = centros.find((c) => c.id === centroId)?.nombre ?? "";
+
+  // Sondeo inicial: la pestaña Manual depende de esto aunque aún no se abra el panel Nexus.
+  useEffect(() => {
+    let cancelado = false;
+    void (async () => {
+      const r = await consultarEstadoNexusApi();
+      if (cancelado) return;
+      if (r.estado === "online") setNexusEnLinea(true);
+      else if (r.estado === "offline" || r.estado === "degraded") setNexusEnLinea(false);
+      else setNexusEnLinea(null);
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  // Si Nexus vuelve, la planilla manual deja de ser la vía: salir de esa pestaña.
+  useEffect(() => {
+    if (nexusEnLinea === true && modoCenso === "manual") {
+      setModoCenso("nexus");
+    }
+  }, [nexusEnLinea, modoCenso]);
 
   const paso1Completo =
     Boolean(centroId) &&
@@ -555,14 +584,19 @@ export function CensoView() {
             </h1>
             <p className="text-xs opacity-80">Fecha: {fechaHoy}</p>
           </div>
-          <a
-            href="/terreno"
-            aria-label="Volver al inicio"
-            title="Volver al inicio"
-            className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/15 transition-colors hover:bg-primary-foreground/25 active:bg-primary-foreground/30"
-          >
-            <Home className="size-5" />
-          </a>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <TooltipProvider delayDuration={200}>
+              <BotonBorrarCache variante="header" />
+            </TooltipProvider>
+            <a
+              href={urlPortalTerreno()}
+              aria-label="Volver al inicio"
+              title="Volver al inicio"
+              className="flex size-10 items-center justify-center rounded-xl bg-primary-foreground/15 transition-colors hover:bg-primary-foreground/25 active:bg-primary-foreground/30"
+            >
+              <Home className="size-5" />
+            </a>
+          </div>
         </div>
         {!mostrarInstrucciones && modoCenso === "manual" && (
           <div className="mx-auto mt-4 flex w-full max-w-xl items-center gap-2 text-xs">
@@ -599,26 +633,40 @@ export function CensoView() {
             <button
               type="button"
               className={cn(
-                "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                "flex-1 rounded-md px-1.5 py-1.5 text-[11px] font-medium transition-colors sm:text-xs",
                 modoCenso === "nexus"
                   ? "bg-primary-foreground text-primary"
                   : "text-primary-foreground/80 hover:bg-primary-foreground/10",
               )}
               onClick={() => setModoCenso("nexus")}
             >
-              Por cédula
+              Censo
             </button>
+            {mostrarCensoManual ? (
+              <button
+                type="button"
+                className={cn(
+                  "flex-1 rounded-md px-1.5 py-1.5 text-[11px] font-medium transition-colors sm:text-xs",
+                  modoCenso === "manual"
+                    ? "bg-primary-foreground text-primary"
+                    : "text-primary-foreground/80 hover:bg-primary-foreground/10",
+                )}
+                onClick={() => setModoCenso("manual")}
+              >
+                Censo Manual
+              </button>
+            ) : null}
             <button
               type="button"
               className={cn(
-                "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
-                modoCenso === "manual"
+                "flex-1 rounded-md px-1.5 py-1.5 text-[11px] font-medium transition-colors sm:text-xs",
+                modoCenso === "lista"
                   ? "bg-primary-foreground text-primary"
                   : "text-primary-foreground/80 hover:bg-primary-foreground/10",
               )}
-              onClick={() => setModoCenso("manual")}
+              onClick={() => setModoCenso("lista")}
             >
-              Planilla manual
+              Censados
             </button>
           </div>
         )}
@@ -668,7 +716,63 @@ export function CensoView() {
                 centroNombre={centroNombre || centroId}
                 tokenTerreno={token}
                 onCambiarCentro={!token ? () => setCentroId("") : undefined}
+                onEstadoNexus={setNexusEnLinea}
               />
+            )}
+          </div>
+        )}
+
+        {!mostrarInstrucciones && modoCenso === "lista" && (
+          <div className="-mt-3 space-y-3">
+            {!centroId ? (
+              <Card className="shadow-lg">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <MapPin className="size-4 text-primary" />
+                    Campamento
+                  </CardTitle>
+                  <CardDescription>
+                    Elija el campamento para ver a las personas censadas.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {errorCentros ? (
+                    <p className="text-sm text-destructive">{errorCentros}</p>
+                  ) : null}
+                  <div className="min-h-[16rem]">
+                    <SelectorCentroLista
+                      centros={centros}
+                      centroId={centroId}
+                      onSelect={setCentroId}
+                      cargando={cargandoCentros}
+                      onContinuar={() => {
+                        /* basta con elegir el centro */
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {!token ? (
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span className="truncate">{centroNombre || centroId}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 shrink-0"
+                      onClick={() => setCentroId("")}
+                    >
+                      Cambiar
+                    </Button>
+                  </div>
+                ) : null}
+                <CensoListaCensadosPanel
+                  centroId={centroId}
+                  centroNombre={centroNombre || centroId}
+                />
+              </>
             )}
           </div>
         )}

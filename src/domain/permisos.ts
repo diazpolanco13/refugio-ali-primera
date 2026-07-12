@@ -1,4 +1,8 @@
 import type { Rol, Usuario } from "../data/authSupabase";
+import {
+  centrosDeProduccion,
+  type CentroTransitorio,
+} from "./centrosTransitorios";
 
 /**
  * Metadatos y matriz de permisos de cada rol (ver docs/sistema-usuarios.md).
@@ -218,6 +222,20 @@ export function puedeGestionarDenuncias(rol: Rol): boolean {
 /** Papelera de denuncias eliminadas (solo admin). */
 export function puedeVerPapeleraDenuncias(rol: Rol): boolean {
   return rol === "admin";
+}
+
+/** Campamento sandbox de desarrollo: solo el administrador lo ve en la red. */
+export function puedeVerCentrosPrueba(usuario: Usuario): boolean {
+  return usuario.rol === "admin";
+}
+
+/** Lista operativa de campamentos según quién puede ver el sandbox. */
+export function centrosVisiblesParaUsuario(
+  centros: CentroTransitorio[],
+  usuario: Usuario | null | undefined,
+): CentroTransitorio[] {
+  if (usuario && puedeVerCentrosPrueba(usuario)) return centros;
+  return centrosDeProduccion(centros);
 }
 
 export function puedeVerSaludMental(rol: Rol): boolean {

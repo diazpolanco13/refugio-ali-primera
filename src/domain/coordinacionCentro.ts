@@ -1,4 +1,5 @@
 import {
+  MAX_PERSONAL_CATEGORIA,
   normalizarPersonal,
   normalizarServicios,
   PERSONAL_VACIO,
@@ -9,6 +10,13 @@ import {
   type ServiciosCentro,
 } from "./centrosTransitorios";
 import type { Responsable } from "./tipos";
+
+/** Entero no negativo; por encima del tope se trata como dato corrupto (p. ej. teléfono). */
+function enteroPersonalMando(valor: unknown): number {
+  const n = Math.max(0, Math.floor(Number(valor) || 0));
+  if (n > MAX_PERSONAL_CATEGORIA) return 0;
+  return n;
+}
 
 /** Ámbito de responsabilidad dentro de la coordinación del campamento. */
 export type CategoriaResponsabilidadCoordinacion =
@@ -295,7 +303,9 @@ export function normalizarResponsableCoordinacion(
     ente: r.ente?.trim() ?? "",
     categoria,
     subtipo,
-    personal_mando: Math.max(0, Number(r.personal_mando) || 0),
+    // Tope igual que personal operativo: un teléfono pegado aquí se
+    // propagaba a `centros.data.personal` vía syncCentroDesdeCoordinacion.
+    personal_mando: enteroPersonalMando(r.personal_mando),
     telefonos,
     logistica: normalizarLogistica(r.logistica, categoria),
     transporte: {

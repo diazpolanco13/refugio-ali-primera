@@ -44,7 +44,9 @@ import { textoParteGeneralRed } from "@/domain/reporteTelegramRed";
 import { claveDia } from "@/data/reposSupabase";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import {
+  centrosDeProduccion,
   CATALOGO_CUERPOS,
+  idCentroEsPrueba,
   META_MARCADOR_OCUPACION,
   marcadorOcupacionCentro,
   metaCuerpoDe,
@@ -77,6 +79,7 @@ import {
   totalUnidadesConteo,
 } from "@/domain/complejosCentros";
 import { construirReporteEjecutivoCampamentos } from "@/domain/reporteEjecutivoCampamentos";
+import { centrosVisiblesParaUsuario } from "@/domain/permisos";
 import type { Sesion } from "@/data/authSupabase";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -751,12 +754,18 @@ export function ReportesDiariosRedView() {
   );
   const centros = useMemo(
     () =>
-      [...filasCentros].sort(
-        (a, b) =>
-          (a.nro ?? 0) - (b.nro ?? 0) || a.nombre.localeCompare(b.nombre, "es"),
+      centrosVisiblesParaUsuario(
+        [...filasCentros].sort(
+          (a, b) =>
+            (a.nro ?? 0) - (b.nro ?? 0) || a.nombre.localeCompare(b.nombre, "es"),
+        ),
+        sesion.user,
       ),
-    [filasCentros],
+    [filasCentros, sesion.user],
   );
+
+  /** Campamentos que entran en parte numérico y tablero de reportes (sin sandbox). */
+  const centrosParteRed = useMemo(() => centrosDeProduccion(centros), [centros]);
 
   const analistasSae = useAnalistasSae();
   const catalogoUnidades = useCatalogoUnidadesSebinActivas();
@@ -802,7 +811,7 @@ export function ReportesDiariosRedView() {
   function abrirParteRed() {
     setParteCompartir(
       textoParteGeneralRed({
-        centros: centrosEnAlcance,
+        centros: centrosMetricas,
         dia: diaActivo,
         snapshots,
         controlesDia: controles.filter(
@@ -855,6 +864,7 @@ export function ReportesDiariosRedView() {
   const diasConPartePorCentro = useMemo(() => {
     const m = new Map<string, Set<string>>();
     for (const s of snapshots) {
+      if (idCentroEsPrueba(s.centro_id)) continue;
       if (!m.has(s.centro_id)) m.set(s.centro_id, new Set());
       m.get(s.centro_id)!.add(s.dia);
     }
@@ -944,7 +954,7 @@ export function ReportesDiariosRedView() {
   const opcionesCuerpo = useMemo(() => {
     const m = new Map<ClaveCuerpo, CentroTransitorio[]>();
     const sinAsignar: CentroTransitorio[] = [];
-    for (const centro of centros) {
+    for (const centro of centrosParteRed) {
       const clave = normalizarCuerpo(centro.cuerpo);
       if (clave === VALOR_SIN_ASIGNAR) {
         sinAsignar.push(centro);
@@ -962,12 +972,12 @@ export function ReportesDiariosRedView() {
       cantidad: totalUnidadesConteo(m.get(c.clave) ?? []),
     }));
     return { opciones, cantidadSinAsignar: totalUnidadesConteo(sinAsignar) };
-  }, [centros]);
+  }, [centrosParteRed]);
 
   const opcionesUnidad = useMemo(() => {
     const m = new Map<string, CentroTransitorio[]>();
     const sinAsignar: CentroTransitorio[] = [];
-    for (const centro of centros) {
+    for (const centro of centrosParteRed) {
       const clave = normalizarUnidadSebin(centro.supervision?.unidad_sebin);
       if (clave === VALOR_SIN_ASIGNAR) {
         sinAsignar.push(centro);
@@ -1000,12 +1010,12 @@ export function ReportesDiariosRedView() {
       });
     }
     return { opciones, cantidadSinAsignar: totalUnidadesConteo(sinAsignar) };
-  }, [centros, catalogoUnidades]);
+  }, [centrosParteRed, catalogoUnidades]);
 
   const opcionesRevista = useMemo(() => {
     const porValor = new Map<string, { etiqueta: string; centros: CentroTransitorio[] }>();
     const sinAsignar: CentroTransitorio[] = [];
-    for (const centro of centros) {
+    for (const centro of centrosParteRed) {
       const actual = centro.supervision?.supervisor_sebin?.trim() ?? "";
       if (!actual) {
         sinAsignar.push(centro);
@@ -1028,21 +1038,23 @@ export function ReportesDiariosRedView() {
       }))
       .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es"));
     return { opciones, cantidadSinAsignar: totalUnidadesConteo(sinAsignar) };
-  }, [centros, supervisores]);
+  }, [centrosParteRed, supervisores]);
 
   const opcionesAnalista = useMemo(() => {
-    const sinAsignar = centros.filter(
+    const sinAsignar = centrosParteRed.filter(
       (c) => (c.supervision?.analistas_sae ?? []).length === 0,
     );
     const opciones: OpcionFiltroMulti[] = analistasSae.map((analista) => ({
       valor: analista.user_id,
       etiqueta: etiquetaAnalistaSae(analista),
       cantidad: totalUnidadesConteo(
-        centros.filter((c) => c.supervision?.analistas_sae?.includes(analista.user_id)),
+        centrosParteRed.filter((c) =>
+          c.supervision?.analistas_sae?.includes(analista.user_id),
+        ),
       ),
     }));
     return { opciones, cantidadSinAsignar: totalUnidadesConteo(sinAsignar) };
-  }, [analistasSae, centros]);
+  }, [analistasSae, centrosParteRed]);
 
   const diaActivo = dia ?? hoyClave;
 
@@ -1053,7 +1065,7 @@ export function ReportesDiariosRedView() {
 
   /** Centros en alcance de filtros de asignación + búsqueda (métricas y denominadores). */
   const centrosEnAlcance = useMemo(() => {
-    return centros
+    return centrosParteRed
       .filter((c) => coincideFiltroEscalar(filtroCuerpos, normalizarCuerpo(c.cuerpo)))
       .filter((c) =>
         coincideFiltroEscalar(
@@ -1077,7 +1089,7 @@ export function ReportesDiariosRedView() {
           normalizarTextoBusqueda(c.nombre).includes(terminoBusqueda),
       );
   }, [
-    centros,
+    centrosParteRed,
     filtroCuerpos,
     filtroUnidades,
     filtroRevistas,
@@ -1086,12 +1098,18 @@ export function ReportesDiariosRedView() {
     terminoBusqueda,
   ]);
 
+  /** Centros que entran en totales, partes y PDF (excluye sandbox). */
+  const centrosMetricas = useMemo(
+    () => centrosDeProduccion(centrosEnAlcance),
+    [centrosEnAlcance],
+  );
+
   /** Censo SEBIN por unidad de conteo (complejo = 1 campamento). */
   const censoEstados = useMemo(() => {
     if (!censoResumenes.length) return null;
     const porCentro = new Map(censoResumenes.map((r) => [r.centroId, r]));
     const conteo = { completados: 0, enCurso: 0, sinIniciar: 0 };
-    for (const miembros of agruparPorUnidadConteo(centrosEnAlcance).values()) {
+    for (const miembros of agruparPorUnidadConteo(centrosMetricas).values()) {
       const estados = miembros.map((c) => {
         const resumen = porCentro.get(c.id);
         return resumen ? estadoCensoCentro(resumen) : ("sin_iniciar" as const);
@@ -1114,12 +1132,12 @@ export function ReportesDiariosRedView() {
       }
     }
     return conteo;
-  }, [censoResumenes, centrosEnAlcance]);
+  }, [censoResumenes, centrosMetricas]);
 
   /** Total oficial en el alcance actual (complejos = 1). */
   const totalCampamentos = useMemo(
-    () => totalUnidadesConteo(centrosEnAlcance),
-    [centrosEnAlcance],
+    () => totalUnidadesConteo(centrosMetricas),
+    [centrosMetricas],
   );
 
   const idsEnAlcance = useMemo(
@@ -1202,24 +1220,24 @@ export function ReportesDiariosRedView() {
       solo_parte: 0,
       pendiente: 0,
     };
-    for (const miembros of agruparPorUnidadConteo(centrosEnAlcance).values()) {
+    for (const miembros of agruparPorUnidadConteo(centrosMetricas).values()) {
       const estados = miembros.map((c) => estadoCentroDia(c.id, hoyClave));
       m[estadoReporteUnidad(estados)]++;
     }
     return m;
-  }, [centrosEnAlcance, hoyClave, reportes, controles, eventos, snapshots]);
+  }, [centrosMetricas, hoyClave, reportes, controles, eventos, snapshots]);
 
   const marcasPorDia = useMemo(() => {
     const m = new Map<string, string>();
     for (const d of ultimosDiasReporte(30, hoyClave)) {
-      const estados = [...agruparPorUnidadConteo(centrosEnAlcance).values()].map((miembros) =>
+      const estados = [...agruparPorUnidadConteo(centrosMetricas).values()].map((miembros) =>
         estadoReporteUnidad(miembros.map((c) => estadoCentroDia(c.id, d))),
       );
       const color = colorRedPorDia(estados);
       if (color) m.set(d, color);
     }
     return m;
-  }, [centrosEnAlcance, hoyClave, reportes, controles, eventos, snapshots]);
+  }, [centrosMetricas, hoyClave, reportes, controles, eventos, snapshots]);
 
   const leyendaCalendario = useMemo(
     () =>
@@ -1235,7 +1253,7 @@ export function ReportesDiariosRedView() {
       activo: 0,
       sin_refugiados: 0,
     };
-    for (const miembros of agruparPorUnidadConteo(centrosEnAlcance).values()) {
+    for (const miembros of agruparPorUnidadConteo(centrosMetricas).values()) {
       const marcadores = miembros.map((c) => {
         const snap = snapshots.find((s) => s.centro_id === c.id && s.dia === diaActivo);
         return marcadorCentroDia(c, snap);
@@ -1243,14 +1261,14 @@ export function ReportesDiariosRedView() {
       m[marcadorOcupacionUnidad(marcadores)]++;
     }
     return m;
-  }, [centrosEnAlcance, diaActivo, snapshots]);
+  }, [centrosMetricas, diaActivo, snapshots]);
 
   const conteosOcupacionHoy = useMemo(() => {
     const m: Record<MarcadorOcupacionCentro, number> = {
       activo: 0,
       sin_refugiados: 0,
     };
-    for (const miembros of agruparPorUnidadConteo(centrosEnAlcance).values()) {
+    for (const miembros of agruparPorUnidadConteo(centrosMetricas).values()) {
       const marcadores = miembros.map((c) => {
         const snap = snapshots.find((s) => s.centro_id === c.id && s.dia === hoyClave);
         return marcadorCentroDia(c, snap);
@@ -1258,14 +1276,14 @@ export function ReportesDiariosRedView() {
       m[marcadorOcupacionUnidad(marcadores)]++;
     }
     return m;
-  }, [centrosEnAlcance, hoyClave, snapshots]);
+  }, [centrosMetricas, hoyClave, snapshots]);
 
   const totalesIndicadoresDia = useMemo(() => {
     let incidenciasSalud = 0;
     let eventos = 0;
     let refugiados = 0;
 
-    for (const centro of centrosEnAlcance) {
+    for (const centro of centrosMetricas) {
       const key = `${centro.id}:${diaActivo}`;
       const tieneParte = diasConPartePorCentro.get(centro.id)?.has(diaActivo) ?? false;
       const eventosCount = eventosPorCentroDia.get(key) ?? 0;
@@ -1280,25 +1298,25 @@ export function ReportesDiariosRedView() {
       }
     }
 
-    const partes = contarUnidadesCon(centrosEnAlcance, (c) =>
+    const partes = contarUnidadesCon(centrosMetricas, (c) =>
       Boolean(diasConPartePorCentro.get(c.id)?.has(diaActivo)),
     );
-    const controlOk = contarUnidadesCon(centrosEnAlcance, (c) =>
+    const controlOk = contarUnidadesCon(centrosMetricas, (c) =>
       controlesPorCentroDia.has(`${c.id}:${diaActivo}`),
     );
-    const trabajosOk = contarUnidadesCon(centrosEnAlcance, (c) => {
+    const trabajosOk = contarUnidadesCon(centrosMetricas, (c) => {
       const key = `${c.id}:${diaActivo}`;
       const reporte = reporteDelDia(reportes, c.id, diaActivo);
       return reportesRepPorCentroDia.has(key) || reporte?.trabajos_revisados === true;
     });
-    const requerimientosOk = contarUnidadesCon(centrosEnAlcance, (c) => {
+    const requerimientosOk = contarUnidadesCon(centrosMetricas, (c) => {
       const key = `${c.id}:${diaActivo}`;
       const reporte = reporteDelDia(reportes, c.id, diaActivo);
       return (
         requerimientosPorCentroDia.has(key) || reporte?.requerimientos_revisados === true
       );
     });
-    const eventosOk = contarUnidadesCon(centrosEnAlcance, (c) => {
+    const eventosOk = contarUnidadesCon(centrosMetricas, (c) => {
       const key = `${c.id}:${diaActivo}`;
       const reporte = reporteDelDia(reportes, c.id, diaActivo);
       return eventosRevisados(reporte, eventosPorCentroDia.get(key) ?? 0);
@@ -1315,7 +1333,7 @@ export function ReportesDiariosRedView() {
       refugiados,
     };
   }, [
-    centrosEnAlcance,
+    centrosMetricas,
     diaActivo,
     reportes,
     controlesPorCentroDia,
@@ -1341,7 +1359,7 @@ export function ReportesDiariosRedView() {
   const reporteEjecutivo = useMemo(
     () =>
       construirReporteEjecutivoCampamentos({
-        centros: centrosEnAlcance,
+        centros: centrosMetricas,
         snapshots,
         reportes,
         eventos: eventos.filter((e) => idsEnAlcance.has(e.centro_id)),

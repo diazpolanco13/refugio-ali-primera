@@ -1,4 +1,5 @@
 import { LogoCuerpo } from "@/components/LogoCuerpo";
+import { BadgePruebaCentro } from "@/components/BadgePruebaCentro";
 import {
   coincideFiltroEscalar,
   coincideFiltroLista,
@@ -32,6 +33,8 @@ import {
   X,
 } from "lucide-react";
 import {
+  centrosDeProduccion,
+  esCentroDePrueba,
   CATALOGO_CUERPOS,
   ESTADOS_CENTRO,
   metaCuerpoDe,
@@ -515,6 +518,7 @@ export function TableroCentros({
     };
     const porUnidad = new Map<string, NivelPrioridad[]>();
     for (const f of enContexto) {
+      if (esCentroDePrueba(f.centro)) continue;
       const clave = f.centro.complejoId?.trim() || f.centro.id;
       const arr = porUnidad.get(clave);
       if (arr) arr.push(f.prioridad.nivel);
@@ -530,7 +534,7 @@ export function TableroCentros({
 
   /** Alcance sin filtro de nivel (denominador de “visibles” y chips de nivel). */
   const totalAlcance = useMemo(
-    () => totalUnidadesConteo(enContexto.map((f) => f.centro)),
+    () => totalUnidadesConteo(centrosDeProduccion(enContexto.map((f) => f.centro))),
     [enContexto],
   );
 
@@ -556,7 +560,7 @@ export function TableroCentros({
   }, [enContexto, orden, filtroNivel]);
 
   const visiblesUnidades = useMemo(
-    () => totalUnidadesConteo(filas.map((f) => f.centro)),
+    () => totalUnidadesConteo(centrosDeProduccion(filas.map((f) => f.centro))),
     [filas],
   );
 
@@ -571,6 +575,7 @@ export function TableroCentros({
     let duchas = 0;
     let cupo = 0;
     for (const { centro, prioridad } of filas) {
+      if (esCentroDePrueba(centro)) continue;
       const a = prioridad.analisis;
       const c = normalizarCentro(centro);
       refugiados += a.refugiados;
@@ -1207,6 +1212,11 @@ function TarjetaCentro({
           {prioridad.nivel === "critico" && <TriangleAlert className="size-3" />}
           {ETIQUETA_NIVEL[prioridad.nivel]}
         </span>
+        {esCentroDePrueba(centro) && (
+          <span className="absolute right-2 top-2">
+            <BadgePruebaCentro compacto />
+          </span>
+        )}
 
         {estadoInfo && (
           <span

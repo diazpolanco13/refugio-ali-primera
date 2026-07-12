@@ -1,7 +1,7 @@
 // Censo por cédula vía Nexus: verificar → crear hogar → agregar familiares.
 // Destino: base nominal (refugiados + familias_centro + alojamientos).
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   Baby,
   Building2,
@@ -9,7 +9,6 @@ import {
   Home,
   Loader2,
   MapPin,
-  MessageCircle,
   Minus,
   Plus,
   RefreshCw,
@@ -21,8 +20,22 @@ import {
   UserPlus,
   Users,
   AlertTriangle,
+  Camera,
+  ImagePlus,
+  RotateCcw,
+  ChevronDown,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +46,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -57,14 +75,17 @@ import {
   type AnalistaContactoTerreno,
 } from "@/data/reposCenso";
 import {
+  actualizarConsentimientoFoto,
   actualizarDamnificacionFamilia,
   guardarFamiliaresReferencia,
   guardarResidenciaAfectada,
+  registrarEgreso,
   type OtroCentroActivo,
 } from "@/data/reposRefugiados";
 import { nuevoId } from "@/data/reposSupabase";
+import { subirFotoRefugiado, supabaseDisponible } from "@/data/supabase";
 import { asegurarSesionTerreno } from "@/data/loginTerreno";
-import { inicialesPersona, type FamiliarNexus, type PersonaNexusCenso } from "@/domain/nexusPersona";
+import { type FamiliarNexus, type PersonaNexusCenso } from "@/domain/nexusPersona";
 import {
   META_NIVEL_AFECTACION,
   nivelAfectacionHogar,
@@ -82,7 +103,14 @@ import {
   type NexusEnLinea,
   type SenalConsultaNexus,
 } from "@/features/censo/EstadoNexusApi";
-import { whatsappHref } from "@/lib/contacto";
+import {
+  MigaPasosCenso,
+  type PasoCenso,
+  type PasoCensoId,
+} from "@/features/censo/MigaPasosCenso";
+import { IconoTelegram } from "@/components/IconoTelegram";
+import { telegramHref, tieneTelefonoContacto } from "@/lib/contacto";
+import { copiarTexto } from "@/lib/portapapeles";
 import { cn } from "@/lib/utils";
 
 const SEVERIDAD_VIVIENDA_OPCIONES: { valor: EstatusVivienda; label: string; emoji: string }[] = [
@@ -102,31 +130,156 @@ function StepperInline({
   value,
   onChange,
   min = 0,
+  max,
+  className,
 }: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  className?: string;
+}) {
+  const enMin = value <= min;
+  const enMax = max != null && value >= max;
+
+  return (
+    <div
+      className={cn(
+        "inline-flex h-9 w-[7.5rem] shrink-0 items-stretch overflow-hidden rounded-lg border border-border bg-background shadow-sm",
+        className,
+      )}
+    >
+      <button
+        type="button"
+        disabled={enMin}
+        aria-label="Restar"
+        className={cn(
+          "flex w-9 shrink-0 items-center justify-center bg-muted/70 text-foreground transition-colors",
+          "hover:bg-muted active:bg-muted/90",
+          "disabled:pointer-events-none disabled:opacity-35",
+        )}
+        onClick={() => onChange(Math.max(min, value - 1))}
+      >
+        <Minus className="size-3.5 stroke-[2.5]" />
+      </button>
+      <div className="flex min-w-0 flex-1 items-center justify-center border-x border-border bg-card">
+        <span className="text-sm font-bold tabular-nums leading-none">{value}</span>
+      </div>
+      <button
+        type="button"
+        disabled={enMax}
+        aria-label="Sumar"
+        className={cn(
+          "flex w-9 shrink-0 items-center justify-center bg-primary text-primary-foreground transition-colors",
+          "hover:bg-primary/90 active:bg-primary/80",
+          "disabled:pointer-events-none disabled:opacity-35",
+        )}
+        onClick={() => onChange(max != null ? Math.min(max, value + 1) : value + 1)}
+      >
+        <Plus className="size-3.5 stroke-[2.5]" />
+      </button>
+    </div>
+  );
+}
+
+function FilaContador({
+  label,
+  value,
+  onChange,
+  min = 0,
+}: {
+  label: string;
   value: number;
   onChange: (v: number) => void;
   min?: number;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <Button
-        type="button"
-        size="icon"
-        variant="outline"
-        className="size-7"
-        onClick={() => onChange(Math.max(min, value - 1))}
-      >
-        <Minus className="size-3.5" />
-      </Button>
-      <span className="w-6 text-center text-sm font-semibold tabular-nums">{value}</span>
-      <Button type="button" size="icon" variant="outline" className="size-7" onClick={() => onChange(value + 1)}>
-        <Plus className="size-3.5" />
-      </Button>
+    <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/20 px-2.5 py-1.5">
+      <Label className="min-w-0 flex-1 text-xs leading-snug font-medium">{label}</Label>
+      <StepperInline value={value} onChange={onChange} min={min} />
     </div>
   );
 }
 
 type Letra = "V" | "E";
+
+function BuscadorCedula({
+  letra,
+  onLetra,
+  cedula,
+  onCedula,
+  buscando,
+  onSubmit,
+  labelCedula = "Número de cédula",
+  placeholder = "Ej. 17089732",
+}: {
+  letra: Letra;
+  onLetra: (l: Letra) => void;
+  cedula: string;
+  onCedula: (v: string) => void;
+  buscando: boolean;
+  onSubmit: (e: FormEvent) => void;
+  labelCedula?: string;
+  placeholder?: string;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-2">
+      <Label className="text-xs font-medium text-muted-foreground">{labelCedula}</Label>
+      <div className="flex items-stretch overflow-hidden rounded-xl border border-border bg-background shadow-sm focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/40">
+        <div
+          className="flex shrink-0 border-r border-border bg-muted/40 p-0.5"
+          role="group"
+          aria-label="Tipo de documento"
+        >
+          {(["V", "E"] as const).map((op) => {
+            const activo = letra === op;
+            return (
+              <button
+                key={op}
+                type="button"
+                aria-pressed={activo}
+                className={cn(
+                  "h-10 min-w-10 rounded-lg px-2.5 text-sm font-bold tabular-nums transition-colors",
+                  activo
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+                onClick={() => onLetra(op)}
+              >
+                {op}-
+              </button>
+            );
+          })}
+        </div>
+        <Input
+          inputMode="numeric"
+          autoComplete="off"
+          enterKeyHint="search"
+          placeholder={placeholder}
+          value={cedula}
+          onChange={(e) => onCedula(soloDigitos(e.target.value))}
+          aria-label={labelCedula}
+          className={cn(
+            "h-11 flex-1 rounded-none border-0 bg-transparent px-3 font-mono text-base tracking-wider shadow-none",
+            "focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent",
+          )}
+        />
+      </div>
+      <Button
+        type="submit"
+        disabled={buscando || cedula.length < 5}
+        className="h-10 w-full gap-2 font-semibold"
+      >
+        {buscando ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <Search className="size-4" />
+        )}
+        Buscar
+      </Button>
+    </form>
+  );
+}
 
 interface Props {
   centroId: string;
@@ -134,14 +287,50 @@ interface Props {
   tokenTerreno?: string | null;
   /** Permite volver a elegir campamento (solo sin token de terreno). */
   onCambiarCentro?: () => void;
+  /** Propaga el estado de Nexus al shell (/censo) para mostrar u ocultar la planilla manual. */
+  onEstadoNexus?: (enLinea: NexusEnLinea) => void;
 }
 
 interface MiembroHogar {
+  alojamientoId: string;
   refugiadoId: string;
   es_jefe: boolean;
   parentesco: string;
   nombre: string;
   cedula: string | null;
+  fotoUrl: string | null;
+  fechaNacimiento: string | null;
+  creadaTs: number;
+}
+
+function AvatarMiembro({
+  fotoUrl,
+  nombre,
+}: {
+  fotoUrl: string | null;
+  nombre: string;
+}) {
+  const [rota, setRota] = useState(false);
+  const url = (fotoUrl ?? "").trim();
+  const mostrarFoto = url.length > 0 && !rota;
+
+  return (
+    <div className="relative size-11 shrink-0 overflow-hidden rounded-md border border-dashed border-border bg-muted/50">
+      {mostrarFoto ? (
+        <img
+          src={url}
+          alt={nombre}
+          className="size-full object-cover"
+          onError={() => setRota(true)}
+        />
+      ) : (
+        <div className="flex size-full flex-col items-center justify-center gap-0.5 text-muted-foreground">
+          <Camera className="size-4 opacity-70" />
+          <span className="text-[8px] font-medium leading-none">Sin foto</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface FormMenor {
@@ -222,7 +411,13 @@ function mensajeReporteDuplicado(
   ].join("\n");
 }
 
-export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambiarCentro }: Props) {
+export function CensoNexusPanel({
+  centroId,
+  centroNombre,
+  tokenTerreno,
+  onCambiarCentro,
+  onEstadoNexus,
+}: Props) {
   const [sesionLista, setSesionLista] = useState(false);
   const [errorSesion, setErrorSesion] = useState("");
 
@@ -244,6 +439,13 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
   const [telsAgregados, setTelsAgregados] = useState<string[]>([]);
   const [telNuevo, setTelNuevo] = useState("");
   const [agregandoTel, setAgregandoTel] = useState(false);
+
+  // Foto de campo en verificación (antes de existir refugiado_id): preview
+  // local; se sube al bucket al crear/agregar en nominal.
+  const [fotoArchivo, setFotoArchivo] = useState<File | null>(null);
+  const [fotoPreviewUrl, setFotoPreviewUrl] = useState<string | null>(null);
+  const inputFotoCamaraRef = useRef<HTMLInputElement | null>(null);
+  const inputFotoGaleriaRef = useRef<HTMLInputElement | null>(null);
 
   const [familiaId, setFamiliaId] = useState<string | null>(null);
   const [cedulaJefe, setCedulaJefe] = useState<string | null>(null);
@@ -283,19 +485,30 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
 
   // Nombres legibles de campamentos para los avisos (fallback: el id).
   const [nombresCentros, setNombresCentros] = useState<Record<string, string>>({});
-  // Analistas SAE de este campamento, para el botón "Reportar por WhatsApp"
+  // Analistas SAE de este campamento, para el botón "Reportar por Telegram"
   // cuando una cédula ya figura activa en otro centro.
   const [analistasContacto, setAnalistasContacto] = useState<AnalistaContactoTerreno[]>([]);
   // Confirmación explícita de continuar pese al aviso de duplicado — no se
   // puede crear el hogar / agregar al familiar sin marcarla primero.
   const [confirmoDuplicado, setConfirmoDuplicado] = useState(false);
+  /** Detalle SAIME (dirección, teléfonos, familiares): plegado por defecto. */
+  const [infoSaimeAbierta, setInfoSaimeAbierta] = useState(false);
 
-  const [menorAbierto, setMenorAbierto] = useState(false);
+  const [pestanaMiembros, setPestanaMiembros] = useState<"adultos" | "sin_cedula">(
+    "adultos",
+  );
   const [menor, setMenor] = useState<FormMenor>(formMenorVacio);
   const [errorMenor, setErrorMenor] = useState("");
+  const [eliminarMiembro, setEliminarMiembro] = useState<MiembroHogar | null>(null);
+  const [eliminandoMiembro, setEliminandoMiembro] = useState(false);
   /** null = comprobando; false = Nexus caído (solo caché / planilla). */
   const [nexusEnLinea, setNexusEnLinea] = useState<NexusEnLinea>(null);
   const [senalConsulta, setSenalConsulta] = useState<SenalConsultaNexus | null>(null);
+
+  function notificarEstadoNexus(enLinea: NexusEnLinea) {
+    setNexusEnLinea(enLinea);
+    onEstadoNexus?.(enLinea);
+  }
 
   useEffect(() => {
     let cancel = false;
@@ -347,7 +560,7 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
         if (!cancel) setAnalistasContacto(c?.analistas_contacto ?? []);
       })
       .catch(() => {
-        /* el botón de WhatsApp simplemente no aparece */
+        /* el botón de Telegram simplemente no aparece */
       });
     return () => {
       cancel = true;
@@ -360,6 +573,69 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
     const lista = await miembrosHogarActual(id);
     setMiembros(lista);
   }
+
+  async function confirmarEliminarMiembro() {
+    if (!eliminarMiembro || !familiaId) return;
+    setEliminandoMiembro(true);
+    try {
+      await registrarEgreso(eliminarMiembro.alojamientoId, {
+        motivo: "Corrección de censo",
+      });
+      await refrescarMiembros(familiaId);
+      setMensaje(`Se quitó del hogar a ${eliminarMiembro.nombre}.`);
+      setEliminarMiembro(null);
+      // Si era el único / el jefe y no quedan miembros, cerrar el hogar en UI.
+      const restantes = await miembrosHogarActual(familiaId);
+      if (restantes.length === 0) {
+        setFamiliaId(null);
+        setCedulaJefe(null);
+        setNivelHogar(null);
+        setFamSugeridos([]);
+        setPestanaMiembros("adultos");
+      }
+    } catch (err) {
+      setMensaje("");
+      setErrorBusqueda(
+        err instanceof Error ? err.message : "No se pudo quitar al miembro del hogar.",
+      );
+    } finally {
+      setEliminandoMiembro(false);
+    }
+  }
+
+  function limpiarFotoLocal() {
+    setFotoPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setFotoArchivo(null);
+  }
+
+  function onElegirFoto(file: File | undefined) {
+    if (!file || !file.type.startsWith("image/")) return;
+    setFotoPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+    setFotoArchivo(file);
+  }
+
+  /** Sube la foto de campo tras el alta nominal (el id ya existe). */
+  async function persistirFotoCampo(refugiadoId: string) {
+    if (!fotoArchivo || !supabaseDisponible()) return;
+    try {
+      const path = await subirFotoRefugiado(refugiadoId, fotoArchivo);
+      await actualizarConsentimientoFoto(refugiadoId, true, path);
+    } catch {
+      // El registro ya quedó; la foto se puede completar en la ficha.
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (fotoPreviewUrl) URL.revokeObjectURL(fotoPreviewUrl);
+    };
+  }, [fotoPreviewUrl]);
 
   function resetDamnificacion() {
     setEstatusVivienda(null);
@@ -390,6 +666,8 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
     setTelNuevo("");
     setAgregandoTel(false);
     setConfirmoDuplicado(false);
+    setInfoSaimeAbierta(false);
+    limpiarFotoLocal();
     if (!familiaId) {
       setEsJefe(null);
       resetDamnificacion();
@@ -461,6 +739,8 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
         esJefe: true,
         telefonosConfirmados: telsConfirmados,
       });
+      await persistirFotoCampo(r.refugiadoId);
+      limpiarFotoLocal();
       setFamiliaId(r.familiaId);
       setCedulaJefe(persona.cedula);
       setAvisoOtros(r.otrosCentros);
@@ -497,9 +777,51 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
       setEstadoNominal(null);
       setOrigenFicha(null);
       setCedula("");
-      resetDamnificacion();
+      // No resetear damnificación: así se puede volver a revisarla desde la miga.
     } catch (err) {
       setErrorBusqueda(err instanceof Error ? err.message : "No se pudo crear el hogar");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  /** Actualiza damnificación de un hogar ya creado (vuelta desde la miga). */
+  async function onGuardarDamnificacion() {
+    if (!familiaId || !estatusVivienda) {
+      setErrorBusqueda("Indique la severidad de la vivienda.");
+      return;
+    }
+    setGuardando(true);
+    setMensaje("");
+    setErrorBusqueda("");
+    try {
+      const ubicacion = (ubicacionVivienda === "Otro" ? ubicacionOtro : ubicacionVivienda).trim();
+      await guardarResidenciaAfectada({
+        familia_id: familiaId,
+        centro_id: centroId,
+        estatus_vivienda: estatusVivienda,
+        estado_federativo: ubicacion || undefined,
+      });
+      await actualizarDamnificacionFamilia(familiaId, {
+        miembros_damnificados_declarados: miembrosDamnificados || null,
+        fallecidos_confirmados: fallecidosCount,
+        desaparecidos: desaparecidosCount,
+      });
+      if (detallePerdidas.length > 0) {
+        await guardarFamiliaresReferencia(familiaId, [], detallePerdidas);
+      }
+      setNivelHogar({
+        estatusVivienda,
+        fallecidos: fallecidosCount,
+        desaparecidos: desaparecidosCount,
+      });
+      setMensaje("Damnificación actualizada.");
+      setPasoEnfoque("hogar");
+      window.setTimeout(() => {
+        refPasoHogar.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    } catch (err) {
+      setErrorBusqueda(err instanceof Error ? err.message : "No se pudo guardar la damnificación");
     } finally {
       setGuardando(false);
     }
@@ -527,6 +849,8 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
         parentescoJefe: parentescoDirecto,
         telefonosConfirmados: telsConfirmados,
       });
+      await persistirFotoCampo(r.refugiadoId);
+      limpiarFotoLocal();
       setAvisoOtros(r.otrosCentros);
       await refrescarMiembros(r.familiaId);
       setMensaje(`Agregado al hogar: ${persona.nombre_completo}`);
@@ -639,6 +963,8 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
         `Agregado al hogar sin documento: ${menor.primer_nombre} ${menor.primer_apellido}`,
       );
       setMenor(formMenorVacio());
+      setPestanaMiembros("adultos");
+      setErrorMenor("");
     } catch (err) {
       setErrorMenor(err instanceof Error ? err.message : "No se pudo agregar");
     } finally {
@@ -646,7 +972,7 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
     }
   }
 
-  function cerrarHogar() {
+  function limpiarFlujoCenso(mensaje = "") {
     setFamiliaId(null);
     setCedulaJefe(null);
     setMiembros([]);
@@ -662,14 +988,29 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
     setTelNuevo("");
     setAgregandoTel(false);
     setCedula("");
-    setMenorAbierto(false);
+    setLetra("V");
+    setPestanaMiembros("adultos");
     setMenor(formMenorVacio());
     setErrorMenor("");
     setEsJefe(null);
     setConfirmoDuplicado(false);
     resetDamnificacion();
     setNivelHogar(null);
-    setMensaje("Hogar cerrado. Puede iniciar otro con la cédula del siguiente jefe.");
+    limpiarFotoLocal();
+    setErrorBusqueda("");
+    setMensaje(mensaje);
+    setPasoEnfoque("cedula");
+  }
+
+  function cerrarHogar() {
+    limpiarFlujoCenso("Hogar cerrado. Puede iniciar otro con la cédula del siguiente jefe.");
+  }
+
+  function reiniciarFlujoCenso() {
+    limpiarFlujoCenso("");
+    window.setTimeout(() => {
+      refPasoCedula.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   }
 
   function toggleTelefono(t: string) {
@@ -685,14 +1026,6 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
     setTelsConfirmados((prev) => (prev.includes(t) ? prev : [...prev, t]));
     setTelNuevo("");
     setAgregandoTel(false);
-  }
-
-  /** Consulta la ficha de un familiar con un toque (usa la caché). */
-  function verFamiliar(f: FamiliarNexus) {
-    const l: Letra = f.letra === "E" ? "E" : "V";
-    setLetra(l);
-    setCedula(soloDigitos(f.cedula));
-    void onBuscar(undefined, { cedulaBuscar: f.cedula, letraBuscar: l });
   }
 
   const hayHogar = Boolean(familiaId);
@@ -717,7 +1050,103 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
     estadoNominal && estadoNominal.otrosCentros.length > 0 && !confirmoDuplicado,
   );
 
-  const jefeHogar = useMemo(() => miembros.find((m) => m.es_jefe) ?? null, [miembros]);
+  // Miga de pan de pasos: cada paso apunta a su sección en pantalla; solo se
+  // puede saltar a los pasos cuya sección está montada (ya alcanzados).
+  // `pasoFlujo` = el más avanzado según el estado; `pasoEnfoque` = el que el
+  // usuario mira (miga + borde verde), y puede ir atrás sin perder el avance.
+  const refPasoCedula = useRef<HTMLDivElement | null>(null);
+  const refPasoIdentidad = useRef<HTMLDivElement | null>(null);
+  const refPasoDamnificacion = useRef<HTMLDivElement | null>(null);
+  const refPasoHogar = useRef<HTMLDivElement | null>(null);
+  const [pasoEnfoque, setPasoEnfoque] = useState<PasoCensoId>("cedula");
+
+  const pasoFlujo: PasoCensoId = persona
+    ? !hayHogar && esJefe === true
+      ? "damnificacion"
+      : "identidad"
+    : hayHogar
+      ? "hogar"
+      : "cedula";
+
+  // Cuando el flujo avanza (o se reinicia), el enfoque sigue al tip y
+  // la vista baja a esa caja. Si el usuario vuelve atrás por la miga,
+  // solo cambia `pasoEnfoque` (el tip no se mueve). El primer montaje
+  // no hace scroll (evita un salto al abrir /censo).
+  const pasoFlujoInicial = useRef(true);
+  useEffect(() => {
+    setPasoEnfoque(pasoFlujo);
+    if (pasoFlujoInicial.current) {
+      pasoFlujoInicial.current = false;
+      return;
+    }
+    const ref = {
+      cedula: refPasoCedula,
+      identidad: refPasoIdentidad,
+      damnificacion: refPasoDamnificacion,
+      hogar: refPasoHogar,
+    }[pasoFlujo];
+    window.setTimeout(() => {
+      ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }, [pasoFlujo]);
+
+  const pasosCenso: PasoCenso[] = useMemo(() => {
+    const hayPersona = persona != null;
+    const damnificacionAlcanzada =
+      hayHogar || (hayPersona && esJefe === true);
+    return [
+      {
+        id: "cedula",
+        label: "Cédula",
+        estado: pasoEnfoque === "cedula" ? "actual" : "completado",
+        disponible: true,
+      },
+      {
+        id: "identidad",
+        label: "Identidad",
+        estado:
+          pasoEnfoque === "identidad"
+            ? "actual"
+            : hayHogar || damnificacionAlcanzada
+              ? "completado"
+              : "pendiente",
+        disponible: hayPersona,
+      },
+      {
+        id: "damnificacion",
+        label: "Damnificación",
+        estado:
+          pasoEnfoque === "damnificacion"
+            ? "actual"
+            : hayHogar
+              ? "completado"
+              : "pendiente",
+        disponible: damnificacionAlcanzada,
+      },
+      {
+        id: "hogar",
+        label: "Hogar",
+        estado:
+          pasoEnfoque === "hogar" ? "actual" : hayHogar ? "completado" : "pendiente",
+        disponible: hayHogar,
+      },
+    ];
+  }, [persona, esJefe, hayHogar, pasoEnfoque]);
+
+  function irAPaso(id: PasoCensoId) {
+    setPasoEnfoque(id);
+    const ref = {
+      cedula: refPasoCedula,
+      identidad: refPasoIdentidad,
+      damnificacion: refPasoDamnificacion,
+      hogar: refPasoHogar,
+    }[id];
+    // Si el paso monta al enfocarlo (p. ej. damnificación tras crear hogar),
+    // esperar al paint antes de hacer scroll.
+    window.setTimeout(() => {
+      ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
 
   if (errorSesion) {
     return (
@@ -740,6 +1169,48 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
 
   return (
     <div className="space-y-4">
+      {/* Miga de pan de pasos: fija arriba para orientarse y saltar entre
+          secciones mientras se recorre el formulario largo en móvil. */}
+      <div className="sticky top-0 z-20 -mx-4 flex items-center gap-2 border-b bg-background/90 px-5 py-2 backdrop-blur">
+        <MigaPasosCenso className="min-w-0 flex-1" pasos={pasosCenso} onIr={irAPaso} />
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="shrink-0 gap-1.5 text-muted-foreground"
+              disabled={
+                !hayHogar &&
+                !persona &&
+                !cedula &&
+                esJefe == null &&
+                !estatusVivienda
+              }
+              title="Reiniciar el censo desde el inicio"
+            >
+              <RotateCcw className="size-3.5" />
+              <span className="hidden min-[420px]:inline">Reiniciar</span>
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Reiniciar el censo?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se limpia la búsqueda, la ficha y el hogar en curso en esta pantalla.
+                Lo ya guardado en la base nominal no se borra.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={reiniciarFlujoCenso}>
+                Reiniciar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+
       {/* Campamento destino: siempre visible para que no haya dudas de dónde
           queda registrado el hogar. */}
       <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-card px-3 py-2.5 shadow-lg">
@@ -763,114 +1234,36 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
         ) : null}
       </div>
 
-      <EstadoNexusApi onEstado={setNexusEnLinea} senalConsulta={senalConsulta} />
+      <EstadoNexusApi onEstado={notificarEstadoNexus} senalConsulta={senalConsulta} />
 
-      <Card>
-        <CardHeader className="pb-3">
+      {/* Paso inicial: búsqueda del jefe (solo antes de crear el hogar). */}
+      {!hayHogar ? (
+      <Card
+        ref={refPasoCedula}
+        className={cn(
+          "scroll-mt-14 transition-[border-color,box-shadow]",
+          pasoEnfoque === "cedula" && "border-primary ring-1 ring-primary/40",
+        )}
+      >
+        <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            {hayHogar ? <Home className="size-4" /> : <ShieldCheck className="size-4" />}
-            {hayHogar ? "Hogar en registro" : "Censo por cédula"}
+            <ShieldCheck className="size-4" />
+            Censo por cédula
           </CardTitle>
-          {!hayHogar ? (
-            <CardDescription>
-              Digite la cédula, verifique la identidad y registre el hogar.
-              <span className="block mt-1">Empiece por el jefe de familia.</span>
-            </CardDescription>
-          ) : null}
+          <CardDescription>
+            Empiece por el <strong className="font-medium text-foreground">jefe/a de familia</strong>.
+            Verifique la identidad y cree el hogar; luego agregue al resto.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {hayHogar ? (
-            <>
-              {/* Jefe del hogar activo: la referencia de todo lo que sigue. */}
-              <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2.5">
-                <Home className="size-4 shrink-0 text-primary" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    Jefe/a de familia
-                  </p>
-                  <p className="truncate text-sm font-semibold">
-                    {jefeHogar?.nombre || "—"}
-                    <span className="ml-2 font-mono text-xs font-normal text-muted-foreground">
-                      {cedulaJefe ? formatearCedula(cedulaJefe, "V") : ""}
-                    </span>
-                  </p>
-                </div>
-                <Badge variant="secondary" className="shrink-0">
-                  {miembros.length} {miembros.length === 1 ? "miembro" : "miembros"}
-                </Badge>
-                {nivelHogar ? (
-                  (() => {
-                    const nivel = META_NIVEL_AFECTACION[
-                      nivelAfectacionHogar(nivelHogar.estatusVivienda, nivelHogar.fallecidos, nivelHogar.desaparecidos)
-                    ];
-                    return (
-                      <Badge
-                        variant="outline"
-                        className="shrink-0"
-                        style={{ borderColor: nivel.color, color: nivel.color }}
-                      >
-                        {nivel.emoji} {nivel.label}
-                      </Badge>
-                    );
-                  })()
-                ) : null}
-              </div>
-              {/* Orden recomendado del levantamiento. */}
-              <ol className="space-y-1 text-xs text-muted-foreground">
-                <li className="flex items-start gap-1.5">
-                  <Check className="size-3.5 mt-px shrink-0 text-emerald-600" />
-                  <span>Jefe/a verificado y registrado.</span>
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="font-semibold text-foreground shrink-0">2.</span>
-                  <span>
-                    Agregue ahora a los <span className="font-medium text-foreground">adultos</span>{" "}
-                    (cónyuge, padres, hermanos): digite su cédula abajo o marque
-                    los familiares detectados.
-                  </span>
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="font-semibold text-foreground shrink-0">3.</span>
-                  <span>
-                    De último los <span className="font-medium text-foreground">menores</span>: con
-                    cédula búsquelos igual; sin cédula use «Agregar menor» en la
-                    tarjeta del hogar.
-                  </span>
-                </li>
-              </ol>
-            </>
-          ) : null}
-          <form onSubmit={onBuscar} className="flex flex-wrap gap-2 items-end">
-            <div className="w-20">
-              <Label className="text-xs">Tipo</Label>
-              <Select value={letra} onValueChange={(v) => setLetra(v as Letra)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="V">V-</SelectItem>
-                  <SelectItem value="E">E-</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex-1 min-w-[10rem]">
-              <Label className="text-xs">
-                {hayHogar ? "Cédula del siguiente familiar" : "Cédula"}
-              </Label>
-              <Input
-                inputMode="numeric"
-                autoComplete="off"
-                placeholder="17089732"
-                value={cedula}
-                onChange={(e) => setCedula(soloDigitos(e.target.value))}
-                className="font-mono text-lg tracking-wide"
-              />
-            </div>
-            <Button type="submit" disabled={buscando || cedula.length < 5}>
-              {buscando ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
-              Buscar
-            </Button>
-          </form>
+          <BuscadorCedula
+            letra={letra}
+            onLetra={setLetra}
+            cedula={cedula}
+            onCedula={setCedula}
+            buscando={buscando}
+            onSubmit={onBuscar}
+          />
           {errorBusqueda ? (
             <p className="text-sm text-destructive flex items-start gap-2">
               <AlertTriangle className="size-4 mt-0.5 shrink-0" />
@@ -891,9 +1284,430 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
           ) : null}
         </CardContent>
       </Card>
+      ) : null}
+
+      {/* Vista hogar: 1) miembros arriba  2) añadir abajo */}
+      {hayHogar ? (
+        <Card
+          ref={refPasoHogar}
+          className={cn(
+            "scroll-mt-14 transition-[border-color,box-shadow]",
+            pasoEnfoque === "hogar" && "border-primary ring-1 ring-primary/40",
+          )}
+        >
+          <CardHeader className="pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="size-4" />
+                Miembros del hogar
+              </CardTitle>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge variant="secondary">
+                  {miembros.length} {miembros.length === 1 ? "miembro" : "miembros"}
+                </Badge>
+                {nivelHogar ? (
+                  (() => {
+                    const nivel = META_NIVEL_AFECTACION[
+                      nivelAfectacionHogar(
+                        nivelHogar.estatusVivienda,
+                        nivelHogar.fallecidos,
+                        nivelHogar.desaparecidos,
+                      )
+                    ];
+                    return (
+                      <Badge
+                        variant="outline"
+                        style={{ borderColor: nivel.color, color: nivel.color }}
+                      >
+                        {nivel.emoji} {nivel.label}
+                      </Badge>
+                    );
+                  })()
+                ) : null}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <ul className="space-y-2">
+              {miembros.map((m, i) => {
+                const edad = calcularEdad(m.fechaNacimiento);
+                return (
+                  <li
+                    key={m.alojamientoId || m.refugiadoId}
+                    className="flex items-center gap-2.5 rounded-lg border bg-card px-2.5 py-2"
+                  >
+                    <span className="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-muted-foreground">
+                      {i + 1}
+                    </span>
+                    <AvatarMiembro fotoUrl={m.fotoUrl} nombre={m.nombre} />
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <p className="truncate text-sm font-semibold leading-tight">
+                        {m.nombre}
+                      </p>
+                      <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                        <span className="font-mono">
+                          {m.cedula
+                            ? formatearCedula(m.cedula, "V")
+                            : "Sin cédula"}
+                        </span>
+                        {edad != null ? (
+                          <span className="tabular-nums">{edad} años</span>
+                        ) : null}
+                      </p>
+                      <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground/90">
+                        {m.creadaTs > 0 ? (
+                          <span className="tabular-nums">
+                            {fechaHoraCorta(m.creadaTs)}
+                          </span>
+                        ) : null}
+                        <Badge
+                          variant={m.es_jefe ? "default" : "secondary"}
+                          className="h-4 px-1 text-[10px]"
+                        >
+                          {m.es_jefe ? "Jefe de hogar" : m.parentesco || "Familiar"}
+                        </Badge>
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0 text-destructive hover:text-destructive"
+                      title="Quitar del hogar"
+                      onClick={() => setEliminarMiembro(m)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+            {mensaje && !persona ? (
+              <p className="text-sm text-emerald-700 dark:text-emerald-400 flex items-start gap-2">
+                <Check className="size-4 mt-0.5 shrink-0" />
+                {mensaje}
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {hayHogar ? (
+        <Card
+          ref={refPasoCedula}
+          className={cn(
+            "scroll-mt-14 transition-[border-color,box-shadow]",
+            (pasoEnfoque === "cedula") &&
+              "border-primary ring-1 ring-primary/40",
+          )}
+        >
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <UserPlus className="size-4" />
+              Añada miembros al hogar
+            </CardTitle>
+            <CardDescription>
+              Quien agregue aparece arriba en «Miembros del hogar».
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div
+              className="grid grid-cols-2 gap-2"
+              role="tablist"
+              aria-label="Tipo de miembro"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={pestanaMiembros === "adultos"}
+                className={cn(
+                  "flex h-11 items-center justify-center gap-2 rounded-xl border-2 text-sm font-semibold shadow-sm transition-colors",
+                  pestanaMiembros === "adultos"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-muted/50 hover:text-foreground",
+                )}
+                onClick={() => {
+                  setPestanaMiembros("adultos");
+                  setErrorMenor("");
+                }}
+              >
+                <Search className="size-4 shrink-0" />
+                Adultos
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={pestanaMiembros === "sin_cedula"}
+                className={cn(
+                  "flex h-11 items-center justify-center gap-2 rounded-xl border-2 text-sm font-semibold shadow-sm transition-colors",
+                  pestanaMiembros === "sin_cedula"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-muted/50 hover:text-foreground",
+                )}
+                onClick={() => setPestanaMiembros("sin_cedula")}
+              >
+                <Baby className="size-4 shrink-0" />
+                <span className="truncate">Menores / sin cédula</span>
+              </button>
+            </div>
+
+            {pestanaMiembros === "adultos" ? (
+              <div className="space-y-3">
+                <BuscadorCedula
+                  letra={letra}
+                  onLetra={setLetra}
+                  cedula={cedula}
+                  onCedula={setCedula}
+                  buscando={buscando}
+                  onSubmit={onBuscar}
+                  labelCedula="Cédula del familiar"
+                />
+                {errorBusqueda ? (
+                  <p className="text-sm text-destructive flex items-start gap-2">
+                    <AlertTriangle className="size-4 mt-0.5 shrink-0" />
+                    {errorBusqueda}
+                  </p>
+                ) : null}
+                {avisoOtros.length > 0 ? (
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    Atención: esta persona también figura activa en otro(s) campamento(s):{" "}
+                    {avisoOtros.map(nombreCentro).join(", ")}.
+                  </p>
+                ) : null}
+
+                {familiaresDisponibles.length > 0 ? (
+                  <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+                    <p className="text-sm font-medium flex items-center gap-2">
+                      <Users className="size-4" />
+                      Familiares detectados — ¿quiénes están aquí?
+                    </p>
+                    <ul className="space-y-2">
+                      {familiaresDisponibles.map((f) => (
+                        <li
+                          key={f.cedula}
+                          className={cn(
+                            "flex flex-wrap items-center gap-2 rounded-md px-2 py-1.5",
+                            seleccionFam[f.cedula] ? "bg-muted/60" : "",
+                          )}
+                        >
+                          <Checkbox
+                            checked={Boolean(seleccionFam[f.cedula])}
+                            onCheckedChange={(v) =>
+                              setSeleccionFam((s) => ({
+                                ...s,
+                                [f.cedula]: Boolean(v),
+                              }))
+                            }
+                            id={`fam-${f.cedula}`}
+                          />
+                          <label
+                            htmlFor={`fam-${f.cedula}`}
+                            className="flex-1 text-sm cursor-pointer min-w-[8rem]"
+                          >
+                            <span className="font-medium">{f.nombre || "—"}</span>
+                            <span className="text-muted-foreground font-mono text-xs ml-2">
+                              {formatearCedula(f.cedula, f.letra === "E" ? "E" : "V")}
+                            </span>
+                          </label>
+                          <Select
+                            value={
+                              parentescoFam[f.cedula] || f.parentesco || "Otro familiar"
+                            }
+                            onValueChange={(v) =>
+                              setParentescoFam((p) => ({ ...p, [f.cedula]: v }))
+                            }
+                          >
+                            <SelectTrigger className="w-[9.5rem] h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {PARENTESCOS_JEFE.map((p) => (
+                                <SelectItem key={p} value={p}>
+                                  {p}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      type="button"
+                      disabled={
+                        guardando ||
+                        !familiaresDisponibles.some((f) => seleccionFam[f.cedula])
+                      }
+                      onClick={onAgregarFamiliaresMarcados}
+                    >
+                      {guardando ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <UserPlus className="size-4" />
+                      )}
+                      Agregar marcados al hogar
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div>
+                <form onSubmit={onAgregarMenor} className="space-y-3">
+                  <p className="text-[11px] text-muted-foreground">
+                    Para menores u otras personas sin documento. Queda en este hogar
+                    sin verificación SAIME; si luego aparece la cédula, se completa en
+                    la ficha.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="menor-pn" className="text-xs">
+                        Primer nombre
+                      </Label>
+                      <Input
+                        id="menor-pn"
+                        value={menor.primer_nombre}
+                        onChange={(e) =>
+                          setMenor((m) => ({ ...m, primer_nombre: e.target.value }))
+                        }
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="menor-sn" className="text-xs text-muted-foreground">
+                        Segundo nombre
+                      </Label>
+                      <Input
+                        id="menor-sn"
+                        value={menor.segundo_nombre}
+                        onChange={(e) =>
+                          setMenor((m) => ({ ...m, segundo_nombre: e.target.value }))
+                        }
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="menor-pa" className="text-xs">
+                        Primer apellido
+                      </Label>
+                      <Input
+                        id="menor-pa"
+                        value={menor.primer_apellido}
+                        onChange={(e) =>
+                          setMenor((m) => ({ ...m, primer_apellido: e.target.value }))
+                        }
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="menor-sa" className="text-xs text-muted-foreground">
+                        Segundo apellido
+                      </Label>
+                      <Input
+                        id="menor-sa"
+                        value={menor.segundo_apellido}
+                        onChange={(e) =>
+                          setMenor((m) => ({ ...m, segundo_apellido: e.target.value }))
+                        }
+                        autoComplete="off"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Sexo</Label>
+                      <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-border">
+                        {(["M", "F"] as const).map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            className={cn(
+                              "h-9 text-xs font-semibold transition-colors",
+                              s === "F" && "border-l border-border",
+                              menor.sexo === s
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-background text-foreground hover:bg-muted/80",
+                            )}
+                            onClick={() => setMenor((m) => ({ ...m, sexo: s }))}
+                          >
+                            {s === "M" ? "Masc." : "Fem."}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Parentesco con el jefe</Label>
+                      <Select
+                        value={menor.parentesco}
+                        onValueChange={(v) => setMenor((m) => ({ ...m, parentesco: v }))}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PARENTESCOS_JEFE.map((p) => (
+                            <SelectItem key={p} value={p}>
+                              {p}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="menor-fnac" className="text-xs">
+                        Fecha de nacimiento
+                      </Label>
+                      <Input
+                        id="menor-fnac"
+                        type="date"
+                        value={menor.fecha_nacimiento}
+                        onChange={(e) =>
+                          setMenor((m) => ({ ...m, fecha_nacimiento: e.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="menor-edad" className="text-xs">
+                        Edad (si no hay fecha)
+                      </Label>
+                      <Input
+                        id="menor-edad"
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={120}
+                        value={menor.edad}
+                        onChange={(e) =>
+                          setMenor((m) => ({ ...m, edad: e.target.value }))
+                        }
+                        placeholder="Aproximada"
+                      />
+                    </div>
+                  </div>
+                  {errorMenor ? (
+                    <p className="text-xs text-destructive">{errorMenor}</p>
+                  ) : null}
+                  <Button type="submit" className="w-full" disabled={guardando}>
+                    {guardando ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <UserPlus className="size-4" />
+                    )}
+                    Agregar al hogar
+                  </Button>
+                </form>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {persona ? (
-        <Card className="overflow-hidden">
+        <Card
+          ref={refPasoIdentidad}
+          className={cn(
+            "overflow-hidden scroll-mt-14 transition-[border-color,box-shadow]",
+            pasoEnfoque === "identidad" && "border-primary ring-1 ring-primary/40",
+          )}
+        >
           <CardContent className="pt-5 space-y-4">
             {persona.fallecido ? (
               <div className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
@@ -911,17 +1725,89 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
                 </span>
               </div>
             ) : null}
-            <div className="flex gap-4 items-start">
-              <Avatar size="lg" className="size-16 rounded-xl after:rounded-xl">
-                <AvatarFallback className="rounded-xl text-lg font-semibold">
-                  {inicialesPersona(persona)}
-                </AvatarFallback>
-              </Avatar>
+            <div className="flex gap-3 items-start">
+              {/* Foto de verificación: toque grande para cámara en el teléfono. */}
+              <div className="flex w-[5.5rem] shrink-0 flex-col items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => inputFotoCamaraRef.current?.click()}
+                  className={cn(
+                    "relative flex size-[5.5rem] flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-colors",
+                    fotoPreviewUrl
+                      ? "border-primary/40 bg-muted"
+                      : "border-muted-foreground/40 bg-muted/40 hover:border-primary/50 hover:bg-muted",
+                  )}
+                  aria-label={fotoPreviewUrl ? "Cambiar foto (cámara)" : "Añadir foto con la cámara"}
+                >
+                  {fotoPreviewUrl ? (
+                    <img
+                      src={fotoPreviewUrl}
+                      alt={`Foto de ${persona.nombre_completo}`}
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <>
+                      <Camera className="size-7 text-muted-foreground" />
+                      <span className="mt-1 px-1 text-center text-[10px] font-medium leading-tight text-muted-foreground">
+                        Añadir foto
+                      </span>
+                    </>
+                  )}
+                </button>
+                <div className="flex w-full flex-col gap-0.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-full gap-1 px-1 text-[11px]"
+                    onClick={() => inputFotoCamaraRef.current?.click()}
+                  >
+                    <Camera className="size-3.5" />
+                    Cámara
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-full gap-1 px-1 text-[11px] text-muted-foreground"
+                    onClick={() => inputFotoGaleriaRef.current?.click()}
+                  >
+                    <ImagePlus className="size-3.5" />
+                    Galería
+                  </Button>
+                </div>
+                <input
+                  ref={inputFotoCamaraRef}
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  className="hidden"
+                  onChange={(e) => {
+                    onElegirFoto(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+                <input
+                  ref={inputFotoGaleriaRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    onElegirFoto(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
               <div className="min-w-0 flex-1 space-y-1">
                 <p className="font-semibold text-lg leading-tight">{persona.nombre_completo}</p>
                 <p className="font-mono text-sm text-muted-foreground">
                   {formatearCedula(persona.cedula, persona.letra === "E" ? "E" : "V")}
                 </p>
+                {!fotoPreviewUrl ? (
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    Compare con la persona frente a usted. Puede tomar la foto con la cámara del teléfono.
+                  </p>
+                ) : null}
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {persona.sexo ? <Badge variant="secondary">{persona.sexo}</Badge> : null}
                   {persona.edad != null ? <Badge variant="secondary">{persona.edad} años</Badge> : null}
@@ -931,12 +1817,16 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
                   {persona.estado_civil ? (
                     <Badge variant="outline">{persona.estado_civil}</Badge>
                   ) : null}
-                  {persona.tiene_foto_saime ? (
+                  {fotoPreviewUrl ? (
+                    <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 border-transparent gap-1">
+                      <Camera className="size-3" /> Foto de campo
+                    </Badge>
+                  ) : persona.tiene_foto_saime ? (
                     <Badge variant="outline" className="gap-1">
-                      <ShieldCheck className="size-3" /> SAIME
+                      <ShieldCheck className="size-3" /> SAIME (pendiente)
                     </Badge>
                   ) : (
-                    <Badge variant="outline">Sin foto en respuesta</Badge>
+                    <Badge variant="outline">Sin foto SAIME</Badge>
                   )}
                   {estadoNominal?.enEsteCentro ? (
                     <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 border-transparent">
@@ -979,28 +1869,41 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
                   <strong className="text-foreground">(3)</strong> un error del sistema. No continúe sin
                   aclararlo con la persona.
                 </p>
-                {analistasContacto.filter((a) => a.whatsapp).length > 0 ? (
+                {analistasContacto.filter(
+                  (a) => a.telegram && tieneTelefonoContacto(a.telegram),
+                ).length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {analistasContacto
-                      .filter((a) => a.whatsapp)
+                      .filter((a) => a.telegram && tieneTelefonoContacto(a.telegram))
                       .map((a) => {
-                        const href = whatsappHref(
-                          a.whatsapp!,
-                          mensajeReporteDuplicado(persona, estadoNominal, centroNombre, nombreCentro),
-                        );
+                        const href = telegramHref(a.telegram!);
                         if (!href) return null;
+                        const mensaje = mensajeReporteDuplicado(
+                          persona,
+                          estadoNominal,
+                          centroNombre,
+                          nombreCentro,
+                        );
                         return (
                           <Button
-                            key={a.nombre}
+                            key={`${a.nombre}-${a.telegram}`}
                             asChild
                             type="button"
                             size="sm"
                             variant="outline"
-                            className="gap-1.5 border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+                            className="gap-1.5 border-sky-500/40 text-sky-600 dark:text-sky-400"
                           >
-                            <a href={href} target="_blank" rel="noreferrer">
-                              <MessageCircle className="size-3.5" />
-                              Reportar a {a.nombre} (WhatsApp)
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={() => {
+                                void copiarTexto(mensaje);
+                              }}
+                              title="Abre Telegram y copia el reporte al portapapeles para pegarlo"
+                            >
+                              <IconoTelegram className="size-3.5" />
+                              Reportar a {a.nombre} (Telegram)
                             </a>
                           </Button>
                         );
@@ -1008,8 +1911,8 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    No hay analista SAE con WhatsApp configurado para este campamento; repórtelo por otra
-                    vía antes de continuar.
+                    No hay analista SAE con Telegram configurado para este campamento; repórtelo por
+                    otra vía antes de continuar.
                   </p>
                 )}
                 <label className="flex items-start gap-2 pt-1 text-sm">
@@ -1026,39 +1929,53 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
               </div>
             ) : null}
 
-            {/* Se pregunta antes de mostrar dirección/teléfonos/damnificación:
-                esas preguntas son del hogar, no tiene sentido hacérselas a
-                quien no lo va a crear. */}
+            {/* Se pregunta al censador antes de dirección/teléfonos/damnificación:
+                esas preguntas son del hogar; solo el jefe/a lo crea. */}
             {!hayHogar ? (
-              <div className="rounded-lg border bg-muted/40 px-3 py-2.5 space-y-2">
-                <p className="text-sm font-medium">¿Es usted el Jefe o Jefa de Familia?</p>
-                <div className="flex gap-2">
-                  <Button
+              <div className="space-y-2 rounded-lg border bg-muted/40 px-3 py-3">
+                <p className="text-sm font-medium leading-snug">
+                  ¿Es esta persona el jefe de una familia?
+                </p>
+                <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-muted/30 shadow-sm">
+                  <button
                     type="button"
-                    size="sm"
-                    variant={esJefe === true ? "default" : "outline"}
+                    className={cn(
+                      "h-10 text-sm font-semibold transition-colors",
+                      esJefe === true
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-foreground hover:bg-muted/80",
+                    )}
                     onClick={() => setEsJefe(true)}
                   >
                     Sí
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     type="button"
-                    size="sm"
-                    variant={esJefe === false ? "default" : "outline"}
+                    className={cn(
+                      "h-10 border-l border-border text-sm font-semibold transition-colors",
+                      esJefe === false
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-foreground hover:bg-muted/80",
+                    )}
                     onClick={() => setEsJefe(false)}
                   >
                     No
-                  </Button>
+                  </button>
                 </div>
                 {esJefe === false ? (
                   <div className="space-y-2 pt-1">
                     <p className="text-xs text-muted-foreground">
-                      Busque al jefe/a de familia para crear el hogar. Podrá agregar a{" "}
-                      {persona.nombre_completo} después, desde el hogar ya creado.
+                      Busque primero al jefe/a de familia para crear el hogar. Después podrá
+                      agregar a {persona.nombre_completo} como miembro.
                     </p>
-                    <Button type="button" variant="outline" size="sm" onClick={volverABuscarJefe}>
-                      <Search className="size-3.5" />
-                      Buscar al Jefe/a de Familia
+                    <Button
+                      type="button"
+                      size="default"
+                      className="h-10 w-full gap-2 text-sm font-semibold shadow-sm"
+                      onClick={volverABuscarJefe}
+                    >
+                      <Search className="size-4" />
+                      Buscar al jefe/a de familia
                     </Button>
                   </div>
                 ) : null}
@@ -1067,12 +1984,45 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
 
             {hayHogar || esJefe === true ? (
               <>
+            <Collapsible
+              open={infoSaimeAbierta}
+              onOpenChange={setInfoSaimeAbierta}
+              className="rounded-lg border bg-muted/20"
+            >
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-muted/40"
+                >
+                  <ShieldCheck className="size-4 shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1 text-sm font-semibold leading-snug">
+                    Información del SAIME y otros
+                  </span>
+                  {(persona.telefonos?.length ?? 0) + telsAgregados.length > 0 ? (
+                    <Badge variant="secondary" className="h-5 shrink-0 tabular-nums text-[10px]">
+                      {(persona.telefonos?.length ?? 0) + telsAgregados.length} tel.
+                    </Badge>
+                  ) : null}
+                  {persona.familiares.length > 0 ? (
+                    <Badge variant="secondary" className="h-5 shrink-0 tabular-nums text-[10px]">
+                      {persona.familiares.length} fam.
+                    </Badge>
+                  ) : null}
+                  <ChevronDown
+                    className={cn(
+                      "size-4 shrink-0 text-muted-foreground transition-transform",
+                      infoSaimeAbierta && "rotate-180",
+                    )}
+                  />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 border-t px-3 py-3">
             {/* Procedencia: clave para detectar a quien no viene de la zona
                 afectada (indigencia, oportunismo). Verificar de palabra. */}
-            <div className="rounded-lg border bg-muted/40 px-3 py-2.5 space-y-1">
+            <div className="space-y-1">
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
                 <MapPin className="size-3.5" />
-                Dirección registrada — verifique la procedencia
+                Dirección registrada
               </p>
               {persona.ubicacion_fiscal &&
               (persona.ubicacion_fiscal.estado ||
@@ -1096,21 +2046,14 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
                 <p className="text-sm leading-snug">{persona.direccion_fiscal}</p>
               ) : (
                 <p className="text-sm text-amber-700 dark:text-amber-400">
-                  Sin dirección en el sistema. Pregunte de dónde viene y de ser
-                  posible pida un comprobante o testigo del sector.
+                  Sin dirección en el sistema.
                 </p>
               )}
-              <p className="text-[11px] text-muted-foreground">
-                Pida a la persona que diga su dirección ANTES de leerle esta, y
-                confirme que corresponde a una zona afectada por la tragedia.
-              </p>
             </div>
 
-            {/* Teléfonos: un toque marca el número como confirmado con la
-                persona; el confirmado queda como principal de su ficha. */}
             <div className="space-y-1.5">
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Teléfonos — toque para marcar confirmado
+                Teléfonos
               </p>
               <div className="flex flex-wrap items-center gap-1.5">
                 {[...(persona.telefonos ?? []), ...telsAgregados].map((t) => {
@@ -1163,15 +2106,8 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
                   </button>
                 )}
               </div>
-              {telsConfirmados.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">
-                  Pregunte «¿cuál es su teléfono?» y confirme el que coincida.
-                </p>
-              ) : null}
             </div>
 
-            {/* Familiares según el registro: contrastar con lo que la persona
-                declara (p. ej. familiares fallecidos hace años). */}
             {persona.familiares.length > 0 ? (
               <div className="space-y-1.5">
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
@@ -1204,24 +2140,10 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
                             Falleció{f.fecha_fallecimiento ? ` ${f.fecha_fallecimiento}` : ""}
                           </Badge>
                         ) : null}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="ml-auto h-7 px-2 text-xs"
-                          disabled={buscando || guardando}
-                          onClick={() => verFamiliar(f)}
-                        >
-                          <Search className="size-3.5" />
-                          Ver
-                        </Button>
                       </li>
                     );
                   })}
                 </ul>
-                <p className="text-[11px] text-muted-foreground">
-                  Pregunte por el grupo familiar y contraste con esta lista.
-                </p>
               </div>
             ) : null}
 
@@ -1258,433 +2180,24 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
                 ) : null}
               </div>
             ) : null}
+              </CollapsibleContent>
+            </Collapsible>
 
-            {!hayHogar ? (
-              <div className="space-y-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
-                <p className="text-sm font-medium flex items-center gap-2">
-                  <Building2 className="size-4" />
-                  Damnificación por el terremoto
-                </p>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Severidad de la vivienda (obligatorio)</Label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {SEVERIDAD_VIVIENDA_OPCIONES.map((op) => (
-                      <Button
-                        key={op.valor}
-                        type="button"
-                        size="sm"
-                        variant={estatusVivienda === op.valor ? "default" : "outline"}
-                        className="h-auto justify-start py-2 text-xs"
-                        onClick={() => setEstatusVivienda(op.valor)}
-                      >
-                        {op.emoji} {op.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">
-                    Ubicación de la vivienda afectada (opcional)
-                  </Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[...UBICACIONES_VIVIENDA, "Otro"].map((op) => (
-                      <Button
-                        key={op}
-                        type="button"
-                        size="sm"
-                        variant={ubicacionVivienda === op ? "default" : "outline"}
-                        onClick={() => setUbicacionVivienda(op)}
-                      >
-                        {op}
-                      </Button>
-                    ))}
-                  </div>
-                  {ubicacionVivienda === "Otro" ? (
-                    <Input
-                      placeholder="Estado"
-                      value={ubicacionOtro}
-                      onChange={(e) => setUbicacionOtro(e.target.value)}
-                      className="h-8 text-sm"
-                    />
-                  ) : null}
-                </div>
-
-                <div className="flex items-center justify-between gap-2">
-                  <Label className="text-xs text-muted-foreground flex-1">
-                    Miembros de la familia damnificados (incluyéndolo)
-                  </Label>
-                  <StepperInline value={miembrosDamnificados} onChange={setMiembrosDamnificados} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Fallecidos confirmados</Label>
-                    <StepperInline value={fallecidosCount} onChange={setFallecidosCount} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Desaparecidos</Label>
-                    <StepperInline value={desaparecidosCount} onChange={setDesaparecidosCount} />
-                  </div>
-                </div>
-
-                {fallecidosCount > 0 || desaparecidosCount > 0 ? (
-                  <div className="space-y-2">
-                    {!detalleAbierto ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => {
-                          setDetalleAbierto(true);
-                          if (detallePerdidas.length === 0) {
-                            setDetallePerdidas([nuevaPerdidaVacia()]);
-                          }
-                        }}
-                      >
-                        <Skull className="size-3.5" />
-                        + Agregar detalle (opcional)
-                      </Button>
-                    ) : (
-                      <div className="space-y-2">
-                        {detallePerdidas.map((f, i) => (
-                          <div key={f.id} className="grid grid-cols-2 gap-1.5 rounded-md border p-2">
-                            <Input
-                              placeholder="Nombre aproximado"
-                              value={f.nombre}
-                              onChange={(e) =>
-                                setDetallePerdidas((prev) =>
-                                  prev.map((x, j) => (j === i ? { ...x, nombre: e.target.value } : x)),
-                                )
-                              }
-                              className="h-8 text-xs"
-                            />
-                            <Select
-                              value={f.parentesco}
-                              onValueChange={(v) =>
-                                setDetallePerdidas((prev) =>
-                                  prev.map((x, j) => (j === i ? { ...x, parentesco: v } : x)),
-                                )
-                              }
-                            >
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {PARENTESCOS_JEFE.map((p) => (
-                                  <SelectItem key={p} value={p}>
-                                    {p}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Input
-                              placeholder="Edad aproximada"
-                              type="number"
-                              inputMode="numeric"
-                              min={0}
-                              max={120}
-                              value={f.edad_aproximada ?? ""}
-                              onChange={(e) =>
-                                setDetallePerdidas((prev) =>
-                                  prev.map((x, j) =>
-                                    j === i
-                                      ? { ...x, edad_aproximada: e.target.value ? Number(e.target.value) : null }
-                                      : x,
-                                  ),
-                                )
-                              }
-                              className="h-8 text-xs"
-                            />
-                            <div className="flex items-center gap-1.5">
-                              <Select
-                                value={f.estado}
-                                onValueChange={(v) =>
-                                  setDetallePerdidas((prev) =>
-                                    prev.map((x, j) =>
-                                      j === i ? { ...x, estado: v as FamiliarSeparado["estado"] } : x,
-                                    ),
-                                  )
-                                }
-                              >
-                                <SelectTrigger className="h-8 flex-1 text-xs">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="fallecido">Fallecido</SelectItem>
-                                  <SelectItem value="desaparecido">Desaparecido</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="size-8 shrink-0 text-rose-400"
-                                onClick={() =>
-                                  setDetallePerdidas((prev) => prev.filter((_, j) => j !== i))
-                                }
-                              >
-                                <Trash2 className="size-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setDetallePerdidas((prev) => [...prev, nuevaPerdidaVacia()])}
-                        >
-                          <Plus className="size-3.5" />
-                          Agregar otro
-                        </Button>
-                      </div>
-                    )}
-                    <p className="text-[11px] text-muted-foreground">
-                      El censo es válido solo con el conteo de arriba; este detalle es opcional.
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
               </>
             ) : null}
 
-            {hayHogar || esJefe === true ? <Separator /> : null}
-
-            {!hayHogar && esJefe === true ? (
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button
-                  className="flex-1"
-                  disabled={guardando || !estatusVivienda || hayDuplicadoSinConfirmar}
-                  onClick={onCrearHogar}
-                >
-                  {guardando ? <Loader2 className="size-4 animate-spin" /> : <Home className="size-4" />}
-                  {estadoNominal?.esJefeAqui
-                    ? "Verificar y reanudar su hogar"
-                    : "Verificar y crear hogar"}
-                </Button>
-              </div>
-            ) : !hayHogar ? null : personaYaEnHogar ? (
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <Check className="size-4 text-emerald-600" />
-                Esta persona ya es miembro del hogar actual.
-              </p>
-            ) : (
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Select value={parentescoDirecto} onValueChange={setParentescoDirecto}>
-                  <SelectTrigger className="sm:w-[11rem]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PARENTESCOS_JEFE.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  className="flex-1"
-                  disabled={guardando || hayDuplicadoSinConfirmar}
-                  onClick={onAgregarComoFamiliar}
-                >
-                  {guardando ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
-                  Agregar al hogar como {parentescoDirecto}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {hayHogar && familiaresDisponibles.length > 0 ? (
-        <Card>
-          <CardContent className="pt-5 space-y-2">
-            <p className="text-sm font-medium flex items-center gap-2">
-              <Users className="size-4" />
-              Familiares detectados del jefe — ¿quiénes están en el campamento?
-            </p>
-            <ul className="space-y-2">
-              {familiaresDisponibles.map((f) => (
-                <li
-                  key={f.cedula}
-                  className={cn(
-                    "flex flex-wrap items-center gap-2 rounded-md px-2 py-1.5",
-                    seleccionFam[f.cedula] ? "bg-muted/60" : "",
-                  )}
-                >
-                  <Checkbox
-                    checked={Boolean(seleccionFam[f.cedula])}
-                    onCheckedChange={(v) =>
-                      setSeleccionFam((s) => ({ ...s, [f.cedula]: Boolean(v) }))
-                    }
-                    id={`fam-${f.cedula}`}
-                  />
-                  <label htmlFor={`fam-${f.cedula}`} className="flex-1 text-sm cursor-pointer min-w-[8rem]">
-                    <span className="font-medium">{f.nombre || "—"}</span>
-                    <span className="text-muted-foreground font-mono text-xs ml-2">
-                      {formatearCedula(f.cedula, f.letra === "E" ? "E" : "V")}
-                    </span>
-                  </label>
-                  <Select
-                    value={parentescoFam[f.cedula] || f.parentesco || "Otro familiar"}
-                    onValueChange={(v) =>
-                      setParentescoFam((p) => ({ ...p, [f.cedula]: v }))
-                    }
-                  >
-                    <SelectTrigger className="w-[9.5rem] h-8">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PARENTESCOS_JEFE.map((p) => (
-                        <SelectItem key={p} value={p}>
-                          {p}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </li>
-              ))}
-            </ul>
-            <Button
-              type="button"
-              disabled={guardando || !familiaresDisponibles.some((f) => seleccionFam[f.cedula])}
-              onClick={onAgregarFamiliaresMarcados}
-            >
-              {guardando ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
-              Agregar marcados al hogar
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {hayHogar ? (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Home className="size-4" />
-              Hogar actual
-            </CardTitle>
-            <CardDescription>
-              Identificado por cédula del jefe {cedulaJefe ? formatearCedula(cedulaJefe, "V") : ""}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <ul className="space-y-1.5">
-              {miembros.map((m) => (
-                <li key={m.refugiadoId} className="flex items-center justify-between gap-2 text-sm">
-                  <span>
-                    <span className="font-medium">{m.nombre}</span>
-                    {m.cedula ? (
-                      <span className="text-muted-foreground font-mono text-xs ml-2">
-                        {formatearCedula(m.cedula, "V")}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground text-xs ml-2">sin documento</span>
-                    )}
-                  </span>
-                  <Badge variant={m.es_jefe ? "default" : "secondary"}>
-                    {m.es_jefe ? "Jefe/a" : m.parentesco || "Familiar"}
-                  </Badge>
-                </li>
-              ))}
-            </ul>
-
-            {!menorAbierto ? (
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full"
-                onClick={() => setMenorAbierto(true)}
-              >
-                <Baby className="size-4" />
-                Agregar menor u otra persona sin cédula
-              </Button>
-            ) : (
-              <form
-                onSubmit={onAgregarMenor}
-                className="space-y-3 rounded-lg border border-sky-500/40 bg-sky-500/5 p-3"
-              >
-                <div>
-                  <p className="text-sm font-medium flex items-center gap-2">
-                    <Baby className="size-4" />
-                    Persona sin documento (menores, sin cédula a mano)
+            {hayHogar ? (
+              <>
+                <Separator />
+                {personaYaEnHogar ? (
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Check className="size-4 text-emerald-600" />
+                    Esta persona ya es miembro del hogar actual.
                   </p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Queda registrada en este hogar sin verificación SAIME. Si luego
-                    aparece la cédula, se puede completar desde la ficha.
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="menor-pn" className="text-xs">Primer nombre</Label>
-                    <Input
-                      id="menor-pn"
-                      value={menor.primer_nombre}
-                      onChange={(e) => setMenor((m) => ({ ...m, primer_nombre: e.target.value }))}
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="menor-sn" className="text-xs text-muted-foreground">
-                      Segundo nombre
-                    </Label>
-                    <Input
-                      id="menor-sn"
-                      value={menor.segundo_nombre}
-                      onChange={(e) => setMenor((m) => ({ ...m, segundo_nombre: e.target.value }))}
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="menor-pa" className="text-xs">Primer apellido</Label>
-                    <Input
-                      id="menor-pa"
-                      value={menor.primer_apellido}
-                      onChange={(e) => setMenor((m) => ({ ...m, primer_apellido: e.target.value }))}
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="menor-sa" className="text-xs text-muted-foreground">
-                      Segundo apellido
-                    </Label>
-                    <Input
-                      id="menor-sa"
-                      value={menor.segundo_apellido}
-                      onChange={(e) => setMenor((m) => ({ ...m, segundo_apellido: e.target.value }))}
-                      autoComplete="off"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Sexo</Label>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {(["M", "F"] as const).map((s) => (
-                        <Button
-                          key={s}
-                          type="button"
-                          size="sm"
-                          variant={menor.sexo === s ? "default" : "outline"}
-                          onClick={() => setMenor((m) => ({ ...m, sexo: s }))}
-                        >
-                          {s === "M" ? "Masc." : "Fem."}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Parentesco con el jefe</Label>
-                    <Select
-                      value={menor.parentesco}
-                      onValueChange={(v) => setMenor((m) => ({ ...m, parentesco: v }))}
-                    >
-                      <SelectTrigger className="w-full">
+                ) : (
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Select value={parentescoDirecto} onValueChange={setParentescoDirecto}>
+                      <SelectTrigger className="sm:w-[11rem]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1695,63 +2208,330 @@ export function CensoNexusPanel({ centroId, centroNombre, tokenTerreno, onCambia
                         ))}
                       </SelectContent>
                     </Select>
+                    <Button
+                      className="flex-1"
+                      disabled={guardando || hayDuplicadoSinConfirmar}
+                      onClick={onAgregarComoFamiliar}
+                    >
+                      {guardando ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
+                      Agregar al hogar como {parentescoDirecto}
+                    </Button>
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="menor-fnac" className="text-xs">Fecha de nacimiento</Label>
-                    <Input
-                      id="menor-fnac"
-                      type="date"
-                      value={menor.fecha_nacimiento}
-                      onChange={(e) =>
-                        setMenor((m) => ({ ...m, fecha_nacimiento: e.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="menor-edad" className="text-xs">
-                      Edad (si no hay fecha)
-                    </Label>
-                    <Input
-                      id="menor-edad"
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      max={120}
-                      value={menor.edad}
-                      onChange={(e) => setMenor((m) => ({ ...m, edad: e.target.value }))}
-                      placeholder="Aproximada"
-                    />
-                  </div>
-                </div>
-                {errorMenor ? (
-                  <p className="text-xs text-destructive">{errorMenor}</p>
-                ) : null}
-                <div className="flex gap-2">
-                  <Button type="submit" className="flex-1" disabled={guardando}>
-                    {guardando ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
-                    Agregar al hogar
-                  </Button>
+                )}
+              </>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Paso 3: damnificación — al crear el hogar, o al volver desde la miga. */}
+      {(!hayHogar && esJefe === true) ||
+      (hayHogar && pasoEnfoque === "damnificacion") ? (
+        <Card
+          ref={refPasoDamnificacion}
+          className={cn(
+            "scroll-mt-14 transition-[border-color,box-shadow]",
+            pasoEnfoque === "damnificacion" && "border-primary ring-1 ring-primary/40",
+          )}
+        >
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Building2 className="size-4" />
+              Damnificación por el terremoto
+            </CardTitle>
+            <CardDescription>
+              Severidad de la vivienda (obligatorio). El resto es opcional.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Severidad de la vivienda (obligatorio)</Label>
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                {SEVERIDAD_VIVIENDA_OPCIONES.map((op) => {
+                  const activo = estatusVivienda === op.valor;
+                  return (
+                    <button
+                      key={op.valor}
+                      type="button"
+                      className={cn(
+                        "flex min-h-9 items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-xs font-semibold transition-colors",
+                        activo
+                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                          : "border-border bg-background text-foreground hover:bg-muted/70",
+                      )}
+                      onClick={() => setEstatusVivienda(op.valor)}
+                    >
+                      <span aria-hidden className="text-sm leading-none">
+                        {op.emoji}
+                      </span>
+                      <span className="leading-snug">{op.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Ubicación de la vivienda afectada (opcional)
+              </Label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[...UBICACIONES_VIVIENDA, "Otro"].map((op) => {
+                  const activo = ubicacionVivienda === op;
+                  return (
+                    <button
+                      key={op}
+                      type="button"
+                      className={cn(
+                        "min-h-9 rounded-lg border px-2 text-xs font-semibold transition-colors",
+                        activo
+                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                          : "border-border bg-background text-foreground hover:bg-muted/70",
+                      )}
+                      onClick={() => setUbicacionVivienda(op)}
+                    >
+                      {op}
+                    </button>
+                  );
+                })}
+              </div>
+              {ubicacionVivienda === "Otro" ? (
+                <Input
+                  placeholder="Estado"
+                  value={ubicacionOtro}
+                  onChange={(e) => setUbicacionOtro(e.target.value)}
+                  className="h-9 text-sm"
+                />
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <FilaContador
+                label="Miembros de la familia damnificados (incluyéndolo)"
+                value={miembrosDamnificados}
+                onChange={setMiembrosDamnificados}
+              />
+              <FilaContador
+                label="Fallecidos confirmados"
+                value={fallecidosCount}
+                onChange={setFallecidosCount}
+              />
+              <FilaContador
+                label="Desaparecidos"
+                value={desaparecidosCount}
+                onChange={setDesaparecidosCount}
+              />
+            </div>
+
+            {fallecidosCount > 0 || desaparecidosCount > 0 ? (
+              <div className="space-y-2">
+                {!detalleAbierto ? (
                   <Button
                     type="button"
                     variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
                     onClick={() => {
-                      setMenorAbierto(false);
-                      setMenor(formMenorVacio());
-                      setErrorMenor("");
+                      setDetalleAbierto(true);
+                      if (detallePerdidas.length === 0) {
+                        setDetallePerdidas([nuevaPerdidaVacia()]);
+                      }
                     }}
                   >
-                    Cancelar
+                    <Skull className="size-3.5" />
+                    + Agregar detalle (opcional)
                   </Button>
-                </div>
-              </form>
-            )}
+                ) : (
+                  <div className="space-y-2">
+                    {detallePerdidas.map((f, i) => (
+                      <div key={f.id} className="grid grid-cols-2 gap-1.5 rounded-md border p-2">
+                        <Input
+                          placeholder="Nombre aproximado"
+                          value={f.nombre}
+                          onChange={(e) =>
+                            setDetallePerdidas((prev) =>
+                              prev.map((x, j) => (j === i ? { ...x, nombre: e.target.value } : x)),
+                            )
+                          }
+                          className="h-8 text-xs"
+                        />
+                        <Select
+                          value={f.parentesco}
+                          onValueChange={(v) =>
+                            setDetallePerdidas((prev) =>
+                              prev.map((x, j) => (j === i ? { ...x, parentesco: v } : x)),
+                            )
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PARENTESCOS_JEFE.map((p) => (
+                              <SelectItem key={p} value={p}>
+                                {p}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          placeholder="Edad aproximada"
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={120}
+                          value={f.edad_aproximada ?? ""}
+                          onChange={(e) =>
+                            setDetallePerdidas((prev) =>
+                              prev.map((x, j) =>
+                                j === i
+                                  ? { ...x, edad_aproximada: e.target.value ? Number(e.target.value) : null }
+                                  : x,
+                              ),
+                            )
+                          }
+                          className="h-8 text-xs"
+                        />
+                        <div className="flex items-center gap-1.5">
+                          <Select
+                            value={f.estado}
+                            onValueChange={(v) =>
+                              setDetallePerdidas((prev) =>
+                                prev.map((x, j) =>
+                                  j === i ? { ...x, estado: v as FamiliarSeparado["estado"] } : x,
+                                ),
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-8 flex-1 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="fallecido">Fallecido</SelectItem>
+                              <SelectItem value="desaparecido">Desaparecido</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 shrink-0 text-rose-400"
+                            onClick={() =>
+                              setDetallePerdidas((prev) => prev.filter((_, j) => j !== i))
+                            }
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setDetallePerdidas((prev) => [...prev, nuevaPerdidaVacia()])}
+                    >
+                      <Plus className="size-3.5" />
+                      Agregar otro
+                    </Button>
+                  </div>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  El censo es válido solo con el conteo de arriba; este detalle es opcional.
+                </p>
+              </div>
+            ) : null}
 
-            <Button type="button" variant="outline" onClick={cerrarHogar}>
-              Cerrar hogar e iniciar otro
+            <Button
+              className="w-full"
+              disabled={
+                guardando ||
+                !estatusVivienda ||
+                (!hayHogar && hayDuplicadoSinConfirmar)
+              }
+              onClick={hayHogar ? onGuardarDamnificacion : onCrearHogar}
+            >
+              {guardando ? <Loader2 className="size-4 animate-spin" /> : <Home className="size-4" />}
+              {hayHogar
+                ? "Guardar damnificación"
+                : estadoNominal?.esJefeAqui
+                  ? "Verificar y reanudar su hogar"
+                  : "Verificar y crear hogar"}
             </Button>
           </CardContent>
         </Card>
       ) : null}
+
+      {hayHogar ? (
+        <AlertDialog>
+          <AlertDialogTrigger
+            className={cn(
+              "inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground shadow-md transition-colors",
+              "hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            )}
+          >
+            <Home className="size-4 shrink-0" />
+            Cerrar hogar e iniciar otro
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Cerrar este hogar?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Sale del hogar en curso para empezar otro. Los miembros ya
+                registrados en la base nominal no se borran.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Seguir aquí</AlertDialogCancel>
+              <AlertDialogAction onClick={cerrarHogar}>
+                Cerrar e iniciar otro
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
+
+      <AlertDialog
+        open={eliminarMiembro != null}
+        onOpenChange={(abierto) => {
+          if (!abierto && !eliminandoMiembro) setEliminarMiembro(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Quitar del hogar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {eliminarMiembro
+                ? `Se quitará a ${eliminarMiembro.nombre} de este hogar (egreso por corrección de censo).`
+                : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button" disabled={eliminandoMiembro}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              variant="destructive"
+              disabled={eliminandoMiembro}
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmarEliminarMiembro();
+              }}
+            >
+              {eliminandoMiembro ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Quitando…
+                </>
+              ) : (
+                "Quitar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

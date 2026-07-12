@@ -3,6 +3,7 @@ import {
   aplicarPartesActualesACentros,
 } from "./parteActualCentros";
 import {
+  centrosDeProduccion,
   normalizarCentro,
   metaCuerpoDe,
   normalizarPersonal,
@@ -565,21 +566,31 @@ export function construirReporteEjecutivoCampamentos({
   generadoTs = Date.now(),
   generadoPor,
 }: EntradaReporteEjecutivoCampamentos): ReporteEjecutivoCampamentos {
-  const centrosConParte = aplicarPartesActualesACentros(centros, snapshots, dia);
+  const centrosOp = centrosDeProduccion(centros);
+  const idsOp = new Set(centrosOp.map((c) => c.id));
+  const snapshotsOp = snapshots.filter((s) => idsOp.has(s.centro_id));
+  const reportesOp = reportes.filter((r) => idsOp.has(r.centro_id));
+  const controlesOp = controles.filter((c) => idsOp.has(c.centro_id));
+  const trabajosOp = trabajosActivos.filter((t) => idsOp.has(t.centro_id));
+  const requerimientosOp = requerimientosActivos.filter((r) => idsOp.has(r.centro_id));
+  const casosOp = casosSaludAbiertos.filter((c) => idsOp.has(c.centro_id));
+  const eventosDetalleOp = eventosDetalle.filter((e) => idsOp.has(e.centro_id));
+
+  const centrosConParte = aplicarPartesActualesACentros(centrosOp, snapshotsOp, dia);
   const kpisBase = kpisRedCentros(centrosConParte);
   const demografia = sumarDemografia(demografiaRed(centrosConParte));
   const personal = sumarPersonal(centrosConParte);
   const personasLogistica = kpisBase.refugiadosTotal + personal.total;
   const agua = demandaAguaDia(personasLogistica);
-  const reportesDia = reportes.filter((r) => r.dia === dia);
+  const reportesDia = reportesOp.filter((r) => r.dia === dia);
   const racionesGestionadas = reportesDia.reduce((acc, r) => acc + racionesDelDia(r), 0);
   const objetivoRaciones = personasLogistica * COMIDAS_POR_PERSONA_DIA;
 
   // ---- Secciones nuevas: control, tabla de red y detalle del día ----
   const hoyRef = dia;
-  const controlesDia = controles.filter((c) => c.dia === dia);
+  const controlesDia = controlesOp.filter((c) => c.dia === dia);
   const controlPorCentro = new Map(controlesDia.map((c) => [c.centro_id, c]));
-  const trabajosVivos = trabajosActivos.filter(
+  const trabajosVivos = trabajosOp.filter(
     (t) => t.estatus === "pendiente" || t.estatus === "en_progreso",
   );
   const trabajosPorCentro = new Map<string, TrabajoCentro[]>();
@@ -589,12 +600,12 @@ export function construirReporteEjecutivoCampamentos({
     trabajosPorCentro.set(t.centro_id, lista);
   }
   const casosPorCentro = new Map<string, CasoSaludCentro[]>();
-  for (const c of casosSaludAbiertos) {
+  for (const c of casosOp) {
     const lista = casosPorCentro.get(c.centro_id) ?? [];
     lista.push(c);
     casosPorCentro.set(c.centro_id, lista);
   }
-  const eventosDia = eventosDetalle.filter((e) => e.dia === dia);
+  const eventosDia = eventosDetalleOp.filter((e) => e.dia === dia);
   const eventosPorCentro = new Map<string, EventoReporte[]>();
   for (const e of eventosDia) {
     const lista = eventosPorCentro.get(e.centro_id) ?? [];
@@ -602,7 +613,7 @@ export function construirReporteEjecutivoCampamentos({
     eventosPorCentro.set(e.centro_id, lista);
   }
   const diasConParteHoy = new Set(
-    snapshots.filter((s) => s.dia === dia).map((s) => s.centro_id),
+    snapshotsOp.filter((s) => s.dia === dia).map((s) => s.centro_id),
   );
   const nombreDe = new Map(centrosConParte.map((c) => [c.id, c.nombre]));
 
@@ -669,7 +680,7 @@ export function construirReporteEjecutivoCampamentos({
         a.nombre.localeCompare(b.nombre, "es"),
     );
 
-  const casosSaludDetalle: CasoSaludEjecutivo[] = [...casosSaludAbiertos]
+  const casosSaludDetalle: CasoSaludEjecutivo[] = [...casosOp]
     .sort(
       (a, b) =>
         diasAbierto(b.reportado_dia, hoyRef) - diasAbierto(a.reportado_dia, hoyRef),
@@ -693,7 +704,7 @@ export function construirReporteEjecutivoCampamentos({
     CATEGORIAS_REQUERIMIENTO.map((c) => [c.valor, c.label]),
   );
   const porCategoria = new Map<string, RequerimientoCategoriaEjecutivo>();
-  for (const r of requerimientosActivos) {
+  for (const r of requerimientosOp) {
     const label = etiquetasCategoria.get(r.categoria) ?? r.categoria;
     const acc = porCategoria.get(label) ?? { categoria: label, items: 0, unidades: 0 };
     acc.items += 1;
@@ -789,11 +800,11 @@ export function construirReporteEjecutivoCampamentos({
     partesDelDia: contarUnidadesCon(centrosConParte, (c) => diasConParteHoy.has(c.id)),
     unidadesSebin,
     censo: censoEstados,
-    ocupacionRed: conteosOcupacionRed(centros, snapshots, dia),
-    ocupacionPorSegmento: conteosOcupacionPorSegmento(centros, snapshots, dia),
+    ocupacionRed: conteosOcupacionRed(centrosOp, snapshotsOp, dia),
+    ocupacionPorSegmento: conteosOcupacionPorSegmento(centrosOp, snapshotsOp, dia),
     serieSemanal: serieOcupacionRedVentana(
-      snapshots,
-      centros.map((c) => ({ id: c.id, grupo: c.grupo })),
+      snapshotsOp,
+      centrosOp.map((c) => ({ id: c.id, grupo: c.grupo })),
       7,
       dia,
     ).map((p) => ({ dia: p.dia, total: p.total })),

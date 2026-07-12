@@ -232,6 +232,7 @@ export function FormularioSeguridad({
               value={seguridad.personal_mando}
               disabled={deshabilitado}
               onChange={(n) => onChange({ personal_mando: n })}
+              max={2_000}
             />
           </div>
           <div>

@@ -476,8 +476,8 @@ export interface CentroTransitorio {
   nro: number;
   nombre: string;
   /**
-   * Campamento de desarrollo/pruebas: visible en mapa y ficha, excluido de
-   * agregados de red (KPIs, partes, PDF, Telegram).
+   * Campamento de desarrollo/pruebas: solo lo ve el admin; excluido de
+   * agregados de red (KPIs, parte numérico, PDF, Telegram).
    */
   es_prueba?: boolean;
   /**

@@ -215,7 +215,19 @@ export async function registrarMiembroSinDocumento(opts: {
 
 export async function miembrosHogarActual(
   familiaId: string,
-): Promise<{ refugiadoId: string; es_jefe: boolean; parentesco: string; nombre: string; cedula: string | null }[]> {
+): Promise<
+  {
+    alojamientoId: string;
+    refugiadoId: string;
+    es_jefe: boolean;
+    parentesco: string;
+    nombre: string;
+    cedula: string | null;
+    fotoUrl: string | null;
+    fechaNacimiento: string | null;
+    creadaTs: number;
+  }[]
+> {
   const alojamientos = await listarMiembrosFamilia(familiaId);
   const activos = alojamientos.filter((a) => a.estado !== "egresado");
   if (activos.length === 0) return [];
@@ -227,17 +239,28 @@ export async function miembrosHogarActual(
     ((data ?? []) as Refugiado[]).map((r) => [r.id, normalizarRefugiado(r)]),
   );
 
-  return activos.map((a) => {
-    const r = porId.get(a.refugiado_id);
-    const nombre = r
-      ? [r.primer_nombre, r.primer_apellido].filter(Boolean).join(" ") || r.nombres
-      : a.refugiado_id.slice(0, 8);
-    return {
-      refugiadoId: a.refugiado_id,
-      es_jefe: a.es_jefe_familia,
-      parentesco: a.parentesco_jefe || (a.es_jefe_familia ? "Jefe/a" : ""),
-      nombre,
-      cedula: r?.cedula_norm ?? r?.cedula ?? null,
-    };
-  });
+  return activos
+    .map((a) => {
+      const r = porId.get(a.refugiado_id);
+      const nombre = r
+        ? [r.primer_nombre, r.primer_apellido].filter(Boolean).join(" ") || r.nombres
+        : a.refugiado_id.slice(0, 8);
+      const foto = (r?.foto_url ?? "").trim();
+      return {
+        alojamientoId: a.id,
+        refugiadoId: a.refugiado_id,
+        es_jefe: a.es_jefe_familia,
+        parentesco: a.parentesco_jefe || (a.es_jefe_familia ? "Jefe/a" : ""),
+        nombre,
+        cedula: r?.cedula_norm ?? r?.cedula ?? null,
+        fotoUrl: foto.length > 0 ? foto : null,
+        fechaNacimiento: r?.fecha_nacimiento ?? null,
+        creadaTs: a.creada_ts || a.updated_at || 0,
+      };
+    })
+    .sort((a, b) => {
+      if (a.es_jefe && !b.es_jefe) return -1;
+      if (!a.es_jefe && b.es_jefe) return 1;
+      return (a.creadaTs || 0) - (b.creadaTs || 0);
+    });
 }

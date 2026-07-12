@@ -1,6 +1,7 @@
 // KPIs y agregados de la red de Centros Transitorios (lógica pura).
 
 import {
+  centrosDeProduccion,
   normalizarCentro,
   poblacionCentro,
   totalPersonalOperativo,
@@ -42,11 +43,13 @@ export interface FilaPrioridadDashboard {
 
 /** Demografía agregada de toda la red (ocupación por edad/sexo). */
 export function demografiaRed(centros: CentroTransitorio[]): Vulnerables {
-  return sumarVulnerables(centros.map((c) => ({ vulnerables: c.ocupacion })));
+  const op = centrosDeProduccion(centros);
+  return sumarVulnerables(op.map((c) => ({ vulnerables: c.ocupacion })));
 }
 
 /** KPIs globales de la red de centros. */
 export function kpisRedCentros(centros: CentroTransitorio[]): KpisRedCentros {
+  const op = centrosDeProduccion(centros);
   let refugiadosTotal = 0;
   let familiasTotal = 0;
   let personalTotal = 0;
@@ -54,7 +57,7 @@ export function kpisRedCentros(centros: CentroTransitorio[]): KpisRedCentros {
   let centrosCriticos = 0;
   let centrosSaturados = 0;
 
-  for (const centro of centros) {
+  for (const centro of op) {
     const c = normalizarCentro(centro);
     const ref = poblacionCentro(centro);
     const analisis = analisisCentro(centro);
@@ -69,7 +72,7 @@ export function kpisRedCentros(centros: CentroTransitorio[]): KpisRedCentros {
     if (analisis.semaforo === "rojo") centrosSaturados += 1;
   }
 
-  const centrosConDatos = contarUnidadesCon(centros, (centro) => {
+  const centrosConDatos = contarUnidadesCon(op, (centro) => {
     const c = normalizarCentro(centro);
     return poblacionCentro(centro) > 0 || c.familias_ocupadas > 0;
   });
@@ -79,7 +82,7 @@ export function kpisRedCentros(centros: CentroTransitorio[]): KpisRedCentros {
     familiasTotal,
     personalTotal,
     centrosConDatos,
-    centrosTotal: totalUnidadesConteo(centros),
+    centrosTotal: totalUnidadesConteo(op),
     cupoDisponible,
     centrosCriticos,
     centrosSaturados,
@@ -89,7 +92,7 @@ export function kpisRedCentros(centros: CentroTransitorio[]): KpisRedCentros {
 /** Población agrupada por parroquia (para mapa de calor / barras). */
 export function poblacionPorParroquia(centros: CentroTransitorio[]): FilaParroquia[] {
   const map = new Map<string, FilaParroquia>();
-  for (const centro of centros) {
+  for (const centro of centrosDeProduccion(centros)) {
     const parroquia = centro.parroquia?.trim() || "Sin parroquia";
     const fila = map.get(parroquia) ?? {
       parroquia,
@@ -110,7 +113,7 @@ export function topPrioridadCentros(
   centros: CentroTransitorio[],
   limite = 12,
 ): FilaPrioridadDashboard[] {
-  const filas = centros.map((centro) => ({
+  const filas = centrosDeProduccion(centros).map((centro) => ({
     centro,
     prioridad: prioridadCentro(centro),
   }));
@@ -128,7 +131,7 @@ export function conteoPorNivel(
     estable: 0,
     sin_datos: 0,
   };
-  for (const centro of centros) {
+  for (const centro of centrosDeProduccion(centros)) {
     conteo[prioridadCentro(centro).nivel] += 1;
   }
   return conteo;

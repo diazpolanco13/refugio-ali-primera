@@ -25,7 +25,11 @@ import {
   unidadSebinDe,
 } from "@/domain/centrosTransitorios";
 import type { Sesion } from "@/data/authSupabase";
-import { puedeEscribir, puedeCrearCentros } from "@/domain/permisos";
+import {
+  centrosVisiblesParaUsuario,
+  puedeCrearCentros,
+  puedeEscribir,
+} from "@/domain/permisos";
 import { useMapaCentros } from "@/contexts/MapaCentrosContext";
 import { EstadoError } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
@@ -134,8 +138,12 @@ export function CentrosView() {
   );
   const snapshotsOcupacion = useOcupacionesCentros();
   const centrosBase = useMemo(
-    () => [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
-    [filasCentros],
+    () =>
+      centrosVisiblesParaUsuario(
+        [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
+        sesion.user,
+      ),
+    [filasCentros, sesion.user],
   );
   const centros = useMemo(
     () => aplicarPartesActualesACentros(centrosBase, snapshotsOcupacion),

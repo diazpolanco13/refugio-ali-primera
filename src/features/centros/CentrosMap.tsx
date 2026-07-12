@@ -5,6 +5,7 @@ import { toPng } from "html-to-image";
 import { escalaVistaDelMapa } from "@/map/escalaVista";
 import { CAPAS_BASE, VISIBILIDAD_BASE, construirEstilo, type BaseMapa } from "@/map/estiloMapa";
 import {
+  esCentroDePrueba,
   CARACAS_CENTRO,
   CARACAS_ZOOM,
   CARACAS_ZOOM_MAX_ENCUDRE,
@@ -385,6 +386,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
           semaforoColor={
             analisis.semaforo === "sin_datos" ? null : COLOR_SEMAFORO[analisis.semaforo]
           }
+          esPrueba={esCentroDePrueba(c)}
           onClick={() => cbRef.current.onSeleccionar(c.id)}
         />,
       );

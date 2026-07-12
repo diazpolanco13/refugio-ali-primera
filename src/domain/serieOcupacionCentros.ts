@@ -11,6 +11,7 @@
 // Análogo al `poblacion.ts` que existía para los sectores del parque (ver
 // referencias en CLAUDE.md), aplicado ahora a la red de centros.
 
+import { idCentroEsPrueba } from "./centrosTransitorios";
 import { normalizarVulnerables, totalPoblacion, type Vulnerables } from "./tipos";
 
 export interface SnapshotOcupacion {
@@ -150,11 +151,12 @@ export function serieDiariaOcupacionRed(
   centros: CentroParaAgregado[],
 ): PuntoSerie[] {
   if (snapshots.length === 0) return [];
+  const centrosOp = centros.filter((c) => !idCentroEsPrueba(c.id));
   const dias = rangoDias(snapshots.map((s) => s.dia));
   const porCentro = indexarPorCentro(snapshots);
   return dias.map((dia) => {
     const snapsDelDia: SnapshotOcupacion[] = [];
-    for (const c of centros) {
+    for (const c of centrosOp) {
       const arr = porCentro.get(c.id);
       if (!arr) continue;
       const ult = ultimoHasta(arr, dia);
@@ -218,11 +220,12 @@ export function serieOcupacionRedVentana(
   ventana: number,
   diaCorte: string,
 ): PuntoSerie[] {
+  const centrosOp = centros.filter((c) => !idCentroEsPrueba(c.id));
   const dias = ultimosDiasSerie(ventana, diaCorte);
   const porCentro = indexarPorCentro(snapshots);
   return dias.map((dia) => {
     const snapsDelDia: SnapshotOcupacion[] = [];
-    for (const c of centros) {
+    for (const c of centrosOp) {
       const arr = porCentro.get(c.id);
       if (!arr) continue;
       const ult = ultimoHasta(arr, dia);
@@ -268,13 +271,15 @@ export function serieDiariaPorGrupo(
   centros: CentroParaAgregado[],
 ): PuntoSeriePorGrupo[] {
   if (snapshots.length === 0) return [];
+  const centrosOp = centros.filter((c) => !idCentroEsPrueba(c.id));
   const dias = rangoDias(snapshots.map((s) => s.dia));
   const porCentro = indexarPorCentro(snapshots);
-  const grupoDe = new Map(centros.map((c) => [c.id, c.grupo]));
+  const grupoDe = new Map(centrosOp.map((c) => [c.id, c.grupo]));
   return dias.map((dia) => {
     let areaMetropolitana = 0;
     let granCaracas = 0;
     for (const [centroId, arr] of porCentro) {
+      if (idCentroEsPrueba(centroId)) continue;
       const ult = ultimoHasta(arr, dia);
       if (!ult) continue;
       const g = grupoDe.get(centroId);

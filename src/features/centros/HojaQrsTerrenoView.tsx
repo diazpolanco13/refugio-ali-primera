@@ -13,6 +13,7 @@ import { listarTokensTerrenoActivos } from "@/data/tokensCentros";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import { centrosDeProduccion } from "@/domain/centrosTransitorios";
 import { puedeCrearCentros } from "@/domain/permisos";
 import { Button } from "@/components/ui/button";
 import { enlaceDenuncia, enlaceTerreno } from "@/lib/tokenTerreno";
@@ -33,7 +34,10 @@ export function HojaQrsTerrenoView({ sesion }: Props) {
     clientFilter: (c) => !c.deleted,
   });
   const centros = useMemo(
-    () => [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
+    () =>
+      centrosDeProduccion([...filasCentros]).sort(
+        (a, b) => (a.nro ?? 0) - (b.nro ?? 0),
+      ),
     [filasCentros],
   );
 

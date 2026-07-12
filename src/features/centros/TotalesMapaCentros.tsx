@@ -3,6 +3,7 @@ import { Home, PawPrint, ShieldCheck, Users, Users2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { totalUnidadesConteo } from "@/domain/complejosCentros";
 import {
+  centrosDeProduccion,
   normalizarCentro,
   poblacionCentro,
   totalPersonalOperativo,
@@ -53,7 +54,7 @@ export function TotalesMapaCentros({ centros, className }: Props) {
   let personal = 0;
   let mascotas = 0;
 
-  for (const centro of centros) {
+  for (const centro of centrosDeProduccion(centros)) {
     const normalizado = normalizarCentro(centro);
     familias += normalizado.familias_ocupadas;
     refugiados += poblacionCentro(normalizado);
@@ -71,7 +72,7 @@ export function TotalesMapaCentros({ centros, className }: Props) {
       <KpiMapa
         icono={<Home className="size-3.5" />}
         etiqueta="Camp."
-        valor={totalUnidadesConteo(centros)}
+        valor={totalUnidadesConteo(centrosDeProduccion(centros))}
       />
       <KpiMapa icono={<Users2 className="size-3.5" />} etiqueta="Fam." valor={familias} />
       <KpiMapa icono={<Users className="size-3.5" />} etiqueta="Damnif." valor={refugiados} />

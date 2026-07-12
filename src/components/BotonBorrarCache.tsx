@@ -24,11 +24,12 @@ import {
 } from "@/lib/actualizarAppCampo";
 import { cn } from "@/lib/utils";
 
-type Variante = "flotante" | "mapa";
+type Variante = "flotante" | "mapa" | "header";
 
 /**
  * Confirma y ejecuta borrado de SW + Cache Storage + recarga.
- * `mapa`: estilo de la columna de controles. `flotante`: FAB esquina.
+ * `mapa`: columna de controles del mapa. `flotante`: FAB esquina.
+ * `header`: icono compacto en cabeceras de campo (/censo).
  */
 export function BotonBorrarCache({
   variante = "flotante",
@@ -110,7 +111,9 @@ export function BotonBorrarCache({
   const triggerClass =
     variante === "mapa"
       ? "h-10 w-10 min-w-10 shrink-0 border-0 bg-card text-destructive shadow-none hover:bg-destructive/10 hover:text-destructive"
-      : "pointer-events-auto size-12 rounded-full border-2 border-destructive bg-card text-destructive shadow-lg ring-2 ring-destructive/25 hover:bg-destructive hover:text-destructive-foreground";
+      : variante === "header"
+        ? "size-10 shrink-0 rounded-xl border-0 bg-primary-foreground/15 text-primary-foreground shadow-none hover:bg-destructive/25 hover:text-primary-foreground"
+        : "pointer-events-auto size-12 rounded-full border-2 border-destructive bg-card text-destructive shadow-lg ring-2 ring-destructive/25 hover:bg-destructive hover:text-destructive-foreground";
 
   return (
     <AlertDialog
@@ -132,13 +135,13 @@ export function BotonBorrarCache({
               aria-label="Borrar caché y actualizar aplicación"
             >
               <Trash2
-                className={variante === "mapa" ? "size-4" : "size-5"}
+                className={variante === "flotante" ? "size-5" : "size-4"}
                 aria-hidden="true"
               />
             </Button>
           </AlertDialogTrigger>
         </TooltipTrigger>
-        <TooltipContent side="left" sideOffset={8}>
+        <TooltipContent side={variante === "header" ? "bottom" : "left"} sideOffset={8}>
           Borrar caché
         </TooltipContent>
       </Tooltip>

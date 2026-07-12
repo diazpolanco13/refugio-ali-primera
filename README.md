@@ -19,7 +19,7 @@ diaria de la ocupación de la red.
 
 ```bash
 npm install
-npm run dev        # desarrollo → http://localhost:5173
+npm run dev        # desarrollo → http://localhost:5180
 npm run build      # build de producción (dist/)
 npm run typecheck
 ```

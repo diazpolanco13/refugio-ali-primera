@@ -5,6 +5,7 @@
 // la red" en /centros/reportes.
 
 import type { CentroTransitorio } from "./centrosTransitorios";
+import { centrosDeProduccion } from "./centrosTransitorios";
 import { contarUnidadesCon, totalUnidadesConteo } from "./complejosCentros";
 import { normalizarVulnerables, VULNERABLES_VACIO, type Vulnerables } from "./tipos";
 import type { SnapshotOcupacion } from "./serieOcupacionCentros";
@@ -62,13 +63,14 @@ export function textoParteGeneralRed({
   incidenciasAbiertas,
   ahora = new Date(),
 }: DatosParteRed): string {
+  const centrosOp = centrosDeProduccion(centros);
   const partes: string[] = [];
   const hora = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`;
   const hoyClave = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(
     ahora.getDate(),
   ).padStart(2, "0")}`;
 
-  const nombreDe = new Map(centros.map((c) => [c.id, c.nombre]));
+  const nombreDe = new Map(centrosOp.map((c) => [c.id, c.nombre]));
 
   // Carry-forward: último snapshot conocido de cada campamento hasta `dia`.
   const ultimoPorCentro = new Map<string, SnapshotOcupacion>();
@@ -93,8 +95,15 @@ export function textoParteGeneralRed({
   const ninos = vuln.recien_nacidos_h + vuln.ninos + vuln.adolescentes_h;
   const ninas = vuln.recien_nacidos_m + vuln.ninas + vuln.adolescentes_m;
 
-  const totalCampamentos = totalUnidadesConteo(centros);
-  const conParteUnidades = contarUnidadesCon(centros, (c) => conParteDelDia.has(c.id));
+  const idsOp = new Set(centrosOp.map((c) => c.id));
+  const controlesOp = controlesDia.filter((c) => idsOp.has(c.centro_id));
+  const casosOp = casosSaludAbiertos.filter((c) => idsOp.has(c.centro_id));
+  const trabajosOp = trabajosActivos.filter((t) => idsOp.has(t.centro_id));
+  const requerimientosOp = requerimientosActivos.filter((r) => idsOp.has(r.centro_id));
+  const eventosOp = eventosDia.filter((e) => idsOp.has(e.centro_id));
+
+  const totalCampamentos = totalUnidadesConteo(centrosOp);
+  const conParteUnidades = contarUnidadesCon(centrosOp, (c) => conParteDelDia.has(c.id));
 
   partes.push(
     [
@@ -121,17 +130,17 @@ export function textoParteGeneralRed({
       `- ADULTOS MAYORES MUJERES: ${n2(vuln.adultos_mayores_m)}`,
       `- MUJERES EMBARAZADAS: ${n2(vuln.embarazadas)}`,
       `- PERSONAS CON DISCAPACIDAD: ${n2(vuln.discapacidad_h + vuln.discapacidad_m)}`,
-      `- CASOS DE SALUD ABIERTOS: ${n2(casosSaludAbiertos.length)}`,
+      `- CASOS DE SALUD ABIERTOS: ${n2(casosOp.length)}`,
       `- MASCOTAS: ${n2(vuln.mascotas)}`,
       `- PERSONAL OPERATIVO: ${n2(personal)}`,
     ].join("\n"),
   );
 
   // ---- Control operativo del día (agregado) ----
-  const revisados = controlesDia.filter((c) => c.revisado);
+  const revisados = controlesOp.filter((c) => c.revisado);
   const cuenta = (campo: "captahuella" | "juez_paz" | "servicio_medico" | "ambulancia") => ({
-    si: controlesDia.filter((c) => c[campo] === true).length,
-    no: controlesDia.filter((c) => c[campo] === false).length,
+    si: controlesOp.filter((c) => c[campo] === true).length,
+    no: controlesOp.filter((c) => c[campo] === false).length,
   });
   const capta = cuenta("captahuella");
   const juez = cuenta("juez_paz");
@@ -149,24 +158,24 @@ export function textoParteGeneralRed({
   );
 
   // ---- Casos de salud en seguimiento ----
-  if (casosSaludAbiertos.length > 0) {
-    const visibles = casosSaludAbiertos.slice(0, MAX_LISTADO);
+  if (casosOp.length > 0) {
+    const visibles = casosOp.slice(0, MAX_LISTADO);
     partes.push(
       [
-        `**CASOS DE SALUD EN SEGUIMIENTO (${n2(casosSaludAbiertos.length)}):**`,
+        `**CASOS DE SALUD EN SEGUIMIENTO (${n2(casosOp.length)}):**`,
         ...visibles.map(
           (c) =>
             `- ${(nombreDe.get(c.centro_id) ?? c.centro_id).toUpperCase()}: ${c.titulo.toUpperCase()} (${META_ESTATUS_CASO_SALUD[c.estatus].label.toUpperCase()} · ${antiguedadTexto(c.reportado_dia, hoyClave)})`,
         ),
-        ...(casosSaludAbiertos.length > MAX_LISTADO
-          ? [`- (+${casosSaludAbiertos.length - MAX_LISTADO} CASOS MÁS)`]
+        ...(casosOp.length > MAX_LISTADO
+          ? [`- (+${casosOp.length - MAX_LISTADO} CASOS MÁS)`]
           : []),
       ].join("\n"),
     );
   }
 
   // ---- Trabajos en la red ----
-  const trabajos = trabajosActivos.filter(
+  const trabajos = trabajosOp.filter(
     (t) => t.estatus === "pendiente" || t.estatus === "en_progreso",
   );
   if (trabajos.length > 0) {
@@ -190,12 +199,12 @@ export function textoParteGeneralRed({
   }
 
   // ---- Requerimientos abiertos (agrupados por categoría) ----
-  if (requerimientosActivos.length > 0) {
+  if (requerimientosOp.length > 0) {
     const etiquetas = new Map<string, string>(
       CATEGORIAS_REQUERIMIENTO.map((c) => [c.valor, c.label]),
     );
     const porCategoria = new Map<string, { items: number; cantidad: number }>();
-    for (const r of requerimientosActivos) {
+    for (const r of requerimientosOp) {
       const key = r.categoria;
       const acc = porCategoria.get(key) ?? { items: 0, cantidad: 0 };
       acc.items += 1;
@@ -204,7 +213,7 @@ export function textoParteGeneralRed({
     }
     partes.push(
       [
-        `**REQUERIMIENTOS ABIERTOS (${n2(requerimientosActivos.length)} ÍTEMS):**`,
+        `**REQUERIMIENTOS ABIERTOS (${n2(requerimientosOp.length)} ÍTEMS):**`,
         ...[...porCategoria.entries()]
           .sort((a, b) => b[1].items - a[1].items)
           .map(
@@ -217,15 +226,15 @@ export function textoParteGeneralRed({
 
   // ---- Novedades del día ----
   const lineasNovedades: string[] = [];
-  if (eventosDia.length > 0) {
-    const visibles = eventosDia.slice(0, MAX_LISTADO);
+  if (eventosOp.length > 0) {
+    const visibles = eventosOp.slice(0, MAX_LISTADO);
     lineasNovedades.push(
       ...visibles.map(
         (e) => `- ${(nombreDe.get(e.centro_id) ?? e.centro_id).toUpperCase()}: ${e.titulo}`,
       ),
     );
-    if (eventosDia.length > MAX_LISTADO) {
-      lineasNovedades.push(`- (+${eventosDia.length - MAX_LISTADO} NOVEDADES MÁS)`);
+    if (eventosOp.length > MAX_LISTADO) {
+      lineasNovedades.push(`- (+${eventosOp.length - MAX_LISTADO} NOVEDADES MÁS)`);
     }
   } else {
     lineasNovedades.push("- SIN NOVEDADES REGISTRADAS EN LA RED.");
@@ -236,7 +245,7 @@ export function textoParteGeneralRed({
   partes.push(["**NOVEDADES DEL DÍA:**", ...lineasNovedades].join("\n"));
 
   // ---- Campamentos sin parte del día ----
-  const sinParte = centros.filter((c) => !conParteDelDia.has(c.id));
+  const sinParte = centrosOp.filter((c) => !conParteDelDia.has(c.id));
   const sinParteUnidades = totalCampamentos - conParteUnidades;
   if (sinParte.length === 0) {
     partes.push("**CAMPAMENTOS SIN PARTE DEL DÍA:**\n- NINGUNO. TODA LA RED REPORTÓ.");

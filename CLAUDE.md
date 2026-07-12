@@ -200,8 +200,34 @@ datos viven en Postgres.
  campamentos (partes, controles, trabajos, requerimientos, casos, novedades)
  con `updated_by = 'simulacion'` / `creada_por = 'simulacion'`. Limpieza:
  `delete from <tabla> where updated_by = 'simulacion'` en las 7 tablas.
+- ✅ **Censo nominal + registro por cédula vía Nexus (11–12-jul).** Además del
+ "censo rápido" de staging (`censo_registros`, contrasta contra el parte),
+ existe una **base nominal verificada** (`refugiados` / `familias_centro` /
+ `alojamientos_refugiados` / `residencias_afectadas`, `/centros/refugiados`)
+ alimentada por un flujo **por cédula** contra el API institucional **Nexus**
+ (`/censo` → pestaña "Por cédula" → `CensoNexusPanel`): verifica identidad
+ (foto SAIME pendiente, ver más abajo), crea el hogar, captura **damnificación
+ por el terremoto** (severidad de vivienda, pérdidas familiares con
+ fallecidos/desaparecidos, **nivel de afectación calculado** 🔴🟡🟢) y **bloquea
+ con aviso accionable** (fecha/hora + botón WhatsApp a analistas SAE) si la
+ cédula ya está activa en otro campamento. Ver sección "Censo nominal y
+ registro por cédula (Nexus)" para el detalle completo — es la pieza menos
+ documentada del proyecto antes de este traspaso, léela con cuidado.
 
 ### Qué falta / próximos pasos
+- 📸 **Foto SAIME en el censo por cédula:** Nexus da el *nombre* del archivo
+  (`foto_nombre` en el slim), no la imagen; la imagen vive en un MinIO
+  (`alfa-images`, `10.51.12.85:9000`) al que la institución expone
+  `GET /api/cedula-photo/<filename>/`. Falta que el admin de Nexus entregue la
+  **URL base y credenciales** de ese endpoint (pedido pendiente desde el
+  11-jul). Wire-up documentado y listo en `nexusEndPoint/README.md` §6
+  (~15 min: ruta nueva en el gateway + `AvatarImage` en `CensoNexusPanel`).
+- 🔁 **Traslado formal entre centros (nominal):** hoy, si una cédula ya está
+  activa en otro campamento, el censo por cédula **bloquea con aviso** (fecha,
+  quién y dónde) y exige confirmación explícita para continuar, pero no existe
+  un flujo de "cerrar el alojamiento viejo y abrir el nuevo" — el censista
+  decide y, si es necesario, el analista SAE corrige a mano desde
+  `/centros/refugiados`. Si se pide, construir esa acción de traslado.
 - 🤖 **Bot de Telegram (emisor):** publicar el parte por campamento y el parte
   general de la red al grupo de enlaces desde un contenedor en Dokploy
   (formateadores ya listos en `src/domain/reporteTelegram*.ts`; el `REF:` del
@@ -279,7 +305,13 @@ src/
 │    severidad por día para calendarios),
 │  permisos.ts (5 roles: INFO_ROLES + helpers puedeEscribir,
 │    puedeGestionarUsuarios, puedeVerLogs, puedeCrearCentros,
-│    puedeEditarCentro, puedeResolverIncidencia)
+│    puedeEditarCentro, puedeResolverIncidencia),
+│  refugiados.ts (censo nominal: Refugiado, FamiliaCentro, AlojamientoRefugiado,
+│    ResidenciaAfectada + normalizadores; ver "Censo nominal…"),
+│  nivelAfectacionHogar.ts (🔴🟡🟢 calculado, severidad vivienda + pérdidas),
+│  nexusPersona.ts (tipos del slim de Nexus), geografiaResidencia.ts
+│    (objetivos geográficos para el mapa de residencia sin geocodificador),
+│  censoResumen.ts
 ├─ data/ supabaseClient.ts (cliente supabase-js con VITE_SUPABASE_*),
 │  authSupabase.ts (login/signOut/onAuthStateChange + perfil desde `perfiles`),
 │  useSupabaseQuery.ts (hook select + Realtime, reemplaza a useLiveQuery),
@@ -299,7 +331,13 @@ src/
 │  normalizarGeom.ts (hex EWKB/WKT/GeoJSON de PostgREST → GeoJSON Point),
 │  supabase.ts (subida de foto de centro al bucket `centros-fotos`),
 │  centrosTransitorios.ts (catálogo estático de los 51 centros, fallback),
-│  preferenciasMapa.ts (vista guardada en localStorage)
+│  preferenciasMapa.ts (vista guardada en localStorage),
+│  reposRefugiados.ts (CRUD censo nominal + RPC upsert_refugiado_identidad /
+│    estado_nominal_cedula, ver "Censo nominal…"), reposCensoNexus.ts (alta
+│    desde ficha Nexus → nominal), reposNexus.ts (cliente del gateway Nexus
+│    con caché en `nexus_consultas`), reposCenso.ts (censo rápido staging +
+│    `censo_centros`/`terreno_centro`), useRefugiadosRed.ts (Realtime red-wide),
+│    loginTerreno.ts (canjea token QR por sesión), tokenTerreno.ts (lee `?t=`)
 ├─ map/ estiloMapa.ts (estilos base del mapa; MapView.tsx se retiró con el parque)
 ├─ features/ centros/ (FOCO: CentrosView, FichaCentroView (/centro/:id),
 │  CentrosMap, MarcadorCentro, InfoCentro,
@@ -312,7 +350,22 @@ src/
 │  única /incidencias/funcionarios), IncidenciasRefugiadosView (denuncias),
 │  CalendarioIncidencias, ListaSeguimientoReportes) ·
 │  dashboard/ (DashboardView, GraficoOcupacionRed) ·
-│  censo/ (DesgloseDemografico, DesglosePersonal, PersonalResumen) ·
+│  refugiados/ (censo nominal — RefugiadosRedView (/centros/refugiados),
+│  RefugiadoDetalleRedView, FichaRefugiadoView (embebida en /centro/:id),
+│  RefugiadoForm (alta manual), FamiliaresSection, FamiliaresReferenciaSection,
+│  ResidenciaAfectadaSection + CamposResidenciaAfectada + MapaResidencia,
+│  SaludBienestarSection, DocumentacionLegalSection, TallasDotacionesSection,
+│  HabilidadesMediosVidaSection, BeneficiosRefugiadoSection,
+│  ApoyosHogarSection, SeguimientoNotasSection, AgregarFamiliarHogarDialog,
+│  DotacionesPendientesView (/centros/dotaciones-pendientes)) ·
+│  censo/ (censo rápido staging: CensoRedView/CensoCentroPanel/
+│  CensoCentroDetalleView (/centros/censo-rapido) + DesgloseDemografico,
+│  DesglosePersonal, PersonalResumen; **censo nominal por cédula**:
+│  CensoView (/censo, público) → pestañas Por cédula (**CensoNexusPanel**,
+│  ver "Censo nominal…") / Planilla manual; EstadoNexusApi) ·
+│  terreno/ (portal público /terreno sin login: TerrenoView con accesos
+│  Reporte/Geolocalizar/Autoridades/Capacidad/**Censo**, instrucciones
+│  una-vez, ContactoAnalistasTerreno) ·
 │  tablero/ (DemografiaResumen) ·
 │  auth/Login · usuarios/GestionUsuarios · logs/ (LogsView (/logs)) ·
 │  (distribucion/, lineas/, puntos/, salubridad/, sectores/ quedaron VACÍAS
@@ -337,6 +390,13 @@ redirige a la **bandeja única** `/incidencias/funcionarios`
 admin y autoridad). En prod Traefik (Dokploy) hace fallback SPA a
 `index.html`; en la PWA se añadió `navigateFallback` en `vite.config.ts` para
 deep-link offline a esas rutas.
+
+Censo nominal: `/centros/refugiados` = `RefugiadosRedView` (población de toda
+la red), `/centros/refugiados/:alojamientoId` = detalle,
+`/centros/censo-rapido` = red-wide del censo de staging,
+`/centros/dotaciones-pendientes` = reportes de kit pendiente. **Públicas sin
+login** (antes del gate de sesión en `App.tsx`): `/censo` (planilla + censo
+por cédula, ver "Censo nominal…") y `/terreno` (portal de campo con QR).
 
 Conceptos del dominio (ver `src/domain/tipos.ts`):
 - **`Vulnerables`**: desglose demográfico por edad y sexo con grupos etarios
@@ -364,7 +424,11 @@ Conceptos del dominio (ver `src/domain/tipos.ts`):
 
 ## Supabase — esquema y RLS
 
-Proyecto `xzwifkckkakldnzkdeby`. 12 tablas en el schema `public`:
+Proyecto `xzwifkckkakldnzkdeby`. El conteo de "12 tablas" de abajo quedó
+desactualizado con el tiempo (se sumaron `censo_registros`, `tokens_centros`,
+`denuncias_centros`, `nexus_consultas`, las 4 tablas nominales de abajo y
+otras del reporte de 5 fases) — usa `list_tables` (MCP Supabase, `verbose`)
+para el esquema real; aquí solo se documentan los grupos relevantes:
 
 **7 tablas sincronizables (blob + jsonb, idénticas al backend Fastify viejo):**
 `sectores`, `puntos`, `lineas`, `censos`, `distribuciones`, `limpiezas`,
@@ -421,6 +485,27 @@ autoridad); en la publicación Realtime. El frontend inserta vía
 `registrarHistorial()` (`src/data/historial.ts`, fire-and-forget) desde
 `guardarCentro`/`eliminarCentro`/`guardarReporteDiario` y los repos de casos
 de salud y eventos; las Edge Functions insertan las acciones de usuarios.
+
+**Censo nominal (4 tablas tipadas):** `refugiados` (`cedula_norm` **única en
+toda la red**), `familias_centro`, `alojamientos_refugiados`,
+`residencias_afectadas` (`unique(familia_id)`). Esquema y detalle de campos en
+la sección "Censo nominal y registro por cédula (Nexus)" — no lo dupliques
+aquí, esa sección es la fuente de verdad.
+
+**RPC `upsert_residencia_afectada(...)`** (referencia en
+`supabase/`, `SECURITY DEFINER`): upsert de la vivienda afectada de una
+familia; acepta `p_lng`/`p_lat` `null` (geom queda `null`, se puede completar
+después sin perder lo ya guardado — `coalesce(excluded.geom, ...)` en el
+`on conflict`).
+
+**RPC `upsert_refugiado_identidad(...)` y `estado_nominal_cedula(...)`**
+(agregadas 11–12-jul, `SECURITY DEFINER`, bypassan la RLS de `refugiados`/
+`alojamientos_refugiados` a propósito y con alcance mínimo — ver "Censo
+nominal…" para el porqué exacto): resuelven el find-or-create por cédula y el
+chequeo de duplicados cross-centro sin el punto ciego de
+`blindaje_lectura_refugiados`. ⚠️ Recuerda el gotcha de `CREATE OR REPLACE`
+reseteando `EXECUTE` a `PUBLIC` — documentado con el comando de verificación
+en esa misma sección.
 
 **RLS por rol + centro** (migración `sistema_usuarios_5_roles`, SQL de
 referencia en `supabase/sistema_usuarios.sql`). Helpers `SECURITY DEFINER`
@@ -625,6 +710,147 @@ subir) y se guarda solo la **URL** dentro del dato del centro. Requiere
 `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`; sin ellas el botón de foto
 queda desactivado.
 
+## Censo nominal y registro por cédula (Nexus)
+
+Coexisten **dos sistemas de censo** distintos — no los confundas:
+
+1. **Censo rápido / staging** (`censo_registros`, tablas ya documentadas antes
+   de este traspaso): planilla de contacto rápido para contrastar contra el
+   parte numérico. Vistas internas `/centros/censo-rapido` (`CensoRedView`,
+   `CensoCentroPanel`, `CensoCentroDetalleView`).
+2. **Base nominal verificada** (esta sección): identidad real de cada
+   damnificado, con foto SAIME (pendiente), familia, residencia afectada y
+   trazabilidad completa. Vista interna `/centros/refugiados`
+   (`RefugiadosRedView` red-wide, `RefugiadoDetalleRedView` /
+   `/centros/refugiados/:alojamientoId` el detalle) y `FichaRefugiadoView`
+   embebida en `/centro/:id` (pestaña Población). El alta se hace por **cédula
+   vía Nexus** (abajo) o manualmente con `RefugiadoForm`.
+
+### Modelo de datos nominal (4 tablas tipadas, `src/domain/refugiados.ts`)
+
+- **`refugiados`**: identidad (`cedula`/`cedula_norm`/`tipo_doc`, nombres
+  desglosados, `fecha_nacimiento`, `sexo`, `foto_url`, `vulnerabilidades`
+  jsonb, `contacto`/`salud`/`habilidades`/`documentacion`/`tallas` jsonb).
+  **`cedula_norm` es única en toda la red** (`refugiados_cedula_norm_uq`) —
+  una persona existe una sola vez, sin importar el centro.
+- **`familias_centro`**: el hogar (nombre, `familiares_referencia`/
+  `familiares_separados` jsonb — este último con `estado`:
+  `desaparecido`/`separado`/`contacto_perdido`/**`fallecido`**, más
+  `edad_aproximada`/`fecha_fallecimiento`); y el bloque de **damnificación**
+  agregado el 12-jul: `miembros_damnificados_declarados int`,
+  `fallecidos_confirmados int default 0`, `desaparecidos int default 0` (el
+  conteo rápido — fuente de verdad para el nivel de afectación, independiente
+  de si hay detalle nominal en `familiares_separados`).
+- **`alojamientos_refugiados`**: la relación persona↔hogar↔centro
+  (`es_jefe_familia`, `parentesco_jefe`, `estado` activo/observación/
+  tránsito/egresado, `creada_ts`/`creada_por`).
+- **`residencias_afectadas`**: una por familia (`unique(familia_id)` vía RPC
+  upsert), con **`estatus_vivienda`** como eje de **severidad** (`destruida` /
+  `inabitable` / `parcial_habitable` / `habitable_con_riesgo` / **`sin_dano`**
+  agregado el 12-jul / `sin_verificar`) **separado** de la ubicación
+  (`estado_federativo`/`municipio`/`parroquia`/`sector`/`direccion`) — no
+  confundir "dónde" con "qué tan grave".
+
+**Nivel de afectación** (`src/domain/nivelAfectacionHogar.ts`, pura, agregada
+el 12-jul): 🔴 crítico / 🟡 atención / 🟢 estable / ⚪ sin verificar, derivado de
+`estatus_vivienda` + `fallecidos_confirmados`/`desaparecidos` — **nunca se
+pregunta al censista, se calcula**. Cualquier fallecido o desaparecido es
+crítico sin importar la vivienda. Se muestra en el badge de `FichaRefugiadoView`
+(cualquier hogar) y en `CensoNexusPanel` justo al crear el hogar.
+
+### Integración Nexus/Onfalo (censo por cédula)
+
+Documentación completa y detallada en **`nexusEndPoint/README.md`** (léela
+antes de tocar esto) — resumen operativo aquí:
+
+- **Qué es:** API institucional (`api.onfalo.nexus.ia.ve`, solo resuelve
+  dentro de una VPN de la institución) que, dada una cédula, devuelve nombres,
+  sexo, fecha de nacimiento, teléfonos, familiares vinculados (fiscal +
+  IPSFA/militar) y metadatos de foto SAIME.
+- **Arquitectura:** contenedor `nexus-gateway` en Dokploy (Alpine + OpenVPN +
+  proxy Python, `nexusEndPoint/runtime/proxy.py` — **gitignored**, la copia en
+  producción vive en `/etc/dokploy/nexus-vpn/`) expuesto en
+  `https://nexus.m0n1t0r-d3-3v3nt0s.net`. El frontend nunca ve la API key de
+  Nexus; habla con el gateway vía `src/data/reposNexus.ts`
+  (`buscarPersonaNexusConCache`) con JWT de Supabase.
+- **Caché:** tabla `nexus_consultas` (PK letra+cedula) — el censo por cédula
+  sigue operativo con la VPN caída para cédulas ya consultadas; botón
+  "Reconsultar" fuerza ir a Nexus.
+- **Foto SAIME — PENDIENTE:** Nexus solo da el *nombre* del archivo
+  (`foto_nombre`); la imagen vive en un MinIO aparte. Ver "Qué falta" arriba y
+  `nexusEndPoint/README.md` §6 para el mecanismo exacto y qué falta pedirle al
+  admin de Nexus.
+
+### `CensoNexusPanel.tsx` — flujo por cédula (`src/data/reposCensoNexus.ts`)
+
+1. Buscar cédula → ficha Nexus (o caché) + `estadoNominalPorCedula` (pre-check
+   de duplicados, ver abajo).
+2. **¿Es jefe/a de familia?** — se pregunta apenas se confirma identidad, antes
+   de mostrar dirección/teléfonos/damnificación (agregado 12-jul: esas
+   preguntas son del hogar, no tiene sentido hacerlas dos veces ni a quien no
+   va a crear el hogar). Si "No" → botón para buscar al jefe real.
+3. Si "Sí": dirección/teléfonos (confirmables con un toque) → familiares
+   sugeridos por Nexus (botón "Está aquí conmigo — Agregar", deja explícito
+   que confirma presencia física, no solo el vínculo que registra el Estado)
+   → **sección "Damnificación por el terremoto"** (severidad de vivienda
+   obligatoria + ubicación opcional + miembros damnificados declarados +
+   conteo rápido de fallecidos/desaparecidos con detalle opcional repetible)
+   → "Verificar y crear hogar".
+4. `registrarPersonaNexusEnNominal()` hace el alta: find-or-create de la
+   identidad, `guardarResidenciaAfectada()` + `actualizarDamnificacionFamilia()`
+   + `guardarFamiliaresReferencia()` (pérdidas), `asociarRefugiadoAFamilia()`.
+5. Hogar creado → repetir búsqueda por cédula para agregar adultos (cónyuge,
+   hijos cedulados, etc. — el buscador queda arriba, en "Hogar en registro");
+   `registrarMiembroSinDocumento()` para menores/personas sin cédula.
+
+### Duplicados cross-centro — el bug más importante que corregí (11–12-jul)
+
+**Causa raíz:** la RLS `blindaje_lectura_refugiados` (correcta para proteger
+PII: un `supervisor`/`operador` solo ve refugiados que creó él mismo o que
+están alojados en **su propio** centro) tiene un efecto colateral: si un
+operador censaba una cédula ya activa en **otro** centro (o creada por otro
+usuario), el `SELECT` de duplicados devolvía "no existe" **en silencio**, y el
+`INSERT` posterior chocaba con `refugiados_cedula_norm_uq` → crash. El mismo
+punto ciego rompía el aviso "ya activo en otro campamento" (también dependía
+de una lectura RLS-limitada).
+
+**Arreglo — 2 RPC `SECURITY DEFINER`** (bypassan la RLS a propósito, con
+alcance mínimo):
+
+- **`upsert_refugiado_identidad(...)`**: find-or-create atómico del lado del
+  servidor. Wrapper: `upsertRefugiadoIdentidad()` en `reposRefugiados.ts`.
+  Chequeo de rol interno (`admin`/`analista_sae`/`supervisor`/`operador`).
+- **`estado_nominal_cedula(p_cedula_norm, p_centro_id)`**: solo expone
+  `centro_id`s + flags + **fecha/hora del registro** (`creada_ts`,
+  `fecha_ingreso`) + quién lo registró (`registrado_por`) — **nunca PII**
+  (nombres, teléfonos, etc.). Wrapper: `estadoNominalCedulaRed()`. Usado tanto
+  por `registrarPersonaNexusEnNominal` (evitar el crash) como por
+  `estadoNominalPorCedula` (el aviso, ahora confiable cross-centro).
+
+**UI del aviso** (`CensoNexusPanel.tsx`, agregado 12-jul): si la cédula ya
+está activa en otro campamento, el flujo **se detiene** — tarjeta roja con
+fecha/hora de cada registro previo + explicación de las 3 causas posibles
+(duplicado / traslado sin cerrar / error) + botón **"Reportar por WhatsApp"**
+a los analistas SAE del campamento actual (`AnalistaContactoTerreno.whatsapp`,
+agregado a `terreno_centro`/`censo_centros`; mensaje pre-armado con
+`whatsappHref(tel, mensaje)`) + **checkbox de confirmación explícita**
+obligatorio antes de habilitar "Verificar y crear hogar" / "Agregar al hogar".
+
+⚠️ **Gotcha reafirmado con esta implementación** (ya documentado para las RPC
+de `tokens_centro_auto`, aplica igual aquí): **`CREATE OR REPLACE FUNCTION`
+resetea el `EXECUTE` a `PUBLIC` por defecto**, incluso en funciones que la
+migración actual no toca directamente — pasó dos veces seguidas con
+`upsert_refugiado_identidad`/`estado_nominal_cedula` quedando abiertas a
+`anon`. **Siempre verificar después de migrar:**
+```sql
+select p.proname, r.rolname, has_function_privilege(r.oid, p.oid, 'EXECUTE')
+from pg_proc p cross join (select oid, rolname from pg_roles where rolname in ('anon','authenticated')) r
+where p.proname in ('<funciones tocadas>');
+```
+y repetir `revoke ... from anon/public; grant execute ... to authenticated;`
+si hace falta. `terreno_centro` es la única excepción legítima (debe seguir
+siendo `anon` — la usan `/terreno` y `/censo` sin login).
+
 ## Sala de control `/dashboard`
 
 Vista independiente a pantalla completa pensada para **proyectar** en la sala
@@ -706,6 +932,13 @@ docker compose up -d --build
 
 ## Notas / gotchas
 
+- **`CREATE OR REPLACE FUNCTION` resetea `EXECUTE` a `PUBLIC`** aunque la
+  función no cambie de firma, y a veces afecta incluso a funciones que la
+  migración *no* tocó directamente (visto dos veces seguidas el 12-jul con
+  `upsert_refugiado_identidad`/`estado_nominal_cedula`). **Después de CUALQUIER
+  migración que toque una función `SECURITY DEFINER` con `revoke`/`grant`
+  manual, reverifica los grants** — comando y contexto completo en "Censo
+  nominal y registro por cédula (Nexus)".
 - **Secretos:** `.env` (frontend, `VITE_SUPABASE_*` y `VITE_MAPTILER_KEY`) y el
   `.env` de despliegue están en `.gitignore`. `.env.example` va sin claves.
   Repo es público.
@@ -754,6 +987,14 @@ docker compose up -d --build
   centro (parte numérico + comidas + atención médica), registrar un caso de
   salud y una novedad y verlos en la pestaña "Seguimiento" de la ficha, en la
   bandeja `/incidencias/funcionarios` y en los KPIs del dashboard.
+- **Censo nominal por cédula:** desde `/censo` (o `/terreno` → Censo), buscar
+  una cédula de prueba, crear un hogar, capturar damnificación (severidad de
+  vivienda + un fallecido/desaparecido de prueba) y verificar el nivel de
+  afectación calculado en el badge; agregar un adulto por cédula y un menor
+  sin documento; **repetir la búsqueda de la MISMA cédula desde un usuario
+  `operador` con centro distinto** y confirmar que el aviso de duplicado
+  aparece con fecha/hora y bloquea hasta confirmar (esto es lo que estaba roto
+  antes del 11-jul — no te saltes esta prueba).
 - Usuarios y permisos: desde `/usuarios` crear un `operador` con 2 centros
   asignados, loguearse con él y comprobar que solo ve/edita esos centros,
   cambiarle la contraseña desde

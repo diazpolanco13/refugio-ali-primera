@@ -28,6 +28,7 @@ import {
   type PuntoSeriePorGrupo,
 } from "@/domain/serieOcupacionCentros";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import { idCentroEsPrueba } from "@/domain/centrosTransitorios";
 import {
   ChartContainer,
   ChartTooltip,
@@ -86,7 +87,10 @@ export function GraficoOcupacionRed({ flexible = false }: { flexible?: boolean }
   const filasCentros = useSupabaseQuery<FilaCentroBlob>("centros");
   const centros = useMemo(() => desenredarCentros(filasCentros), [filasCentros]);
   const centrosParaAgregado = useMemo<CentroParaAgregado[]>(
-    () => centros.map((c) => ({ id: c.id, grupo: c.grupo })),
+    () =>
+      centros
+        .filter((c) => !idCentroEsPrueba(c.id))
+        .map((c) => ({ id: c.id, grupo: c.grupo })),
     [centros],
   );
 

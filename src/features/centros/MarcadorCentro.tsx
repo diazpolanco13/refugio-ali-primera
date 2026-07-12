@@ -1,4 +1,5 @@
 import { LogoCuerpo } from "@/components/LogoCuerpo";
+import { BadgePruebaCentro } from "@/components/BadgePruebaCentro";
 import { COLOR_MARCADOR_ATENUADO } from "@/domain/unidadesSebin";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,8 @@ interface Props {
   personalTotal?: number;
   /** Color del semáforo de ocupación. null = no mostrar. */
   semaforoColor?: string | null;
+  /** Campamento sandbox: muestra marca «Prueba». */
+  esPrueba?: boolean;
   onClick: () => void;
 }
 
@@ -98,11 +101,18 @@ export function MarcadorCentro({
   refugiados = 0,
   personalTotal = 0,
   semaforoColor,
+  esPrueba = false,
   onClick,
 }: Props) {
   const colorMarcador = resaltado ? color : COLOR_MARCADOR_ATENUADO;
   const titulo =
-    `N.° ${nro} · ${refugiados.toLocaleString("es")} damnificados · ${personalTotal.toLocaleString("es")} personal operativo`;
+    `${esPrueba ? "[PRUEBA] " : ""}N.° ${nro} · ${refugiados.toLocaleString("es")} damnificados · ${personalTotal.toLocaleString("es")} personal operativo`;
+
+  const marcaPrueba = esPrueba ? (
+    <span className="mt-0.5 block">
+      <BadgePruebaCentro compacto />
+    </span>
+  ) : null;
 
   function manejarClick(ev: React.MouseEvent) {
     ev.stopPropagation();
@@ -141,6 +151,7 @@ export function MarcadorCentro({
               <ParteNumerico refugiados={refugiados} compacto />
             </span>
           )}
+          {marcaPrueba}
         </div>
         {semaforoColor && resaltado && (
           <span className="absolute -bottom-0.5 -right-0.5">
@@ -194,6 +205,7 @@ export function MarcadorCentro({
           {iconoCuerpo}
         </div>
         {semaforoColor && resaltado && <SemaforoEstado color={semaforoColor} />}
+        {marcaPrueba}
       </div>
     );
   }
@@ -219,6 +231,7 @@ export function MarcadorCentro({
         {resaltado && <ParteNumerico refugiados={refugiados} />}
       </div>
       {semaforoColor && resaltado && <SemaforoEstado color={semaforoColor} />}
+      {marcaPrueba}
     </div>
   );
 }

@@ -16,6 +16,87 @@ export function urlGatewayNexus(): string {
   return GATEWAY_URL;
 }
 
+/** Estado del API institucional Nexus (vía gateway). */
+export type EstadoNexusApi = "online" | "offline" | "degraded";
+
+export interface InformeEstadoNexus {
+  estado: EstadoNexusApi | "unknown";
+  gatewayOk: boolean;
+  upstreamStatus: number | null;
+  checkedAt: number | null;
+  cached: boolean;
+  detail: string | null;
+}
+
+/**
+ * Consulta el estado del API Nexus (cacheado ~45s en el gateway).
+ * Público: no requiere sesión. `force` pide re-sondeo inmediato.
+ */
+export async function consultarEstadoNexusApi(
+  opts?: { force?: boolean; signal?: AbortSignal },
+): Promise<InformeEstadoNexus> {
+  const q = opts?.force ? "?force=1" : "";
+  try {
+    const resp = await fetch(`${GATEWAY_URL}/health/nexus${q}`, {
+      method: "GET",
+      signal: opts?.signal,
+    });
+    const json = (await resp.json()) as {
+      ok?: boolean;
+      gateway?: boolean;
+      nexus?: string;
+      upstream_status?: number | null;
+      checked_at?: number;
+      cached?: boolean;
+      detail?: string | null;
+    };
+    const raw = json.nexus;
+    const estado: InformeEstadoNexus["estado"] =
+      raw === "online" || raw === "offline" || raw === "degraded" ? raw : "unknown";
+    return {
+      estado,
+      gatewayOk: json.gateway === true || json.ok === true,
+      upstreamStatus:
+        typeof json.upstream_status === "number" ? json.upstream_status : null,
+      checkedAt: typeof json.checked_at === "number" ? json.checked_at : null,
+      cached: Boolean(json.cached),
+      detail: typeof json.detail === "string" ? json.detail : null,
+    };
+  } catch {
+    return {
+      estado: "unknown",
+      gatewayOk: false,
+      upstreamStatus: null,
+      checkedAt: null,
+      cached: false,
+      detail: "Sin respuesta del gateway",
+    };
+  }
+}
+
+/** Error de infraestructura: el API Nexus / gateway no respondió bien. */
+export class NexusNoDisponibleError extends Error {
+  readonly code = "nexus_unavailable" as const;
+  constructor(message?: string) {
+    super(
+      message ||
+        "Nexus no está disponible ahora (servidor caído o saturado). Pruebe una cédula ya consultada o use la planilla manual.",
+    );
+    this.name = "NexusNoDisponibleError";
+  }
+}
+
+export function esNexusNoDisponible(err: unknown): err is NexusNoDisponibleError {
+  return (
+    err instanceof NexusNoDisponibleError ||
+    (err instanceof Error &&
+      (err.name === "NexusNoDisponibleError" ||
+        /Nexus no está disponible|Respuesta inválida del gateway \(50[234]\)|bad_gateway/i.test(
+          err.message,
+        )))
+  );
+}
+
 /** Busca una persona por cédula (modo slim para censo). Requiere sesión. */
 export async function buscarPersonaNexus(
   letra: "V" | "E" | "J",
@@ -34,20 +115,30 @@ export async function buscarPersonaNexus(
   }
 
   const url = `${GATEWAY_URL}/v1/person/search/external/full/${letra}/${digits}/censo`;
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: "{}",
-  });
+  let resp: Response;
+  try {
+    resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: "{}",
+    });
+  } catch {
+    throw new NexusNoDisponibleError(
+      "No se pudo contactar el gateway de Nexus. Revise la conexión o use la planilla manual.",
+    );
+  }
 
   const texto = await resp.text();
   let json: PersonaNexusCenso | { error?: string; message?: string };
   try {
     json = JSON.parse(texto) as PersonaNexusCenso;
   } catch {
+    if (resp.status === 502 || resp.status === 503 || resp.status === 504) {
+      throw new NexusNoDisponibleError();
+    }
     throw new Error(`Respuesta inválida del gateway (${resp.status})`);
   }
 
@@ -61,12 +152,22 @@ export async function buscarPersonaNexus(
     }
     throw new Error(`No se pudo obtener la ficha (${err})`);
   }
-  if (!resp.ok) {
-    throw new Error(
-      (json as { error?: string; message?: string }).error ||
-        (json as { message?: string }).message ||
-        `Error HTTP ${resp.status}`,
+  if (resp.status === 502 || resp.status === 503 || resp.status === 504) {
+    throw new NexusNoDisponibleError(
+      (json as { message?: string }).message ||
+        (json as { error?: string }).error ||
+        undefined,
     );
+  }
+  if (!resp.ok) {
+    const msg =
+      (json as { error?: string; message?: string }).error ||
+      (json as { message?: string }).message ||
+      `Error HTTP ${resp.status}`;
+    if (/bad_gateway|unavailable|timeout/i.test(msg)) {
+      throw new NexusNoDisponibleError(msg);
+    }
+    throw new Error(msg);
   }
 
   return json as PersonaNexusCenso;

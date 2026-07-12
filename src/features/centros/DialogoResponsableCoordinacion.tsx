@@ -152,6 +152,7 @@ export function CamposResponsableCoordinacion({
             className="mt-1"
             value={valor.personal_mando}
             onChange={(n) => onChange({ personal_mando: n })}
+            max={2_000}
           />
         </div>
       </div>

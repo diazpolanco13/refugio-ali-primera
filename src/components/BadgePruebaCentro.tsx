@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-/** Marca visual del campamento sandbox (no cuenta en totales de la red). */
+/** Marca visual del campamento sandbox (solo admin; no cuenta en totales de la red). */
 export function BadgePruebaCentro({
   className,
   compacto = false,

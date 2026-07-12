@@ -26,7 +26,13 @@ import { claveDia } from "@/data/reposSupabase";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
 import { contarAtenciones, racionesDelDia } from "@/domain/reporteDiario";
-import { poblacionCentro, type CentroTransitorio } from "@/domain/centrosTransitorios";
+import {
+  centrosDeProduccion,
+  idCentroEsPrueba,
+  poblacionCentro,
+  type CentroTransitorio,
+} from "@/domain/centrosTransitorios";
+import { centrosVisiblesParaUsuario } from "@/domain/permisos";
 import {
   conteoPorNivel,
   demografiaRed,
@@ -78,7 +84,7 @@ function Reloj() {
 }
 
 /** Sala situacional proyectable: red agregada de Campamentos Transitorios. */
-export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
+export function DashboardView({ sesion }: { sesion: Sesion }) {
   const navegar = useNavigate();
   const conectado = useSupabaseConectado();
 
@@ -95,10 +101,13 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
   const centros = useMemo(
     () =>
       aplicarPartesActualesACentros(
-        [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
+        centrosVisiblesParaUsuario(
+          [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
+          sesion.user,
+        ),
         snapshots,
       ),
-    [filasCentros, snapshots],
+    [filasCentros, snapshots, sesion.user],
   );
 
   const kpis = useMemo(() => kpisRedCentros(centros), [centros]);
@@ -106,7 +115,7 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
   const conteoNivel = useMemo(() => conteoPorNivel(centros), [centros]);
   const prioridades = useMemo(() => topPrioridadCentros(centros, 8), [centros]);
   const ocupados = useMemo(
-    () => centros.filter((c) => poblacionCentro(c) > 0).length,
+    () => centrosDeProduccion(centros).filter((c) => poblacionCentro(c) > 0).length,
     [centros],
   );
   const desocupados = kpis.centrosTotal - ocupados;
@@ -121,46 +130,58 @@ export function DashboardView({ sesion: _sesion }: { sesion: Sesion }) {
 
   // Casos de salud en seguimiento en toda la red (Realtime).
   const { casos: casosSalud } = useCasosSaludCentros({ soloActivos: true });
-  const casosPendientes = useMemo(() => casosSaludPendientes(casosSalud), [casosSalud]);
-  const casosActivos = useMemo(
-    () => totalCasosSaludActivosRed(casosSalud),
+  const casosSaludProd = useMemo(
+    () => casosSalud.filter((c) => !idCentroEsPrueba(c.centro_id)),
     [casosSalud],
   );
+  const casosPendientes = useMemo(() => casosSaludPendientes(casosSaludProd), [casosSaludProd]);
+  const casosActivos = useMemo(
+    () => totalCasosSaludActivosRed(casosSaludProd),
+    [casosSaludProd],
+  );
   const casosEnProceso = useMemo(
-    () => casosSalud.filter((c) => c.estatus === "en_proceso").length,
-    [casosSalud],
+    () => casosSaludProd.filter((c) => c.estatus === "en_proceso").length,
+    [casosSaludProd],
   );
 
   // Reporte diario de HOY: raciones, atenciones médicas y novedades (eventos).
   const hoy = claveDia(Date.now());
   const reportesHoy = useReportesCentros({ dia: hoy });
   const { eventos: eventosHoy } = useEventosReportes({ dia: hoy });
-  const racionesHoy = useMemo(
-    () => reportesHoy.reduce((acc, r) => acc + racionesDelDia(r), 0),
+  const reportesHoyProd = useMemo(
+    () => reportesHoy.filter((r) => !idCentroEsPrueba(r.centro_id)),
     [reportesHoy],
+  );
+  const eventosHoyProd = useMemo(
+    () => eventosHoy.filter((e) => !idCentroEsPrueba(e.centro_id)),
+    [eventosHoy],
+  );
+  const racionesHoy = useMemo(
+    () => reportesHoyProd.reduce((acc, r) => acc + racionesDelDia(r), 0),
+    [reportesHoyProd],
   );
   const atencionesHoy = useMemo(
     () =>
-      reportesHoy.reduce(
+      reportesHoyProd.reduce(
         (acc, r) =>
           acc + contarAtenciones(r.atenciones_medicas_detalle, r.atenciones_medicas),
         0,
       ),
-    [reportesHoy],
+    [reportesHoyProd],
   );
   const eventosPositivos = useMemo(
-    () => eventosHoy.filter((e) => e.tipo === "positivo").length,
-    [eventosHoy],
+    () => eventosHoyProd.filter((e) => e.tipo === "positivo").length,
+    [eventosHoyProd],
   );
-  const eventosNegativos = eventosHoy.length - eventosPositivos;
+  const eventosNegativos = eventosHoyProd.length - eventosPositivos;
 
   // Campamentos con novedad: caso de salud pendiente o evento negativo hoy.
   const centrosConNovedad = useMemo(() => {
     const ids = new Set<string>();
     for (const c of casosPendientes) ids.add(c.centro_id);
-    for (const e of eventosHoy) if (e.tipo === "negativo") ids.add(e.centro_id);
+    for (const e of eventosHoyProd) if (e.tipo === "negativo") ids.add(e.centro_id);
     return ids.size;
-  }, [casosPendientes, eventosHoy]);
+  }, [casosPendientes, eventosHoyProd]);
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
