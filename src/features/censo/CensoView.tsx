@@ -23,6 +23,7 @@ import {
   Search,
   Tent,
   Trash2,
+  UserCheck,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -72,6 +73,7 @@ import {
   completarCenso,
   eliminarCenso,
   listarCentrosCenso,
+  listarIdsCensoProcesados,
   listarRegistrosCenso,
   obtenerCentroTerreno,
   obtenerCierreCenso,
@@ -284,6 +286,16 @@ export function CensoView() {
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
   /** Incrementa al pulsar «Inicio del censo» en la cabecera (reset del panel Nexus). */
   const [reinicioKey, setReinicioKey] = useState(0);
+  /** Botón "Verificar" desde "Registrados": precarga una cédula en el panel Nexus. */
+  const [cedulaPrecarga, setCedulaPrecarga] = useState<{
+    letra: "V" | "E";
+    cedula: string;
+    key: number;
+  } | null>(null);
+  function verificarEnNominal(letra: "V" | "E", cedula: string) {
+    setModoCenso("nexus");
+    setCedulaPrecarga((prev) => ({ letra, cedula, key: (prev?.key ?? 0) + 1 }));
+  }
   const [paso1Seccion, setPaso1Seccion] = useState<"centro" | "funcionario">(
     token || centroParam || guardada?.centroId ? "funcionario" : "centro",
   );
@@ -768,6 +780,7 @@ export function CensoView() {
                 onCambiarCentro={!token ? () => setCentroId("") : undefined}
                 onEstadoNexus={setNexusEnLinea}
                 reinicioKey={reinicioKey}
+                cedulaPrecarga={cedulaPrecarga}
               />
             )}
           </div>
@@ -1516,6 +1529,7 @@ export function CensoView() {
               setPaso(2);
             }}
             onEditar={iniciarEdicion}
+            onVerificar={verificarEnNominal}
           />
         )}
       </main>
@@ -1614,12 +1628,14 @@ function PasoRegistrados({
   funcionario,
   onVolver,
   onEditar,
+  onVerificar,
 }: {
   centroId: string;
   centroNombre: string;
   funcionario: FuncionarioCenso;
   onVolver: () => void;
   onEditar: (fila: RegistroCensoGuardado) => void;
+  onVerificar: (letra: "V" | "E", cedula: string) => void;
 }) {
   const [filas, setFilas] = useState<RegistroCensoGuardado[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -1632,14 +1648,21 @@ function PasoRegistrados({
   const [confirmarCompletar, setConfirmarCompletar] = useState(false);
   const [completando, setCompletando] = useState(false);
   const [errorCompletar, setErrorCompletar] = useState("");
+  /** Ids ya verificados en el censo nominal (badge "✓ Nominal" por fila). */
+  const [procesadosIds, setProcesadosIds] = useState<Set<string>>(new Set());
 
   const cargar = useCallback(() => {
     setCargando(true);
     setError("");
-    Promise.all([listarRegistrosCenso(centroId), obtenerCierreCenso(centroId)])
-      .then(([lista, ultimoCierre]) => {
+    Promise.all([
+      listarRegistrosCenso(centroId),
+      obtenerCierreCenso(centroId),
+      listarIdsCensoProcesados(centroId).catch(() => new Set<string>()),
+    ])
+      .then(([lista, ultimoCierre, procesados]) => {
         setFilas(lista);
         setCierre(ultimoCierre);
+        setProcesadosIds(procesados);
         setCargando(false);
       })
       .catch((err) => {
@@ -1701,8 +1724,19 @@ function PasoRegistrados({
     const enfermedad = filas.filter((f) => f.enfermedad).length;
     const menores = filas.filter((f) => f.edad != null && f.edad < 18).length;
     const adultosMayores = filas.filter((f) => f.edad != null && f.edad >= 60).length;
-    return { total, mujeres, hombres, embarazadas, discapacidad, enfermedad, menores, adultosMayores };
-  }, [filas]);
+    const procesados = filas.filter((f) => procesadosIds.has(f.id)).length;
+    return {
+      total,
+      mujeres,
+      hombres,
+      embarazadas,
+      discapacidad,
+      enfermedad,
+      menores,
+      adultosMayores,
+      procesados,
+    };
+  }, [filas, procesadosIds]);
 
   const fechaCierre = cierre
     ? new Date(cierre.creado_en).toLocaleString("es-VE", {
@@ -1776,6 +1810,7 @@ function PasoRegistrados({
             <TarjetaStat valor={stats.embarazadas} label="Embarazadas" alerta={stats.embarazadas > 0} />
             <TarjetaStat valor={stats.discapacidad} label="Discapacidad" alerta={stats.discapacidad > 0} />
             <TarjetaStat valor={stats.enfermedad} label="Enf. condicionante" alerta={stats.enfermedad > 0} />
+            <TarjetaStat valor={stats.procesados} label="Verificados en nominal" />
           </div>
         </CardContent>
       </Card>
@@ -1843,8 +1878,14 @@ function PasoRegistrados({
                       key={f.id}
                       fila={f}
                       numero={filasFiltradas.length - i}
+                      procesado={procesadosIds.has(f.id)}
                       onEditar={() => onEditar(f)}
                       onEliminar={() => setEliminarTarget(f)}
+                      onVerificar={
+                        f.documento && (f.tipo_doc === "V" || f.tipo_doc === "E")
+                          ? () => onVerificar(f.tipo_doc as "V" | "E", f.documento)
+                          : undefined
+                      }
                     />
                   ))}
                 </TableBody>
@@ -2032,13 +2073,19 @@ const ABREV_VIVIENDA: Record<string, string> = {
 function FilaTabla({
   fila,
   numero,
+  procesado,
   onEditar,
   onEliminar,
+  onVerificar,
 }: {
   fila: RegistroCensoGuardado;
   numero: number;
+  /** Ya verificado en el censo nominal (RPC censo_marcar_procesado). */
+  procesado: boolean;
   onEditar: () => void;
   onEliminar: () => void;
+  /** Undefined si el registro no tiene cédula V/E utilizable en Nexus. */
+  onVerificar?: () => void;
 }) {
   const nombre = [fila.primer_nombre, fila.segundo_nombre, fila.primer_apellido, fila.segundo_apellido]
     .filter(Boolean)
@@ -2056,8 +2103,20 @@ function FilaTabla({
     <TableRow>
       <TableCell className="px-2 py-1.5 text-center text-muted-foreground">{numero}</TableCell>
       <TableCell className="max-w-40 px-2 py-1.5">
-        <span className="block truncate font-medium" title={nombre}>
-          {nombre}
+        <span className="flex min-w-0 items-center gap-1">
+          <span className="truncate font-medium" title={nombre}>
+            {nombre}
+          </span>
+          {procesado && (
+            <Badge
+              variant="outline"
+              className="h-4 shrink-0 gap-0.5 border-emerald-500/50 px-1 text-[9px] text-emerald-600 dark:text-emerald-400"
+              title="Ya verificado en el censo nominal (Por cédula)"
+            >
+              <Check className="size-2.5" />
+              Nominal
+            </Badge>
+          )}
         </span>
         {fila.parentesco_jefe && (
           <span
@@ -2125,6 +2184,18 @@ function FilaTabla({
       <TableCell className="px-2 py-1.5 text-right text-muted-foreground">{hora}</TableCell>
       <TableCell className="px-1 py-1.5">
         <div className="flex items-center justify-center gap-0.5">
+          {onVerificar ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 text-primary hover:text-primary"
+              title="Verificar en el censo nominal (Por cédula)"
+              onClick={onVerificar}
+            >
+              <UserCheck className="size-3.5" />
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="ghost"

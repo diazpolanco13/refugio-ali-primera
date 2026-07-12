@@ -11,6 +11,7 @@ import {
   upsertRefugiadoIdentidad,
   type EstadoNominalCedulaRed,
 } from "./reposRefugiados";
+import { marcarCensoProcesado } from "./reposCenso";
 import { supabase } from "./supabaseClient";
 import type { PersonaNexusCenso } from "@/domain/nexusPersona";
 import type { Refugiado, SexoRefugiado, TipoDoc } from "@/domain/refugiados";
@@ -126,6 +127,7 @@ export async function registrarPersonaNexusEnNominal(opts: {
       parentesco_jefe: "",
     });
     await guardarTelefonosConfirmados();
+    marcarCensoProcesado(cedula_norm, opts.centroId);
     return {
       refugiadoId,
       alojamientoId,
@@ -147,6 +149,7 @@ export async function registrarPersonaNexusEnNominal(opts: {
     parentesco_jefe: (opts.parentescoJefe || "Otro familiar").trim(),
   });
   await guardarTelefonosConfirmados();
+  marcarCensoProcesado(cedula_norm, opts.centroId);
 
   return {
     refugiadoId,

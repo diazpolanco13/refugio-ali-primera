@@ -71,10 +71,13 @@ import {
   type EstadoNominalCedula,
 } from "@/data/reposCensoNexus";
 import {
+  buscarCensoRegistroPorDocumento,
   listarCentrosCenso,
   obtenerCentroTerreno,
   type AnalistaContactoTerreno,
+  type RegistroCensoViejoResumen,
 } from "@/data/reposCenso";
+import { CEDULA_JEFE_NO_SE } from "@/domain/catalogosHumanitarios";
 import {
   actualizarConsentimientoFoto,
   actualizarDamnificacionFamilia,
@@ -292,6 +295,9 @@ interface Props {
   onEstadoNexus?: (enLinea: NexusEnLinea) => void;
   /** Incrementar desde la cabecera de /censo para reiniciar el flujo (otra persona). */
   reinicioKey?: number;
+  /** Precarga y dispara la búsqueda de una cédula (ej. botón "Verificar" desde
+   * la lista "Registrados" del censo manual viejo). Cambiar `key` la dispara. */
+  cedulaPrecarga?: { letra: Letra; cedula: string; key: number } | null;
 }
 
 interface MiembroHogar {
@@ -430,6 +436,7 @@ export function CensoNexusPanel({
   onCambiarCentro,
   onEstadoNexus,
   reinicioKey = 0,
+  cedulaPrecarga,
 }: Props) {
   const [sesionLista, setSesionLista] = useState(false);
   const [errorSesion, setErrorSesion] = useState("");
@@ -440,6 +447,9 @@ export function CensoNexusPanel({
   const [errorBusqueda, setErrorBusqueda] = useState("");
   const [persona, setPersona] = useState<PersonaNexusCenso | null>(null);
   const [estadoNominal, setEstadoNominal] = useState<EstadoNominalCedula | null>(null);
+  // Contexto de solo lectura del censo manual viejo (censo_registros), si esa
+  // cédula ya fue censada antes de existir este flujo por cédula.
+  const [registroViejo, setRegistroViejo] = useState<RegistroCensoViejoResumen | null>(null);
   // Procedencia de la ficha mostrada: caché propia (BD) o consulta viva a Nexus.
   const [origenFicha, setOrigenFicha] = useState<{
     desdeCache: boolean;
@@ -713,6 +723,7 @@ export function CensoNexusPanel({
     setPersona(null);
     setEstadoNominal(null);
     setOrigenFicha(null);
+    setRegistroViejo(null);
     setAvisoOtros([]);
     setTelsConfirmados([]);
     setTelsAgregados([]);
@@ -728,16 +739,19 @@ export function CensoNexusPanel({
     }
     setBuscando(true);
     try {
-      const [ficha, estado] = await Promise.all([
+      const [ficha, estado, viejo] = await Promise.all([
         buscarPersonaNexusConCache(letraBuscar, cedulaBuscar, {
           forzarNexus: opts?.forzarNexus,
         }),
         // El pre-chequeo nominal es informativo: si falla no bloquea la búsqueda.
         estadoNominalPorCedula(cedulaBuscar, letraBuscar, centroId).catch(() => null),
+        // Contexto del censo manual viejo: también informativo, nunca bloquea.
+        buscarCensoRegistroPorDocumento(soloDigitos(cedulaBuscar)).catch(() => null),
       ]);
       const p = ficha.persona;
       setPersona(p);
       setEstadoNominal(estado);
+      setRegistroViejo(viejo);
       setOrigenFicha({ desdeCache: ficha.desdeCache, consultadaTs: ficha.consultadaTs });
       // Consulta viva exitosa ⇒ Nexus está arriba (sin otro hit a /health).
       if (!ficha.desdeCache) {
@@ -1073,6 +1087,19 @@ export function CensoNexusPanel({
     reiniciarFlujoCenso();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al pulsar Inicio del censo
   }, [reinicioKey]);
+
+  // Botón "Verificar" desde la lista "Registrados" del censo viejo: precarga
+  // la cédula y dispara la búsqueda de una.
+  useEffect(() => {
+    if (!cedulaPrecarga || cedulaPrecarga.key <= 0) return;
+    setLetra(cedulaPrecarga.letra);
+    setCedula(cedulaPrecarga.cedula);
+    void onBuscar(undefined, {
+      cedulaBuscar: cedulaPrecarga.cedula,
+      letraBuscar: cedulaPrecarga.letra,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cambiar cedulaPrecarga.key
+  }, [cedulaPrecarga?.key]);
 
   function toggleTelefono(t: string) {
     setTelsConfirmados((prev) =>
@@ -2029,6 +2056,35 @@ export function CensoNexusPanel({
                     un traslado o un error, no un duplicado).
                   </span>
                 </label>
+              </div>
+            ) : null}
+
+            {registroViejo ? (
+              <div className="space-y-1.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+                <p className="text-sm font-medium leading-snug">
+                  Ya fue censado/a el {fechaCorta(new Date(registroViejo.creadoEn).getTime())}
+                  {registroViejo.funcionarioNombre ? ` por ${registroViejo.funcionarioNombre}` : ""}
+                  {registroViejo.centroId !== centroId
+                    ? ` en el campamento ${nombreCentro(registroViejo.centroId)}`
+                    : ""}{" "}
+                  (censo manual anterior).
+                </p>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  Datos de esa planilla, solo como referencia — verifique con la persona:
+                  {registroViejo.direccion ? ` dirección "${registroViejo.direccion}"` : ""}
+                  {registroViejo.telefono ? `, teléfono ${registroViejo.telefono}` : ""}
+                  {registroViejo.parentescoJefe ? `, parentesco declarado "${registroViejo.parentescoJefe}"` : ""}
+                  .
+                </p>
+                {registroViejo.jefeDocumento && registroViejo.jefeDocumento !== CEDULA_JEFE_NO_SE ? (
+                  <p className="text-xs leading-snug text-muted-foreground">
+                    Según el censo anterior, el jefe de este hogar sería la cédula{" "}
+                    <span className="font-mono font-medium text-foreground">
+                      {formatearCedula(registroViejo.jefeDocumento, registroViejo.jefeTipoDoc === "E" ? "E" : "V")}
+                    </span>{" "}
+                    — puede buscarla primero para crear el hogar.
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
