@@ -34,7 +34,10 @@ import { TerrenoBienvenida } from "@/features/terreno/TerrenoBienvenida";
 import { listarCentrosCenso, obtenerCentroTerreno, type CentroCenso } from "@/data/reposCenso";
 import type { FuncionarioCenso } from "@/data/reposCenso";
 import { asegurarSesionTerreno, cerrarSesionTerreno } from "@/data/loginTerreno";
-import { tokenTerrenoActual } from "@/lib/tokenTerreno";
+import {
+  tareaTerrenoDeUrl,
+  tokenTerrenoActual,
+} from "@/lib/tokenTerreno";
 import {
   INSTRUCCIONES_AUTORIDADES_KEY,
   INSTRUCCIONES_CAPACIDAD_KEY,
@@ -75,8 +78,19 @@ function urlReporteCentro(centroId: string): string {
 function urlCensoCentro(centroId: string): string {
   // /censo es una ruta pública (antes del gate de sesión en App.tsx) que
   // resuelve su propio token/instrucciones; no hace falta abrir sesión antes
-  // de navegar, a diferencia del Reporte.
-  return `/censo?centro=${encodeURIComponent(centroId)}`;
+  // de navegar, a diferencia del Reporte. Conserva el token del QR.
+  const token = tokenTerrenoActual();
+  const params = new URLSearchParams();
+  params.set("centro", centroId);
+  if (token) params.set("t", token);
+  return `/censo?${params.toString()}`;
+}
+
+function quitarTareaDeUrl(): void {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has("tarea")) return;
+  url.searchParams.delete("tarea");
+  window.history.replaceState({}, "", url.toString());
 }
 
 const CLASE_BOTON_CUADRADO =
@@ -260,6 +274,8 @@ export function TerrenoView() {
 
   const [entrando, setEntrando] = useState(false);
   const [errorEntrar, setErrorEntrar] = useState("");
+  // Evita reabrir la misma ?tarea= si el usuario vuelve al menú en esta carga.
+  const [tareaDeepLinkConsumida, setTareaDeepLinkConsumida] = useState(false);
 
   async function confirmarIdentificacion() {
     if (!token || !centroValido) return;
@@ -378,6 +394,38 @@ export function TerrenoView() {
     // /censo maneja sus propias instrucciones y token de sesión al llegar.
     window.location.href = urlCensoCentro(centroValido);
   }
+
+  // Deep-link desde el sidebar de la app (?tarea=): tras identificar al
+  // operador, abre la tarea pedida y limpia el query para no reabrirla.
+  useEffect(() => {
+    if (tareaDeepLinkConsumida || !gateListo || cargandoCentros || accesoDenegado) return;
+    if (requiereIdentificacion && !operadorSesion) return;
+    if (pantalla !== "menu") return;
+
+    const tarea = tareaTerrenoDeUrl();
+    if (!tarea) {
+      setTareaDeepLinkConsumida(true);
+      return;
+    }
+
+    quitarTareaDeUrl();
+    setTareaDeepLinkConsumida(true);
+
+    if (tarea === "reporte") abrirReporte();
+    else if (tarea === "geo") abrirGeolocalizacion();
+    else if (tarea === "autoridades") abrirAutoridades();
+    else if (tarea === "capacidad") abrirCapacidad();
+    else if (tarea === "censo") abrirCenso();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al desbloquear el menú
+  }, [
+    tareaDeepLinkConsumida,
+    gateListo,
+    cargandoCentros,
+    accesoDenegado,
+    requiereIdentificacion,
+    operadorSesion,
+    pantalla,
+  ]);
 
   function cambiarInstruccionesSiempre(valor: boolean) {
     setVerInstruccionesSiempre(valor);

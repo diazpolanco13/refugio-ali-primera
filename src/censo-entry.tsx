@@ -31,7 +31,9 @@ export function mount(): void {
   createRoot(root).render(
     <StrictMode>
       <AvisoActualizacionApp />
-      <BotonBorrarCacheFlotante />
+      {/* En /censo el borrar-caché vive en la cabecera; en /terreno, en
+          bienvenida y menú. Solo /denuncia conserva el FAB de esquina. */}
+      {esDenuncia && <BotonBorrarCacheFlotante />}
       {esDenuncia ? <DenunciaView /> : esTerreno ? <TerrenoView /> : <CensoView />}
     </StrictMode>,
   );

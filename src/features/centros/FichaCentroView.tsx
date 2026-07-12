@@ -9,6 +9,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   ClipboardCheck,
+  Home,
   LayoutGrid,
   SearchX,
   UserPlus,
@@ -32,8 +33,9 @@ import {
   puedeEditarReportesPasados,
   puedeVerBuzonCentro,
   puedeVerCensoCentro,
+  centrosVisiblesParaUsuario,
 } from "@/domain/permisos";
-import { tokenTerrenoActual } from "@/lib/tokenTerreno";
+import { irAlPortalTerreno } from "@/lib/tokenTerreno";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
 import { controlReportado, reporteControlDelDia } from "@/domain/controlReporte";
 import {
@@ -84,6 +86,36 @@ interface Props {
 function diaDesdeParam(param: string | null, hoy: string): string {
   if (param && /^\d{4}-\d{2}-\d{2}$/.test(param) && param <= hoy) return param;
   return hoy;
+}
+
+/** Vuelve al menú del portal /terreno (inicio del operador del QR). */
+function BotonVolverInicioTerreno({
+  onClick,
+  className,
+}: {
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className={cn(
+        "h-9 shrink-0 gap-1.5 border-border bg-card px-3 text-foreground shadow-sm",
+        "hover:bg-muted hover:text-foreground",
+        "dark:border-border dark:bg-card dark:shadow-md",
+        className,
+      )}
+      onClick={onClick}
+      aria-label="Volver al inicio del portal de terreno"
+      title="Volver al inicio"
+    >
+      <Home className="size-3.5" aria-hidden />
+      <span className="hidden sm:inline">Volver al inicio</span>
+      <span className="sm:hidden">Inicio</span>
+    </Button>
+  );
 }
 
 /** Ficha completa de un campamento transitorio. */
@@ -159,8 +191,12 @@ export function FichaCentroView({ sesion }: Props) {
     },
   );
   const centrosBase = useMemo(
-    () => [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
-    [filasCentros],
+    () =>
+      centrosVisiblesParaUsuario(
+        [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
+        sesion.user,
+      ),
+    [filasCentros, sesion.user],
   );
   const snapshotsOcupacion = useOcupacionesCentros();
   const centros = useMemo(
@@ -405,10 +441,7 @@ export function FichaCentroView({ sesion }: Props) {
   }
 
   function volverPortalTerreno() {
-    const token = tokenTerrenoActual();
-    window.location.assign(
-      token ? `/terreno?t=${encodeURIComponent(token)}` : "/terreno",
-    );
+    irAlPortalTerreno();
   }
 
   function cerrarReporte() {
@@ -597,16 +630,10 @@ export function FichaCentroView({ sesion }: Props) {
               <p className="truncate text-xs text-muted-foreground">{titulo}</p>
             </div>
             {reporteSoloTerreno && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 shrink-0 gap-1.5 px-2"
+              <BotonVolverInicioTerreno
+                className="h-8"
                 onClick={volverPortalTerreno}
-                aria-label="Volver al portal de terreno"
-              >
-                <span className="hidden sm:inline">Portal</span>
-                <span className="sm:hidden">Portal</span>
-              </Button>
+              />
             )}
           </div>
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
@@ -702,16 +729,7 @@ export function FichaCentroView({ sesion }: Props) {
                 </Button>
               )}
               {esTerreno && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 shrink-0 gap-1.5 px-2"
-                  onClick={volverPortalTerreno}
-                  aria-label="Volver al portal de terreno"
-                >
-                  <ArrowLeft className="size-3.5" />
-                  <span className="hidden sm:inline">Portal</span>
-                </Button>
+                <BotonVolverInicioTerreno onClick={volverPortalTerreno} />
               )}
             </>
           ) : (
@@ -731,16 +749,7 @@ export function FichaCentroView({ sesion }: Props) {
                 </Button>
               )}
               {esTerreno && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 shrink-0 gap-1.5 px-2"
-                  onClick={volverPortalTerreno}
-                  aria-label="Volver al portal de terreno"
-                >
-                  <ArrowLeft className="size-3.5" />
-                  <span className="hidden sm:inline">Portal</span>
-                </Button>
+                <BotonVolverInicioTerreno onClick={volverPortalTerreno} />
               )}
             </>
           )

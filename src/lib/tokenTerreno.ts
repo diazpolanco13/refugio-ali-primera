@@ -25,6 +25,56 @@ export function enlaceDenuncia(token: string): string {
   return `${URL_PORTAL_TERRENO}/denuncia?t=${encodeURIComponent(token)}`;
 }
 
+/**
+ * Tareas del menú de /terreno. Sirven como deep-link (`?tarea=`) desde el
+ * sidebar de la sesión de operador para volver al portal ya apuntado.
+ */
+export type TareaTerreno =
+  | "reporte"
+  | "geo"
+  | "autoridades"
+  | "capacidad"
+  | "censo";
+
+/** Ruta relativa al portal de terreno (misma origen; conserva el token). */
+export function urlPortalTerreno(opts?: {
+  token?: string;
+  tarea?: TareaTerreno;
+}): string {
+  const token = (opts?.token ?? tokenTerrenoActual()).trim();
+  const params = new URLSearchParams();
+  if (token) params.set("t", token);
+  if (opts?.tarea) params.set("tarea", opts.tarea);
+  const q = params.toString();
+  return q ? `/terreno?${q}` : "/terreno";
+}
+
+/**
+ * Navega al portal de terreno con recarga completa: `/terreno` vive en el
+ * bootstrap ligero (`censo-entry`), no en el AppShell de React Router.
+ */
+export function irAlPortalTerreno(opts?: {
+  token?: string;
+  tarea?: TareaTerreno;
+}): void {
+  window.location.assign(urlPortalTerreno(opts));
+}
+
+/** Lee y valida `?tarea=` del portal (o null si no viene / no es válida). */
+export function tareaTerrenoDeUrl(search = window.location.search): TareaTerreno | null {
+  const raw = new URLSearchParams(search).get("tarea")?.trim() ?? "";
+  if (
+    raw === "reporte" ||
+    raw === "geo" ||
+    raw === "autoridades" ||
+    raw === "capacidad" ||
+    raw === "censo"
+  ) {
+    return raw;
+  }
+  return null;
+}
+
 /** Token vigente del dispositivo: el de la URL gana y se recuerda. */
 export function tokenTerrenoActual(): string {
   const deUrl = new URLSearchParams(window.location.search).get("t")?.trim() ?? "";

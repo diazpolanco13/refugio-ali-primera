@@ -1,9 +1,12 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import {
+  BedDouble,
   ChevronRight,
   ClipboardList,
   ContactRound,
+  Home,
+  Landmark,
   LayoutGrid,
   MapPinned,
   MonitorPlay,
@@ -64,6 +67,7 @@ import {
   rutaSeccionFichaCentro,
   rutaSeccionReportesCentro,
 } from "@/features/centros/seccionesFichaCentro";
+import { irAlPortalTerreno, tokenTerrenoActual, type TareaTerreno } from "@/lib/tokenTerreno";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -108,6 +112,33 @@ function ItemMenu({
       {badge != null && badge > 0 && (
         <SidebarMenuBadge className={badgeClassName}>{badge}</SidebarMenuBadge>
       )}
+    </SidebarMenuItem>
+  );
+}
+
+/** Ítem que sale del AppShell hacia el bootstrap ligero (/terreno, /censo). */
+function ItemMenuPortal({
+  icono: Icono,
+  label,
+  activo = false,
+  onClick,
+}: {
+  icono: IconoMenu;
+  label: string;
+  activo?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        type="button"
+        isActive={activo}
+        tooltip={label}
+        onClick={onClick}
+      >
+        <Icono />
+        <TextoMenu>{label}</TextoMenu>
+      </SidebarMenuButton>
     </SidebarMenuItem>
   );
 }
@@ -243,6 +274,63 @@ function ItemEnDesarrollo({
   );
 }
 
+/** Menú reducido del operador del QR: mismas tareas del portal /terreno. */
+function NavTerreno({ sesion }: Props) {
+  const { pathname } = usePathnameNavegacion();
+  const centroId =
+    centroIdDePathname(pathname) ?? sesion.user.centros_asignados[0] ?? "";
+  const rutaReporte = centroId
+    ? `/centros/reportes/${encodeURIComponent(centroId)}?vista=reporte`
+    : "/centros/reportes";
+  const enReporte = rutaActiva(pathname, "/centros/reportes");
+
+  function irPortal(tarea?: TareaTerreno) {
+    irAlPortalTerreno(tarea ? { tarea } : undefined);
+  }
+
+  function irCenso() {
+    const token = tokenTerrenoActual();
+    const params = new URLSearchParams();
+    if (centroId) params.set("centro", centroId);
+    if (token) params.set("t", token);
+    const q = params.toString();
+    window.location.assign(q ? `/censo?${q}` : "/censo");
+  }
+
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel>Trabajo en terreno</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          <ItemMenuPortal icono={Home} label="Inicio" onClick={() => irPortal()} />
+          <ItemMenu
+            to={rutaReporte}
+            icono={ClipboardList}
+            label="Reporte"
+            activo={enReporte}
+          />
+          <ItemMenuPortal
+            icono={MapPinned}
+            label="Geolocalizar"
+            onClick={() => irPortal("geo")}
+          />
+          <ItemMenuPortal
+            icono={Landmark}
+            label="Autoridades"
+            onClick={() => irPortal("autoridades")}
+          />
+          <ItemMenuPortal
+            icono={BedDouble}
+            label="Capacidad"
+            onClick={() => irPortal("capacidad")}
+          />
+          <ItemMenuPortal icono={Users} label="Censo" onClick={irCenso} />
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
 function NavContenido({ sesion }: Props) {
   const { pathname, search } = usePathnameNavegacion();
   const esCensoRapido = esRolCensoRapido(sesion.user.rol);
@@ -265,21 +353,7 @@ function NavContenido({ sesion }: Props) {
     : casosSalud.filter((c) => c.estatus === "activo").length;
 
   if (esTerreno) {
-    return (
-      <SidebarGroup>
-        <SidebarGroupLabel>Campamentos transitorios</SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            <ItemMenu
-              to="/centros/reportes"
-              icono={ClipboardList}
-              label="Reportes diarios"
-              activo={pathname === "/" || rutaActiva(pathname, "/centros/reportes")}
-            />
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-    );
+    return <NavTerreno sesion={sesion} />;
   }
 
   if (esCensoRapido) {
@@ -444,27 +518,58 @@ function NavContenido({ sesion }: Props) {
 /** Sidebar completo para vistas con rail colapsado. */
 export function AppSidebar({ sesion }: Props) {
   const { marcarNavegacion } = usePathnameNavegacion();
+  const esTerreno = esRolTerreno(sesion.user.rol);
+
   return (
     <>
       <SidebarHeader className="border-b border-sidebar-border p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              size="lg"
-              tooltip="Campamentos Transitorios"
-              className="group-data-[collapsible=icon]:justify-center"
-            >
-              <Link to="/centros/mapa" onClick={() => marcarNavegacion("/centros/mapa")}>
+            {esTerreno ? (
+              <SidebarMenuButton
+                type="button"
+                size="lg"
+                tooltip="Volver al portal de terreno"
+                className="group-data-[collapsible=icon]:justify-center"
+                onClick={() => irAlPortalTerreno()}
+              >
                 <span className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-inset ring-primary/30">
-                  <MapPinned className="size-4" />
+                  <Home className="size-4" />
                 </span>
                 <span className="flex min-w-0 flex-col leading-none group-data-[collapsible=icon]:hidden">
-                  <span className="truncate text-sm font-semibold">Campamentos Transitorios</span>
-                  <span className="truncate text-xs text-sidebar-foreground/70">Caracas</span>
+                  <span className="truncate text-sm font-semibold">
+                    Reportes en el terreno
+                  </span>
+                  <span className="truncate text-xs text-sidebar-foreground/70">
+                    Volver al inicio
+                  </span>
                 </span>
-              </Link>
-            </SidebarMenuButton>
+              </SidebarMenuButton>
+            ) : (
+              <SidebarMenuButton
+                asChild
+                size="lg"
+                tooltip="Campamentos Transitorios"
+                className="group-data-[collapsible=icon]:justify-center"
+              >
+                <Link
+                  to="/centros/mapa"
+                  onClick={() => marcarNavegacion("/centros/mapa")}
+                >
+                  <span className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-inset ring-primary/30">
+                    <MapPinned className="size-4" />
+                  </span>
+                  <span className="flex min-w-0 flex-col leading-none group-data-[collapsible=icon]:hidden">
+                    <span className="truncate text-sm font-semibold">
+                      Campamentos Transitorios
+                    </span>
+                    <span className="truncate text-xs text-sidebar-foreground/70">
+                      Caracas
+                    </span>
+                  </span>
+                </Link>
+              </SidebarMenuButton>
+            )}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

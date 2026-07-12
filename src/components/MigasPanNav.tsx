@@ -1,11 +1,14 @@
 import { Fragment, useMemo } from "react";
 import { Link, matchPath, useSearchParams } from "react-router-dom";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
+import { useSesion } from "@/data/authSupabase";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import { esRolTerreno } from "@/domain/permisos";
 import { usePathnameNavegacion } from "@/contexts/PathnameNavegacionContext";
 import { migasPanDeRuta, type MigaPan } from "@/layouts/migasPan";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { irAlPortalTerreno } from "@/lib/tokenTerreno";
 import { cn } from "@/lib/utils";
 import {
   Breadcrumb,
@@ -16,7 +19,20 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 
-function MigasPanLista({ migas, compacto }: { migas: MigaPan[]; compacto?: boolean }) {
+function esMigaInicioApp(miga: MigaPan): boolean {
+  return miga.to === "/centros/mapa" || miga.label === "Inicio";
+}
+
+function MigasPanLista({
+  migas,
+  compacto,
+  inicioEsPortal,
+}: {
+  migas: MigaPan[];
+  compacto?: boolean;
+  /** Operador del QR: «Inicio» vuelve al portal /terreno, no al mapa. */
+  inicioEsPortal?: boolean;
+}) {
   if (migas.length === 0) return null;
 
   const migasVisibles =
@@ -27,6 +43,7 @@ function MigasPanLista({ migas, compacto }: { migas: MigaPan[]; compacto?: boole
       <BreadcrumbList className="flex-nowrap text-xs sm:text-sm">
         {migasVisibles.map((miga, i) => {
           const esUltima = i === migasVisibles.length - 1;
+          const irPortal = Boolean(inicioEsPortal && esMigaInicioApp(miga) && miga.to);
           return (
             <Fragment key={`${miga.label}-${i}`}>
               {i > 0 && <BreadcrumbSeparator />}
@@ -40,6 +57,16 @@ function MigasPanLista({ migas, compacto }: { migas: MigaPan[]; compacto?: boole
                   <BreadcrumbPage className="truncate font-medium">
                     {miga.label}
                   </BreadcrumbPage>
+                ) : irPortal ? (
+                  <BreadcrumbLink asChild>
+                    <button
+                      type="button"
+                      className="truncate"
+                      onClick={() => irAlPortalTerreno()}
+                    >
+                      {miga.label}
+                    </button>
+                  </BreadcrumbLink>
                 ) : (
                   <BreadcrumbLink asChild>
                     <Link to={miga.to} className="truncate">
@@ -58,6 +85,7 @@ function MigasPanLista({ migas, compacto }: { migas: MigaPan[]; compacto?: boole
 
 /** Migas de pan dinámicas según la ruta (optimista mientras carga el chunk). */
 export function MigasPanNav() {
+  const sesion = useSesion();
   const { pathname, search } = usePathnameNavegacion();
   const [searchParamsLive] = useSearchParams();
   const esMovil = useIsMobile();
@@ -68,6 +96,7 @@ export function MigasPanNav() {
     return searchParamsLive;
   }, [search, searchParamsLive]);
   const modoReporte = searchParams.get("reportar") === "1";
+  const inicioEsPortal = Boolean(sesion && esRolTerreno(sesion.user.rol));
 
   const matchCentro = matchPath("/centro/:id", pathname);
   const matchReportesCentro = matchPath("/centros/reportes/:centroId", pathname);
@@ -92,10 +121,23 @@ export function MigasPanNav() {
     [filasCentros, centroId],
   );
 
-  const migas = useMemo(
-    () => migasPanDeRuta(pathname, searchParams, centro),
-    [pathname, searchParams, centro],
-  );
+  const migas = useMemo(() => {
+    const base = migasPanDeRuta(pathname, searchParams, centro);
+    if (!inicioEsPortal) return base;
+    // El operador del QR no usa mapa/tablero: quita migas intermedias que
+    // redirigirían a rutas bloqueadas y deja Inicio → campamento → sección.
+    return base.filter(
+      (m) =>
+        m.label !== "Campamentos" &&
+        !(m.label === "Reportes diarios" && Boolean(m.to)),
+    );
+  }, [pathname, searchParams, centro, inicioEsPortal]);
 
-  return <MigasPanLista migas={migas} compacto={esMovil && modoReporte} />;
+  return (
+    <MigasPanLista
+      migas={migas}
+      compacto={esMovil && modoReporte}
+      inicioEsPortal={inicioEsPortal}
+    />
+  );
 }
