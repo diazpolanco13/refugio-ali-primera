@@ -167,27 +167,6 @@ button {
   }
 }
 
-/* Ícono de la app: borde que "respira" para indicar el estado de conexión/sync.
-   El color del brillo se define vía --glow-color (inline) según el estado. */
-@keyframes app-icon-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 var(--glow-color, rgba(16, 185, 129, 0));
-  }
-  50% {
-    box-shadow: 0 0 10px 1px var(--glow-color, rgba(16, 185, 129, 0.7));
-  }
-}
-.app-icon-glow {
-  animation: app-icon-glow 2.6s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .app-icon-glow {
-    animation: none;
-    box-shadow: 0 0 8px 0 var(--glow-color, rgba(16, 185, 129, 0.5));
-  }
-}
-
 /* Skeleton shimmer: luz sutil L→R sobre bg-muted (loading de sección). */
 @keyframes skeleton-shimmer {
   100% {

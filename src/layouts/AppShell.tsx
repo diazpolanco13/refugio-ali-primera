@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import type { Sesion } from "@/data/authSupabase";
 import { useBootstrapUnidadesSebin } from "@/data/useUnidadesSebin";
@@ -19,19 +18,7 @@ interface Props {
 }
 
 function AppShellInner({ sesion }: Props) {
-  const [online, setOnline] = useState(() => navigator.onLine);
   useBootstrapUnidadesSebin();
-
-  useEffect(() => {
-    const up = () => setOnline(true);
-    const down = () => setOnline(false);
-    window.addEventListener("online", up);
-    window.addEventListener("offline", down);
-    return () => {
-      window.removeEventListener("online", up);
-      window.removeEventListener("offline", down);
-    };
-  }, []);
 
   return (
     <PathnameNavegacionProvider>
@@ -43,7 +30,7 @@ function AppShellInner({ sesion }: Props) {
           </Sidebar>
 
           <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <TopBar sesion={sesion} online={online} />
+            <TopBar sesion={sesion} />
             <div className="relative min-h-0 flex-1 overflow-hidden">
               <Outlet context={{ sesion }} />
             </div>

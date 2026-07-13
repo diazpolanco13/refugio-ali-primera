@@ -1,8 +1,7 @@
-import { LogOut, MapPinned } from "lucide-react";
+import { LogOut } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
 import { cerrarSesion } from "@/data/authSupabase";
 import { puedeEscribir } from "@/domain/permisos";
-import { useSupabaseConectado } from "@/data/useSupabaseConectado";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { BadgeRol } from "@/components/BadgeRol";
@@ -23,7 +22,6 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   sesion: Sesion;
-  online: boolean;
 }
 
 function iniciales(nombre: string | null, username: string): string {
@@ -33,48 +31,8 @@ function iniciales(nombre: string | null, username: string): string {
   return base.slice(0, 2).toUpperCase();
 }
 
-function IconoAppConEstado({
-  online,
-  conectado,
-}: {
-  online: boolean;
-  conectado: boolean;
-}) {
-  const ok = online && conectado;
-  const { color, etiqueta, pulsar } = ok
-    ? {
-        color: "rgba(16, 185, 129, 0.85)",
-        etiqueta: "Conectado a Supabase",
-        pulsar: true,
-      }
-    : {
-        color: "rgba(245, 158, 11, 0.55)",
-        etiqueta: online ? "Reconectando…" : "Sin conexión",
-        pulsar: false,
-      };
-
-  return (
-    <div
-      title={etiqueta}
-      aria-label={etiqueta}
-      role="img"
-      style={{ "--glow-color": color } as React.CSSProperties}
-      className={cn(
-        "flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-inset ring-primary/30",
-        pulsar && "app-icon-glow",
-      )}
-    >
-      <MapPinned className="size-3.5" />
-    </div>
-  );
-}
-
-/** Barra superior mínima: migas de pan, conexión y usuario. */
-export function TopBar({
-  sesion,
-  online,
-}: Props) {
-  const conectado = useSupabaseConectado();
+/** Barra superior mínima: migas de pan y usuario. */
+export function TopBar({ sesion }: Props) {
   const [searchParams] = useSearchParams();
   const puedeEditar = puedeEscribir(sesion.user.rol);
   const nombre = sesion.user.nombre || sesion.user.username;
@@ -87,7 +45,6 @@ export function TopBar({
     <header className="z-20 flex h-12 shrink-0 items-center justify-between border-b border-border bg-background/95 px-2 backdrop-blur-sm sm:px-3">
       <div className="flex min-w-0 items-center gap-2">
         {!reporteTerrenoBloqueado && <SidebarTrigger className="shrink-0" />}
-        <IconoAppConEstado online={online} conectado={conectado} />
         <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <MigasPanNav />
         </div>
