@@ -3,6 +3,13 @@
 // /terreno cargan solo las vistas de campo (~decenas de KB) en lugar del
 // núcleo de ~190 KB gzip.
 
+import { aplicarTemaTerreno, temaTerrenoGuardado } from "./lib/temaTerreno";
+
+// Tema claro/oscuro guardado (toggle en /terreno). Se aplica aquí, antes de
+// descargar cualquier bundle, para que TODAS las vistas (reporte, censo,
+// denuncia, app completa) respeten la elección del dispositivo sin parpadeo.
+aplicarTemaTerreno(temaTerrenoGuardado());
+
 function rutaEs(base: string): boolean {
   return window.location.pathname === base || window.location.pathname.startsWith(`${base}/`);
 }

@@ -6,40 +6,43 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Tema claro (modo campo, toggle en /terreno): fondo hueso —no blanco puro—,
+   tarjetas blancas que se despegan del fondo, tinta gris oscuro en lugar de
+   negro y el mismo teal de marca del tema oscuro como primary. */
 :root {
-  color-scheme: dark;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  color-scheme: light;
+  --background: oklch(0.972 0.004 95);
+  --foreground: oklch(0.24 0.012 260);
+  --card: oklch(0.995 0.002 95);
+  --card-foreground: oklch(0.24 0.012 260);
+  --popover: oklch(0.995 0.002 95);
+  --popover-foreground: oklch(0.24 0.012 260);
+  --primary: oklch(0.5 0.11 180);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
+  --secondary: oklch(0.94 0.006 95);
+  --secondary-foreground: oklch(0.3 0.012 260);
+  --muted: oklch(0.94 0.006 95);
+  --muted-foreground: oklch(0.47 0.012 260);
+  --accent: oklch(0.92 0.022 180);
+  --accent-foreground: oklch(0.32 0.06 180);
+  --destructive: oklch(0.55 0.22 27.325);
+  --border: oklch(0.88 0.006 95);
+  --input: oklch(0.91 0.006 95);
+  --ring: oklch(0.5 0.11 180);
+  --chart-1: oklch(0.5 0.11 180);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar: oklch(0.96 0.004 95);
+  --sidebar-foreground: oklch(0.24 0.012 260);
+  --sidebar-primary: oklch(0.5 0.11 180);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-accent: oklch(0.92 0.022 180);
+  --sidebar-accent-foreground: oklch(0.32 0.06 180);
+  --sidebar-border: oklch(0.88 0.006 95);
+  --sidebar-ring: oklch(0.5 0.11 180);
 }
 
 html,
@@ -48,6 +51,14 @@ body,
   height: 100%;
   margin: 0;
   overscroll-behavior: none;
+}
+
+/* El <style> inline de index.html fija fondo/tinta oscuros para el splash;
+   en modo claro (/terreno sin clase .dark) hay que pisarlo. */
+html:not(.dark),
+html:not(.dark) body {
+  background: var(--background);
+  color: var(--foreground);
 }
 
 body {
@@ -254,6 +265,7 @@ button {
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.09 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.17 0 0);

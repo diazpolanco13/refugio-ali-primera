@@ -14,7 +14,9 @@ import {
   LockKeyhole,
   MapPin,
   MapPinned,
+  Moon,
   RefreshCw,
+  Sun,
   Users,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,6 +51,11 @@ import {
   verInstruccionesSiempre,
 } from "@/lib/instruccionesCampo";
 import { centroGeolocalizadoLocal } from "@/lib/geolocalizacionTerreno";
+import {
+  guardarTemaTerreno,
+  temaTerrenoGuardado,
+  type TemaTerreno,
+} from "@/lib/temaTerreno";
 import { formatearHoraActualizacionTerreno, maxTimestamp } from "@/lib/terrenoActualizacion";
 import {
   actualizarAppCampo,
@@ -186,6 +193,7 @@ export function TerrenoView() {
   const [errorCentros, setErrorCentros] = useState("");
   const [centroReporteId, setCentroReporteId] = useState("");
   const [instruccionesSiempre, setInstruccionesSiempre] = useState(verInstruccionesSiempre);
+  const [tema, setTema] = useState<TemaTerreno>(temaTerrenoGuardado);
   const [instruccionesRestablecidas, setInstruccionesRestablecidas] = useState(false);
   const [geolocalizado, setGeolocalizado] = useState(false);
   const [autoridadesOk, setAutoridadesOk] = useState(false);
@@ -633,6 +641,12 @@ export function TerrenoView() {
     !entrando && !cargandoCentros && !cargandoReporte && reporteHoyCompleto !== true;
   const censoPendiente = !cargandoCentros && !censoCompleto;
 
+  function cambiarTema(claro: boolean) {
+    const nuevo: TemaTerreno = claro ? "claro" : "oscuro";
+    guardarTemaTerreno(nuevo);
+    setTema(nuevo);
+  }
+
   function cambiarInstruccionesSiempre(valor: boolean) {
     setVerInstruccionesSiempre(valor);
     setInstruccionesSiempre(valor);
@@ -1045,6 +1059,33 @@ export function TerrenoView() {
             Guarde esta página en la pantalla de inicio para acceder más rápido durante la jornada.
           </p>
         )}
+
+        <section
+          aria-label="Tema de la pantalla"
+          className="w-full space-y-2 rounded-xl border border-border bg-card/60 px-4 py-3"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              {tema === "claro" ? (
+                <Sun className="size-5 shrink-0 text-amber-500" aria-hidden="true" />
+              ) : (
+                <Moon className="size-5 shrink-0 text-primary" aria-hidden="true" />
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Modo claro</p>
+                <p className="text-xs leading-snug text-muted-foreground">
+                  Fondo blanco para leer mejor a plena luz. La elección queda guardada en este
+                  dispositivo.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={tema === "claro"}
+              onCheckedChange={cambiarTema}
+              aria-label="Activar modo claro"
+            />
+          </div>
+        </section>
 
         {!accesoDenegado && (
           <section
