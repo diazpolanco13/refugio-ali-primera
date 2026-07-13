@@ -6,7 +6,7 @@ import { escalaVistaDelMapa, debeMostrarEtiquetaNombre } from "@/map/escalaVista
 import {
   CAPAS_BASE,
   VISIBILIDAD_BASE,
-  asegurarEdificios3d,
+  aplicarEdificios3d,
   esBaseEstiloExterno,
   estiloMapaParaBase,
   type BaseMapa,
@@ -26,7 +26,9 @@ import {
   type ClaveUnidadSebin,
 } from "@/domain/centrosTransitorios";
 import {
+  cargarModo3dCentros,
   cargarVistaCentros,
+  guardarModo3dCentros,
   guardarVistaCentros,
   VISTA_DEFECTO_CENTROS,
   type ModoMarcadorCentros,
@@ -36,6 +38,7 @@ import { boundsRedCentros } from "@/domain/redCentros";
 import { MarcadorCentro } from "./MarcadorCentro";
 import { InfoCentro } from "./InfoCentro";
 import { ControlesMapaCentros } from "./ControlesMapaCentros";
+import { SelectoresVistaMapa } from "./SelectoresVistaMapa";
 import { LeyendaUnidadesSebin } from "./LeyendaUnidadesSebin";
 
 interface Props {
@@ -122,6 +125,13 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   const [gpsActivo, setGpsActivo] = useState(false);
   const [escalaVista, setEscalaVista] = useState<string | undefined>();
   const [mostrarEtiquetaNombre, setMostrarEtiquetaNombre] = useState(false);
+  const [modo3d, setModo3d] = useState(() => cargarModo3dCentros() ?? true);
+  const modo3dRef = useRef(modo3d);
+  modo3dRef.current = modo3d;
+
+  useEffect(() => {
+    guardarModo3dCentros(modo3d);
+  }, [modo3d]);
 
   function actualizarEscalaVista() {
     const map = mapRef.current;
@@ -312,7 +322,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       style: estiloMapaParaBase(baseInicial),
       center: vistaInicial.center,
       zoom: vistaInicial.zoom,
-      pitch: esBaseEstiloExterno(baseInicial) ? 45 : 0,
+      pitch: esBaseEstiloExterno(baseInicial) && modo3dRef.current ? 45 : 0,
       maxZoom: 19,
       minZoom: 3,
       attributionControl: { compact: true },
@@ -493,10 +503,12 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     const map = mapRef.current;
     if (!map || !listoRef.current) return;
     const base = baseMapa;
+    const con3d = modo3dRef.current;
 
     if (esBaseEstiloExterno(base)) {
       if (modoEstiloRef.current === "dark-matter") {
-        asegurarEdificios3d(map);
+        aplicarEdificios3d(map, con3d);
+        sincronizarPitch3d(map, con3d);
         return;
       }
       const gen = ++generacionEstiloRef.current;
@@ -504,21 +516,21 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       map.setStyle(estiloMapaParaBase(base));
       map.once("style.load", () => {
         if (generacionEstiloRef.current !== gen || !mapRef.current) return;
-        asegurarEdificios3d(mapRef.current);
-        if (mapRef.current.getPitch() < 30) {
-          mapRef.current.easeTo({ pitch: 45, duration: 800 });
-        }
+        aplicarEdificios3d(mapRef.current, modo3dRef.current);
+        sincronizarPitch3d(mapRef.current, modo3dRef.current);
       });
       return;
     }
 
     if (modoEstiloRef.current === "dark-matter") {
       const gen = ++generacionEstiloRef.current;
+      const baseObjetivo = base;
       modoEstiloRef.current = "raster";
-      map.setStyle(estiloMapaParaBase(base));
+      map.setStyle(estiloMapaParaBase(baseObjetivo));
       map.once("style.load", () => {
         if (generacionEstiloRef.current !== gen || !mapRef.current) return;
-        aplicarVisibilidadRaster(mapRef.current, base);
+        // Refuerzo: por si el estilo llegó sin la visibilidad esperada.
+        aplicarVisibilidadRaster(mapRef.current, baseObjetivo);
         if (mapRef.current.getPitch() > 0 || mapRef.current.getBearing() !== 0) {
           mapRef.current.easeTo({ pitch: 0, bearing: 0, duration: 600 });
         }
@@ -529,10 +541,22 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     aplicarVisibilidadRaster(map, base);
   }
 
+  function sincronizarPitch3d(map: maplibregl.Map, con3d: boolean) {
+    if (con3d) {
+      if (map.getPitch() < 30) {
+        map.easeTo({ pitch: 45, duration: 800 });
+      }
+      return;
+    }
+    if (map.getPitch() > 0 || map.getBearing() !== 0) {
+      map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+    }
+  }
+
   useEffect(() => {
     aplicarBase();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseMapa]);
+  }, [baseMapa, modo3d]);
 
   async function exportarImagen(nombreArchivo: string) {
     const contenedor = contenedorRef.current?.parentElement;
@@ -572,6 +596,12 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   return (
     <div className="relative h-full w-full">
       <div ref={contenedorRef} className="h-full w-full" />
+      <SelectoresVistaMapa
+        baseMapa={baseMapa}
+        modo3d={modo3d}
+        onCambiarBase={onCambiarBase}
+        onCambiarModo3d={setModo3d}
+      />
       <ControlesMapaCentros
         gpsActivo={gpsActivo}
         escalaVista={escalaVista}

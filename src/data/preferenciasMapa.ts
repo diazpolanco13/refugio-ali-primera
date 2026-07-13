@@ -7,6 +7,7 @@ import { CLAVES_BASE_MAPA } from "@/map/estiloMapa";
 
 const CLAVE_VISTA = "refugio-vista-centros-v2";
 const CLAVE_BASE = "refugio-base-centros";
+const CLAVE_MODO_3D = "refugio-modo-3d-centros";
 const CLAVE_MODO_MARCADOR = "refugio-modo-marcador-centros";
 const CLAVE_MOSTRAR_PARTE = "refugio-mostrar-parte-marcador";
 const CLAVE_MOSTRAR_LEYENDA = "refugio-mostrar-leyenda-marcador";
@@ -81,6 +82,26 @@ export function cargarBaseMapaCentros(): BaseMapa | null {
 export function guardarBaseMapaCentros(base: BaseMapa): void {
   try {
     localStorage.setItem(CLAVE_BASE, base);
+  } catch {
+    // ignorar
+  }
+}
+
+/** Preferencia de extrusión 3D sobre Carto Dark Matter (default: activo). */
+export function cargarModo3dCentros(): boolean | null {
+  try {
+    const v = localStorage.getItem(CLAVE_MODO_3D);
+    if (v === "1") return true;
+    if (v === "0") return false;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function guardarModo3dCentros(activo: boolean): void {
+  try {
+    localStorage.setItem(CLAVE_MODO_3D, activo ? "1" : "0");
   } catch {
     // ignorar
   }

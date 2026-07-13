@@ -1,8 +1,14 @@
 import type maplibregl from "maplibre-gl";
 
-/** Ancho visible (m) por debajo del cual se muestra el nombre en el marcador.
+/** Ancho visible (m) por debajo del cual se muestra el nombre — escritorio.
  * Coincide con la etiqueta de escala "25k" (≈ 25 km de viewport). */
 export const UMBRAL_ETIQUETA_NOMBRE_METROS = 25_000;
+
+/** En pantallas chicas (< md) solo mostrar nombres más cerca — escala "3k". */
+export const UMBRAL_ETIQUETA_NOMBRE_MOVIL_METROS = 3_000;
+
+/** Coincide con el breakpoint `md` de Tailwind (768px). */
+const ANCHO_ESCRITORIO_PX = 768;
 
 function distanciaMetros(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
@@ -45,7 +51,14 @@ export function escalaVistaDelMapa(map: maplibregl.Map): string {
   return formatearEscalaVista(anchoVisibleMetros(map));
 }
 
-/** True cuando la escala es inferior a 25k (más acercado). */
+/** Umbral de etiquetas según ancho del contenedor del mapa (móvil vs escritorio). */
+export function umbralEtiquetaNombreMetros(map: maplibregl.Map): number {
+  return map.getContainer().clientWidth < ANCHO_ESCRITORIO_PX
+    ? UMBRAL_ETIQUETA_NOMBRE_MOVIL_METROS
+    : UMBRAL_ETIQUETA_NOMBRE_METROS;
+}
+
+/** True cuando la escala está más cerca que el umbral (móvil < 3k, escritorio < 25k). */
 export function debeMostrarEtiquetaNombre(map: maplibregl.Map): boolean {
-  return anchoVisibleMetros(map) < UMBRAL_ETIQUETA_NOMBRE_METROS;
+  return anchoVisibleMetros(map) < umbralEtiquetaNombreMetros(map);
 }

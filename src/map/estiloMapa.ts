@@ -100,7 +100,7 @@ export function esBaseEstiloExterno(base: BaseMapa): boolean {
 /** Estilo inicial / al cambiar de base: URL externa o especificación raster. */
 export function estiloMapaParaBase(base: BaseMapa): string | StyleSpecification {
   if (base === "dark-matter") return ESTILO_DARK_MATTER_URL;
-  return construirEstilo();
+  return construirEstilo(base);
 }
 
 /**
@@ -186,7 +186,32 @@ export function asegurarEdificios3d(map: MapLibreMap): void {
   );
 }
 
-export function construirEstilo(): StyleSpecification {
+/** Activa o desactiva extrusión 3D sobre Carto Dark Matter (idempotente). */
+export function aplicarEdificios3d(map: MapLibreMap, activo: boolean): void {
+  if (activo) {
+    asegurarEdificios3d(map);
+    return;
+  }
+
+  if (map.getLayer(ID_CAPA_EDIFICIOS_3D)) {
+    map.setLayoutProperty(ID_CAPA_EDIFICIOS_3D, "visibility", "none");
+  }
+  for (const id of CAPAS_EDIFICIO_PLANAS_CARTO) {
+    if (map.getLayer(id)) {
+      map.setLayoutProperty(id, "visibility", "visible");
+    }
+  }
+}
+
+/** Bases del selector rápido MAP / SAT (híbrido con calles). */
+export const BASE_MAPA_CARTO: BaseMapa = "dark-matter";
+export const BASE_MAPA_SATELITE: BaseMapa = "hibrido";
+
+export function construirEstilo(baseActiva: BaseMapa = "calles"): StyleSpecification {
+  const visibles = new Set(VISIBILIDAD_BASE[baseActiva] ?? VISIBILIDAD_BASE.calles);
+  const vis = (id: string): "visible" | "none" =>
+    visibles.has(id) ? "visible" : "none";
+
   const sources: StyleSpecification["sources"] = {
     "carto-dark": {
       type: "raster",
@@ -255,23 +280,38 @@ export function construirEstilo(): StyleSpecification {
       id: "base-carto-dark",
       type: "raster",
       source: "carto-dark",
-      layout: { visibility: "visible" },
+      layout: { visibility: vis("base-carto-dark") },
     },
     {
       id: "base-carto-voyager",
       type: "raster",
       source: "carto-voyager",
-      layout: { visibility: "none" },
+      layout: { visibility: vis("base-carto-voyager") },
     },
     {
       id: "base-carto-positron",
       type: "raster",
       source: "carto-positron",
-      layout: { visibility: "none" },
+      layout: { visibility: vis("base-carto-positron") },
     },
-    { id: "base-osm", type: "raster", source: "osm", layout: { visibility: "none" } },
-    { id: "base-esri-img", type: "raster", source: "esri-img", layout: { visibility: "none" } },
-    { id: "base-topo", type: "raster", source: "topo", layout: { visibility: "none" } },
+    {
+      id: "base-osm",
+      type: "raster",
+      source: "osm",
+      layout: { visibility: vis("base-osm") },
+    },
+    {
+      id: "base-esri-img",
+      type: "raster",
+      source: "esri-img",
+      layout: { visibility: vis("base-esri-img") },
+    },
+    {
+      id: "base-topo",
+      type: "raster",
+      source: "topo",
+      layout: { visibility: vis("base-topo") },
+    },
   ];
 
   if (MAPTILER_DISPONIBLE) {
@@ -303,13 +343,23 @@ export function construirEstilo(): StyleSpecification {
       attribution: "© MapTiler © OpenStreetMap contributors",
     };
     layers.push(
-      { id: "base-mt-sat", type: "raster", source: "mt-sat", layout: { visibility: "none" } },
-      { id: "base-mt-calles", type: "raster", source: "mt-calles", layout: { visibility: "none" } },
+      {
+        id: "base-mt-sat",
+        type: "raster",
+        source: "mt-sat",
+        layout: { visibility: vis("base-mt-sat") },
+      },
+      {
+        id: "base-mt-calles",
+        type: "raster",
+        source: "mt-calles",
+        layout: { visibility: vis("base-mt-calles") },
+      },
       {
         id: "base-mt-outdoor",
         type: "raster",
         source: "mt-outdoor",
-        layout: { visibility: "none" },
+        layout: { visibility: vis("base-mt-outdoor") },
       },
     );
   }
@@ -319,9 +369,14 @@ export function construirEstilo(): StyleSpecification {
       id: "base-esri-transp",
       type: "raster",
       source: "esri-transp",
-      layout: { visibility: "none" },
+      layout: { visibility: vis("base-esri-transp") },
     },
-    { id: "base-esri-ref", type: "raster", source: "esri-ref", layout: { visibility: "none" } },
+    {
+      id: "base-esri-ref",
+      type: "raster",
+      source: "esri-ref",
+      layout: { visibility: vis("base-esri-ref") },
+    },
   );
 
   return { version: 8, sources, layers };
