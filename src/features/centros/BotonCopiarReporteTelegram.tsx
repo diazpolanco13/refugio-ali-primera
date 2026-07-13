@@ -1,4 +1,4 @@
-// Botón para copiar el parte diario en formato Telegram (portapapeles).
+// Botón para compartir el parte diario en Telegram (share + copia de respaldo).
 // Visible en la ficha (permisos globales y sesión de terreno / operador).
 
 import { useState } from "react";
@@ -17,6 +17,7 @@ import { textoReporteTelegramCentro } from "@/domain/reporteTelegramCentro";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { IconoTelegram } from "@/components/IconoTelegram";
 import { Button } from "@/components/ui/button";
+import { abrirTelegramCompartir } from "@/lib/contacto";
 import { copiarTexto } from "@/lib/portapapeles";
 import { cn } from "@/lib/utils";
 
@@ -26,9 +27,9 @@ interface Props {
   className?: string;
 }
 
-/** Copia el reporte del día al portapapeles (formato del grupo Telegram). */
+/** Copia el reporte y abre la app Telegram en el selector de chat. */
 export function BotonCopiarReporteTelegram({ centro, dia, className }: Props) {
-  const [estadoCopia, setEstadoCopia] = useState<"idle" | "ok" | "error">("idle");
+  const [estado, setEstado] = useState<"idle" | "ok" | "copiado" | "error">("idle");
 
   const snapshots = useOcupacionesCentros({ centroId: centro.id, desde: dia });
   const reportes = useReportesCentros({ centroId: centro.id, dia });
@@ -42,7 +43,7 @@ export function BotonCopiarReporteTelegram({ centro, dia, className }: Props) {
   const { casos: casosSalud } = useCasosSaludCentros({ centroId: centro.id, soloActivos: true });
   const casosSaludAbiertos = casosAbiertosSeguimiento(casosSalud);
 
-  async function copiar() {
+  async function compartir() {
     const texto = textoReporteTelegramCentro({
       centro,
       dia,
@@ -54,9 +55,19 @@ export function BotonCopiarReporteTelegram({ centro, dia, className }: Props) {
       requerimientosActivos,
       casosSaludAbiertos,
     });
-    const ok = await copiarTexto(texto);
-    setEstadoCopia(ok ? "ok" : "error");
-    window.setTimeout(() => setEstadoCopia("idle"), 2500);
+
+    // Siempre en portapapeles (si el deep link trunca, pegar en el chat).
+    const copiado = await copiarTexto(texto);
+    const resultado = await abrirTelegramCompartir(texto);
+
+    if (resultado === "app" || resultado === "web") {
+      setEstado("ok");
+    } else if (copiado) {
+      setEstado("copiado");
+    } else {
+      setEstado("error");
+    }
+    window.setTimeout(() => setEstado("idle"), 2500);
   }
 
   return (
@@ -67,19 +78,24 @@ export function BotonCopiarReporteTelegram({ centro, dia, className }: Props) {
         "h-8 shrink-0 gap-1.5 bg-teal-600 text-xs text-white shadow-sm hover:bg-teal-500",
         className,
       )}
-      onClick={() => void copiar()}
+      onClick={() => void compartir()}
     >
-      {estadoCopia === "ok" ? (
+      {estado === "ok" ? (
         <>
           <Check className="size-3.5 text-emerald-400" />
-          Copiado
+          Abierto en Telegram
         </>
-      ) : estadoCopia === "error" ? (
-        "No se pudo copiar"
+      ) : estado === "copiado" ? (
+        <>
+          <Check className="size-3.5 text-emerald-400" />
+          Copiado — pega en Telegram
+        </>
+      ) : estado === "error" ? (
+        "No se pudo compartir"
       ) : (
         <>
           <IconoTelegram className="size-3.5" />
-          COPIAR REPORTE
+          Compartir a Telegram
         </>
       )}
     </Button>
