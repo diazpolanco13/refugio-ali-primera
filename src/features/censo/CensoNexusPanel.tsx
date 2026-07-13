@@ -25,6 +25,7 @@ import {
   RotateCcw,
   ChevronDown,
   ArrowRight,
+  Save,
   X,
 } from "lucide-react";
 import {
@@ -596,6 +597,8 @@ export function CensoNexusPanel({
   /** Id de la fila de pérdida cuya cédula se está verificando en Nexus. */
   const [verificandoPerdidaId, setVerificandoPerdidaId] = useState<string | null>(null);
   const [errorPerdidaCedula, setErrorPerdidaCedula] = useState<Record<string, string>>({});
+  const [guardandoNombres, setGuardandoNombres] = useState(false);
+  const [mensajeNombres, setMensajeNombres] = useState("");
   // Nivel de afectación del hogar recién creado, para el badge del header.
   const [nivelHogar, setNivelHogar] = useState<{
     estatusVivienda: EstatusVivienda;
@@ -848,6 +851,8 @@ export function CensoNexusPanel({
     setDetalleAbierto(false);
     setVerificandoPerdidaId(null);
     setErrorPerdidaCedula({});
+    setGuardandoNombres(false);
+    setMensajeNombres("");
   }
 
   function actualizarPerdida(
@@ -996,6 +1001,25 @@ export function CensoNexusPanel({
     );
   }
 
+  /** Etiqueta del botón según estado fallecido/desaparecido de las filas. */
+  function etiquetaConfirmarPerdidas(): string {
+    const list = detallePerdidasAGuardar();
+    const ref = list.length > 0 ? list : detallePerdidas;
+    const todosFallecidos =
+      ref.length > 0 && ref.every((f) => f.estado === "fallecido");
+    const todosDesaparecidos =
+      ref.length > 0 && ref.every((f) => f.estado === "desaparecido");
+    const plural = (list.length > 1 || (list.length === 0 && ref.length > 1));
+    const verbo = hayHogar ? "Guardar" : "Confirmar";
+    if (todosFallecidos) {
+      return plural ? `${verbo} fallecidos` : `${verbo} fallecido`;
+    }
+    if (todosDesaparecidos) {
+      return plural ? `${verbo} desaparecidos` : `${verbo} desaparecido`;
+    }
+    return hayHogar ? "Guardar nombres" : "Confirmar nombres";
+  }
+
   async function onCrearHogar() {
     if (!persona) return;
     if (!estatusVivienda) {
@@ -1111,6 +1135,44 @@ export function CensoNexusPanel({
       );
     } finally {
       setGuardando(false);
+    }
+  }
+
+  /**
+   * Persiste nombres de fallecidos/desaparecidos en BD (familiares_separados).
+   * Sin hogar aún: marca listo en UI; se grabarán al crear el hogar.
+   * No toca conteos de partes.
+   */
+  async function onGuardarNombresPerdidas() {
+    const aGuardar = detallePerdidasAGuardar();
+    if (aGuardar.length === 0) {
+      setMensajeNombres("Indique al menos un nombre o cédula antes de guardar.");
+      return;
+    }
+    if (!familiaId) {
+      setMensajeNombres(
+        aGuardar.length === 1
+          ? "Nombre listo. Se grabará al crear el hogar."
+          : `${aGuardar.length} nombres listos. Se grabarán al crear el hogar.`,
+      );
+      return;
+    }
+    setGuardandoNombres(true);
+    setMensajeNombres("");
+    setErrorBusqueda("");
+    try {
+      await guardarFamiliaresReferencia(familiaId, [], aGuardar);
+      setMensajeNombres(
+        aGuardar.length === 1
+          ? "Nombre guardado en el hogar."
+          : `${aGuardar.length} nombres guardados en el hogar.`,
+      );
+    } catch (err) {
+      setErrorBusqueda(
+        mensajeErrorParaUsuario(err, "No se pudieron guardar los nombres"),
+      );
+    } finally {
+      setGuardandoNombres(false);
     }
   }
 
@@ -3077,249 +3139,281 @@ export function CensoNexusPanel({
             </div>
 
             {fallecidosCount > 0 || desaparecidosCount > 0 ? (
-              <div className="space-y-2 rounded-lg border border-border/80 bg-muted/20 p-3">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium flex items-center gap-2">
-                      <Skull className="size-4 shrink-0" />
-                      Nombres de fallecidos y desaparecidos
+              <div className="space-y-2">
+                <div className="space-y-2 rounded-lg border border-border/80 bg-muted/20 p-3">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        <Skull className="size-4 shrink-0" />
+                        Nombres de fallecidos y desaparecidos
+                      </p>
+                      <Badge
+                        variant="outline"
+                        className="border-amber-500/50 bg-amber-500/15 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-300"
+                      >
+                        Opcional
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] leading-snug text-muted-foreground">
+                      <span className="font-semibold text-foreground">No es obligatorio.</span>{" "}
+                      Si conoce nombres o cédulas de las personas del conteo de arriba (
+                      {[
+                        fallecidosCount > 0
+                          ? `${fallecidosCount} fallecido${fallecidosCount === 1 ? "" : "s"}`
+                          : null,
+                        desaparecidosCount > 0
+                          ? `${desaparecidosCount} desaparecido${desaparecidosCount === 1 ? "" : "s"}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}
+                      ), anótelos aquí. Con cédula puede buscar en Nexus para
+                      rellenar el nombre. Use Confirmar para dejarlos listos
+                      (no cambian los conteos de partes). Si no los conocen, puede
+                      crear el hogar sin completarlos.
                     </p>
-                    <Badge
-                      variant="outline"
-                      className="border-amber-500/50 bg-amber-500/15 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-300"
-                    >
-                      Opcional
-                    </Badge>
                   </div>
-                  <p className="text-[11px] leading-snug text-muted-foreground">
-                    <span className="font-semibold text-foreground">No es obligatorio.</span>{" "}
-                    Si conoce nombres o cédulas de las personas del conteo de arriba (
-                    {[
-                      fallecidosCount > 0
-                        ? `${fallecidosCount} fallecido${fallecidosCount === 1 ? "" : "s"}`
-                        : null,
-                      desaparecidosCount > 0
-                        ? `${desaparecidosCount} desaparecido${desaparecidosCount === 1 ? "" : "s"}`
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(", ")}
-                    ), anótelos aquí. Con cédula puede verificar en Nexus para
-                    rellenar el nombre. Si no los conocen, puede crear el hogar
-                    sin completarlos.
-                  </p>
-                </div>
-                {!detalleAbierto ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={cn(CENSO_BOTON_SECUNDARIO, "h-10")}
-                    onClick={() => {
-                      setDetalleAbierto(true);
-                      if (detallePerdidas.length === 0) {
-                        setDetallePerdidas([nuevaPerdidaVacia()]);
-                      }
-                    }}
-                  >
-                    <Plus className="size-4" />
-                    Agregar nombres
-                  </Button>
-                ) : (
-                  <div className="space-y-2">
-                    {detallePerdidas.map((f) => {
-                      const verificando = verificandoPerdidaId === f.id;
-                      const errorCed = errorPerdidaCedula[f.id];
-                      const digitsCed = soloDigitos(f.cedula ?? "");
-                      return (
-                        <div key={f.id} className="space-y-1.5 rounded-md border p-2">
-                          <div className="flex items-stretch gap-1.5">
-                            <div className="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-lg border border-border bg-background">
-                              <div
-                                className="flex shrink-0 border-r border-border bg-muted/40 p-0.5"
-                                role="group"
-                                aria-label="Tipo de documento"
-                              >
-                                {(["V", "E"] as const).map((op) => {
-                                  const activo = (f.tipo_doc === "E" ? "E" : "V") === op;
-                                  return (
-                                    <button
-                                      key={op}
-                                      type="button"
-                                      aria-pressed={activo}
-                                      className={cn(
-                                        "h-8 min-w-8 rounded-md px-1.5 text-xs font-bold tabular-nums transition-colors",
-                                        activo
-                                          ? "bg-primary text-primary-foreground shadow-sm"
-                                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                                      )}
-                                      onClick={() =>
-                                        actualizarPerdida(f.id, {
-                                          tipo_doc: op as TipoDoc,
-                                          verificado_nexus: false,
-                                        })
-                                      }
-                                    >
-                                      {op}-
-                                    </button>
-                                  );
-                                })}
+                  {!detalleAbierto ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        CENSO_BOTON_SECUNDARIO,
+                        "h-10 border-amber-500/55 bg-amber-500/10 text-amber-950 hover:bg-amber-500/20 dark:text-amber-100",
+                      )}
+                      onClick={() => {
+                        setDetalleAbierto(true);
+                        setMensajeNombres("");
+                        if (detallePerdidas.length === 0) {
+                          setDetallePerdidas([nuevaPerdidaVacia()]);
+                        }
+                      }}
+                    >
+                      <Plus className="size-4" />
+                      Agregar nombres
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      {detallePerdidas.map((f) => {
+                        const verificando = verificandoPerdidaId === f.id;
+                        const errorCed = errorPerdidaCedula[f.id];
+                        const digitsCed = soloDigitos(f.cedula ?? "");
+                        return (
+                          <div key={f.id} className="space-y-1.5 rounded-md border p-2">
+                            <div className="flex items-stretch gap-1.5">
+                              <div className="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-lg border border-border bg-background">
+                                <div
+                                  className="flex shrink-0 border-r border-border bg-muted/40 p-0.5"
+                                  role="group"
+                                  aria-label="Tipo de documento"
+                                >
+                                  {(["V", "E"] as const).map((op) => {
+                                    const activo = (f.tipo_doc === "E" ? "E" : "V") === op;
+                                    return (
+                                      <button
+                                        key={op}
+                                        type="button"
+                                        aria-pressed={activo}
+                                        className={cn(
+                                          "h-8 min-w-8 rounded-md px-1.5 text-xs font-bold tabular-nums transition-colors",
+                                          activo
+                                            ? "bg-primary text-primary-foreground shadow-sm"
+                                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                                        )}
+                                        onClick={() =>
+                                          actualizarPerdida(f.id, {
+                                            tipo_doc: op as TipoDoc,
+                                            verificado_nexus: false,
+                                          })
+                                        }
+                                      >
+                                        {op}-
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                <Input
+                                  inputMode="numeric"
+                                  autoComplete="off"
+                                  placeholder="Cédula (opcional)"
+                                  value={digitsCed}
+                                  onChange={(e) => {
+                                    const digitos = soloDigitos(e.target.value);
+                                    actualizarPerdida(f.id, {
+                                      cedula: digitos,
+                                      cedula_norm: null,
+                                      verificado_nexus: false,
+                                    });
+                                    setErrorPerdidaCedula((prev) => {
+                                      if (!prev[f.id]) return prev;
+                                      const next = { ...prev };
+                                      delete next[f.id];
+                                      return next;
+                                    });
+                                  }}
+                                  className="h-8 flex-1 rounded-none border-0 bg-transparent px-2 font-mono text-xs tracking-wider shadow-none focus-visible:ring-0"
+                                />
                               </div>
-                              <Input
-                                inputMode="numeric"
-                                autoComplete="off"
-                                placeholder="Cédula (opcional)"
-                                value={digitsCed}
-                                onChange={(e) => {
-                                  const digitos = soloDigitos(e.target.value);
-                                  actualizarPerdida(f.id, {
-                                    cedula: digitos,
-                                    cedula_norm: null,
-                                    verificado_nexus: false,
-                                  });
-                                  setErrorPerdidaCedula((prev) => {
-                                    if (!prev[f.id]) return prev;
-                                    const next = { ...prev };
-                                    delete next[f.id];
-                                    return next;
-                                  });
-                                }}
-                                className="h-8 flex-1 rounded-none border-0 bg-transparent px-2 font-mono text-xs tracking-wider shadow-none focus-visible:ring-0"
-                              />
-                            </div>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              className="h-8 shrink-0 gap-1 px-2.5 text-xs"
-                              disabled={verificando || digitsCed.length < 5}
-                              onClick={() => void verificarCedulaPerdida(f.id)}
-                            >
-                              {verificando ? (
-                                <Loader2 className="size-3.5 animate-spin" />
-                              ) : (
-                                <Search className="size-3.5" />
-                              )}
-                              Verificar
-                            </Button>
-                          </div>
-                          {f.verificado_nexus ? (
-                            <Badge
-                              variant="secondary"
-                              className="h-5 gap-1 bg-emerald-600/15 text-[10px] text-emerald-700 dark:text-emerald-400"
-                            >
-                              <ShieldCheck className="size-3" />
-                              Verificado en Nexus
-                            </Badge>
-                          ) : null}
-                          {errorCed ? (
-                            <p className="text-[11px] leading-snug text-rose-600 dark:text-rose-400">
-                              {errorCed}
-                            </p>
-                          ) : null}
-                          <div className="grid grid-cols-2 gap-1.5">
-                            <Input
-                              placeholder="Nombre aproximado"
-                              value={f.nombre}
-                              onChange={(e) =>
-                                actualizarPerdida(f.id, {
-                                  nombre: e.target.value,
-                                  verificado_nexus: false,
-                                })
-                              }
-                              className="h-8 text-xs"
-                            />
-                            <Select
-                              value={f.parentesco}
-                              onValueChange={(v) =>
-                                actualizarPerdida(f.id, { parentesco: v })
-                              }
-                            >
-                              <SelectTrigger
-                                className={cn(CENSO_SELECT_TRIGGER, "h-9 w-full text-xs")}
+                              <Button
+                                type="button"
+                                variant="default"
+                                size="sm"
+                                className="h-9 shrink-0 gap-1.5 rounded-lg border-2 border-primary px-3 text-xs font-bold shadow-md"
+                                disabled={verificando || digitsCed.length < 5}
+                                onClick={() => void verificarCedulaPerdida(f.id)}
                               >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {PARENTESCOS_JEFE.map((p) => (
-                                  <SelectItem key={p} value={p}>
-                                    {p}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Input
-                              placeholder="Edad aproximada"
-                              type="number"
-                              inputMode="numeric"
-                              min={0}
-                              max={120}
-                              value={f.edad_aproximada ?? ""}
-                              onChange={(e) =>
-                                actualizarPerdida(f.id, {
-                                  edad_aproximada: e.target.value
-                                    ? Number(e.target.value)
-                                    : null,
-                                })
-                              }
-                              className="h-8 text-xs"
-                            />
-                            <div className="flex items-center gap-1.5">
-                              <Select
-                                value={f.estado}
-                                onValueChange={(v) =>
+                                {verificando ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <Search className="size-3.5" />
+                                )}
+                                Buscar
+                              </Button>
+                            </div>
+                            {f.verificado_nexus ? (
+                              <Badge
+                                variant="secondary"
+                                className="h-5 gap-1 bg-emerald-600/15 text-[10px] text-emerald-700 dark:text-emerald-400"
+                              >
+                                <ShieldCheck className="size-3" />
+                                Verificado en Nexus
+                              </Badge>
+                            ) : null}
+                            {errorCed ? (
+                              <p className="text-[11px] leading-snug text-rose-600 dark:text-rose-400">
+                                {errorCed}
+                              </p>
+                            ) : null}
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <Input
+                                placeholder="Nombre aproximado"
+                                value={f.nombre}
+                                onChange={(e) =>
                                   actualizarPerdida(f.id, {
-                                    estado: v as FamiliarSeparado["estado"],
+                                    nombre: e.target.value,
+                                    verificado_nexus: false,
                                   })
+                                }
+                                className="h-8 text-xs"
+                              />
+                              <Select
+                                value={f.parentesco}
+                                onValueChange={(v) =>
+                                  actualizarPerdida(f.id, { parentesco: v })
                                 }
                               >
                                 <SelectTrigger
-                                  className={cn(CENSO_SELECT_TRIGGER, "h-9 flex-1 text-xs")}
+                                  className={cn(CENSO_SELECT_TRIGGER, "h-9 w-full text-xs")}
                                 >
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="fallecido">Fallecido</SelectItem>
-                                  <SelectItem value="desaparecido">Desaparecido</SelectItem>
+                                  {PARENTESCOS_JEFE.map((p) => (
+                                    <SelectItem key={p} value={p}>
+                                      {p}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="size-8 shrink-0 text-rose-400"
-                                onClick={() => {
-                                  setDetallePerdidas((prev) =>
-                                    prev.filter((x) => x.id !== f.id),
-                                  );
-                                  setErrorPerdidaCedula((prev) => {
-                                    if (!prev[f.id]) return prev;
-                                    const next = { ...prev };
-                                    delete next[f.id];
-                                    return next;
-                                  });
-                                }}
-                              >
-                                <Trash2 className="size-3.5" />
-                              </Button>
+                              <Input
+                                placeholder="Edad aproximada"
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                max={120}
+                                value={f.edad_aproximada ?? ""}
+                                onChange={(e) =>
+                                  actualizarPerdida(f.id, {
+                                    edad_aproximada: e.target.value
+                                      ? Number(e.target.value)
+                                      : null,
+                                  })
+                                }
+                                className="h-8 text-xs"
+                              />
+                              <div className="flex items-center gap-1.5">
+                                <Select
+                                  value={f.estado}
+                                  onValueChange={(v) =>
+                                    actualizarPerdida(f.id, {
+                                      estado: v as FamiliarSeparado["estado"],
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger
+                                    className={cn(CENSO_SELECT_TRIGGER, "h-9 flex-1 text-xs")}
+                                  >
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="fallecido">Fallecido</SelectItem>
+                                    <SelectItem value="desaparecido">Desaparecido</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8 shrink-0 text-rose-400"
+                                  onClick={() => {
+                                    setDetallePerdidas((prev) =>
+                                      prev.filter((x) => x.id !== f.id),
+                                    );
+                                    setMensajeNombres("");
+                                    setErrorPerdidaCedula((prev) => {
+                                      if (!prev[f.id]) return prev;
+                                      const next = { ...prev };
+                                      delete next[f.id];
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className={cn(
-                        CENSO_BOTON_SECUNDARIO,
-                        "bg-muted text-foreground hover:bg-muted/80",
-                      )}
-                      onClick={() => setDetallePerdidas((prev) => [...prev, nuevaPerdidaVacia()])}
-                    >
-                      <Plus className="size-4 shrink-0" />
-                      Agregar otro nombre
-                    </Button>
-                  </div>
-                )}
+                        );
+                      })}
+                      <Button
+                        type="button"
+                        variant="default"
+                        className={cn(CENSO_BOTON_ACCION, "h-11")}
+                        disabled={guardandoNombres || detallePerdidasAGuardar().length === 0}
+                        onClick={() => void onGuardarNombresPerdidas()}
+                      >
+                        {guardandoNombres ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Save className="size-4" />
+                        )}
+                        {etiquetaConfirmarPerdidas()}
+                      </Button>
+                      {mensajeNombres ? (
+                        <p className="text-[11px] font-medium leading-snug text-emerald-700 dark:text-emerald-400">
+                          {mensajeNombres}
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+                {detalleAbierto ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      CENSO_BOTON_SECUNDARIO,
+                      "h-10 border-2 border-amber-500/60 bg-amber-500/10 font-semibold text-amber-950 shadow-md hover:bg-amber-500/20 dark:text-amber-100",
+                    )}
+                    onClick={() => {
+                      setMensajeNombres("");
+                      setDetallePerdidas((prev) => [...prev, nuevaPerdidaVacia()]);
+                    }}
+                  >
+                    <Plus className="size-4 shrink-0" />
+                    Agregar otra persona
+                  </Button>
+                ) : null}
               </div>
             ) : null}
 
