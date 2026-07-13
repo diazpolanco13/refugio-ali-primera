@@ -1,5 +1,9 @@
 import type maplibregl from "maplibre-gl";
 
+/** Ancho visible (m) por debajo del cual se muestra el nombre en el marcador.
+ * Coincide con la etiqueta de escala "25k" (≈ 25 km de viewport). */
+export const UMBRAL_ETIQUETA_NOMBRE_METROS = 25_000;
+
 function distanciaMetros(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -39,4 +43,9 @@ export function formatearEscalaVista(metros: number): string {
 
 export function escalaVistaDelMapa(map: maplibregl.Map): string {
   return formatearEscalaVista(anchoVisibleMetros(map));
+}
+
+/** True cuando la escala es inferior a 25k (más acercado). */
+export function debeMostrarEtiquetaNombre(map: maplibregl.Map): boolean {
+  return anchoVisibleMetros(map) < UMBRAL_ETIQUETA_NOMBRE_METROS;
 }

@@ -34,11 +34,9 @@ interface Props {
 /**
  * Construye la URL de navegación GPS hacia el centro según el dispositivo.
  *
- * - Móvil real (Android/iOS): esquema `geo:` que abre la app de mapas nativa
- *   del SO (Google Maps en Android, Apple Maps en iOS). El SO maneja el
- *   esquema y abre la app correspondiente.
- * - Desktop: Google Maps `https://www.google.com/maps/dir/...` (funciona en
- *   todos los navegadores; abre en nueva pestaña con `target="_blank"`).
+ * - iOS: Apple Maps (`maps.apple.com`) — iOS no soporta el esquema `geo:`.
+ * - Android: esquema `geo:` (abre Google Maps / app de mapas por defecto).
+ * - Desktop: Google Maps `https://www.google.com/maps/dir/...`.
  *
  * Devuelve `null` si el centro no tiene coordenadas (`geom`); el botón que la
  * usa se deshabilita en ese caso.
@@ -51,14 +49,14 @@ function urlNavegacion(centro: CentroTransitorio): string | null {
   if (!centro.geom) return null;
   // GeoJSON.Point = [lng, lat].
   const [lng, lat] = centro.geom.coordinates as [number, number];
-  const nombre = encodeURIComponent(centro.nombre);
+  const etiqueta = encodeURIComponent(centro.nombre);
   const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
-  const esMovil = /android|iphone|ipad|ipod/i.test(ua);
-  if (esMovil) {
-    // geo: abre la app de mapas por defecto (Google Maps en Android, Apple Maps en iOS).
-    return `geo:${lat},${lng}?q=${lat},${lng}(${nombre})`;
+  if (/iphone|ipad|ipod/i.test(ua)) {
+    return `https://maps.apple.com/?daddr=${lat},${lng}&q=${etiqueta}`;
   }
-  // Desktop: Google Maps. Más simple y robusto que distinguir Safari/Apple Maps.
+  if (/android/i.test(ua)) {
+    return `geo:${lat},${lng}?q=${lat},${lng}(${etiqueta})`;
+  }
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 }
 

@@ -9,6 +9,8 @@ interface Props {
   modo: ModoMarcadorCentro;
   /** Número de campamento (índice operativo). */
   nro: number;
+  /** Nombre del centro (etiqueta en zoom cercano + tooltip). */
+  nombre: string;
   icono: string;
   logo: string | null;
   color: string;
@@ -16,6 +18,8 @@ interface Props {
   /** Si false, el marcador se muestra gris (filtro por otra dirección). */
   resaltado?: boolean;
   mostrarParte: boolean;
+  /** Etiqueta visible del nombre (escala < 25k). */
+  mostrarNombre?: boolean;
   /** Damnificados alojados. */
   refugiados?: number;
   /** Personal operativo total desplegado en el centro. */
@@ -86,16 +90,29 @@ function NucleoNumero({
   );
 }
 
+function EtiquetaNombre({ nombre }: { nombre: string }) {
+  return (
+    <span
+      className="mt-0.5 max-w-[9.5rem] truncate rounded-md bg-background/90 px-1.5 py-0.5 text-center text-[10px] font-semibold leading-tight text-foreground shadow-md backdrop-blur-sm"
+      title={nombre}
+    >
+      {nombre}
+    </span>
+  );
+}
+
 /** Marcador HTML del campamento: logo SEBIN o punto de color con latido. */
 export function MarcadorCentro({
   modo,
   nro,
+  nombre,
   icono,
   logo,
   color,
   seleccionado,
   resaltado = true,
   mostrarParte,
+  mostrarNombre = false,
   refugiados = 0,
   personalTotal = 0,
   semaforoColor,
@@ -104,7 +121,8 @@ export function MarcadorCentro({
 }: Props) {
   const colorMarcador = resaltado ? color : COLOR_MARCADOR_ATENUADO;
   const titulo =
-    `${esPrueba ? "[PRUEBA] " : ""}N.° ${nro} · ${refugiados.toLocaleString("es")} damnificados · ${personalTotal.toLocaleString("es")} personal operativo`;
+    `${esPrueba ? "[PRUEBA] " : ""}${nombre} · N.° ${nro} · ${refugiados.toLocaleString("es")} damnificados · ${personalTotal.toLocaleString("es")} personal operativo`;
+  const verNombre = mostrarNombre && resaltado;
 
   const marcaPrueba = esPrueba ? (
     <span className="mt-0.5 block">
@@ -147,6 +165,7 @@ export function MarcadorCentro({
               seleccionado={seleccionado}
             />
           </div>
+          {verNombre && <EtiquetaNombre nombre={nombre} />}
           {mostrarParte && resaltado && (
             <span className="mt-1 rounded-md bg-background/90 px-1.5 py-0.5 shadow-md backdrop-blur-sm">
               <ParteNumerico refugiados={refugiados} compacto />
@@ -194,16 +213,19 @@ export function MarcadorCentro({
         title={titulo}
         onClick={manejarClick}
       >
-        <div
-          className={cn(
-            "rounded-full border-2 bg-background/95 p-0.5 pb-1.5 shadow-lg",
-            seleccionado && resaltado && "ring-2 ring-white/90",
-          )}
-          style={{ borderColor: colorAroLogo }}
-        >
-          {iconoCuerpo}
+        <div className="flex flex-col items-center">
+          <div
+            className={cn(
+              "rounded-full border-2 bg-background/95 p-0.5 pb-1.5 shadow-lg",
+              seleccionado && resaltado && "ring-2 ring-white/90",
+            )}
+            style={{ borderColor: colorAroLogo }}
+          >
+            {iconoCuerpo}
+          </div>
+          {verNombre && <EtiquetaNombre nombre={nombre} />}
+          {marcaPrueba}
         </div>
-        {marcaPrueba}
       </div>
     );
   }
@@ -218,17 +240,20 @@ export function MarcadorCentro({
       title={titulo}
       onClick={manejarClick}
     >
-      <div
-        className={cn(
-          "flex items-center gap-1 rounded-full border-2 bg-background/95 py-0.5 pl-0.5 pr-2 pb-1.5 shadow-lg",
-          seleccionado && resaltado && "ring-2 ring-white/90",
-        )}
-        style={{ borderColor: colorAroLogo }}
-      >
-        {iconoCuerpo}
-        {resaltado && <ParteNumerico refugiados={refugiados} />}
+      <div className="flex flex-col items-center">
+        <div
+          className={cn(
+            "flex items-center gap-1 rounded-full border-2 bg-background/95 py-0.5 pl-0.5 pr-2 pb-1.5 shadow-lg",
+            seleccionado && resaltado && "ring-2 ring-white/90",
+          )}
+          style={{ borderColor: colorAroLogo }}
+        >
+          {iconoCuerpo}
+          {resaltado && <ParteNumerico refugiados={refugiados} />}
+        </div>
+        {verNombre && <EtiquetaNombre nombre={nombre} />}
+        {marcaPrueba}
       </div>
-      {marcaPrueba}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { createRoot, type Root } from "react-dom/client";
 import maplibregl from "maplibre-gl";
 import { toPng } from "html-to-image";
-import { escalaVistaDelMapa } from "@/map/escalaVista";
+import { escalaVistaDelMapa, debeMostrarEtiquetaNombre } from "@/map/escalaVista";
 import { CAPAS_BASE, VISIBILIDAD_BASE, construirEstilo, type BaseMapa } from "@/map/estiloMapa";
 import {
   esCentroDePrueba,
@@ -102,11 +102,17 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   const usaVistaGuardadaRef = useRef(cargarVistaCentros() != null);
   const [gpsActivo, setGpsActivo] = useState(false);
   const [escalaVista, setEscalaVista] = useState<string | undefined>();
+  const [mostrarEtiquetaNombre, setMostrarEtiquetaNombre] = useState(false);
 
   function actualizarEscalaVista() {
     const map = mapRef.current;
     if (!map || !listoRef.current) return;
     setEscalaVista(escalaVistaDelMapa(map));
+    const mostrarNombre = debeMostrarEtiquetaNombre(map);
+    if (mostrarNombre !== cbRef.current.mostrarEtiquetaNombre) {
+      cbRef.current.mostrarEtiquetaNombre = mostrarNombre;
+      setMostrarEtiquetaNombre(mostrarNombre);
+    }
   }
 
   const cbRef = useRef({
@@ -115,6 +121,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     detalleAbierto,
     modoMarcador,
     mostrarParteMarcador,
+    mostrarEtiquetaNombre,
     unidadesFiltro,
     onSeleccionar,
     onToggleDetalle,
@@ -125,6 +132,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     detalleAbierto,
     modoMarcador,
     mostrarParteMarcador,
+    mostrarEtiquetaNombre,
     unidadesFiltro,
     onSeleccionar,
     onToggleDetalle,
@@ -375,12 +383,14 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
         <MarcadorCentro
           modo={cbRef.current.modoMarcador}
           nro={c.nro}
+          nombre={c.nombre}
           icono="🛡️"
           logo={LOGO_SEBIN}
           color={metaUnidad.color}
           seleccionado={cbRef.current.seleccionado === c.id}
           resaltado={resaltado}
           mostrarParte={cbRef.current.mostrarParteMarcador}
+          mostrarNombre={cbRef.current.mostrarEtiquetaNombre}
           refugiados={refugiados}
           personalTotal={personalTotal}
           semaforoColor={
@@ -414,7 +424,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     sincronizarMarcadores();
     aplicarVistaDefectoSiCorresponde();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [centros, seleccionado, modoMarcador, mostrarParteMarcador, unidadesFiltro]);
+  }, [centros, seleccionado, modoMarcador, mostrarParteMarcador, mostrarEtiquetaNombre, unidadesFiltro]);
 
   useEffect(() => {
     const map = mapRef.current;
