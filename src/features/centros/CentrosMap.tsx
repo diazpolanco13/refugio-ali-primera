@@ -40,6 +40,7 @@ import { InfoCentro } from "./InfoCentro";
 import { ControlesMapaCentros } from "./ControlesMapaCentros";
 import { SelectoresVistaMapa } from "./SelectoresVistaMapa";
 import { LeyendaUnidadesSebin } from "./LeyendaUnidadesSebin";
+import { LogoMini } from "@/components/LogoMini";
 
 interface Props {
   centros: CentroTransitorio[];
@@ -329,7 +330,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       canvasContextAttributes: { preserveDrawingBuffer: true },
     });
     mapRef.current = map;
-    map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
+    map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
     map.on("moveend", programarPersistirVista);
     map.on("move", actualizarEscalaVista);
     map.on("zoom", actualizarEscalaVista);
@@ -623,6 +624,12 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
           mostrarCintaTotales,
           onCambiarMostrarCintaTotales,
         }}
+      />
+      <LogoMini
+        variant="minimo"
+        position="bottom-left"
+        onClick={centrarCaracas}
+        className="hidden md:flex"
       />
       {modoMarcador === "color" && mostrarLeyenda && (
         <LeyendaUnidadesSebin

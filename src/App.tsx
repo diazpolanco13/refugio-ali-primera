@@ -8,9 +8,9 @@ import { MarcaAgua } from "./components/MarcaAgua";
 import { PantallaCarga } from "./components/PantallaCarga";
 import { EnDesarrollo } from "./components/EnDesarrollo";
 import { SectionSuspense } from "./components/SectionSuspense";
+import { SplashIntro } from "./components/SplashIntro";
 import { AppShell } from "./layouts/AppShell";
 import { señalarAppObsoleta, esErrorModuloObsoleto } from "./lib/avisoAppObsoleta";
-import { ocultarSplash } from "./lib/splash";
 import { rutaInicialDeRol, rutaPermitidaParaRol } from "./domain/permisos";
 import { useIsMobile } from "./hooks/use-mobile";
 import { DashboardViewSkeleton } from "./features/dashboard/DashboardViewSkeleton";
@@ -56,6 +56,7 @@ const importCensoView = () => import("./features/censo/CensoView");
 const importCensoRedView = () => import("./features/censo/CensoRedView");
 const importCensoRedListadoView = () => import("./features/censo/CensoRedListadoView");
 const importCensoCentroDetalleView = () => import("./features/censo/CensoCentroDetalleView");
+const importTrasladosView = () => import("./features/traslados/TrasladosView");
 
 const CentrosView = lazy(() => importCentrosView().then((m) => ({ default: m.CentrosView })));
 const FichaCentroView = lazy(() =>
@@ -114,6 +115,9 @@ const CensoRedListadoView = lazy(() =>
 const CensoCentroDetalleView = lazy(() =>
   importCensoCentroDetalleView().then((m) => ({ default: m.CensoCentroDetalleView })),
 );
+const TrasladosView = lazy(() =>
+  importTrasladosView().then((m) => ({ default: m.TrasladosView })),
+);
 
 /**
  * Devuelve el import del chunk que renderizará la ruta actual, para
@@ -155,6 +159,7 @@ function precargarRutaInicial(pathname: string): Promise<unknown> {
   if (pathname.startsWith("/centros/reportes")) return importReportesDiariosRedView();
   if (pathname.startsWith("/centros/refugiados/")) return importRefugiadoDetalleRedView();
   if (pathname.startsWith("/centros/refugiados")) return importRefugiadosRedView();
+  if (pathname.startsWith("/centros/traslados")) return importTrasladosView();
   if (pathname.startsWith("/centros/dotaciones-pendientes"))
     return importDotacionesPendientesView();
   if (pathname.startsWith("/centro/nuevo")) return importNuevoCentroView();
@@ -222,44 +227,41 @@ export function App() {
     void Promise.allSettled([sesionLista, chunkListo]).then(() => setArrancando(false));
   }, []);
 
-  useEffect(() => {
-    // El splash vive en index.html (fuera de React) para pintarse al instante;
-    // se desvanece cuando la app ya decidió qué mostrar (home o login).
-    if (!arrancando) ocultarSplash();
-  }, [arrancando]);
+  // Splash cinematográfico vive en index.html; SplashIntro solo lo cierra.
+  const contenido = (() => {
+    if (arrancando) return null;
 
-  if (arrancando) return null;
+    // Planilla de censo rápido en terreno: vista pública, sin login. Va antes
+    // del gate de sesión para que los operadores accedan directo desde el enlace.
+    if (location.pathname.startsWith("/censo")) {
+      return (
+        <>
+          <AvisoActualizacionApp />
+          {mostrarFabCache && <BotonBorrarCacheFlotante />}
+          <Suspense fallback={<PantallaCarga />}>
+            <CensoView />
+          </Suspense>
+        </>
+      );
+    }
 
-  // Planilla de censo rápido en terreno: vista pública, sin login. Va antes
-  // del gate de sesión para que los operadores accedan directo desde el enlace.
-  if (location.pathname.startsWith("/censo")) {
+    if (!sesion) {
+      return (
+        <>
+          <AvisoActualizacionApp />
+          {mostrarFabCache && <BotonBorrarCacheFlotante />}
+          <Login />
+        </>
+      );
+    }
+
+    const mostrarMarcaAgua = sesion.user.marca_agua !== false;
+
     return (
       <>
         <AvisoActualizacionApp />
         {mostrarFabCache && <BotonBorrarCacheFlotante />}
-        <Suspense fallback={<PantallaCarga />}>
-          <CensoView />
-        </Suspense>
-      </>
-    );
-  }
-
-  if (!sesion) {
-    return (
-      <>
-        <AvisoActualizacionApp />
-        {mostrarFabCache && <BotonBorrarCacheFlotante />}
-        <Login />
-      </>
-    );
-  }
-  const mostrarMarcaAgua = sesion.user.marca_agua !== false;
-
-  return (
-    <>
-      <AvisoActualizacionApp />
-      {mostrarFabCache && <BotonBorrarCacheFlotante />}
-      <Routes>
+        <Routes>
         <Route
           path="/dashboard"
           element={
@@ -298,10 +300,11 @@ export function App() {
           <Route
             path="/centros/traslados"
             element={
-              <EnDesarrollo
-                titulo="Traslados entre campamentos"
-                descripcion="Registro y seguimiento de movimientos de damnificados entre campamentos de la red."
-              />
+              <RutaConSkeleton
+                fallback={<TablaRedSkeleton etiqueta="Cargando traslados" />}
+              >
+                <TrasladosView />
+              </RutaConSkeleton>
             }
           />
           <Route
@@ -485,5 +488,8 @@ export function App() {
       </Routes>
       {mostrarMarcaAgua && <MarcaAgua usuario={sesion.user} />}
     </>
-  );
+    );
+  })();
+
+  return <SplashIntro listo={!arrancando}>{contenido}</SplashIntro>;
 }

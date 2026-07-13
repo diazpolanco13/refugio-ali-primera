@@ -15,6 +15,8 @@ function rutaEs(base: string): boolean {
 }
 
 if (rutaEs("/censo") || rutaEs("/terreno") || rutaEs("/denuncia")) {
+  const splash = document.getElementById("app-splash");
+  if (splash) splash.classList.add("modo-campo");
   const msg = document.getElementById("app-splash-msg");
   if (msg) msg.textContent = rutaEs("/censo") ? "Cargando planilla…" : "Cargando…";
   void import("./censo-entry").then((m) => m.mount());
