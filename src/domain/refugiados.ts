@@ -897,8 +897,10 @@ export function normalizarResidenciaAfectada(
   };
 }
 
-/** Filtra alojamientos con estado activo. */
-export function alojamientosActivos(alojamientos: AlojamientoRefugiado[]): AlojamientoRefugiado[] {
+/** Filtra alojamientos con estado activo (preserva subtipo enriquecido). */
+export function alojamientosActivos<T extends AlojamientoRefugiado>(
+  alojamientos: T[],
+): T[] {
   return alojamientos.filter((a) => a.estado === "activo");
 }
 
