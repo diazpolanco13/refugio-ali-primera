@@ -1,8 +1,19 @@
 // Vista global de población nominal en la red (/centros/refugiados).
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { Baby, FilterX, Gift, HeartPulse, Search, ShieldAlert, Users } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Baby,
+  FilterX,
+  Gift,
+  HeartPulse,
+  Search,
+  ShieldAlert,
+  Users,
+} from "lucide-react";
 import { useRefugiadosRed } from "@/data/useRefugiadosRed";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
@@ -23,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PaginadorTabla } from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
@@ -48,7 +60,14 @@ import {
 import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
 import { VistaEncabezado } from "@/components/VistaEncabezado";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  esUsernameOperadorTerreno,
+  useEtiquetaPerfil,
+} from "@/data/useEtiquetaPerfil";
 import { cn } from "@/lib/utils";
+
+/** Filas por página: censo puede superar 20k personas. */
+const FILAS_POR_PAGINA = 50;
 
 type FiltroGrupoEtario = GrupoEtarioRefugiado | "todos";
 type FiltroVulnerabilidad =
@@ -60,6 +79,18 @@ type FiltroVulnerabilidad =
   | "vulnerables";
 type FiltroRolFamiliar = "todos" | "jefe" | "miembro" | "sin_hogar";
 type FiltroDocumento = "todos" | "con_documento" | "sin_documento" | "cedula" | "pasaporte";
+
+/** Columnas ordenables de la tabla de población. */
+type ColumnaOrden =
+  | "nombre"
+  | "edad"
+  | "familia"
+  | "vulnerabilidad"
+  | "campamento"
+  | "ingreso"
+  | "usuario";
+
+type DireccionOrden = "asc" | "desc";
 
 interface PerfilPoblacion {
   alojamiento: AlojamientoEnriquecido;
@@ -73,17 +104,10 @@ interface PerfilPoblacion {
   vulnerable: boolean;
   esJefe: boolean;
   sinHogar: boolean;
-  diasAlojado: number | null;
+  registradoPor: string;
 }
 
-function diasDesde(fecha: string): number | null {
-  if (!fecha) return null;
-  const inicio = new Date(`${fecha}T00:00:00`);
-  if (Number.isNaN(inicio.getTime())) return null;
-  const hoy = new Date();
-  const hoyLocal = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-  return Math.max(0, Math.floor((hoyLocal.getTime() - inicio.getTime()) / 86_400_000));
-}
+const COLUMNAS_TABLA = 8;
 
 function perfilDeAlojamiento(a: AlojamientoEnriquecido): PerfilPoblacion {
   const edad = calcularEdad(a.refugiado.fecha_nacimiento);
@@ -112,8 +136,86 @@ function perfilDeAlojamiento(a: AlojamientoEnriquecido): PerfilPoblacion {
     vulnerable,
     esJefe: a.es_jefe_familia,
     sinHogar: !a.familia_id,
-    diasAlojado: diasDesde(a.fecha_ingreso),
+    registradoPor: (a.creada_por || a.updated_by || "").trim(),
   };
+}
+
+/** Fecha + hora del registro (creada_ts); fallback a fecha_ingreso. */
+function partesIngreso(fechaIngreso: string, creadaTs: number): { fecha: string; hora: string | null } {
+  if (creadaTs > 0) {
+    const d = new Date(creadaTs);
+    if (!Number.isNaN(d.getTime())) {
+      return {
+        fecha: d.toLocaleDateString("es-VE", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }),
+        hora: d.toLocaleTimeString("es-VE", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }),
+      };
+    }
+  }
+  return { fecha: fechaIngreso || "—", hora: null };
+}
+
+function etiquetaFamilia(p: PerfilPoblacion): string {
+  if (p.esJefe) return "Jefe de familia";
+  if (p.alojamiento.familia_id) return p.alojamiento.parentesco_jefe || "Miembro";
+  return "Sin hogar";
+}
+
+function pesoVulnerabilidad(p: PerfilPoblacion): number {
+  let n = 0;
+  if (p.embarazada) n += 4;
+  if (p.discapacidad) n += 3;
+  if (p.documentoPendiente) n += 2;
+  if (p.grupo === "menor5" || p.grupo === "adulto_mayor") n += 1;
+  return n;
+}
+
+function compararTexto(a: string, b: string): number {
+  return a.localeCompare(b, "es", { sensitivity: "base", numeric: true });
+}
+
+function compararPerfiles(
+  a: PerfilPoblacion,
+  b: PerfilPoblacion,
+  columna: ColumnaOrden,
+  nombresCentros: Map<string, string>,
+): number {
+  switch (columna) {
+    case "nombre":
+      return compararTexto(a.nombre, b.nombre);
+    case "edad": {
+      const ea = a.edad;
+      const eb = b.edad;
+      if (ea == null && eb == null) return 0;
+      if (ea == null) return 1;
+      if (eb == null) return -1;
+      return ea - eb;
+    }
+    case "familia":
+      return compararTexto(etiquetaFamilia(a), etiquetaFamilia(b));
+    case "vulnerabilidad":
+      return pesoVulnerabilidad(a) - pesoVulnerabilidad(b);
+    case "campamento":
+      return compararTexto(
+        nombresCentros.get(a.alojamiento.centro_id) ?? a.alojamiento.centro_id,
+        nombresCentros.get(b.alojamiento.centro_id) ?? b.alojamiento.centro_id,
+      );
+    case "ingreso": {
+      const ta = a.alojamiento.creada_ts || 0;
+      const tb = b.alojamiento.creada_ts || 0;
+      if (ta !== tb) return ta - tb;
+      return compararTexto(a.alojamiento.fecha_ingreso || "", b.alojamiento.fecha_ingreso || "");
+    }
+    case "usuario":
+      return compararTexto(a.registradoPor || "—", b.registradoPor || "—");
+  }
 }
 
 export function RefugiadosRedView() {
@@ -142,6 +244,9 @@ export function RefugiadosRedView() {
   const [documento, setDocumento] = useState<FiltroDocumento>("todos");
   const [soloItinerante, setSoloItinerante] = useState(false);
   const [soloDuplicados, setSoloDuplicados] = useState(false);
+  const [columnaOrden, setColumnaOrden] = useState<ColumnaOrden>("ingreso");
+  const [direccionOrden, setDireccionOrden] = useState<DireccionOrden>("desc");
+  const [pagina, setPagina] = useState(0);
 
   const duplicados = useMemo(() => detectarDuplicadosCedula(alojamientos), [alojamientos]);
   const perfiles = useMemo(() => alojamientos.map(perfilDeAlojamiento), [alojamientos]);
@@ -149,7 +254,7 @@ export function RefugiadosRedView() {
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
     const qDoc = q.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    return perfiles.filter((p) => {
+    const filtrados = perfiles.filter((p) => {
       const a = p.alojamiento;
       if (centroId !== "todos" && a.centro_id !== centroId) return false;
       if (soloItinerante && !a.itinerante) return false;
@@ -172,9 +277,16 @@ export function RefugiadosRedView() {
       return (
         p.nombre.toLowerCase().includes(q) ||
         (qDoc.length > 0 && (norm ?? "").toUpperCase().includes(qDoc)) ||
+        formatearCedula(a.refugiado.cedula, a.refugiado.tipo_doc).toLowerCase().includes(q) ||
+        (a.refugiado.cedula ?? "").toLowerCase().includes(q) ||
         (a.refugiado.codigo_ficha ?? "").toLowerCase().includes(q)
       );
     });
+
+    const factor = direccionOrden === "asc" ? 1 : -1;
+    return [...filtrados].sort(
+      (a, b) => factor * compararPerfiles(a, b, columnaOrden, nombresCentros),
+    );
   }, [
     perfiles,
     busqueda,
@@ -186,6 +298,9 @@ export function RefugiadosRedView() {
     documento,
     vulnerabilidad,
     duplicados,
+    columnaOrden,
+    direccionOrden,
+    nombresCentros,
   ]);
 
   const kpis = useMemo(
@@ -199,6 +314,32 @@ export function RefugiadosRedView() {
     }),
     [visibles],
   );
+
+  const totalPaginas = Math.max(1, Math.ceil(visibles.length / FILAS_POR_PAGINA));
+  const paginaSegura = Math.min(pagina, totalPaginas - 1);
+  const paginaFilas = useMemo(() => {
+    const inicio = paginaSegura * FILAS_POR_PAGINA;
+    return visibles.slice(inicio, inicio + FILAS_POR_PAGINA);
+  }, [visibles, paginaSegura]);
+
+  useEffect(() => {
+    setPagina(0);
+  }, [
+    busqueda,
+    centroId,
+    grupoEtario,
+    vulnerabilidad,
+    rolFamiliar,
+    documento,
+    soloItinerante,
+    soloDuplicados,
+    columnaOrden,
+    direccionOrden,
+  ]);
+
+  useEffect(() => {
+    if (pagina !== paginaSegura) setPagina(paginaSegura);
+  }, [pagina, paginaSegura]);
 
   const hayFiltros =
     busqueda.trim() !== "" ||
@@ -219,6 +360,16 @@ export function RefugiadosRedView() {
     setDocumento("todos");
     setSoloItinerante(false);
     setSoloDuplicados(false);
+  }
+
+  function alternarOrden(columna: ColumnaOrden) {
+    if (columnaOrden === columna) {
+      setDireccionOrden((d) => (d === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setColumnaOrden(columna);
+    // Ingreso: primeras vistas = más recientes.
+    setDireccionOrden(columna === "ingreso" ? "desc" : "asc");
   }
 
   return (
@@ -249,14 +400,18 @@ export function RefugiadosRedView() {
 
           <Card>
             <CardContent className="grid gap-3 pt-4 lg:grid-cols-12">
-              <div className="relative min-w-[12rem] flex-1">
-                <Label className="mb-1.5 block text-xs text-muted-foreground">Búsqueda</Label>
-                <Search className="absolute bottom-2.5 left-2.5 size-4 text-muted-foreground" />
+              <div className="relative min-w-[12rem] lg:col-span-2">
+                <Label htmlFor="busqueda-poblacion" className="mb-1.5 block text-xs text-muted-foreground">
+                  Nombre / cédula
+                </Label>
+                <Search className="pointer-events-none absolute bottom-2.5 left-2.5 size-4 text-muted-foreground" />
                 <Input
+                  id="busqueda-poblacion"
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
-                  placeholder="Nombre o documento…"
+                  placeholder="Nombre o cédula…"
                   className="h-9 pl-9"
+                  autoComplete="off"
                 />
               </div>
               <div className="w-full min-w-[10rem] sm:w-48 lg:col-span-2">
@@ -364,7 +519,7 @@ export function RefugiadosRedView() {
               <CardDescription>
                 {cargando && alojamientos.length === 0
                   ? "Cargando perfiles…"
-                  : `${visibles.length} perfil(es) visible(s)`}
+                  : `${visibles.length.toLocaleString("es")} perfil(es) · ${FILAS_POR_PAGINA} por página (más recientes primero)`}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -373,18 +528,79 @@ export function RefugiadosRedView() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Persona</TableHead>
-                        <TableHead>Edad / perfil</TableHead>
-                        <TableHead>Familia</TableHead>
-                        <TableHead>Vulnerabilidad</TableHead>
-                        <TableHead>Campamento</TableHead>
-                        <TableHead>Ingreso</TableHead>
+                        <TableHead className="w-12 text-center">#</TableHead>
+                        <TableHead>
+                          <CabeceraOrdenable
+                            activa={columnaOrden === "nombre"}
+                            direccion={direccionOrden}
+                            onClick={() => alternarOrden("nombre")}
+                          >
+                            Persona
+                          </CabeceraOrdenable>
+                        </TableHead>
+                        <TableHead>
+                          <CabeceraOrdenable
+                            activa={columnaOrden === "edad"}
+                            direccion={direccionOrden}
+                            onClick={() => alternarOrden("edad")}
+                          >
+                            Edad / perfil
+                          </CabeceraOrdenable>
+                        </TableHead>
+                        <TableHead>
+                          <CabeceraOrdenable
+                            activa={columnaOrden === "familia"}
+                            direccion={direccionOrden}
+                            onClick={() => alternarOrden("familia")}
+                          >
+                            Familia
+                          </CabeceraOrdenable>
+                        </TableHead>
+                        <TableHead>
+                          <CabeceraOrdenable
+                            activa={columnaOrden === "vulnerabilidad"}
+                            direccion={direccionOrden}
+                            onClick={() => alternarOrden("vulnerabilidad")}
+                          >
+                            Vulnerabilidad
+                          </CabeceraOrdenable>
+                        </TableHead>
+                        <TableHead>
+                          <CabeceraOrdenable
+                            activa={columnaOrden === "campamento"}
+                            direccion={direccionOrden}
+                            onClick={() => alternarOrden("campamento")}
+                          >
+                            Campamento
+                          </CabeceraOrdenable>
+                        </TableHead>
+                        <TableHead>
+                          <CabeceraOrdenable
+                            activa={columnaOrden === "ingreso"}
+                            direccion={direccionOrden}
+                            onClick={() => alternarOrden("ingreso")}
+                          >
+                            Ingreso
+                          </CabeceraOrdenable>
+                        </TableHead>
+                        <TableHead>
+                          <CabeceraOrdenable
+                            activa={columnaOrden === "usuario"}
+                            direccion={direccionOrden}
+                            onClick={() => alternarOrden("usuario")}
+                          >
+                            Registrado por
+                          </CabeceraOrdenable>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {cargando && alojamientos.length === 0 ? (
                         Array.from({ length: 8 }, (_, i) => (
                           <TableRow key={i} aria-hidden>
+                            <TableCell>
+                              <Skeleton className="mx-auto h-3 w-6" />
+                            </TableCell>
                             <TableCell>
                               <div className="space-y-1.5">
                                 <Skeleton className="h-3.5 w-36" />
@@ -409,27 +625,35 @@ export function RefugiadosRedView() {
                             <TableCell>
                               <Skeleton className="h-3 w-20" />
                             </TableCell>
+                            <TableCell>
+                              <Skeleton className="h-3 w-16" />
+                            </TableCell>
                           </TableRow>
                         ))
                       ) : visibles.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                          <TableCell colSpan={COLUMNAS_TABLA} className="py-10 text-center text-sm text-muted-foreground">
                             Sin registros con los filtros actuales
                           </TableCell>
                         </TableRow>
                       ) : (
-                        visibles.map((p) => {
+                        paginaFilas.map((p, indice) => {
                           const a = p.alojamiento;
                           const norm = a.refugiado.cedula_norm;
                           const centrosDup = norm ? duplicados.get(norm) : undefined;
                           const esDup = (centrosDup?.length ?? 0) >= 2;
                           const grupo = META_GRUPO_ETARIO_REFUGIADO[p.grupo];
+                          const ingreso = partesIngreso(a.fecha_ingreso, a.creada_ts);
+                          const numero = paginaSegura * FILAS_POR_PAGINA + indice + 1;
                           return (
                             <TableRow
                               key={a.id}
                               className={cn("cursor-pointer hover:bg-muted/40", esDup && "bg-amber-500/5")}
                               onClick={() => navigate(`/centros/refugiados/${a.id}`)}
                             >
+                              <TableCell className="text-center tabular-nums text-muted-foreground">
+                                {numero}
+                              </TableCell>
                               <TableCell>
                                 <div className="space-y-1">
                                   <p className="font-medium">{p.nombre}</p>
@@ -492,12 +716,15 @@ export function RefugiadosRedView() {
                                 </div>
                               </TableCell>
                               <TableCell className="text-muted-foreground">
-                                <div className="space-y-1">
-                                  <p className="tabular-nums">{a.fecha_ingreso}</p>
-                                  {p.diasAlojado != null && (
-                                    <p className="text-xs">{p.diasAlojado} día(s)</p>
+                                <div className="space-y-0.5">
+                                  <p className="tabular-nums text-sm text-foreground">{ingreso.fecha}</p>
+                                  {ingreso.hora && (
+                                    <p className="tabular-nums text-xs">{ingreso.hora}</p>
                                   )}
                                 </div>
+                              </TableCell>
+                              <TableCell className="max-w-[14rem]">
+                                <CeldaRegistradoPor username={p.registradoPor} />
                               </TableCell>
                             </TableRow>
                           );
@@ -506,6 +733,15 @@ export function RefugiadosRedView() {
                     </TableBody>
                   </Table>
                 </div>
+                <PaginadorTabla
+                  pagina={paginaSegura}
+                  totalPaginas={totalPaginas}
+                  totalFilas={visibles.length}
+                  filasPorPagina={FILAS_POR_PAGINA}
+                  cargando={cargando}
+                  onPagina={setPagina}
+                  className="mt-3"
+                />
               </TooltipProvider>
             </CardContent>
           </Card>
@@ -534,6 +770,59 @@ function KpiPerfil({
         <Icono className="size-4 text-muted-foreground" />
       </CardContent>
     </Card>
+  );
+}
+
+/** Muestra jerarquía · nombre del censista + username automático de terreno. */
+function CeldaRegistradoPor({ username }: { username: string }) {
+  const quien = username.trim();
+  const etiqueta = useEtiquetaPerfil(quien || null);
+  if (!quien) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  const esTerreno = esUsernameOperadorTerreno(quien);
+  const muestraNombre = esTerreno && etiqueta && etiqueta !== quien;
+  return (
+    <div className="space-y-0.5" title={quien}>
+      {muestraNombre ? (
+        <>
+          <p className="text-sm leading-snug">{etiqueta}</p>
+          <p className="truncate font-mono text-[10px] text-muted-foreground">{quien}</p>
+        </>
+      ) : (
+        <p className="truncate font-mono text-xs text-muted-foreground">{quien}</p>
+      )}
+    </div>
+  );
+}
+
+/** Cabecera clicable con indicador de orden (patrón shadcn data-table). */
+function CabeceraOrdenable({
+  children,
+  activa,
+  direccion,
+  onClick,
+}: {
+  children: ReactNode;
+  activa: boolean;
+  direccion: DireccionOrden;
+  onClick: () => void;
+}) {
+  const Icono = !activa ? ArrowUpDown : direccion === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="-ml-2 h-8 gap-1.5 px-2 font-medium text-foreground hover:bg-muted"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      {children}
+      <Icono className={cn("size-3.5", activa ? "text-foreground" : "text-muted-foreground")} />
+    </Button>
   );
 }
 
