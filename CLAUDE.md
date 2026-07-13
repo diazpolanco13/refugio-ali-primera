@@ -1002,3 +1002,73 @@ docker compose up -d --build
   `perfiles`); revisar la bitácora en `/logs` con el admin.
 - Supabase: `list_tables` (verbose) y `get_advisors` (security) vía MCP para
   confirmar esquema y RLS.
+
+## Grafo de código (code-review-graph) — agregado 13-jul-2026
+
+El repo tiene un **grafo de conocimiento del código** (`code-review-graph`
+v2.3.6, Tree-sitter → SQLite local en `.code-review-graph/`, gitignored,
+local-first — nada sale del VPS). **Toda IA que trabaje aquí debe consultar
+el grafo ANTES de grep/lectura exploratoria** — el detalle completo, la tabla
+de herramientas MCP y prompts de ejemplo están en **`GRAPH_REPORT.md`**
+(fuente de verdad de esta pieza; no dupliques aquí).
+
+- **Instalación:** binario en `/root/.local/bin/code-review-graph` (vía
+  `uv tool install code-review-graph`; `uv` también en `/root/.local/bin/`).
+- **MCP configurado en:** `.cursor/mcp.json` (Cursor) y `.mcp.json` (Claude
+  Code), con **ruta absoluta** al binario (no depende del PATH). Reiniciar el
+  editor tras tocar estos archivos. Reglas por plataforma:
+  `.cursor/rules/code-review-graph.mdc` (+ `.cursorrules`/`AGENTS.md`).
+- **Actualización automática:** hook git **post-commit** (segundo plano,
+  lock + timeout 120s, log en `.code-review-graph/hook.log`) + hooks de
+  editor (Cursor: `/root/.cursor/hooks.json`; Claude Code:
+  `.claude/settings.json`). ⚠️ El `pre-commit` que instala la herramienta por
+  defecto era síncrono y retrasaba cada commit: quedó desactivado a propósito
+  (`.git/hooks/pre-commit` es un no-op documentado — no lo "arregles").
+- **Warm-up de chat nuevo:** automático en Cursor vía hook de proyecto
+  (`.cursor/hooks.json` → `.cursor/hooks/tarea-rapida-start.sh`: emite
+  `additional_context` con instrucciones + estado del grafo + riesgo).
+  Si Cursor lo descarta (bug de race conocido), las reglas
+  `.cursor/rules/code-review-graph.mdc` obligan a la IA a llamar
+  `list_graph_stats_tool` + `detect_changes_tool`. Manual/otras IAs:
+  `./scripts/crg-warmup.sh`.
+- **Rebuild manual:** `code-review-graph update` (incremental, <2s) o
+  `build` (completo, ~16s). Tras un rebase grande: `update --brief`.
+
+<!-- code-review-graph MCP tools -->
+## MCP Tools: code-review-graph
+
+**IMPORTANT: This project has a knowledge graph. ALWAYS use the
+code-review-graph MCP tools BEFORE using Grep/Glob/Read to explore
+the codebase.** The graph is faster, cheaper (fewer tokens), and gives
+you structural context (callers, dependents, test coverage) that file
+scanning cannot.
+
+### When to use graph tools FIRST
+
+- **Exploring code**: `semantic_search_nodes` or `query_graph` instead of Grep
+- **Understanding impact**: `get_impact_radius` instead of manually tracing imports
+- **Code review**: `detect_changes` + `get_review_context` instead of reading entire files
+- **Finding relationships**: `query_graph` with callers_of/callees_of/imports_of/tests_for
+- **Architecture questions**: `get_architecture_overview` + `list_communities`
+
+Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
+
+### Key Tools
+
+| Tool | Use when |
+| ------ | ---------- |
+| `detect_changes` | Reviewing code changes — gives risk-scored analysis |
+| `get_review_context` | Need source snippets for review — token-efficient |
+| `get_impact_radius` | Understanding blast radius of a change |
+| `get_affected_flows` | Finding which execution paths are impacted |
+| `query_graph` | Tracing callers, callees, imports, tests, dependencies |
+| `semantic_search_nodes` | Finding functions/classes by name or keyword |
+| `get_architecture_overview` | Understanding high-level codebase structure |
+| `refactor_tool` | Planning renames, finding dead code |
+
+### Workflow
+
+1. The graph auto-updates on file changes (via hooks).
+2. Use `detect_changes` for code review.
+3. Use `get_affected_flows` to understand impact.
+4. Use `query_graph` pattern="tests_for" to check coverage.

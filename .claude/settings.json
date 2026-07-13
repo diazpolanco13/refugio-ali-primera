@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat >/dev/null || true; git rev-parse --git-dir >/dev/null 2>&1 && /root/.local/bin/code-review-graph update --skip-flows --repo \"/opt/refugio-ali-primera\" || true",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat >/dev/null || true; git rev-parse --git-dir >/dev/null 2>&1 && /root/.local/bin/code-review-graph status --repo \"/opt/refugio-ali-primera\" || echo 'Not a git repo, skipping'",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

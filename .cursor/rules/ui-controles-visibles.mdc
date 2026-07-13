@@ -1,0 +1,44 @@
+---
+description: Botones y selects siempre con relieve shadcn (nunca texto plano)
+globs: src/**/*.{tsx,jsx}
+alwaysApply: true
+---
+
+# Controles con relieve (botones y desplegables)
+
+Error frecuente a evitar: botones y listas desplegables que se ven como **texto plano** (sin borde, sin fondo, sin jerarquía). El usuario termina corrigiendo a mano.
+
+## Obligatorio
+
+1. **Solo componentes shadcn** de `@/components/ui/`:
+   - Acciones → `Button` (`button.tsx`)
+   - Desplegable de formulario → `Select` + `SelectTrigger` + `SelectContent` + `SelectItem`
+   - Menú de acciones → `DropdownMenu` + `DropdownMenuTrigger` asChild con `Button`
+2. Consulta el **MCP shadcn** antes de inventar markup de UI.
+3. **Prohibido** usar `<button>`, `<select>` nativos o un `<div>`/`<span>` clicable con solo tipografía para acciones o filtros.
+
+## Relieve visible
+
+- Todo control interactivo debe leerse como control a primera vista: **borde y/o fondo** distintos del texto corrido.
+- `SelectTrigger` ya trae `border border-input` — **no lo quites** con `className` que anule borde/fondo.
+- No aplanes con `border-0`, `border-transparent`, `bg-transparent`, `p-0` o `shadow-none` en triggers/acciones primarias o secundarias.
+
+## Jerarquía de botones (deben verse distintos)
+
+| Rol | Variant | Cuándo |
+|-----|---------|--------|
+| Primaria | `default` | Guardar, crear, confirmar, CTA principal |
+| Secundaria | `outline` o `secondary` | Cancelar, alternar, acción paralela |
+| Destructiva | `destructive` | Eliminar, archivar irreversible |
+| Terciaria | `ghost` | Solo iconos de chrome, toolbar densa, “más opciones” junto a un primario visible |
+| Enlace | `link` | Navegación textual, nunca acción de formulario |
+
+- En un mismo bloque de acciones: **al menos dos variants distintos** (p. ej. `default` + `outline`). No pongas dos `ghost` como par Guardar/Cancelar.
+- `ghost` y `link` **no** son el default de botones de formulario ni de filtros principales.
+
+## Checklist rápido antes de dar por hecho un UI
+
+- [ ] ¿Se distingue del párrafo de al lado sin hover?
+- [ ] ¿El Select tiene borde y chevron (SelectTrigger)?
+- [ ] ¿La acción primaria no es ghost/link?
+- [ ] ¿Primaria y secundaria se ven diferentes entre sí?

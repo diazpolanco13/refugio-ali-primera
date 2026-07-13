@@ -20,6 +20,7 @@ dev-dist
 
 # MCP (puede contener tokens/credenciales)
 .cursor/mcp.json
+.mcp.json
 scripts/__pycache__/
 
 # Nexus VPN / API (secretos locales — no subir)
@@ -30,3 +31,5 @@ nexusEndPoint/*.ovpn
 # Tokens de terreno (enlaces ?t= personales / públicos)
 accesosQR.txt
 censo/censo-manual/enlaces-terreno-centros.md
+# Added by code-review-graph
+.code-review-graph/

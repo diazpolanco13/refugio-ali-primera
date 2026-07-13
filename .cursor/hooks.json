@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "./.cursor/hooks/tarea-rapida-start.sh",
+        "timeout": 45
+      }
+    ]
+  }
+}
