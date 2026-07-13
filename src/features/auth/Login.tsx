@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, Loader2, ShieldCheck, Tent } from "lucide-react";
+import { AlertCircle, Loader2, ShieldCheck } from "lucide-react";
 import "cap-widget";
 import "./cap-login.css";
 import { login } from "@/data/authSupabase";
 import { capApiEndpoint, capHabilitado } from "@/data/capConfig";
+import {
+  LoginBackground,
+  LoginHero,
+} from "@/components/LoginHeroBackground";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -83,28 +87,13 @@ export function Login() {
     Boolean(usuario && password) && (!capHabilitado || Boolean(capToken));
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col items-center justify-center bg-muted p-6 md:p-10">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,color-mix(in_oklch,var(--primary)_12%,transparent),transparent_55%)]"
-      />
+    <main className="dark relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-[#05100C] p-6 md:p-10">
+      <LoginBackground />
 
-      <div className="relative flex w-full max-w-sm flex-col gap-6">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-            <Tent className="size-5" aria-hidden />
-          </div>
-          <div>
-            <p className="font-heading text-sm font-semibold tracking-tight">
-              Campamentos Transitorios
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Área Metropolitana de Caracas
-            </p>
-          </div>
-        </div>
+      <div className="relative z-10 flex w-full max-w-sm flex-col gap-0">
+        <LoginHero />
 
-        <Card className="border-border/80 shadow-md shadow-black/20">
+        <Card className="border-border/60 bg-card/90 shadow-lg shadow-black/40 backdrop-blur-sm">
           <CardHeader className="pb-2 text-center">
             <CardTitle className="text-xl font-semibold">Iniciar sesión</CardTitle>
             <CardDescription>
@@ -124,7 +113,7 @@ export function Login() {
                     autoComplete="username"
                     placeholder="tu.usuario"
                     disabled={cargando}
-                    className="h-9 bg-background/80"
+                    className="h-9 border-border/80 bg-input/80"
                   />
                 </Field>
 
@@ -138,7 +127,7 @@ export function Login() {
                     autoComplete="current-password"
                     placeholder="••••••••"
                     disabled={cargando}
-                    className="h-9 bg-background/80"
+                    className="h-9 border-border/80 bg-input/80"
                   />
                 </Field>
 
@@ -150,8 +139,8 @@ export function Login() {
                     </FieldLabel>
                     <div
                       className={cn(
-                        "cap-login rounded-lg border border-border/70 bg-background/50 px-1 py-1",
-                        capToken && "border-primary/30 bg-primary/5",
+                        "cap-login rounded-lg border border-border/70 bg-input/40 px-1 py-1",
+                        capToken && "border-primary/40 bg-primary/10",
                       )}
                     >
                       <cap-widget
@@ -210,11 +199,11 @@ export function Login() {
           </CardContent>
         </Card>
 
-        <p className="px-4 text-center text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-6 px-4 text-center text-xs leading-relaxed text-[#6B8F80]">
           Plataforma de gestión humanitaria CCCM. Uso exclusivo de coordinación
           operativa.
         </p>
       </div>
-    </div>
+    </main>
   );
 }

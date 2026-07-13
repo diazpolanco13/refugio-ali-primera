@@ -278,6 +278,25 @@ button {
   --sidebar-ring: oklch(0.45 0 0);
 }
 
+/* Login / splash: grilla táctica + scanlines CRT. */
+@keyframes splashScanDrift {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 100vh;
+  }
+}
+
+@keyframes gridFloat {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 60px 60px;
+  }
+}
+
 /* Marcadores del mapa de campamentos: latido suave en vista por color. */
 @keyframes marcador-latido-nucleo {
   0%,
