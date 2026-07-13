@@ -13,6 +13,16 @@ import {
 } from "lucide-react";
 import { CamposResponsableCoordinacion } from "@/features/centros/DialogoResponsableCoordinacion";
 import { AccionesContacto } from "@/components/AccionesContacto";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +47,11 @@ import {
 import { centroTieneAutoridadesTerreno } from "@/lib/autoridadesTerreno";
 import { conActualizacionTerreno } from "@/lib/terrenoActualizacion";
 import { cn } from "@/lib/utils";
+
+/** Asegura al menos un campo de teléfono vacío en el formulario de edición. */
+function conTelefonoEditable(r: ResponsableCoordinacion): ResponsableCoordinacion {
+  return r.telefonos.length > 0 ? r : { ...r, telefonos: [""] };
+}
 
 const SET_CATEGORIAS_TERRENO = new Set<string>(CATEGORIAS_AUTORIDADES_TERRENO);
 
@@ -82,6 +97,8 @@ export function AutoridadesTerrenoPanel({
   const [vista, setVista] = useState<Vista>("lista");
   const [borrador, setBorrador] = useState<ResponsableCoordinacion | null>(null);
   const [guardando, setGuardando] = useState(false);
+  /** Responsable pendiente de confirmar eliminación (AlertDialog). */
+  const [aEliminar, setAEliminar] = useState<ResponsableCoordinacion | null>(null);
 
   useEffect(() => {
     let cancelado = false;
@@ -151,7 +168,7 @@ export function AutoridadesTerrenoPanel({
   }
 
   function abrirEditar(r: ResponsableCoordinacion) {
-    setBorrador(normalizarResponsableCoordinacion(r));
+    setBorrador(conTelefonoEditable(normalizarResponsableCoordinacion(r)));
     setError("");
     setVista("formulario");
   }
@@ -168,29 +185,38 @@ export function AutoridadesTerrenoPanel({
     ambitosSin: string[] = sinAutoridad,
   ) {
     if (!centro) return false;
+    const prevCentro = centro;
+    const prevResponsables = responsables;
+    const prevSinAutoridad = sinAutoridad;
+
+    const preparada = prepararResponsablesCoordinacionParaGuardar(
+      asegurarIdsResponsablesCoordinacion(lista),
+    );
+    const sync = syncCentroDesdeCoordinacion(centro, preparada);
+    const ahora = Date.now();
+    const siguiente: CentroTransitorio = {
+      ...centro,
+      responsables_coordinacion: preparada,
+      ambitos_sin_autoridad: ambitosSin,
+      personal: sync.personal,
+      servicios: sync.servicios,
+      terreno_actualizado: conActualizacionTerreno(centro.terreno_actualizado, "autoridades", ahora),
+    };
+
+    // Optimista: la lista se actualiza al instante; si falla el upsert, se revierte.
+    setCentro(siguiente);
+    setResponsables(preparada);
+    setSinAutoridad(ambitosSin);
     setGuardando(true);
     setError("");
     try {
-      const preparada = prepararResponsablesCoordinacionParaGuardar(
-        asegurarIdsResponsablesCoordinacion(lista),
-      );
-      const sync = syncCentroDesdeCoordinacion(centro, preparada);
-      const ahora = Date.now();
-      const siguiente: CentroTransitorio = {
-        ...centro,
-        responsables_coordinacion: preparada,
-        ambitos_sin_autoridad: ambitosSin,
-        personal: sync.personal,
-        servicios: sync.servicios,
-        terreno_actualizado: conActualizacionTerreno(centro.terreno_actualizado, "autoridades", ahora),
-      };
       await guardarCentro(siguiente);
-      setCentro(siguiente);
-      setResponsables(preparada);
-      setSinAutoridad(ambitosSin);
       onGuardado?.(centroTieneAutoridadesTerreno(siguiente), ahora);
       return true;
     } catch (err) {
+      setCentro(prevCentro);
+      setResponsables(prevResponsables);
+      setSinAutoridad(prevSinAutoridad);
       setError(
         err instanceof Error
           ? err.message
@@ -214,20 +240,26 @@ export function AutoridadesTerrenoPanel({
       : [...responsables, normalizado];
     // Al registrar alguien, ese ámbito deja de estar «sin autoridades».
     const ambitosSin = sinAutoridad.filter((c) => c !== normalizado.categoria);
+    // Volver a la lista de inmediato (estado optimista ya pintado en persistir).
+    setVista("lista");
+    setBorrador(null);
+    setPestana(
+      PESTANAS_AUTORIDADES_TERRENO.find((p) => p.categorias.includes(normalizado.categoria))
+        ?.id ?? "comunitaria",
+    );
     const ok = await persistir(lista, ambitosSin);
-    if (ok) {
-      setPestana(
-        PESTANAS_AUTORIDADES_TERRENO.find((p) => p.categorias.includes(normalizado.categoria))
-          ?.id ?? "comunitaria",
-      );
-      setVista("lista");
-      setBorrador(null);
+    if (!ok) {
+      // Si falló, reabrir el formulario con lo que el usuario había escrito.
+      setBorrador(conTelefonoEditable(normalizado));
+      setVista("formulario");
     }
   }
 
-  async function eliminar(id: string) {
-    if (!window.confirm("¿Eliminar este responsable del directorio?")) return;
-    await persistir(responsables.filter((r) => r.id !== id));
+  async function confirmarEliminar() {
+    if (!aEliminar || guardando) return;
+    const id = aEliminar.id;
+    const ok = await persistir(responsables.filter((r) => r.id !== id));
+    if (ok) setAEliminar(null);
   }
 
   async function marcarSinAutoridades() {
@@ -481,6 +513,7 @@ export function AutoridadesTerrenoPanel({
                       variant="secondary"
                       size="sm"
                       className="h-9 flex-1 gap-1.5 border border-border font-medium"
+                      disabled={guardando}
                       onClick={() => abrirEditar(r)}
                     >
                       <Pencil className="size-3.5" />
@@ -492,7 +525,7 @@ export function AutoridadesTerrenoPanel({
                       size="sm"
                       className="h-9 gap-1.5 text-destructive hover:text-destructive"
                       disabled={guardando}
-                      onClick={() => void eliminar(r.id)}
+                      onClick={() => setAEliminar(r)}
                     >
                       <Trash2 className="size-3.5" />
                       Quitar
@@ -505,6 +538,49 @@ export function AutoridadesTerrenoPanel({
         )}
         {error && <p className="text-xs text-destructive">{error}</p>}
       </CardContent>
+
+      <AlertDialog
+        open={aEliminar != null}
+        onOpenChange={(abierto) => {
+          if (!abierto && !guardando) setAEliminar(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Quitar del directorio?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {aEliminar
+                ? `Se eliminará a ${aEliminar.nombre.trim() || "este responsable"} del ámbito ${
+                    metaCategoriaCoordinacion(aEliminar.categoria).label
+                  }. Puede volver a registrarlo después.`
+                : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:flex-col sm:space-x-0">
+            <AlertDialogAction
+              type="button"
+              variant="destructive"
+              disabled={guardando}
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmarEliminar();
+              }}
+            >
+              {guardando ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Quitando…
+                </>
+              ) : (
+                "Quitar"
+              )}
+            </AlertDialogAction>
+            <AlertDialogCancel type="button" disabled={guardando}>
+              Cancelar
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
