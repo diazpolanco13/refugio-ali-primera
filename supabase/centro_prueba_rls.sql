@@ -1,4 +1,11 @@
--- Oculta el campamento sandbox (`centro-prueba` / `es_prueba`) a todos excepto admin.
+-- Centro sandbox / entrenamiento (`centro-prueba` / `es_prueba`).
+--
+-- Visibilidad:
+--   • admin → toda la red (incluido el sandbox).
+--   • operador/supervisor con el centro en mis_centros() → pueden
+--     leer/escribir (sesión del QR de terreno = centro de entrenamiento).
+--   • resto (analista, autoridad, operadores de otros centros) → oculto.
+--
 -- El frontend también filtra; esto evita fugas por Realtime o deep-links.
 
 -- ---- centros ---------------------------------------------------------------
@@ -12,6 +19,7 @@ create policy centros_select on public.centros
     )
     and (
       (select public.mi_rol()) = 'admin'
+      or id = any ((select public.mis_centros())::text[])
       or (
         id <> 'centro-prueba'
         and coalesce((data->>'es_prueba')::boolean, false) = false
@@ -30,6 +38,7 @@ create policy ocupaciones_centros_select on public.ocupaciones_centros
     )
     and (
       (select public.mi_rol()) = 'admin'
+      or centro_id = any ((select public.mis_centros())::text[])
       or centro_id <> 'centro-prueba'
     )
   );
@@ -44,6 +53,7 @@ create policy ocupaciones_centros_insert on public.ocupaciones_centros
     )
     and (
       (select public.mi_rol()) = 'admin'
+      or centro_id = any ((select public.mis_centros())::text[])
       or centro_id <> 'centro-prueba'
     )
   );
@@ -58,6 +68,7 @@ create policy ocupaciones_centros_update on public.ocupaciones_centros
     )
     and (
       (select public.mi_rol()) = 'admin'
+      or centro_id = any ((select public.mis_centros())::text[])
       or centro_id <> 'centro-prueba'
     )
   )
@@ -68,6 +79,7 @@ create policy ocupaciones_centros_update on public.ocupaciones_centros
     )
     and (
       (select public.mi_rol()) = 'admin'
+      or centro_id = any ((select public.mis_centros())::text[])
       or centro_id <> 'centro-prueba'
     )
   );
@@ -83,7 +95,7 @@ create policy ocupaciones_centros_delete on public.ocupaciones_centros
     )
   );
 
--- ---- reportes_centros (y tablas hermanas del reporte diario) ---------------
+-- ---- reportes_centros ------------------------------------------------------
 drop policy if exists reportes_centros_select on public.reportes_centros;
 create policy reportes_centros_select on public.reportes_centros
   for select to authenticated
@@ -94,6 +106,7 @@ create policy reportes_centros_select on public.reportes_centros
     )
     and (
       (select public.mi_rol()) = 'admin'
+      or centro_id = any ((select public.mis_centros())::text[])
       or centro_id <> 'centro-prueba'
     )
   );
@@ -108,6 +121,7 @@ create policy reportes_centros_insert on public.reportes_centros
     )
     and (
       (select public.mi_rol()) = 'admin'
+      or centro_id = any ((select public.mis_centros())::text[])
       or centro_id <> 'centro-prueba'
     )
   );
@@ -122,6 +136,7 @@ create policy reportes_centros_update on public.reportes_centros
     )
     and (
       (select public.mi_rol()) = 'admin'
+      or centro_id = any ((select public.mis_centros())::text[])
       or centro_id <> 'centro-prueba'
     )
   )
@@ -132,6 +147,7 @@ create policy reportes_centros_update on public.reportes_centros
     )
     and (
       (select public.mi_rol()) = 'admin'
+      or centro_id = any ((select public.mis_centros())::text[])
       or centro_id <> 'centro-prueba'
     )
   );
@@ -147,7 +163,7 @@ create policy reportes_centros_delete on public.reportes_centros
     )
   );
 
--- ---- tokens de terreno (no QRs del sandbox salvo admin) --------------------
+-- ---- tokens de terreno -----------------------------------------------------
 drop policy if exists tokens_centros_select on public.tokens_centros;
 create policy tokens_centros_select on public.tokens_centros
   for select to authenticated
@@ -163,6 +179,7 @@ create policy tokens_centros_select on public.tokens_centros
     )
     and (
       (select public.mi_rol()) = 'admin'
+      or centro_id = any ((select public.mis_centros())::text[])
       or centro_id <> 'centro-prueba'
     )
   );

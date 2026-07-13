@@ -1,6 +1,6 @@
 import type { Rol, Usuario } from "../data/authSupabase";
 import {
-  centrosDeProduccion,
+  esCentroDePrueba,
   type CentroTransitorio,
 } from "./centrosTransitorios";
 
@@ -229,13 +229,22 @@ export function puedeVerCentrosPrueba(usuario: Usuario): boolean {
   return usuario.rol === "admin";
 }
 
-/** Lista operativa de campamentos según quién puede ver el sandbox. */
+/**
+ * Lista operativa de campamentos según quién puede ver el sandbox.
+ * Admin: toda la red incluido entrenamiento.
+ * Operador/supervisor con el sandbox asignado: lo ven (QR de terreno).
+ * Resto: solo campamentos de producción.
+ */
 export function centrosVisiblesParaUsuario(
   centros: CentroTransitorio[],
   usuario: Usuario | null | undefined,
 ): CentroTransitorio[] {
   if (usuario && puedeVerCentrosPrueba(usuario)) return centros;
-  return centrosDeProduccion(centros);
+  const asignados = new Set(usuario?.centros_asignados ?? []);
+  return centros.filter((c) => {
+    if (!esCentroDePrueba(c)) return true;
+    return asignados.has(c.id);
+  });
 }
 
 export function puedeVerSaludMental(rol: Rol): boolean {
