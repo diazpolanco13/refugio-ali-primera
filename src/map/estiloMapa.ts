@@ -1,9 +1,10 @@
-import type { StyleSpecification } from "maplibre-gl";
+import type { Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 
 // Bases de mapa disponibles. Las de MapTiler ("*-hd", outdoor) requieren
 // VITE_MAPTILER_KEY (clave gratuita) y solo aparecen si está configurada.
 export type BaseMapa =
   | "calles"
+  | "dark-matter"
   | "calles-claro"
   | "positron"
   | "osm"
@@ -16,6 +17,18 @@ export type BaseMapa =
 
 const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined;
 export const MAPTILER_DISPONIBLE = Boolean(MAPTILER_KEY);
+
+/** Estilo vectorial Carto Dark Matter (GL). */
+export const ESTILO_DARK_MATTER_URL =
+  "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+
+/** Tiles vectoriales OpenFreeMap (OpenMapTiles) para extrusión 3D. */
+export const FUENTE_OPENFREEMAP_URL = "https://tiles.openfreemap.org/planet";
+export const ID_FUENTE_EDIFICIOS_3D = "openfreemap";
+export const ID_CAPA_EDIFICIOS_3D = "edificios-3d";
+
+/** Capas planas de edificios del estilo Carto (se ocultan al activar 3D). */
+const CAPAS_EDIFICIO_PLANAS_CARTO = ["building", "building-top"] as const;
 
 /** Helper: subdominios CARTO (MapLibre no soporta {s}). */
 function tilesCarto(path: string): string[] {
@@ -30,6 +43,7 @@ const openTopo = ["a", "b", "c"].map(
 
 /** Opciones que se muestran en la UI (MapTiler solo si hay clave). */
 export const BASES_DISPONIBLES: { valor: BaseMapa; label: string }[] = [
+  { valor: "dark-matter", label: "🌑 Carto Dark Matter (Oscuro)" },
   { valor: "calles", label: "🗺️ Calles" },
   { valor: "calles-claro", label: "🗺️ Calles claro" },
   { valor: "positron", label: "◻️ Positron" },
@@ -65,6 +79,8 @@ export const CAPAS_BASE = [
 export const VISIBILIDAD_BASE: Record<BaseMapa, string[]> = {
   // Oscuro por defecto — encaja con la UI de la app.
   calles: ["base-carto-dark"],
+  // Estilo vectorial externo: no usa capas raster del estilo compuesto.
+  "dark-matter": [],
   "calles-claro": ["base-carto-voyager"],
   positron: ["base-carto-positron"],
   osm: ["base-osm"],
@@ -75,6 +91,100 @@ export const VISIBILIDAD_BASE: Record<BaseMapa, string[]> = {
   "calles-hd": ["base-mt-calles"],
   outdoor: ["base-mt-outdoor"],
 };
+
+/** True si la base carga un style.json externo (no el estilo raster compuesto). */
+export function esBaseEstiloExterno(base: BaseMapa): boolean {
+  return base === "dark-matter";
+}
+
+/** Estilo inicial / al cambiar de base: URL externa o especificación raster. */
+export function estiloMapaParaBase(base: BaseMapa): string | StyleSpecification {
+  if (base === "dark-matter") return ESTILO_DARK_MATTER_URL;
+  return construirEstilo();
+}
+
+/**
+ * Fuente OpenFreeMap + capa fill-extrusion. Visible por defecto.
+ * Idempotente. Colores pensados para contrastar sobre Dark Matter.
+ */
+export function asegurarEdificios3d(map: MapLibreMap): void {
+  for (const id of CAPAS_EDIFICIO_PLANAS_CARTO) {
+    if (map.getLayer(id)) {
+      map.setLayoutProperty(id, "visibility", "none");
+    }
+  }
+
+  if (!map.getSource(ID_FUENTE_EDIFICIOS_3D)) {
+    map.addSource(ID_FUENTE_EDIFICIOS_3D, {
+      type: "vector",
+      url: FUENTE_OPENFREEMAP_URL,
+    });
+  }
+
+  if (map.getLayer(ID_CAPA_EDIFICIOS_3D)) {
+    map.setLayoutProperty(ID_CAPA_EDIFICIOS_3D, "visibility", "visible");
+    return;
+  }
+
+  const layers = map.getStyle().layers ?? [];
+  let beforeId: string | undefined;
+  for (const layer of layers) {
+    const layout = layer.layout as Record<string, unknown> | undefined;
+    if (layer.type === "symbol" && layout && "text-field" in layout) {
+      beforeId = layer.id;
+      break;
+    }
+  }
+
+  // Nota: `zoom` solo vale como input de `interpolate`/`step` de primer nivel.
+  // No usar `zoom` dentro de `case` (MapLibre lanza y la capa no se crea).
+  map.addLayer(
+    {
+      id: ID_CAPA_EDIFICIOS_3D,
+      source: ID_FUENTE_EDIFICIOS_3D,
+      "source-layer": "building",
+      type: "fill-extrusion",
+      minzoom: 14,
+      filter: ["!=", ["get", "hide_3d"], true],
+      layout: { visibility: "visible" },
+      paint: {
+        "fill-extrusion-color": [
+          "interpolate",
+          ["linear"],
+          ["coalesce", ["get", "render_height"], 0],
+          0,
+          "#5a6575",
+          40,
+          "#7a889c",
+          100,
+          "#a0b0c4",
+          200,
+          "#c5d2e0",
+        ],
+        "fill-extrusion-height": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          14,
+          0,
+          15,
+          ["coalesce", ["get", "render_height"], 5],
+        ],
+        "fill-extrusion-base": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          14,
+          0,
+          15,
+          ["coalesce", ["get", "render_min_height"], 0],
+        ],
+        "fill-extrusion-opacity": 0.85,
+      },
+    },
+    beforeId,
+  );
+}
 
 export function construirEstilo(): StyleSpecification {
   const sources: StyleSpecification["sources"] = {

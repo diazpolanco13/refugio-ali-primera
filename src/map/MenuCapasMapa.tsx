@@ -17,7 +17,15 @@ interface Props {
   size?: "sm" | "default";
 }
 
-const BASES_RESIDENCIA: BaseMapa[] = ["calles", "calles-claro", "osm", "satelite", "hibrido", "topo"];
+const BASES_RESIDENCIA: BaseMapa[] = [
+  "dark-matter",
+  "calles",
+  "calles-claro",
+  "osm",
+  "satelite",
+  "hibrido",
+  "topo",
+];
 
 export function MenuCapasMapa({
   baseMapa,

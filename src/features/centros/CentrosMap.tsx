@@ -3,7 +3,14 @@ import { createRoot, type Root } from "react-dom/client";
 import maplibregl from "maplibre-gl";
 import { toPng } from "html-to-image";
 import { escalaVistaDelMapa, debeMostrarEtiquetaNombre } from "@/map/escalaVista";
-import { CAPAS_BASE, VISIBILIDAD_BASE, construirEstilo, type BaseMapa } from "@/map/estiloMapa";
+import {
+  CAPAS_BASE,
+  VISIBILIDAD_BASE,
+  asegurarEdificios3d,
+  esBaseEstiloExterno,
+  estiloMapaParaBase,
+  type BaseMapa,
+} from "@/map/estiloMapa";
 import {
   esCentroDePrueba,
   CARACAS_CENTRO,
@@ -107,6 +114,11 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   const guardarVistaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const vistaDefectoAplicadaRef = useRef(false);
   const usaVistaGuardadaRef = useRef(cargarVistaCentros() != null);
+  /** Modo de estilo activo en el mapa (`raster` = estilo compuesto; externo = URL). */
+  const modoEstiloRef = useRef<"raster" | "dark-matter">(
+    esBaseEstiloExterno(baseMapa) ? "dark-matter" : "raster",
+  );
+  const generacionEstiloRef = useRef(0);
   const [gpsActivo, setGpsActivo] = useState(false);
   const [escalaVista, setEscalaVista] = useState<string | undefined>();
   const [mostrarEtiquetaNombre, setMostrarEtiquetaNombre] = useState(false);
@@ -293,11 +305,14 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   useEffect(() => {
     if (!contenedorRef.current || mapRef.current) return;
     const vistaInicial = cargarVistaCentros() ?? VISTA_DEFECTO_CENTROS;
+    const baseInicial = baseMapa;
+    modoEstiloRef.current = esBaseEstiloExterno(baseInicial) ? "dark-matter" : "raster";
     const map = new maplibregl.Map({
       container: contenedorRef.current,
-      style: construirEstilo(),
+      style: estiloMapaParaBase(baseInicial),
       center: vistaInicial.center,
       zoom: vistaInicial.zoom,
+      pitch: esBaseEstiloExterno(baseInicial) ? 45 : 0,
       maxZoom: 19,
       minZoom: 3,
       attributionControl: { compact: true },
@@ -466,14 +481,52 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detalleAbierto]);
 
-  function aplicarBase() {
-    const map = mapRef.current;
-    if (!map || !listoRef.current) return;
-    const visibles = new Set(VISIBILIDAD_BASE[baseMapa] ?? []);
+  function aplicarVisibilidadRaster(map: maplibregl.Map, base: BaseMapa) {
+    const visibles = new Set(VISIBILIDAD_BASE[base] ?? []);
     for (const capa of CAPAS_BASE) {
       if (!map.getLayer(capa)) continue;
       map.setLayoutProperty(capa, "visibility", visibles.has(capa) ? "visible" : "none");
     }
+  }
+
+  function aplicarBase() {
+    const map = mapRef.current;
+    if (!map || !listoRef.current) return;
+    const base = baseMapa;
+
+    if (esBaseEstiloExterno(base)) {
+      if (modoEstiloRef.current === "dark-matter") {
+        asegurarEdificios3d(map);
+        return;
+      }
+      const gen = ++generacionEstiloRef.current;
+      modoEstiloRef.current = "dark-matter";
+      map.setStyle(estiloMapaParaBase(base));
+      map.once("style.load", () => {
+        if (generacionEstiloRef.current !== gen || !mapRef.current) return;
+        asegurarEdificios3d(mapRef.current);
+        if (mapRef.current.getPitch() < 30) {
+          mapRef.current.easeTo({ pitch: 45, duration: 800 });
+        }
+      });
+      return;
+    }
+
+    if (modoEstiloRef.current === "dark-matter") {
+      const gen = ++generacionEstiloRef.current;
+      modoEstiloRef.current = "raster";
+      map.setStyle(estiloMapaParaBase(base));
+      map.once("style.load", () => {
+        if (generacionEstiloRef.current !== gen || !mapRef.current) return;
+        aplicarVisibilidadRaster(mapRef.current, base);
+        if (mapRef.current.getPitch() > 0 || mapRef.current.getBearing() !== 0) {
+          mapRef.current.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+        }
+      });
+      return;
+    }
+
+    aplicarVisibilidadRaster(map, base);
   }
 
   useEffect(() => {
