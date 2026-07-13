@@ -442,7 +442,12 @@ function NavContenido({ sesion }: Props) {
                 activo={rutaActiva(pathname, "/centros/refugiados")}
               />
             )}
-            <ItemEnDesarrollo icono={Truck} label="Traslados entre campamentos" />
+            <ItemMenu
+              to="/centros/traslados"
+              icono={Truck}
+              label="Traslados entre campamentos"
+              activo={rutaActiva(pathname, "/centros/traslados")}
+            />
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>

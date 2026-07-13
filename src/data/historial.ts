@@ -37,6 +37,7 @@ export type AccionHistorial =
   | "registrar_refugiado"
   | "editar_refugiado"
   | "egreso_refugiado"
+  | "trasladar_familia"
   | "otorgar_beneficio"
   | "otorgar_item_kit"
   | "eliminar_beneficio"
