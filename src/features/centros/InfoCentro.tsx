@@ -1,16 +1,24 @@
 import { LogoCuerpo } from "@/components/LogoCuerpo";
-import { Camera, Home, Navigation, PawPrint, ShieldCheck, Users } from "lucide-react";
+import { useMemo } from "react";
+import { Building2, Camera, CircleGauge, Home, Navigation, Users } from "lucide-react";
 import {
   LOGO_SEBIN,
   metaUnidadSebinCentro,
   normalizarCentro,
   poblacionCentro,
-  totalPersonalOperativo,
   ubicacionCentro,
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
-import { alertasCentro, analisisCentro, COLOR_SEMAFORO } from "@/domain/capacidadCentros";
-import { IconosAlerta } from "./IconosAlerta";
+import { analisisCentro, COLOR_SEMAFORO } from "@/domain/capacidadCentros";
+import { contrasteDesdeProgreso } from "@/domain/censoNominalRed";
+import {
+  alojamientosActivos,
+  contarFamiliasActivas,
+  progresoCensoNominal,
+} from "@/domain/refugiados";
+import { useAlojamientosCentro } from "@/data/useAlojamientosCentro";
+import { BarraCensoVsParteMini } from "@/features/censo/ContrasteCensoParte";
+import { IconosEstadoReporteDia } from "./IconosEstadoReporteDia";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -54,41 +62,66 @@ function urlNavegacion(centro: CentroTransitorio): string | null {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 }
 
+function fmtKpi(n: number | null): string {
+  if (n == null) return "—";
+  return n.toLocaleString("es");
+}
+
 /** Ficha básica de un centro transitorio: cuerpo asignado, ubicación y estado. */
 export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle }: Props) {
   const metaUnidad = metaUnidadSebinCentro(centro);
   const analisis = analisisCentro(centro);
-  const alertas = alertasCentro(centro);
   const centroNormalizado = normalizarCentro(centro);
-  const refugiados = poblacionCentro(centroNormalizado);
+  const damnificados = poblacionCentro(centroNormalizado);
   const familias = centroNormalizado.familias_ocupadas;
-  const funcionarios = totalPersonalOperativo(centroNormalizado.personal);
-  const mascotas = centroNormalizado.ocupacion.mascotas;
+  const cuposDisponibles = analisis.cupoDisponible;
   const colorSemaforo = COLOR_SEMAFORO[analisis.semaforo];
   const tieneCoord = !!centro.geom;
   const url = urlNavegacion(centro);
   const ubicacion = ubicacionCentro(centro);
   const fotoUrl = centroNormalizado.foto_url;
+  const { alojamientos, cargando: cargandoCenso } = useAlojamientosCentro({
+    centroId: centro.id,
+    estado: "activo",
+  });
+  const progresoCenso = useMemo(() => {
+    const activos = alojamientosActivos(alojamientos);
+    return progresoCensoNominal(
+      { refugiados: damnificados, familias },
+      {
+        refugiados: activos.length,
+        familias: contarFamiliasActivas(activos),
+      },
+    );
+  }, [alojamientos, damnificados, familias]);
+  const contrasteCenso = contrasteDesdeProgreso(progresoCenso);
   const kpis = [
     {
-      etiqueta: "Familias",
-      valor: familias,
-      icono: <Home className="size-3.5 shrink-0 text-primary" />,
+      etiqueta: "Capacidad Instalada",
+      valor: fmtKpi(analisis.capacidadInstalada),
+      icono: <Building2 className="size-3.5 shrink-0 text-primary" />,
+      colorValor: undefined as string | undefined,
+    },
+    {
+      etiqueta: "Cupos Disponibles",
+      valor:
+        cuposDisponibles == null
+          ? "—"
+          : `${cuposDisponibles > 0 ? "+" : ""}${cuposDisponibles.toLocaleString("es")}`,
+      icono: <CircleGauge className="size-3.5 shrink-0 text-primary" />,
+      colorValor: cuposDisponibles == null ? undefined : colorSemaforo,
     },
     {
       etiqueta: "Damnificados",
-      valor: refugiados,
+      valor: damnificados.toLocaleString("es"),
       icono: <Users className="size-3.5 shrink-0 text-primary" />,
+      colorValor: undefined as string | undefined,
     },
     {
-      etiqueta: "Funcionarios",
-      valor: funcionarios,
-      icono: <ShieldCheck className="size-3.5 shrink-0 text-primary" />,
-    },
-    {
-      etiqueta: "Mascotas",
-      valor: mascotas,
-      icono: <PawPrint className="size-3.5 shrink-0 text-primary" />,
+      etiqueta: "Familias",
+      valor: familias.toLocaleString("es"),
+      icono: <Home className="size-3.5 shrink-0 text-primary" />,
+      colorValor: undefined as string | undefined,
     },
   ];
 
@@ -163,8 +196,11 @@ export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle 
           >
             {kpi.icono}
             <div className="min-w-0 leading-tight">
-              <p className="text-sm font-semibold tabular-nums text-foreground">
-                {kpi.valor.toLocaleString("es")}
+              <p
+                className="text-sm font-semibold tabular-nums text-foreground"
+                style={kpi.colorValor ? { color: kpi.colorValor } : undefined}
+              >
+                {kpi.valor}
               </p>
               <p className="truncate text-[10px] text-muted-foreground">{kpi.etiqueta}</p>
             </div>
@@ -172,21 +208,22 @@ export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle 
         ))}
       </div>
 
-      <div className="flex items-center justify-between gap-2 text-[11px]">
-        <span className="text-muted-foreground">Cupo disponible</span>
-        <span className="font-semibold" style={{ color: colorSemaforo }}>
-          {analisis.cupoDisponible != null
-            ? `${analisis.cupoDisponible > 0 ? "+" : ""}${analisis.cupoDisponible.toLocaleString("es")}`
-            : "Sin datos"}
-        </span>
-      </div>
+      <BarraCensoVsParteMini
+        registrados={progresoCenso.registradosRefugiados}
+        meta={progresoCenso.metaRefugiados}
+        contraste={contrasteCenso}
+        cargando={cargandoCenso}
+        className="pt-0.5"
+      />
 
-      {alertas.length > 0 && (
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <span>En déficit:</span>
-          <IconosAlerta alertas={alertas} />
-        </div>
-      )}
+      <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2 text-[10px] text-muted-foreground">
+        <span>Reporte diario</span>
+        <IconosEstadoReporteDia
+          centroId={centro.id}
+          metaRefugiados={damnificados}
+          metaFamilias={familias}
+        />
+      </div>
 
       <div className="flex gap-2 pt-1">
         <Button asChild variant="outline" size="sm" className="flex-1">

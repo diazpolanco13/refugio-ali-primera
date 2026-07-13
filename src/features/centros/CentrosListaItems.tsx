@@ -7,18 +7,19 @@ import {
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
 import {
-  alertasCentro,
   analisisCentro,
   COLOR_SEMAFORO,
-  type AlertaCentro,
 } from "@/domain/capacidadCentros";
-import { IconosAlerta } from "./IconosAlerta";
+import {
+  ESTADO_ICONOS_VACIO,
+  IconosEstadoReporteDiaView,
+  type EstadoIconosReporteDia,
+} from "./IconosEstadoReporteDia";
 
-/** Estado precalculado de un centro para pintar su fila (semáforo + alertas). */
+/** Estado precalculado de un centro para pintar su fila (semáforo + ocupación). */
 export interface EstadoFilaCentro {
   refugiados: number;
   semaforoColor: string | null;
-  alertas: AlertaCentro[];
 }
 
 /** Quita acentos y baja a minúsculas para buscar sin exigir tildes exactas. */
@@ -39,7 +40,6 @@ export function calcularEstadosFilas(
       refugiados: poblacionCentro(c),
       semaforoColor:
         analisis.semaforo === "sin_datos" ? null : COLOR_SEMAFORO[analisis.semaforo],
-      alertas: alertasCentro(c),
     });
   }
   return m;
@@ -48,25 +48,27 @@ export function calcularEstadosFilas(
 export const ESTADO_FILA_VACIO: EstadoFilaCentro = {
   refugiados: 0,
   semaforoColor: null,
-  alertas: [],
 };
 
-/** Fila de un centro: nombre, población, semáforo y alertas. */
+/** Fila de un centro: nombre, población, semáforo e íconos del reporte diario. */
 export function FilaCentroLista({
   centro,
   estado,
+  estadoReporte,
   seleccionado,
   mostrarUnidad,
   onSeleccionar,
 }: {
   centro: CentroTransitorio;
   estado: EstadoFilaCentro;
+  estadoReporte?: EstadoIconosReporteDia;
   seleccionado: boolean;
   mostrarUnidad?: boolean;
   onSeleccionar: (centro: CentroTransitorio) => void;
 }) {
   const sinGeom = !centro.geom;
   const metaUnidad = metaUnidadSebinCentro(centro);
+  const iconos = estadoReporte ?? ESTADO_ICONOS_VACIO;
   return (
     <button
       type="button"
@@ -123,7 +125,7 @@ export function FilaCentroLista({
             ? `${estado.refugiados.toLocaleString("es")} pers.`
             : "sin ocupación"}
         </span>
-        <IconosAlerta alertas={estado.alertas} />
+        <IconosEstadoReporteDiaView estado={iconos} tamano="size-3" />
       </div>
     </button>
   );

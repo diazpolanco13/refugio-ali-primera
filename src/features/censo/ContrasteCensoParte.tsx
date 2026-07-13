@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2, ClipboardList, TrendingUp } from "lucide-react";
 import {
   progresoCensoVsParte,
+  type EstadoContrasteCenso,
   type ResumenCensoCentro,
 } from "@/domain/censoResumen";
 import { cn } from "@/lib/utils";
@@ -20,10 +21,12 @@ function BarraComparativa({
   meta,
   actual,
   compacto,
+  className,
 }: {
   meta: number;
   actual: number;
   compacto?: boolean;
+  className?: string;
 }) {
   const escala = Math.max(meta, actual, 1);
   const pctParte = (meta / escala) * 100;
@@ -34,7 +37,8 @@ function BarraComparativa({
     <div
       className={cn(
         "relative overflow-hidden rounded-full bg-muted/80",
-        compacto ? "mt-2 h-1.5" : "mt-3 h-3",
+        compacto ? "h-1.5" : "h-3",
+        className,
       )}
     >
       <div
@@ -42,7 +46,7 @@ function BarraComparativa({
           "absolute inset-y-0 left-0 rounded-full transition-all",
           excede
             ? "bg-red-500"
-            : actual === meta
+            : actual === meta && meta > 0
               ? "bg-emerald-500"
               : "bg-sky-500",
         )}
@@ -199,7 +203,12 @@ export function ContrasteCensoParte({
         </div>
       </div>
 
-      <BarraComparativa meta={avance.meta} actual={avance.actual} compacto={compacto} />
+      <BarraComparativa
+        meta={avance.meta}
+        actual={avance.actual}
+        compacto={compacto}
+        className={compacto ? "mt-2" : "mt-3"}
+      />
 
       <div
         className={cn(
@@ -220,6 +229,83 @@ export function ContrasteCensoParte({
           parteDia={resumen.parteDia}
         />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Barrita densa: censo nominal (en curso) vs parte + cuánto falta.
+ */
+export function BarraCensoVsParteMini({
+  registrados,
+  meta,
+  contraste,
+  cargando = false,
+  className,
+}: {
+  registrados?: number;
+  meta?: number;
+  contraste?: EstadoContrasteCenso;
+  cargando?: boolean;
+  className?: string;
+}) {
+  if (cargando || registrados == null || meta == null || contraste == null) {
+    return (
+      <div className={cn("space-y-1", className)}>
+        <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+          <span>Censo vs parte</span>
+          <span className="tabular-nums">…</span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-muted/80" />
+      </div>
+    );
+  }
+
+  const tieneParte = meta > 0;
+  const faltan = Math.max(0, meta - registrados);
+  const excedente = Math.max(0, registrados - meta);
+
+  let detalle: string;
+  if (!tieneParte) {
+    detalle =
+      registrados > 0
+        ? `${registrados.toLocaleString("es")} en censo · sin parte`
+        : "Sin parte ni censo";
+  } else if (contraste === "cuadra") {
+    detalle = "Censo cuadra con el parte";
+  } else if (contraste === "excede_parte") {
+    detalle = `+${excedente.toLocaleString("es")} sobre el parte`;
+  } else if (faltan > 0) {
+    detalle = `Faltan ${faltan.toLocaleString("es")}`;
+  } else {
+    detalle = "Sin registros en censo";
+  }
+
+  const detalleClase =
+    contraste === "excede_parte"
+      ? "text-red-400"
+      : contraste === "cuadra"
+        ? "text-emerald-400"
+        : contraste === "en_progreso"
+          ? "text-sky-400"
+          : "text-muted-foreground";
+
+  return (
+    <div className={cn("space-y-1", className)}>
+      <div className="flex items-center justify-between gap-2 text-[10px]">
+        <span className="shrink-0 text-muted-foreground">Censo vs parte</span>
+        <span className={cn("min-w-0 truncate text-right tabular-nums font-medium", detalleClase)}>
+          {tieneParte ? (
+            <>
+              {registrados.toLocaleString("es")} / {meta.toLocaleString("es")}
+              <span className="ml-1 font-normal">· {detalle}</span>
+            </>
+          ) : (
+            detalle
+          )}
+        </span>
+      </div>
+      <BarraComparativa meta={meta} actual={registrados} compacto />
     </div>
   );
 }

@@ -29,6 +29,10 @@ import {
   calcularEstadosFilas,
   normalizarTextoBusqueda,
 } from "./CentrosListaItems";
+import {
+  ESTADO_ICONOS_VACIO,
+  useMapaEstadosIconosReporteDia,
+} from "./IconosEstadoReporteDia";
 
 interface Props {
   centros: CentroTransitorio[];
@@ -65,6 +69,8 @@ export function PanelCentros({
   const catalogoUnidades = useCatalogoUnidadesSebinActivas();
 
   const estados = useMemo(() => calcularEstadosFilas(centros), [centros]);
+  const centroIds = useMemo(() => centros.map((c) => c.id), [centros]);
+  const estadosReporte = useMapaEstadosIconosReporteDia(centroIds);
 
   const centrosPorUnidad = useMemo(() => {
     const m = new Map<ClaveUnidadSebin, CentroTransitorio[]>();
@@ -171,6 +177,7 @@ export function PanelCentros({
                 key={centro.id}
                 centro={centro}
                 estado={estados.get(centro.id) ?? ESTADO_FILA_VACIO}
+                estadoReporte={estadosReporte.get(centro.id) ?? ESTADO_ICONOS_VACIO}
                 seleccionado={seleccionado === centro.id}
                 mostrarUnidad
                 onSeleccionar={elegirCentro}
@@ -184,9 +191,9 @@ export function PanelCentros({
               const atenuada = hayFiltro && !activa;
               const centrosUnidad = centrosPorUnidad.get(u.clave) ?? [];
               const grupoAbierto = expandidos.has(u.clave);
-              const alertasGrupo = centrosUnidad.reduce(
+              const pendientesGrupo = centrosUnidad.reduce(
                 (n, centro) =>
-                  n + ((estados.get(centro.id)?.alertas.length ?? 0) > 0 ? 1 : 0),
+                  n + ((estadosReporte.get(centro.id)?.tienePendiente ?? true) ? 1 : 0),
                 0,
               );
               return (
@@ -224,12 +231,12 @@ export function PanelCentros({
                         <LogoCuerpo src={LOGO_SEBIN} priority="low" />
                       </span>
                       <span className="flex-1 truncate text-foreground">{u.label}</span>
-                      {alertasGrupo > 0 && (
+                      {pendientesGrupo > 0 && (
                         <span
-                          title={`${alertasGrupo} campamento(s) con servicios en déficit`}
-                          className="flex size-4 items-center justify-center rounded-full bg-red-500/15 text-[9px] font-bold text-red-500"
+                          title={`${pendientesGrupo} campamento(s) con reporte diario pendiente`}
+                          className="flex size-4 items-center justify-center rounded-full bg-amber-500/15 text-[9px] font-bold text-amber-500"
                         >
-                          {alertasGrupo}
+                          {pendientesGrupo}
                         </span>
                       )}
                       <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
@@ -259,6 +266,9 @@ export function PanelCentros({
                           key={centro.id}
                           centro={centro}
                           estado={estados.get(centro.id) ?? ESTADO_FILA_VACIO}
+                          estadoReporte={
+                            estadosReporte.get(centro.id) ?? ESTADO_ICONOS_VACIO
+                          }
                           seleccionado={seleccionado === centro.id}
                           onSeleccionar={elegirCentro}
                         />
@@ -319,6 +329,9 @@ export function PanelCentros({
                         key={centro.id}
                         centro={centro}
                         estado={estados.get(centro.id) ?? ESTADO_FILA_VACIO}
+                        estadoReporte={
+                          estadosReporte.get(centro.id) ?? ESTADO_ICONOS_VACIO
+                        }
                         seleccionado={seleccionado === centro.id}
                         onSeleccionar={elegirCentro}
                       />
@@ -350,9 +363,10 @@ export function PanelCentros({
       </div>
 
       <div className="shrink-0 border-t border-border px-3 py-1.5 text-[9.5px] leading-snug text-muted-foreground/80">
-        Tocá una o varias unidades responsables para filtrar el mapa (el resto se opaca). Íconos{" "}
-        <span className="font-semibold text-red-500">rojos</span> /{" "}
-        <span className="font-semibold text-amber-400">ámbar</span>: déficit Esfera.
+        Tocá una o varias unidades responsables para filtrar el mapa (el resto se opaca).
+        Íconos por fila: salud, novedades, censo y parte diario (
+        <span className="font-semibold text-emerald-400">verde</span> = listo,{" "}
+        <span className="font-semibold text-rose-400">rosa</span> = casos activos).
       </div>
     </div>
   );
