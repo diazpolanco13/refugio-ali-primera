@@ -104,6 +104,7 @@ import {
   type FamiliarSeparado,
   type SexoRefugiado,
   type TipoDoc,
+  type VulnerabilidadesRefugiado,
 } from "@/domain/refugiados";
 import {
   EstadoNexusApi,
@@ -120,7 +121,12 @@ import { telegramHref, tieneTelefonoContacto } from "@/lib/contacto";
 import { mensajeErrorParaUsuario } from "@/lib/errorRed";
 import { copiarTexto } from "@/lib/portapapeles";
 import { cn } from "@/lib/utils";
-import { CENSO_BOTON_ACCION, CENSO_BOTON_SECUNDARIO, CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
+import {
+  CampoSiNo,
+  CENSO_BOTON_ACCION,
+  CENSO_BOTON_SECUNDARIO,
+  CENSO_SELECT_TRIGGER,
+} from "@/features/censo/censoFormularioShared";
 
 /** Máximo de líderes de familia activos por hogar (ver supabase/familia_lideres.sql
  * y MAX_LIDERES_FAMILIA en src/data/reposRefugiados.ts). */
@@ -422,6 +428,9 @@ interface FormMenor {
   fecha_nacimiento: string;
   edad: string;
   parentesco: string;
+  embarazada: boolean;
+  discapacidad: boolean;
+  discapacidad_detalle: string;
 }
 
 function formMenorVacio(): FormMenor {
@@ -434,6 +443,24 @@ function formMenorVacio(): FormMenor {
     fecha_nacimiento: "",
     edad: "",
     parentesco: "Hijo/a",
+    embarazada: false,
+    discapacidad: false,
+    discapacidad_detalle: "",
+  };
+}
+
+function vulnerabilidadesDesdeUi(opts: {
+  sexo: string | null | undefined;
+  embarazada: boolean;
+  discapacidad: boolean;
+  discapacidadDetalle: string;
+}): VulnerabilidadesRefugiado {
+  return {
+    embarazada: opts.sexo === "F" ? opts.embarazada : false,
+    discapacidad: opts.discapacidad,
+    discapacidad_detalle: opts.discapacidad
+      ? opts.discapacidadDetalle.trim() || undefined
+      : undefined,
   };
 }
 
@@ -600,6 +627,10 @@ export function CensoNexusPanel({
   const [confirmoDuplicado, setConfirmoDuplicado] = useState(false);
   /** Detalle SAIME (dirección, teléfonos, familiares): plegado por defecto. */
   const [infoSaimeAbierta, setInfoSaimeAbierta] = useState(false);
+  /** Vulnerabilidades de la persona consultada por cédula. */
+  const [personaEmbarazada, setPersonaEmbarazada] = useState(false);
+  const [personaDiscapacidad, setPersonaDiscapacidad] = useState(false);
+  const [personaDiscapacidadDetalle, setPersonaDiscapacidadDetalle] = useState("");
 
   const [pestanaMiembros, setPestanaMiembros] = useState<"adultos" | "sin_cedula">(
     "adultos",
@@ -898,6 +929,9 @@ export function CensoNexusPanel({
     setResumenFamiliaAqui(null);
     setAgregarComoLider(false);
     limpiarFotoLocal();
+    setPersonaEmbarazada(false);
+    setPersonaDiscapacidad(false);
+    setPersonaDiscapacidadDetalle("");
     if (!familiaId) {
       setEsJefe(null);
       setRegistrarSinLider(false);
@@ -980,6 +1014,12 @@ export function CensoNexusPanel({
         crearHogarSiFalta: !esLider,
         parentescoJefe: esLider ? undefined : parentescoSinLider,
         telefonosConfirmados: telsConfirmados,
+        vulnerabilidades: vulnerabilidadesDesdeUi({
+          sexo: persona.sexo,
+          embarazada: personaEmbarazada,
+          discapacidad: personaDiscapacidad,
+          discapacidadDetalle: personaDiscapacidadDetalle,
+        }),
       });
       await persistirFotoCampo(r.refugiadoId);
       limpiarFotoLocal();
@@ -1019,6 +1059,9 @@ export function CensoNexusPanel({
       setEstadoNominal(null);
       setOrigenFicha(null);
       setCedula("");
+      setPersonaEmbarazada(false);
+      setPersonaDiscapacidad(false);
+      setPersonaDiscapacidadDetalle("");
       // No resetear damnificación: así se puede volver a revisarla desde la miga.
     } catch (err) {
       setErrorBusqueda(mensajeErrorParaUsuario(err, "No se pudo crear el hogar"));
@@ -1093,6 +1136,9 @@ export function CensoNexusPanel({
     setInfoSaimeAbierta(false);
     setErrorBusqueda("");
     limpiarFotoLocal();
+    setPersonaEmbarazada(false);
+    setPersonaDiscapacidad(false);
+    setPersonaDiscapacidadDetalle("");
     setPasoEnfoque(familiaId ? "hogar" : "cedula");
   }
 
@@ -1113,6 +1159,12 @@ export function CensoNexusPanel({
         esJefe: agregarComoLider,
         parentescoJefe: agregarComoLider ? undefined : parentescoDirecto,
         telefonosConfirmados: telsConfirmados,
+        vulnerabilidades: vulnerabilidadesDesdeUi({
+          sexo: persona.sexo,
+          embarazada: personaEmbarazada,
+          discapacidad: personaDiscapacidad,
+          discapacidadDetalle: personaDiscapacidadDetalle,
+        }),
       });
       await persistirFotoCampo(r.refugiadoId);
       limpiarFotoLocal();
@@ -1128,6 +1180,9 @@ export function CensoNexusPanel({
       setOrigenFicha(null);
       setCedula("");
       setAgregarComoLider(false);
+      setPersonaEmbarazada(false);
+      setPersonaDiscapacidad(false);
+      setPersonaDiscapacidadDetalle("");
     } catch (err) {
       setErrorBusqueda(mensajeErrorParaUsuario(err, "No se pudo agregar"));
     } finally {
@@ -1227,6 +1282,12 @@ export function CensoNexusPanel({
           menor.fecha_nacimiento ||
           (edadNum != null ? fechaAproximadaPorEdad(Math.max(0, edadNum)) : null),
         parentescoJefe: menor.parentesco,
+        vulnerabilidades: vulnerabilidadesDesdeUi({
+          sexo: menor.sexo,
+          embarazada: menor.embarazada,
+          discapacidad: menor.discapacidad,
+          discapacidadDetalle: menor.discapacidad_detalle,
+        }),
       });
       await persistirFotoCampo(r.refugiadoId, fotoMenorArchivo);
       limpiarFotoMenor();
@@ -1272,6 +1333,9 @@ export function CensoNexusPanel({
     setConfirmoDuplicado(false);
     resetDamnificacion();
     setNivelHogar(null);
+    setPersonaEmbarazada(false);
+    setPersonaDiscapacidad(false);
+    setPersonaDiscapacidadDetalle("");
     limpiarFotoLocal();
     limpiarFotoMenor();
     setErrorBusqueda("");
@@ -2010,7 +2074,13 @@ export function CensoNexusPanel({
                                 ? "bg-primary text-primary-foreground"
                                 : "bg-background text-foreground hover:bg-muted/80",
                             )}
-                            onClick={() => setMenor((m) => ({ ...m, sexo: s }))}
+                            onClick={() =>
+                              setMenor((m) => ({
+                                ...m,
+                                sexo: s,
+                                embarazada: s === "F" ? m.embarazada : false,
+                              }))
+                            }
                           >
                             {s === "M" ? "Masc." : "Fem."}
                           </button>
@@ -2099,6 +2169,39 @@ export function CensoNexusPanel({
                       ? "La edad se calcula sola desde la fecha. Bórrela si solo conoce la edad aproximada."
                       : "Si conoce la fecha, póngala arriba y la edad se completa sola. Si no, escriba solo la edad aproximada."}
                   </p>
+                  <div className="space-y-2">
+                    {menor.sexo === "F" ? (
+                      <CampoSiNo
+                        label="¿Embarazada?"
+                        valor={menor.embarazada}
+                        onChange={(v) => setMenor((m) => ({ ...m, embarazada: v }))}
+                      />
+                    ) : null}
+                    <CampoSiNo
+                      label="¿Discapacidad / patologías?"
+                      valor={menor.discapacidad}
+                      onChange={(v) =>
+                        setMenor((m) => ({
+                          ...m,
+                          discapacidad: v,
+                          discapacidad_detalle: v ? m.discapacidad_detalle : "",
+                        }))
+                      }
+                    >
+                      <Input
+                        value={menor.discapacidad_detalle}
+                        onChange={(e) =>
+                          setMenor((m) => ({
+                            ...m,
+                            discapacidad_detalle: e.target.value,
+                          }))
+                        }
+                        placeholder="Indique discapacidad o patología"
+                        className="h-11"
+                        autoComplete="off"
+                      />
+                    </CampoSiNo>
+                  </div>
                   {errorMenor ? (
                     <p className="text-xs text-destructive">{errorMenor}</p>
                   ) : null}
@@ -2269,6 +2372,35 @@ export function CensoNexusPanel({
                   ) : null}
                 </div>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                Condición de salud relevante
+              </p>
+              {persona.sexo === "F" ? (
+                <CampoSiNo
+                  label="¿Embarazada?"
+                  valor={personaEmbarazada}
+                  onChange={setPersonaEmbarazada}
+                />
+              ) : null}
+              <CampoSiNo
+                label="¿Discapacidad / patologías?"
+                valor={personaDiscapacidad}
+                onChange={(v) => {
+                  setPersonaDiscapacidad(v);
+                  if (!v) setPersonaDiscapacidadDetalle("");
+                }}
+              >
+                <Input
+                  value={personaDiscapacidadDetalle}
+                  onChange={(e) => setPersonaDiscapacidadDetalle(e.target.value)}
+                  placeholder="Indique discapacidad o patología"
+                  className="h-11"
+                  autoComplete="off"
+                />
+              </CampoSiNo>
             </div>
 
             {estadoNominal && estadoNominal.otrosCentros.length > 0 ? (

@@ -3,6 +3,7 @@
 import {
   asociarRefugiadoAFamilia,
   actualizarContacto,
+  actualizarRefugiado,
   crearFamilia,
   crearRefugiado,
   estadoNominalCedulaRed,
@@ -14,8 +15,17 @@ import {
 import { marcarCensoProcesado } from "./reposCenso";
 import { supabase } from "./supabaseClient";
 import type { PersonaNexusCenso } from "@/domain/nexusPersona";
-import type { Refugiado, SexoRefugiado, TipoDoc } from "@/domain/refugiados";
-import { normalizarCedula, normalizarRefugiado } from "@/domain/refugiados";
+import type {
+  Refugiado,
+  SexoRefugiado,
+  TipoDoc,
+  VulnerabilidadesRefugiado,
+} from "@/domain/refugiados";
+import {
+  normalizarCedula,
+  normalizarRefugiado,
+  normalizarVulnerabilidadesRefugiado,
+} from "@/domain/refugiados";
 
 function sexoNexus(s: string | null | undefined): SexoRefugiado | null {
   if (s === "M" || s === "F" || s === "O") return s;
@@ -49,6 +59,8 @@ export async function registrarPersonaNexusEnNominal(opts: {
   crearHogarSiFalta?: boolean;
   /** Teléfonos confirmados con la persona (el primero queda como principal). */
   telefonosConfirmados?: string[];
+  /** Discapacidad / patologías y embarazo (solo aplica si sexo F). */
+  vulnerabilidades?: VulnerabilidadesRefugiado;
 }): Promise<ResultadoAltaNexus> {
   const letra = (opts.persona.letra || "V").toUpperCase();
   const { cedula, cedula_norm, tipo_doc } = normalizarCedula(
@@ -100,6 +112,19 @@ export async function registrarPersonaNexusEnNominal(opts: {
     }
   }
 
+  // Misma RLS que contacto: solo tras alojamiento en un centro del operador.
+  async function guardarVulnerabilidades(): Promise<void> {
+    if (opts.vulnerabilidades === undefined) return;
+    const vuln = normalizarVulnerabilidadesRefugiado(opts.vulnerabilidades);
+    // Embarazo solo tiene sentido en mujeres.
+    if (sexoNexus(opts.persona.sexo) !== "F") vuln.embarazada = false;
+    try {
+      await actualizarRefugiado(refugiadoId, { vulnerabilidades: vuln });
+    } catch {
+      /* vulnerabilidades opcionales en el alta */
+    }
+  }
+
   // También bypassa la RLS a propósito (misma razón que el upsert de arriba):
   // listar alojamientos por refugiado_id se filtra a los centros del
   // operador, así que "otros centros" salía incompleto para una sesión de
@@ -130,6 +155,7 @@ export async function registrarPersonaNexusEnNominal(opts: {
       parentesco_jefe: "",
     });
     await guardarTelefonosConfirmados();
+    await guardarVulnerabilidades();
     marcarCensoProcesado(cedula_norm, opts.centroId);
     return {
       refugiadoId,
@@ -162,6 +188,7 @@ export async function registrarPersonaNexusEnNominal(opts: {
     parentesco_jefe: (opts.parentescoJefe || "Otro familiar").trim(),
   });
   await guardarTelefonosConfirmados();
+  await guardarVulnerabilidades();
   marcarCensoProcesado(cedula_norm, opts.centroId);
 
   return {
@@ -208,7 +235,10 @@ export async function registrarMiembroSinDocumento(opts: {
   sexo: SexoRefugiado | null;
   fecha_nacimiento: string | null;
   parentescoJefe: string;
+  vulnerabilidades?: VulnerabilidadesRefugiado;
 }): Promise<{ refugiadoId: string; alojamientoId: string }> {
+  const vuln = normalizarVulnerabilidadesRefugiado(opts.vulnerabilidades);
+  if (opts.sexo !== "F") vuln.embarazada = false;
   const refugiadoId = await crearRefugiado(
     {
       primer_nombre: opts.primer_nombre,
@@ -217,6 +247,7 @@ export async function registrarMiembroSinDocumento(opts: {
       segundo_apellido: opts.segundo_apellido,
       sexo: opts.sexo,
       fecha_nacimiento: opts.fecha_nacimiento,
+      vulnerabilidades: vuln,
     },
     opts.centroId,
   );
