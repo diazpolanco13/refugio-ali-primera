@@ -102,6 +102,20 @@ export function eventosDelDia(
     .sort((a, b) => a.ts - b.ts || a.titulo.localeCompare(b.titulo, "es"));
 }
 
+/** Mínimo de palabras en el título (evita títulos como «Pelea»). */
+export const MIN_PALABRAS_TITULO_EVENTO = 4;
+
+export function contarPalabrasTituloEvento(titulo: string): number {
+  return titulo
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
+export function tituloEventoValido(titulo: string): boolean {
+  return contarPalabrasTituloEvento(titulo) >= MIN_PALABRAS_TITULO_EVENTO;
+}
+
 export function contarParticipantesEvento(evento: EventoReporte): number {
   return evento.participantes.length;
 }

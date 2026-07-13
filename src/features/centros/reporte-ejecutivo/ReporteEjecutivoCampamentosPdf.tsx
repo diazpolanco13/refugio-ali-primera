@@ -720,11 +720,9 @@ function EncabezadoInstitucional({ generadoTs }: { generadoTs: number }) {
   );
 }
 
-/** Primera letra en mayúscula y el resto en minúsculas (español). */
-function textoOracion(s: string): string {
-  const t = s.trim();
-  if (!t) return t;
-  return t.charAt(0).toLocaleUpperCase("es") + t.slice(1).toLocaleLowerCase("es");
+/** Todo el título en mayúsculas (evita romper nombres/siglas con capitalización de oración). */
+function textoMayusculas(s: string): string {
+  return s.trim().toLocaleUpperCase("es");
 }
 
 function Kpi({
@@ -1288,7 +1286,7 @@ export function ReporteEjecutivoCampamentosPdf({
                   ) : (
                     fila.trabajosDetalle.map((t, j) => (
                       <Text key={j} style={[styles.celdaTexto, { marginBottom: 1 }]}>
-                        • {textoOracion(t.titulo)}{" "}
+                        • {textoMayusculas(t.titulo)}{" "}
                         <Text style={{ color: t.dias >= 3 ? rojo : gris }}>
                           ({t.dias <= 1 ? "hoy" : `${t.dias} d`})
                         </Text>
@@ -1302,7 +1300,7 @@ export function ReporteEjecutivoCampamentosPdf({
                   ) : (
                     fila.casosDetalle.map((c, j) => (
                       <Text key={j} style={[styles.celdaTexto, { marginBottom: 1 }]}>
-                        • {textoOracion(c.titulo)}{" "}
+                        • {textoMayusculas(c.titulo)}{" "}
                         <Text style={{ color: gris }}>
                           (<Text style={{ color: META_ESTATUS_CASO_PDF[c.estatus]?.color ?? gris, fontWeight: 700 }}>
                             {META_ESTATUS_CASO_PDF[c.estatus]?.label ?? c.estatus}
@@ -1325,7 +1323,7 @@ export function ReporteEjecutivoCampamentosPdf({
                           { marginBottom: 1, color: nov.tipo === "positivo" ? verde : rojo },
                         ]}
                       >
-                        • {textoOracion(nov.titulo)}
+                        • {textoMayusculas(nov.titulo)}
                       </Text>
                     ))
                   )}

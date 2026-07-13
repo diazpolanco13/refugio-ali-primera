@@ -47,7 +47,9 @@ import {
 } from "@/domain/seguimientoReportes";
 import {
   CATALOGO_TIPOS_EVENTO_REPORTE,
+  MIN_PALABRAS_TITULO_EVENTO,
   textoParticipantesEvento,
+  tituloEventoValido,
   type EventoReporte,
   type TipoEventoReporte,
 } from "@/domain/eventosReportes";
@@ -562,25 +564,33 @@ function TarjetaNovedad({
               />
             </div>
           </div>
-          <Input
-            value={borrador.titulo}
-            disabled={guardando}
-            onChange={(e) => onBorradorChange({ ...borrador, titulo: e.target.value })}
-            placeholder="Título de la novedad"
-          />
+          <div>
+            <Input
+              value={borrador.titulo}
+              disabled={guardando}
+              onChange={(e) => onBorradorChange({ ...borrador, titulo: e.target.value })}
+              placeholder="Ej. Pelea entre dos adultos en módulo B; mediación y separación"
+            />
+            <p className="mt-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-[10px] leading-snug text-amber-300">
+              Escribe en una sola línea qué ocurrió (quién, dónde, qué se hizo).
+              Mínimo {MIN_PALABRAS_TITULO_EVENTO} palabras — no uses solo «Pelea»: el
+              título debe bastar para entender la novedad. Detalles extras van en
+              Descripción.
+            </p>
+          </div>
           <Textarea
             rows={3}
             value={borrador.descripcion}
             disabled={guardando}
             onChange={(e) => onBorradorChange({ ...borrador, descripcion: e.target.value })}
-            placeholder="Descripción (opcional)"
+            placeholder="Contexto extra, acciones y seguimiento (opcional). No sustituye al título."
           />
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button
               type="button"
               size="sm"
               className="sm:flex-1"
-              disabled={!borrador.titulo.trim() || guardando}
+              disabled={!tituloEventoValido(borrador.titulo) || guardando}
               onClick={onGuardar}
             >
               {guardando ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
@@ -854,7 +864,7 @@ function SeguimientoExpandido({
   }
 
   async function guardarNovedadEditada(evento: EventoReporte) {
-    if (!borradorNovedad.titulo.trim()) return;
+    if (!tituloEventoValido(borradorNovedad.titulo)) return;
     setGuardandoNovedadId(evento.id);
     try {
       await actualizarEventoReporte(evento.id, {
@@ -871,7 +881,7 @@ function SeguimientoExpandido({
   }
 
   async function guardarNuevaNovedad() {
-    if (!nuevaNovedad.titulo.trim()) return;
+    if (!tituloEventoValido(nuevaNovedad.titulo)) return;
     const dia = diaSel ?? hoyClave;
     setGuardandoNuevaNovedad(true);
     try {
@@ -1421,15 +1431,23 @@ function SeguimientoExpandido({
                   />
                 </div>
               </div>
-              <Input
-                value={nuevaNovedad.titulo}
-                disabled={guardandoNuevaNovedad}
-                onChange={(e) =>
-                  setNuevaNovedad({ ...nuevaNovedad, titulo: e.target.value })
-                }
-                placeholder="Título de la novedad (obligatorio)"
-                autoFocus
-              />
+              <div>
+                <Input
+                  value={nuevaNovedad.titulo}
+                  disabled={guardandoNuevaNovedad}
+                  onChange={(e) =>
+                    setNuevaNovedad({ ...nuevaNovedad, titulo: e.target.value })
+                  }
+                  placeholder="Ej. Pelea entre dos adultos en módulo B; mediación y separación"
+                  autoFocus
+                />
+                <p className="mt-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-[10px] leading-snug text-amber-300">
+                  Escribe en una sola línea qué ocurrió (quién, dónde, qué se hizo).
+                  Mínimo {MIN_PALABRAS_TITULO_EVENTO} palabras — no uses solo «Pelea»: el
+                  título debe bastar para entender la novedad. Detalles extras van en
+                  Descripción.
+                </p>
+              </div>
               <Textarea
                 rows={3}
                 value={nuevaNovedad.descripcion}
@@ -1437,14 +1455,14 @@ function SeguimientoExpandido({
                 onChange={(e) =>
                   setNuevaNovedad({ ...nuevaNovedad, descripcion: e.target.value })
                 }
-                placeholder="Descripción (opcional)"
+                placeholder="Contexto extra, acciones y seguimiento (opcional). No sustituye al título."
               />
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   type="button"
                   size="sm"
                   className="sm:flex-1"
-                  disabled={!nuevaNovedad.titulo.trim() || guardandoNuevaNovedad}
+                  disabled={!tituloEventoValido(nuevaNovedad.titulo) || guardandoNuevaNovedad}
                   onClick={() => void guardarNuevaNovedad()}
                 >
                   {guardandoNuevaNovedad ? (

@@ -18,7 +18,9 @@ import { nuevoId } from "@/data/reposSupabase";
 import {
   CATALOGO_TIPOS_EVENTO_REPORTE,
   META_TIPO_EVENTO_REPORTE,
+  MIN_PALABRAS_TITULO_EVENTO,
   textoParticipantesEvento,
+  tituloEventoValido,
   type EventoReporte,
   type ParticipanteEventoReporte,
   type TipoEventoReporte,
@@ -229,7 +231,7 @@ export function EventosReporteTab({
   }
 
   function guardarEvento() {
-    if (!borrador.titulo.trim()) return;
+    if (!tituloEventoValido(borrador.titulo)) return;
     const datos = {
       centro_id: centroId,
       dia,
@@ -331,8 +333,14 @@ export function EventosReporteTab({
             disabled={deshabilitado}
             value={borrador.titulo}
             onChange={(e) => setBorrador((prev) => ({ ...prev, titulo: e.target.value }))}
-            placeholder="Ej. jornada recreativa, conflicto, visita institucional…"
+            placeholder="Ej. Pelea entre dos adultos en módulo B; mediación y separación"
           />
+          <p className="mt-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-[10px] leading-snug text-amber-300">
+            Escribe en una sola línea qué ocurrió (quién, dónde, qué se hizo).
+            Mínimo {MIN_PALABRAS_TITULO_EVENTO} palabras — no uses solo «Pelea»: el
+            título debe bastar para entender la novedad. Detalles extras van en
+            Descripción.
+          </p>
         </div>
 
         <div>
@@ -348,7 +356,7 @@ export function EventosReporteTab({
             onChange={(e) =>
               setBorrador((prev) => ({ ...prev, descripcion: e.target.value }))
             }
-            placeholder="Resumen breve de lo ocurrido y acciones tomadas…"
+            placeholder="Contexto extra, acciones y seguimiento (opcional). No sustituye al título."
           />
         </div>
 
@@ -451,7 +459,7 @@ export function EventosReporteTab({
           <Button
             type="button"
             size="sm"
-            disabled={deshabilitado || !borrador.titulo.trim()}
+            disabled={deshabilitado || !tituloEventoValido(borrador.titulo)}
             onClick={guardarEvento}
           >
             {editandoId ? <Check className="size-4" /> : <Plus className="size-4" />}
