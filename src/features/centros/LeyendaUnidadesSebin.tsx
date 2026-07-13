@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, X } from "lucide-react";
+import { Building2, ChevronDown, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,6 +28,8 @@ interface Props {
   unidadesFiltro: ReadonlySet<ClaveUnidadSebin>;
   onAlternarUnidad: (clave: ClaveUnidadSebin) => void;
   onLimpiarFiltro: () => void;
+  /** Oculta el panel y sincroniza el switch de «Vista del mapa». */
+  onMinimizar?: () => void;
   className?: string;
 }
 
@@ -37,6 +39,7 @@ export function LeyendaUnidadesSebin({
   unidadesFiltro,
   onAlternarUnidad,
   onLimpiarFiltro,
+  onMinimizar,
   className,
 }: Props) {
   const [sheetAbierto, setSheetAbierto] = useState(false);
@@ -66,9 +69,32 @@ export function LeyendaUnidadesSebin({
         )}
         aria-label={TITULO}
       >
-        <p className="mb-0.5 border-b border-border/60 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {TITULO}
-        </p>
+        <div className="mb-0.5 flex items-start justify-between gap-1 border-b border-border/60 pb-1">
+          <p className="min-w-0 pt-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {TITULO}
+          </p>
+          {onMinimizar && (
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-xs"
+                    className="shrink-0"
+                    onClick={onMinimizar}
+                    aria-label="Minimizar unidades responsables"
+                  >
+                    <ChevronDown className="size-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={6}>
+                  Minimizar
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
         <p className="mb-1.5 text-[9px] leading-snug text-muted-foreground/80">
           Puede marcar varias
         </p>

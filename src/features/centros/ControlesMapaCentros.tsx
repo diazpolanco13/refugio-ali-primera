@@ -4,6 +4,7 @@ import {
   Check,
   Home,
   Layers,
+  List,
   Loader2,
   Locate,
   LocateFixed,
@@ -280,6 +281,22 @@ export function ControlesMapaCentros({
             orientation="vertical"
             className="pointer-events-auto w-10 min-w-10 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
           >
+            <BotonMapa
+              etiqueta={
+                vistaMarcadores.mostrarLeyenda
+                  ? "Ocultar unidades responsables"
+                  : "Mostrar unidades responsables"
+              }
+              onClick={() =>
+                vistaMarcadores.onCambiarMostrarLeyenda(
+                  !vistaMarcadores.mostrarLeyenda,
+                )
+              }
+              activo={vistaMarcadores.mostrarLeyenda}
+              deshabilitado={vistaMarcadores.modoMarcador !== "color"}
+            >
+              <List className="size-4" />
+            </BotonMapa>
             <MenuVistaMarcadores {...vistaMarcadores} />
           </ButtonGroup>
         )}

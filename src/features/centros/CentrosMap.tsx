@@ -630,6 +630,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
           unidadesFiltro={unidadesFiltro}
           onAlternarUnidad={onAlternarUnidadFiltro}
           onLimpiarFiltro={onLimpiarUnidadesFiltro}
+          onMinimizar={() => onCambiarMostrarLeyenda(false)}
         />
       )}
     </div>
