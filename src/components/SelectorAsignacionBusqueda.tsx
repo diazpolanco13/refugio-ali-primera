@@ -151,15 +151,16 @@ export function SelectorAsignacionBusqueda({
         <PopoverTrigger asChild>
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             role="combobox"
             aria-expanded={abierto}
             disabled={disabled}
             className={cn(
-              // Affordance tipo SelectTrigger: borde + fondo contrastados vs panel muted
-              "h-8 w-full justify-between gap-2 border-input bg-background px-2.5 text-xs font-medium",
-              "dark:bg-input/40 dark:hover:bg-input/55",
-              "aria-expanded:border-ring aria-expanded:ring-3 aria-expanded:ring-ring/50",
+              // Caja de control bien marcada (outline dark:border-input queda invisible)
+              "h-9 w-full justify-between gap-2 rounded-lg border-2 border-muted-foreground/45 bg-muted px-3 text-xs font-semibold shadow-md shadow-black/35",
+              "dark:border-muted-foreground/55 dark:bg-secondary dark:hover:bg-secondary/90",
+              "hover:border-teal-500/55 hover:bg-muted/90",
+              "aria-expanded:border-teal-500/70 aria-expanded:ring-3 aria-expanded:ring-teal-500/25",
               esSinAsignar
                 ? "font-normal text-muted-foreground"
                 : "text-foreground",
@@ -170,16 +171,16 @@ export function SelectorAsignacionBusqueda({
               {etiquetaTrigger}
             </span>
             <ChevronsUpDown
-              className="size-3.5 shrink-0 text-muted-foreground"
+              className="size-4 shrink-0 text-teal-400/90"
               aria-hidden
             />
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-(--radix-popover-trigger-width) p-0"
+          className="w-(--radix-popover-trigger-width) gap-0 border-2 border-muted-foreground/40 p-0 shadow-lg shadow-black/40 ring-1 ring-foreground/15"
           align="start"
         >
-          <div className="border-b border-border/60 p-1.5">
+          <div className="border-b border-border bg-muted/30 p-1.5">
             <Input
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
@@ -188,13 +189,13 @@ export function SelectorAsignacionBusqueda({
               autoFocus
             />
           </div>
-          <div className="max-h-56 overflow-y-auto p-1">
+          <div className="max-h-56 space-y-1 overflow-y-auto p-1.5">
             {mostrarTodos && (
               <label
                 className={cn(
-                  "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs font-medium",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  esTodos && "bg-accent/60",
+                  "flex cursor-pointer items-center gap-2 rounded-md border-2 border-muted-foreground/35 bg-muted/50 px-2.5 py-2 text-xs font-medium shadow-sm shadow-black/20",
+                  "hover:border-teal-500/45 hover:bg-accent hover:text-accent-foreground",
+                  esTodos && "border-teal-500/55 bg-teal-950/40",
                 )}
               >
                 <Checkbox
@@ -215,9 +216,9 @@ export function SelectorAsignacionBusqueda({
             {mostrarSinAsignar && (
               <label
                 className={cn(
-                  "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs font-medium",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  esSinAsignar && "bg-accent/60",
+                  "flex cursor-pointer items-center gap-2 rounded-md border-2 border-muted-foreground/35 bg-muted/50 px-2.5 py-2 text-xs font-medium shadow-sm shadow-black/20",
+                  "hover:border-teal-500/45 hover:bg-accent hover:text-accent-foreground",
+                  esSinAsignar && "border-teal-500/55 bg-teal-950/40",
                 )}
               >
                 <Checkbox
@@ -232,7 +233,7 @@ export function SelectorAsignacionBusqueda({
             )}
 
             {(mostrarTodos || mostrarSinAsignar) && opcionesFiltradas.length > 0 && (
-              <div className="my-1 border-t border-border/60" />
+              <div className="my-1 border-t border-muted-foreground/30" />
             )}
 
             {opcionesLimpias.length === 0 && !q ? (
@@ -250,9 +251,9 @@ export function SelectorAsignacionBusqueda({
                   <label
                     key={o.valor}
                     className={cn(
-                      "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs",
-                      "hover:bg-accent hover:text-accent-foreground",
-                      marcado && "bg-accent/40",
+                      "flex cursor-pointer items-center gap-2 rounded-md border-2 border-muted-foreground/35 bg-muted/50 px-2.5 py-2 text-xs shadow-sm shadow-black/20",
+                      "hover:border-teal-500/45 hover:bg-accent hover:text-accent-foreground",
+                      marcado && "border-teal-500/55 bg-teal-950/40",
                     )}
                   >
                     <Checkbox
