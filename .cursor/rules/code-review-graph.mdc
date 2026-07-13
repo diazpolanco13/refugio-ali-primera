@@ -47,10 +47,12 @@ literal de un archivo concreto que ya localizaste).
 1. **Grafo primero** — tools MCP antes de grep/lectura exploratoria.
 2. Contexto de negocio: `CLAUDE.md`. Guía del grafo: `GRAPH_REPORT.md`.
    Código y comentarios **en español**.
-3. Al cerrar: `detect_changes_tool` y menciona funciones sin test antes de
+3. **Caveman ON (full)** — respuestas concisas; ver `.cursor/rules/caveman.mdc`
+   y `CURSOR.md`. Off solo si el usuario pide modo normal.
+4. Al cerrar: `detect_changes_tool` y menciona funciones sin test antes de
    proponer commit. No “arregles” `.git/hooks/pre-commit` (es no-op a
    propósito; el grafo se actualiza vía post-commit).
-4. No toques funciones `SECURITY DEFINER` sin releer el gotcha de
+5. No toques funciones `SECURITY DEFINER` sin releer el gotcha de
    `CREATE OR REPLACE` en `CLAUDE.md`.
 
 ## Contexto del proyecto

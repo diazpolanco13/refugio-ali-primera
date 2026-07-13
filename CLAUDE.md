@@ -1003,6 +1003,24 @@ docker compose up -d --build
 - Supabase: `list_tables` (verbose) y `get_advisors` (security) vía MCP para
   confirmar esquema y RLS.
 
+## Caveman (respuestas concisas) — agregado 13-jul-2026
+
+**Default ON, nivel `full`.** Skill oficial [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman)
+en `.agents/skills/caveman/` (+ commit/review/stats/compress/help/cavecrew).
+Regla always-on Cursor: `.cursor/rules/caveman.mdc`. Guía Cursor: **`CURSOR.md`**.
+
+- Respuestas al usuario: estilo caveman (sin relleno), **en español**. Código,
+  commits, PRs y errores: prosa/normal byte-exacta.
+- Off: `stop caveman` / `normal mode` / `modo normal`. Nivel: `/caveman lite|full|ultra`.
+- Claude Code: plugin `caveman@caveman` (hooks SessionStart del plugin).
+- Cursor: el hook `sessionStart` (`.cursor/hooks/tarea-rapida-start.sh`) escribe
+  `~/.claude/.caveman-active` = `full` e inyecta recordatorio en
+  `additional_context` (si Cursor no lo entrega por race, manda la regla `.mdc`).
+- **No** correr `/caveman-compress` sobre este `CLAUDE.md` (traspaso largo a propósito).
+
+Verificación: `ls .agents/skills/caveman/SKILL.md`, `claude plugin list | grep caveman`,
+`cat ~/.claude/.caveman-active`.
+
 ## Grafo de código (code-review-graph) — agregado 13-jul-2026
 
 El repo tiene un **grafo de conocimiento del código** (`code-review-graph`
