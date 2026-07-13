@@ -137,7 +137,7 @@ export function puedeVerLogs(rol: Rol): boolean {
   return permisosDeRol(rol).puedeVerLogs;
 }
 
-/** Vista interna /centros/censo-rapido (resumen agregado del censo en terreno). */
+/** Vista interna /centros/censo (resumen agregado del censo nominal en red). */
 export function puedeVerCensoRapidoRed(rol: Rol): boolean {
   return (
     rol === "admin" ||
@@ -196,6 +196,20 @@ export function puedeVerCensoCentro(usuario: Usuario, centroId: string): boolean
 export function puedeEditarCensoCentro(usuario: Usuario, centroId: string): boolean {
   if (puedeEditarCensoRapidoRed(usuario.rol)) return true;
   return usuario.rol === "supervisor" && puedeEditarCentro(usuario, centroId);
+}
+
+/**
+ * Densidad de columnas del listado nominal en reportes (más amplio que el
+ * censador terreno). Admin / analista SAE / autoridad ven demografía y PII
+ * de contacto; supervisor y censo_rapido ven el set operativo.
+ */
+export type NivelColumnasCensoNominal = "amplio" | "operativo";
+
+export function nivelColumnasCensoNominal(rol: Rol): NivelColumnasCensoNominal {
+  if (rol === "admin" || rol === "analista_sae" || rol === "autoridad") {
+    return "amplio";
+  }
+  return "operativo";
 }
 
 /**
@@ -290,7 +304,7 @@ export function rutaPermitidaParaRol(pathname: string, rol: Rol): boolean {
     return (
       pathname === "/" ||
       pathname === "/centros/mapa" ||
-      pathname.startsWith("/centros/censo-rapido")
+      pathname.startsWith("/centros/censo")
     );
   }
   if (esRolTerreno(rol)) {

@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Check, CheckCircle2, ClipboardCheck, Loader2 } from "lucide-react";
+import { Check, CheckCircle2, ClipboardCheck, Loader2, Undo2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -132,7 +132,7 @@ export function BloqueConfirmacionReporte({
       <div className={cn("flex flex-wrap gap-2", confirmacionBloqueada && mensajeConfirmacionBloqueada ? "mt-2" : "mt-3")}>
         <Button
           type="button"
-          className="min-h-10 bg-teal-600 font-semibold text-white hover:bg-teal-500"
+          className="min-h-10 bg-teal-600 font-semibold text-white shadow-sm hover:bg-teal-500"
           disabled={botonDeshabilitado}
           onClick={onConfirmar}
         >
@@ -140,7 +140,14 @@ export function BloqueConfirmacionReporte({
           {textoBoton}
         </Button>
         {revisado && !modificado && onDesmarcar && (
-          <Button type="button" variant="outline" disabled={botonDeshabilitado} onClick={onDesmarcar}>
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-10"
+            disabled={botonDeshabilitado}
+            onClick={onDesmarcar}
+          >
+            <Undo2 className="size-4" />
             Desmarcar revisión
           </Button>
         )}

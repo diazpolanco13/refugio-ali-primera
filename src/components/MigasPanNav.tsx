@@ -100,7 +100,9 @@ export function MigasPanNav() {
 
   const matchCentro = matchPath("/centro/:id", pathname);
   const matchReportesCentro = matchPath("/centros/reportes/:centroId", pathname);
-  const matchCensoCentro = matchPath("/centros/censo-rapido/:centroId", pathname);
+  const matchCensoCentro =
+    matchPath("/centros/censo/:centroId", pathname) ??
+    matchPath("/centros/censo-rapido/:centroId", pathname);
   const centroId =
     matchCentro?.params.id ??
     matchReportesCentro?.params.centroId ??

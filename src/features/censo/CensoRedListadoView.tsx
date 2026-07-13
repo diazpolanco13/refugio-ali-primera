@@ -1,40 +1,51 @@
-// Vista interna: listado general de damnificados del censo rápido (toda la red).
+// Listado general del censo nominal (toda la red). Realtime vía useRefugiadosRed.
 
-import { useCallback, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Baby,
+  FileSpreadsheet,
   FilterX,
   Heart,
   Loader2,
-  RefreshCw,
+  Radio,
   Search,
   ShieldCheck,
   Users,
 } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
-import { obtenerListadoCensoRedFiltrado } from "@/data/reposCenso";
-import { useCensoRedListado } from "@/data/useCensoRedListado";
-import { useCensoRedResumen } from "@/data/useCensoRedResumen";
-import { eliminarCenso, type RegistroCensoGuardado } from "@/data/reposCenso";
-import { puedeEditarCensoRapidoRed, puedeVerCensoRapidoRed } from "@/domain/permisos";
-import { BotonExportarCensoRed } from "@/features/censo/BotonExportarCensoRed";
-import { CensoEditarRegistroSheet } from "@/features/censo/CensoEditarRegistroSheet";
-import { CensoRedTabs } from "@/features/censo/CensoRedTabs";
-import { CensoRegistrosTabla } from "@/features/censo/CensoRegistrosTabla";
-import { type OrdenRegistrosCenso } from "@/features/censo/censoRegistrosUtil";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  esUsernameOperadorTerreno,
+  useEtiquetaPerfil,
+} from "@/data/useEtiquetaPerfil";
+import { desenvolver, type FilaSync } from "@/data/desenvolver";
+import { useRefugiadosRed } from "@/data/useRefugiadosRed";
+import { useSupabaseQuery } from "@/data/useSupabaseQuery";
+import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import {
+  puedeVerCensoRapidoRed,
+  puedeVerPoblacionRed,
+} from "@/domain/permisos";
+import {
+  calcularEdad,
+  formatearCedula,
+  grupoEtarioRefugiado,
+  META_ESTADO_ALOJAMIENTO,
+  nombreCompleto,
+  type AlojamientoEnriquecido,
+} from "@/domain/refugiados";
+import { exportarCensoNominalExcel } from "@/features/censo/exportarCensoNominal";
+import { CensoRedTabs } from "@/features/censo/CensoRedTabs";
+import { CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PaginadorTabla } from "@/components/ui/pagination";
 import {
@@ -44,18 +55,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { VistaPagina } from "@/components/VistaPagina";
 import { cn } from "@/lib/utils";
-import { CENSO_BOTON_ACCION, CENSO_BOTON_SECUNDARIO, CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
 
 type FiltroSexo = "todos" | "M" | "F";
+type FiltroPerfil =
+  | "todos"
+  | "embarazada"
+  | "discapacidad"
+  | "adulto_mayor"
+  | "enfermedad";
+type OrdenLista = "reciente" | "nombre" | "campamento" | "edad";
 
-const OPCIONES_ORDEN: { valor: OrdenRegistrosCenso; label: string }[] = [
-  { valor: "reciente", label: "Más recientes" },
-  { valor: "nombre", label: "Nombre A → Z" },
-  { valor: "campamento", label: "Campamento" },
-  { valor: "edad", label: "Mayor edad" },
-];
+const FILAS_POR_PAGINA = 50;
 
 function KpiPersona({
   valor,
@@ -80,7 +100,9 @@ function KpiPersona({
           <Icono className="size-4" />
         </div>
         <div className="min-w-0">
-          <p className="text-lg font-bold tabular-nums leading-none">{valor.toLocaleString("es")}</p>
+          <p className="text-lg font-bold tabular-nums leading-none">
+            {valor.toLocaleString("es")}
+          </p>
           <p className="mt-0.5 text-[11px] text-muted-foreground">{etiqueta}</p>
         </div>
       </CardContent>
@@ -88,117 +110,275 @@ function KpiPersona({
   );
 }
 
+function SiNo({ valor }: { valor: boolean }) {
+  if (!valor) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  return (
+    <Badge
+      variant="outline"
+      className="border-amber-500/40 text-[10px] text-amber-400"
+    >
+      Sí
+    </Badge>
+  );
+}
+
+function formatearFechaHora(ts: number): string {
+  if (!ts) return "—";
+  return new Date(ts).toLocaleString("es-VE", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function CeldaRegistradoPor({
+  username,
+  creadaTs,
+}: {
+  username: string;
+  creadaTs: number;
+}) {
+  const quien = username.trim();
+  const etiqueta = useEtiquetaPerfil(quien || null);
+  const fechaHora = formatearFechaHora(creadaTs);
+  if (!quien && fechaHora === "—") {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  const esTerreno = quien ? esUsernameOperadorTerreno(quien) : false;
+  const muestraNombre = esTerreno && etiqueta && etiqueta !== quien;
+  return (
+    <div className="min-w-[9rem] max-w-[16rem] space-y-0.5">
+      {quien ? (
+        muestraNombre ? (
+          <p className="text-sm leading-snug break-words">{etiqueta}</p>
+        ) : (
+          <p className="font-mono text-xs leading-snug break-words text-muted-foreground">
+            {quien}
+          </p>
+        )
+      ) : (
+        <span className="text-xs text-muted-foreground">—</span>
+      )}
+      {fechaHora !== "—" ? (
+        <p className="text-[10px] tabular-nums text-muted-foreground/80">
+          {fechaHora}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
+  const navigate = useNavigate();
   const tieneAcceso = puedeVerCensoRapidoRed(sesion.user.rol);
-  const puedeEditar = puedeEditarCensoRapidoRed(sesion.user.rol);
-  const { resumenes, cargando: cargandoResumen } = useCensoRedResumen();
+  const veFichaRed = puedeVerPoblacionRed(sesion.user.rol);
+
+  const { alojamientos, cargando } = useRefugiadosRed();
+  type CentroFila = CentroTransitorio & { deleted: boolean };
+  const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(
+    "centros",
+    {
+      transform: desenvolver as (raw: FilaSync<CentroTransitorio>) => CentroFila,
+      clientFilter: (c) => !c.deleted,
+    },
+  );
+  const nombresCentros = useMemo(
+    () => new Map(filasCentros.map((c) => [c.id, c.nombre || c.id])),
+    [filasCentros],
+  );
+
   const [busqueda, setBusqueda] = useState("");
   const [centroId, setCentroId] = useState("todos");
   const [sexo, setSexo] = useState<FiltroSexo>("todos");
-  const [orden, setOrden] = useState<OrdenRegistrosCenso>("reciente");
-  const {
-    registros,
-    total,
-    pagina,
-    setPagina,
-    totalPaginas,
-    filasPorPagina,
-    cargando,
-    error,
-    refrescar,
-    filtrosApi,
-  } = useCensoRedListado({ busqueda, centroId, sexo, orden });
-  const [editando, setEditando] = useState<RegistroCensoGuardado | null>(null);
-  const [eliminarTarget, setEliminarTarget] = useState<RegistroCensoGuardado | null>(null);
-  const [eliminando, setEliminando] = useState(false);
-  const [errorEliminar, setErrorEliminar] = useState("");
+  const [perfil, setPerfil] = useState<FiltroPerfil>("todos");
+  const [orden, setOrden] = useState<OrdenLista>("reciente");
+  const [pagina, setPagina] = useState(0);
+  const [exportando, setExportando] = useState(false);
 
-  const campamentos = useMemo(
-    () =>
-      resumenes
-        .filter((r) => r.totalRegistrados > 0)
-        .map((r) => ({ id: r.centroId, nombre: r.centroNombre }))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
-    [resumenes],
-  );
+  const campamentos = useMemo(() => {
+    const ids = new Set(alojamientos.map((a) => a.centro_id));
+    return [...ids]
+      .map((id) => ({ id, nombre: nombresCentros.get(id) ?? id }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  }, [alojamientos, nombresCentros]);
+
+  const filtrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    const qDigits = q.replace(/\D/g, "");
+    let lista = [...alojamientos];
+
+    lista = lista.filter((a) => {
+      if (centroId !== "todos" && a.centro_id !== centroId) return false;
+      if (sexo !== "todos" && a.refugiado.sexo !== sexo) return false;
+      if (perfil === "embarazada" && !a.refugiado.vulnerabilidades?.embarazada) {
+        return false;
+      }
+      if (
+        perfil === "discapacidad" &&
+        !a.refugiado.vulnerabilidades?.discapacidad
+      ) {
+        return false;
+      }
+      if (
+        perfil === "adulto_mayor" &&
+        grupoEtarioRefugiado(a.refugiado.fecha_nacimiento) !== "adulto_mayor"
+      ) {
+        return false;
+      }
+      if (perfil === "enfermedad") {
+        const s = a.refugiado.salud;
+        const tiene =
+          Boolean(s?.condiciones_cronicas?.trim()) ||
+          Boolean(s?.lesiones?.trim()) ||
+          Boolean(s?.medicamentos_urgente);
+        if (!tiene) return false;
+      }
+      if (!q) return true;
+      const nom = nombreCompleto(a.refugiado).toLowerCase();
+      const ced = (
+        a.refugiado.cedula_norm ??
+        a.refugiado.cedula ??
+        ""
+      ).toLowerCase();
+      const camp = (nombresCentros.get(a.centro_id) ?? "").toLowerCase();
+      const tel = (a.refugiado.contacto?.telefono_principal ?? "").toLowerCase();
+      if (nom.includes(q) || camp.includes(q) || tel.includes(q)) return true;
+      if (qDigits && ced.replace(/\D/g, "").includes(qDigits)) return true;
+      return ced.includes(q);
+    });
+
+    lista.sort((a, b) => {
+      switch (orden) {
+        case "nombre":
+          return nombreCompleto(a.refugiado).localeCompare(
+            nombreCompleto(b.refugiado),
+            "es",
+          );
+        case "campamento":
+          return (nombresCentros.get(a.centro_id) ?? "").localeCompare(
+            nombresCentros.get(b.centro_id) ?? "",
+            "es",
+          );
+        case "edad": {
+          const ea = calcularEdad(a.refugiado.fecha_nacimiento) ?? -1;
+          const eb = calcularEdad(b.refugiado.fecha_nacimiento) ?? -1;
+          return eb - ea;
+        }
+        case "reciente":
+        default:
+          return (b.creada_ts || 0) - (a.creada_ts || 0);
+      }
+    });
+
+    return lista;
+  }, [alojamientos, busqueda, centroId, nombresCentros, orden, perfil, sexo]);
+
+  useEffect(() => {
+    setPagina(0);
+  }, [busqueda, centroId, sexo, perfil, orden]);
 
   const kpis = useMemo(() => {
-    const totalRed = resumenes.reduce((acc, r) => acc + r.totalRegistrados, 0);
-    const hombres = resumenes.reduce((acc, r) => acc + r.hombres, 0);
-    const mujeres = resumenes.reduce((acc, r) => acc + r.mujeres, 0);
-    const menores = resumenes.reduce(
-      (acc, r) =>
-        acc +
-        r.recienNacidosH +
-        r.recienNacidosM +
-        r.ninos +
-        r.ninas +
-        r.adolescentesH +
-        r.adolescentesM,
-      0,
-    );
-    const campamentosActivos = resumenes.filter((r) => r.totalRegistrados > 0).length;
-    const embarazadas = resumenes.reduce((acc, r) => acc + r.embarazadas, 0);
-    const discapacidad = resumenes.reduce((acc, r) => acc + r.discapacidad, 0);
-    const enfermedad = resumenes.reduce((acc, r) => acc + r.enfermedad, 0);
+    let hombres = 0;
+    let mujeres = 0;
+    let menores = 0;
+    let embarazadas = 0;
+    let discapacidad = 0;
+    let adultosMayores = 0;
+    const centros = new Set<string>();
+    for (const a of alojamientos) {
+      centros.add(a.centro_id);
+      if (a.refugiado.sexo === "M") hombres++;
+      if (a.refugiado.sexo === "F") mujeres++;
+      const g = grupoEtarioRefugiado(a.refugiado.fecha_nacimiento);
+      if (g === "menor5" || g === "ninez" || g === "adolescente") menores++;
+      if (g === "adulto_mayor") adultosMayores++;
+      if (a.refugiado.vulnerabilidades?.embarazada) embarazadas++;
+      if (a.refugiado.vulnerabilidades?.discapacidad) discapacidad++;
+    }
     return {
-      total: totalRed,
+      total: alojamientos.length,
+      campamentos: centros.size,
       hombres,
       mujeres,
       menores,
-      campamentosActivos,
-      embarazadas,
-      discapacidad,
-      enfermedad,
+      adultosMayores,
+      especiales: embarazadas + discapacidad,
     };
-  }, [resumenes]);
+  }, [alojamientos]);
+
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(filtrados.length / FILAS_POR_PAGINA),
+  );
+  const paginaSegura = Math.min(pagina, totalPaginas - 1);
+  const paginaFilas = useMemo(() => {
+    const inicio = paginaSegura * FILAS_POR_PAGINA;
+    return filtrados.slice(inicio, inicio + FILAS_POR_PAGINA);
+  }, [filtrados, paginaSegura]);
 
   const hayFiltros =
-    busqueda.trim() !== "" || centroId !== "todos" || sexo !== "todos" || orden !== "reciente";
+    busqueda.trim() !== "" ||
+    centroId !== "todos" ||
+    sexo !== "todos" ||
+    perfil !== "todos" ||
+    orden !== "reciente";
 
-  const numeroInicial =
-    orden === "reciente" ? total - pagina * filasPorPagina : pagina * filasPorPagina + 1;
-
-  const obtenerFilasExportacion = useCallback(
-    (onProgreso?: (cargados: number, total: number) => void) =>
-      obtenerListadoCensoRedFiltrado(filtrosApi, onProgreso),
-    [filtrosApi],
-  );
-
-  async function confirmarEliminar() {
-    if (!eliminarTarget) return;
-    setEliminando(true);
-    setErrorEliminar("");
+  async function exportar() {
+    if (filtrados.length === 0 || exportando) return;
+    setExportando(true);
     try {
-      await eliminarCenso(eliminarTarget.id);
-      setEliminarTarget(null);
-      await refrescar();
+      await exportarCensoNominalExcel(filtrados, "red", {
+        nombresCentros,
+      });
     } catch (err) {
-      setErrorEliminar(err instanceof Error ? err.message : "No se pudo eliminar el registro");
+      alert(err instanceof Error ? err.message : "No se pudo exportar");
     } finally {
-      setEliminando(false);
+      setExportando(false);
     }
+  }
+
+  function abrirFila(a: AlojamientoEnriquecido) {
+    if (veFichaRed) {
+      navigate(`/centros/refugiados/${a.id}`);
+      return;
+    }
+    navigate(`/centros/censo/${a.centro_id}`);
   }
 
   return (
     <VistaPagina
       icono={Users}
       acento="teal"
-      titulo="Censo rápido (red)"
-      descripcion="Listado general de damnificados registrados en terreno"
+      titulo="Censo (red)"
+      descripcion="Listado general del censo nominal — damnificados activos en la red"
       cuerpoClassName="p-4 lg:p-6"
       acciones={
         tieneAcceso ? (
           <div className="flex items-center gap-2">
-            <BotonExportarCensoRed
-              obtenerFilas={obtenerFilasExportacion}
-              totalEsperado={total}
-              deshabilitado={cargando || total === 0}
-            />
-            <Button size="sm" variant="outline" onClick={() => void refrescar()} disabled={cargando}>
-              <RefreshCw className={cn("size-4", cargando && "animate-spin")} />
-              Actualizar
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 gap-1.5 border border-border shadow-sm"
+              disabled={cargando || filtrados.length === 0 || exportando}
+              onClick={() => void exportar()}
+            >
+              {exportando ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="size-4" />
+              )}
+              {exportando ? "Exportando…" : "Descargar Excel"}
             </Button>
+            <Badge
+              variant="outline"
+              className="h-8 gap-1.5 border-emerald-500/40 bg-emerald-500/10 px-2.5 text-[11px] text-emerald-700 dark:text-emerald-300"
+            >
+              <Radio className="size-3.5" />
+              En vivo
+            </Badge>
           </div>
         ) : undefined
       }
@@ -206,10 +386,12 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
       {!tieneAcceso ? (
         <div className="mx-auto mt-6 max-w-md rounded-xl border border-border bg-background/70 p-6 text-center">
           <ShieldCheck className="mx-auto mb-3 size-8 text-muted-foreground" />
-          <p className="text-sm font-medium text-foreground">Acceso restringido</p>
+          <p className="text-sm font-medium text-foreground">
+            Acceso restringido
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Solo el administrador, el analista SAE y la autoridad pueden consultar el censo de la
-            red.
+            Solo el administrador, el analista SAE y la autoridad pueden
+            consultar el censo de la red.
           </p>
         </div>
       ) : (
@@ -217,18 +399,22 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
           <CensoRedTabs />
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <KpiPersona valor={kpis.total} etiqueta="Total censados" icono={Users} />
             <KpiPersona
-              valor={kpis.total}
-              etiqueta="Total registrados"
+              valor={kpis.campamentos}
+              etiqueta="Campamentos"
               icono={Users}
             />
-            <KpiPersona valor={kpis.campamentosActivos} etiqueta="Campamentos" icono={Users} />
             <KpiPersona valor={kpis.hombres} etiqueta="Hombres" icono={Users} />
             <KpiPersona valor={kpis.mujeres} etiqueta="Mujeres" icono={Users} />
-            <KpiPersona valor={kpis.menores} etiqueta="Menores de 18" icono={Baby} />
             <KpiPersona
-              valor={kpis.embarazadas + kpis.discapacidad + kpis.enfermedad}
-              etiqueta="Cond. especiales"
+              valor={kpis.menores}
+              etiqueta="Menores de 18"
+              icono={Baby}
+            />
+            <KpiPersona
+              valor={kpis.especiales}
+              etiqueta="Emb. + discapacidad"
               icono={Heart}
               clase="bg-amber-500/10 text-amber-600 dark:text-amber-300"
             />
@@ -246,7 +432,10 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
             </div>
 
             <Select value={centroId} onValueChange={setCentroId}>
-              <SelectTrigger size="sm" className={cn(CENSO_SELECT_TRIGGER, "h-8 w-48 max-w-full")}>
+              <SelectTrigger
+                size="sm"
+                className={cn(CENSO_SELECT_TRIGGER, "h-8 w-48 max-w-full")}
+              >
                 <SelectValue placeholder="Campamento" />
               </SelectTrigger>
               <SelectContent>
@@ -259,8 +448,14 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
               </SelectContent>
             </Select>
 
-            <Select value={sexo} onValueChange={(v) => setSexo(v as FiltroSexo)}>
-              <SelectTrigger size="sm" className={cn(CENSO_SELECT_TRIGGER, "h-8 w-32")}>
+            <Select
+              value={sexo}
+              onValueChange={(v) => setSexo(v as FiltroSexo)}
+            >
+              <SelectTrigger
+                size="sm"
+                className={cn(CENSO_SELECT_TRIGGER, "h-8 w-32")}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -270,88 +465,208 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
               </SelectContent>
             </Select>
 
-            <Select value={orden} onValueChange={(v) => setOrden(v as OrdenRegistrosCenso)}>
-              <SelectTrigger size="sm" className={cn(CENSO_SELECT_TRIGGER, "h-8 w-40")}>
+            <Select
+              value={perfil}
+              onValueChange={(v) => setPerfil(v as FiltroPerfil)}
+            >
+              <SelectTrigger
+                size="sm"
+                className={cn(CENSO_SELECT_TRIGGER, "h-8 w-40")}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {OPCIONES_ORDEN.map((o) => (
-                  <SelectItem key={o.valor} value={o.valor}>
-                    {o.label}
-                  </SelectItem>
-                ))}
+                <SelectItem value="todos">Todo perfil</SelectItem>
+                <SelectItem value="embarazada">Embarazadas</SelectItem>
+                <SelectItem value="discapacidad">Discapacidad</SelectItem>
+                <SelectItem value="adulto_mayor">Adultos 60+</SelectItem>
+                <SelectItem value="enfermedad">Enfermedad</SelectItem>
               </SelectContent>
             </Select>
 
-            {hayFiltros && (
+            <Select
+              value={orden}
+              onValueChange={(v) => setOrden(v as OrdenLista)}
+            >
+              <SelectTrigger
+                size="sm"
+                className={cn(CENSO_SELECT_TRIGGER, "h-8 w-40")}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="reciente">Más recientes</SelectItem>
+                <SelectItem value="nombre">Nombre A → Z</SelectItem>
+                <SelectItem value="campamento">Campamento</SelectItem>
+                <SelectItem value="edad">Mayor edad</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {hayFiltros ? (
               <Button
                 size="sm"
-                variant="ghost"
-                className="h-8 gap-1.5 text-xs text-muted-foreground"
+                variant="outline"
+                className="h-8 gap-1.5 border border-border text-xs"
                 onClick={() => {
                   setBusqueda("");
                   setCentroId("todos");
                   setSexo("todos");
+                  setPerfil("todos");
                   setOrden("reciente");
                 }}
               >
                 <FilterX className="size-3.5" />
                 Limpiar
               </Button>
-            )}
+            ) : null}
 
             <Badge variant="outline" className="ml-auto tabular-nums">
-              {total.toLocaleString("es")} persona{total === 1 ? "" : "s"}
+              {filtrados.length.toLocaleString("es")} persona
+              {filtrados.length === 1 ? "" : "s"}
               {hayFiltros ? " (filtradas)" : ""}
             </Badge>
           </div>
 
-          {error && (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {error}
-            </div>
-          )}
-
           <Card className="border-teal-500/15">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Damnificados registrados</CardTitle>
+              <CardTitle className="text-base">Censo nominal</CardTitle>
               <CardDescription>
-                {cargando || cargandoResumen
+                {cargando && alojamientos.length === 0
                   ? "Cargando…"
-                  : `${kpis.total.toLocaleString("es")} registro${kpis.total === 1 ? "" : "s"} en la red`}
+                  : `${kpis.total.toLocaleString("es")} activo${kpis.total === 1 ? "" : "s"} · ${FILAS_POR_PAGINA} por página`}
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
-              {cargando && registros.length === 0 ? (
+            <CardContent className="space-y-3 p-4 pt-0">
+              {cargando && alojamientos.length === 0 ? (
                 <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin text-primary" />
                   Cargando listado…
                 </div>
-              ) : total === 0 && !cargando ? (
+              ) : filtrados.length === 0 ? (
                 <p className="py-12 text-center text-sm text-muted-foreground">
                   {hayFiltros
                     ? "Ninguna persona coincide con los filtros seleccionados."
-                    : "Aún no hay damnificados registrados en el censo rápido."}
+                    : "Aún no hay personas en el censo nominal."}
                 </p>
               ) : (
                 <>
-                  <CensoRegistrosTabla
-                    filas={registros}
-                    mostrarCentro
-                    numeroInicial={numeroInicial}
-                    numeracionDescendente={orden === "reciente"}
-                    puedeEditar={puedeEditar}
-                    onEditar={setEditando}
-                    onEliminar={(f) => {
-                      setErrorEliminar("");
-                      setEliminarTarget(f);
-                    }}
-                  />
                   <PaginadorTabla
-                    pagina={pagina}
+                    pagina={paginaSegura}
                     totalPaginas={totalPaginas}
-                    totalFilas={total}
-                    filasPorPagina={filasPorPagina}
+                    totalFilas={filtrados.length}
+                    filasPorPagina={FILAS_POR_PAGINA}
+                    cargando={cargando}
+                    onPagina={setPagina}
+                    className="border-t-0 pt-0"
+                  />
+                  <div className="max-h-[min(55vh,28rem)] overflow-auto rounded-md border">
+                    <Table containerClassName="overflow-visible">
+                      <TableHeader className="sticky top-0 z-10 bg-card">
+                        <TableRow>
+                          <TableHead className="w-12 text-center">#</TableHead>
+                          <TableHead>Persona</TableHead>
+                          <TableHead>Documento</TableHead>
+                          <TableHead>Edad</TableHead>
+                          <TableHead>Sexo</TableHead>
+                          <TableHead>Emb.</TableHead>
+                          <TableHead>Disc.</TableHead>
+                          <TableHead>Campamento</TableHead>
+                          <TableHead>Teléfono</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead>Registrado por</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginaFilas.map((a, i) => {
+                          const edad = calcularEdad(a.refugiado.fecha_nacimiento);
+                          const meta = META_ESTADO_ALOJAMIENTO[a.estado];
+                          const numero =
+                            paginaSegura * FILAS_POR_PAGINA + i + 1;
+                          return (
+                            <TableRow
+                              key={a.id}
+                              className="cursor-pointer hover:bg-muted/40"
+                              onClick={() => abrirFila(a)}
+                            >
+                              <TableCell className="text-center tabular-nums text-muted-foreground">
+                                {numero}
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                {nombreCompleto(a.refugiado)}
+                                {a.es_jefe_familia ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="ml-1.5 text-[9px]"
+                                  >
+                                    Jefe
+                                  </Badge>
+                                ) : null}
+                              </TableCell>
+                              <TableCell className="font-mono text-xs text-muted-foreground">
+                                {formatearCedula(
+                                  a.refugiado.cedula ||
+                                    a.refugiado.cedula_norm,
+                                  a.refugiado.tipo_doc,
+                                )}
+                              </TableCell>
+                              <TableCell className="tabular-nums text-sm">
+                                {edad == null ? "—" : edad}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {a.refugiado.sexo ?? "—"}
+                              </TableCell>
+                              <TableCell>
+                                <SiNo
+                                  valor={Boolean(
+                                    a.refugiado.vulnerabilidades?.embarazada,
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <SiNo
+                                  valor={Boolean(
+                                    a.refugiado.vulnerabilidades?.discapacidad,
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell className="max-w-[12rem] truncate text-sm">
+                                {nombresCentros.get(a.centro_id) ?? a.centro_id}
+                              </TableCell>
+                              <TableCell className="font-mono text-xs text-muted-foreground">
+                                {a.refugiado.contacto?.telefono_principal?.trim() ||
+                                  "—"}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px]"
+                                  style={{
+                                    borderColor: meta.color,
+                                    color: meta.color,
+                                  }}
+                                >
+                                  {meta.label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <CeldaRegistradoPor
+                                  username={
+                                    (a.creada_por || a.updated_by || "").trim()
+                                  }
+                                  creadaTs={a.creada_ts}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <PaginadorTabla
+                    pagina={paginaSegura}
+                    totalPaginas={totalPaginas}
+                    totalFilas={filtrados.length}
+                    filasPorPagina={FILAS_POR_PAGINA}
                     cargando={cargando}
                     onPagina={setPagina}
                   />
@@ -359,67 +674,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
               )}
             </CardContent>
           </Card>
-
-          <CensoEditarRegistroSheet
-            fila={editando}
-            onOpenChange={(open) => {
-              if (!open) setEditando(null);
-            }}
-            onGuardado={() => void refrescar()}
-          />
-
-          <AlertDialog
-            open={eliminarTarget != null}
-            onOpenChange={(abierto) => {
-              if (!abierto) {
-                setEliminarTarget(null);
-                setErrorEliminar("");
-              }
-            }}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Eliminar este registro?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {eliminarTarget
-                    ? `Se borrará permanentemente a ${[
-                        eliminarTarget.primer_nombre,
-                        eliminarTarget.primer_apellido,
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}. Esta acción no se puede deshacer.`
-                    : ""}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              {errorEliminar && <p className="text-sm text-destructive">{errorEliminar}</p>}
-              <AlertDialogFooter className="gap-2 sm:flex-col sm:space-x-0">
-                <AlertDialogAction
-                  variant="destructive"
-                  className={CENSO_BOTON_ACCION}
-                  disabled={eliminando}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    void confirmarEliminar();
-                  }}
-                >
-                  {eliminando ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Eliminando…
-                    </>
-                  ) : (
-                    "Eliminar"
-                  )}
-                </AlertDialogAction>
-                <AlertDialogCancel
-                  className={CENSO_BOTON_SECUNDARIO}
-                  disabled={eliminando}
-                >
-                  Cancelar
-                </AlertDialogCancel>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       )}
     </VistaPagina>

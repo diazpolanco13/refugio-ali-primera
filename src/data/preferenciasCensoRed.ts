@@ -1,9 +1,13 @@
-import type { EstadoCensoCentro } from "@/domain/censoResumen";
+import type { EstadoCensoNominalRed } from "@/domain/censoNominalRed";
 
-const CLAVE_FILTROS = "refugio-censo-red-filtros";
+const CLAVE_FILTROS = "refugio-censo-red-filtros-v2";
 
-export type FiltroEstadoCensoRed = "todos" | EstadoCensoCentro;
-export type OrdenCensoRed = "nombre" | "registrados" | "actividad" | "discrepancia";
+export type FiltroEstadoCensoRed = "todos" | EstadoCensoNominalRed;
+export type OrdenCensoRed =
+  | "nombre"
+  | "registrados"
+  | "actividad"
+  | "discrepancia";
 
 export interface FiltrosCensoRed {
   busqueda: string;
@@ -23,25 +27,42 @@ function esFiltroEstado(v: string): v is FiltroEstadoCensoRed {
     v === "todos" ||
     v === "sin_iniciar" ||
     v === "en_curso" ||
-    v === "completado_declarado" ||
-    v === "sin_ocupantes"
+    v === "meta_alcanzada" ||
+    v === "discrepancia"
   );
 }
 
+function migrarEstadoLegacy(v: string): FiltroEstadoCensoRed {
+  if (esFiltroEstado(v)) return v;
+  if (v === "completado_declarado") return "meta_alcanzada";
+  if (v === "sin_ocupantes") return "sin_iniciar";
+  return FILTROS_CENSO_RED_DEFAULT.estado;
+}
+
 function esOrden(v: string): v is OrdenCensoRed {
-  return v === "nombre" || v === "registrados" || v === "actividad" || v === "discrepancia";
+  return (
+    v === "nombre" ||
+    v === "registrados" ||
+    v === "actividad" ||
+    v === "discrepancia"
+  );
 }
 
 export function cargarFiltrosCensoRed(): FiltrosCensoRed {
   try {
-    const raw = localStorage.getItem(CLAVE_FILTROS);
+    const raw =
+      localStorage.getItem(CLAVE_FILTROS) ??
+      localStorage.getItem("refugio-censo-red-filtros");
     if (!raw) return { ...FILTROS_CENSO_RED_DEFAULT };
     const parsed = JSON.parse(raw) as Partial<FiltrosCensoRed>;
     return {
-      busqueda: typeof parsed.busqueda === "string" ? parsed.busqueda : FILTROS_CENSO_RED_DEFAULT.busqueda,
+      busqueda:
+        typeof parsed.busqueda === "string"
+          ? parsed.busqueda
+          : FILTROS_CENSO_RED_DEFAULT.busqueda,
       estado:
-        typeof parsed.estado === "string" && esFiltroEstado(parsed.estado)
-          ? parsed.estado
+        typeof parsed.estado === "string"
+          ? migrarEstadoLegacy(parsed.estado)
           : FILTROS_CENSO_RED_DEFAULT.estado,
       orden:
         typeof parsed.orden === "string" && esOrden(parsed.orden)
@@ -61,7 +82,9 @@ export function guardarFiltrosCensoRed(filtros: FiltrosCensoRed): void {
   }
 }
 
-export function filtrosCensoRedDistintosDeDefault(filtros: FiltrosCensoRed): boolean {
+export function filtrosCensoRedDistintosDeDefault(
+  filtros: FiltrosCensoRed,
+): boolean {
   return (
     filtros.busqueda.trim() !== FILTROS_CENSO_RED_DEFAULT.busqueda ||
     filtros.estado !== FILTROS_CENSO_RED_DEFAULT.estado ||

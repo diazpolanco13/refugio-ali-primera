@@ -1,12 +1,13 @@
-// Panel del censo rápido de un campamento: contraste con el parte, calidad,
-// demografía y listado paginado de personas. Se usa en la ficha del centro y en
-// `/centros/censo-rapido/:centroId`.
+// Panel Censo de la ficha del campamento: avance nominal vs parte + listado
+// amplio por rol. El staging (censo_registros) queda en pestaña «Censo anterior».
 
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  BarChart3,
   CheckCircle2,
+  ClipboardList,
   ExternalLink,
+  History,
   Loader2,
   RefreshCw,
   Search,
@@ -14,23 +15,50 @@ import {
   Users,
 } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
+import { desenvolver, type FilaSync } from "@/data/desenvolver";
+import { registrarEgreso } from "@/data/reposRefugiados";
+import { supabase } from "@/data/supabaseClient";
+import { useAlojamientosCentro } from "@/data/useAlojamientosCentro";
 import { useCensoRedListado } from "@/data/useCensoRedListado";
 import { useCensoRedResumen } from "@/data/useCensoRedResumen";
+import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import {
   completarCenso,
   eliminarCenso,
+  listarIdsCensoProcesados,
+  listarRegistrosCenso,
   obtenerListadoCensoRedFiltrado,
   reabrirCenso,
   type RegistroCensoGuardado,
 } from "@/data/reposCenso";
 import { estadoCensoCentro, type EstadoCensoCentro } from "@/domain/censoResumen";
-import type { CentroTransitorio } from "@/domain/centrosTransitorios";
-import { puedeEditarCensoCentro, puedeVerCensoCentro } from "@/domain/permisos";
+import {
+  normalizarCentro,
+  poblacionCentro,
+  type CentroTransitorio,
+} from "@/domain/centrosTransitorios";
+import {
+  nivelColumnasCensoNominal,
+  puedeEditarCensoCentro,
+  puedeVerCensoCentro,
+} from "@/domain/permisos";
+import {
+  alojamientosActivos,
+  contarFamiliasActivas,
+  nombreCompleto,
+  normalizarEstatusVivienda,
+  progresoCensoNominal,
+  type AlojamientoEnriquecido,
+  type EstatusVivienda,
+} from "@/domain/refugiados";
+import { AvanceCensoNominal, type FiltroKpiDemografico } from "@/features/censo/AvanceCensoNominal";
 import { BotonExportarCensoCentro } from "@/features/censo/BotonExportarCensoCentro";
 import { CalidadCensoResumen } from "@/features/censo/CalidadCensoResumen";
 import { CensoEditarRegistroSheet } from "@/features/censo/CensoEditarRegistroSheet";
+import { CensoNominalTablaCentro } from "@/features/censo/CensoNominalTablaCentro";
 import { CensoRegistrosTabla } from "@/features/censo/CensoRegistrosTabla";
 import { ComparacionParteCenso } from "@/features/censo/ComparacionParteCenso";
+import { metricasDemograficasNominal } from "@/features/censo/metricasDemograficasNominal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,9 +89,13 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { CENSO_BOTON_ACCION, CENSO_BOTON_SECUNDARIO, CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
+import {
+  CENSO_BOTON_ACCION,
+  CENSO_BOTON_SECUNDARIO,
+  CENSO_SELECT_TRIGGER,
+} from "@/features/censo/censoFormularioShared";
 
-type TabCensoCentro = "resumen" | "personas";
+type TabCensoCentro = "actual" | "anterior";
 
 /** Estados que el usuario puede elegir en el selector (sin_ocupantes → Completado). */
 type EstadoEditable = "sin_iniciar" | "en_curso" | "completado";
@@ -88,7 +120,9 @@ const META_ESTADO = {
 } as const;
 
 function estadoAEditable(estado: EstadoCensoCentro): EstadoEditable {
-  if (estado === "completado_declarado" || estado === "sin_ocupantes") return "completado";
+  if (estado === "completado_declarado" || estado === "sin_ocupantes") {
+    return "completado";
+  }
   if (estado === "en_curso") return "en_curso";
   return "sin_iniciar";
 }
@@ -110,6 +144,8 @@ interface Props {
   /** Centro completo: aporta el desglose demográfico del parte (revista). */
   centro?: CentroTransitorio | null;
   sesion: Sesion;
+  /** Abre ficha de refugiado (alojamiento id). */
+  onAbrirRefugiado?: (alojamientoId: string) => void;
   /** Acciones extra en la barra superior (p. ej. «Volver» en la ruta dedicada). */
   accionesExtra?: ReactNode;
   /** Si false, no muestra el botón Actualizar (útil cuando el padre ya refresca). */
@@ -119,24 +155,48 @@ interface Props {
 export function CensoCentroPanel({
   centroId,
   centroNombre: centroNombreProp,
-  centro,
+  centro: centroProp,
   sesion,
+  onAbrirRefugiado,
   accionesExtra,
   mostrarActualizar = true,
 }: Props) {
+  const navigate = useNavigate();
   const tieneAcceso = puedeVerCensoCentro(sesion.user, centroId);
   const puedeEditar = puedeEditarCensoCentro(sesion.user, centroId);
+  const nivelColumnas = nivelColumnasCensoNominal(sesion.user.rol);
+
   const { resumenes, cargando: cargandoResumen, refrescar: refrescarResumen } =
     useCensoRedResumen();
-  const [tab, setTab] = useState<TabCensoCentro>("resumen");
-  const [busqueda, setBusqueda] = useState("");
+  const [tab, setTab] = useState<TabCensoCentro>("actual");
+  const [busquedaStaging, setBusquedaStaging] = useState("");
   const [editando, setEditando] = useState<RegistroCensoGuardado | null>(null);
-  const [eliminarTarget, setEliminarTarget] = useState<RegistroCensoGuardado | null>(null);
-  const [eliminando, setEliminando] = useState(false);
-  const [errorEliminar, setErrorEliminar] = useState("");
-  const [pendienteEstado, setPendienteEstado] = useState<EstadoEditable | null>(null);
+  const [eliminarStaging, setEliminarStaging] =
+    useState<RegistroCensoGuardado | null>(null);
+  const [eliminandoStaging, setEliminandoStaging] = useState(false);
+  const [errorEliminarStaging, setErrorEliminarStaging] = useState("");
+  const [pendienteEstado, setPendienteEstado] = useState<EstadoEditable | null>(
+    null,
+  );
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
   const [errorEstado, setErrorEstado] = useState("");
+
+  const [eliminarNominal, setEliminarNominal] =
+    useState<AlojamientoEnriquecido | null>(null);
+  const [eliminandoNominalId, setEliminandoNominalId] = useState<string | null>(
+    null,
+  );
+  const [errorEliminarNominal, setErrorEliminarNominal] = useState<string | null>(
+    null,
+  );
+  const [filtroKpi, setFiltroKpi] = useState<FiltroKpiDemografico>(null);
+  const [estatusPorFamilia, setEstatusPorFamilia] = useState<
+    Map<string, EstatusVivienda>
+  >(new Map());
+
+  const [centroLocal, setCentroLocal] = useState<CentroTransitorio | null>(null);
+  const [censoViejoCount, setCensoViejoCount] = useState(0);
+  const [verificadosViejo, setVerificadosViejo] = useState(0);
 
   const {
     registros,
@@ -151,12 +211,138 @@ export function CensoCentroPanel({
     filtrosApi,
   } = useCensoRedListado(
     {
-      busqueda,
+      busqueda: busquedaStaging,
       centroId,
       sexo: "todos",
       orden: "reciente",
     },
-    { enabled: tab === "personas" },
+    { enabled: tab === "anterior" },
+  );
+
+  const {
+    alojamientos,
+    cargando: cargandoNominal,
+    quitarLocal,
+    refrescar: refrescarNominal,
+  } = useAlojamientosCentro({
+    centroId,
+    estado: "activo",
+  });
+
+  useEffect(() => {
+    let cancelado = false;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("residencias_afectadas")
+        .select("familia_id,estatus_vivienda")
+        .eq("centro_id", centroId);
+      if (cancelado) return;
+      if (error) {
+        console.warn("[CensoCentroPanel] residencias:", error.message);
+        setEstatusPorFamilia(new Map());
+        return;
+      }
+      const map = new Map<string, EstatusVivienda>();
+      for (const row of data ?? []) {
+        const famId = (row as { familia_id?: string }).familia_id;
+        if (!famId) continue;
+        map.set(
+          famId,
+          normalizarEstatusVivienda(
+            (row as { estatus_vivienda?: string }).estatus_vivienda,
+          ),
+        );
+      }
+      setEstatusPorFamilia(map);
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [centroId]);
+
+  useEffect(() => {
+    if (centroProp) {
+      setCentroLocal(normalizarCentro(centroProp));
+      return;
+    }
+    let cancelado = false;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("centros")
+        .select("*")
+        .eq("id", centroId)
+        .eq("deleted", false)
+        .maybeSingle();
+      if (cancelado) return;
+      if (error || !data) {
+        setCentroLocal(null);
+        return;
+      }
+      setCentroLocal(
+        normalizarCentro(
+          desenvolver(data as FilaSync<CentroTransitorio>) as CentroTransitorio,
+        ),
+      );
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [centroId, centroProp]);
+
+  useEffect(() => {
+    let cancelado = false;
+    Promise.all([
+      listarRegistrosCenso(centroId),
+      listarIdsCensoProcesados(centroId),
+    ])
+      .then(([lista, procesados]) => {
+        if (cancelado) return;
+        setCensoViejoCount(lista.length);
+        setVerificadosViejo(
+          lista.filter((f) => procesados.has(f.id)).length,
+        );
+      })
+      .catch((err) => {
+        console.warn("[CensoCentroPanel] censo anterior:", err);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [centroId]);
+
+  const snapshots = useOcupacionesCentros({ centroId });
+  const ultimoSnap = useMemo(() => {
+    if (snapshots.length === 0) return null;
+    return [...snapshots].sort((a, b) => b.dia.localeCompare(a.dia))[0] ?? null;
+  }, [snapshots]);
+
+  const centro = centroLocal;
+  const metaRefugiados = useMemo(() => {
+    const desdeCentro = centro ? poblacionCentro(centro) : 0;
+    const desdeSnap = Math.max(0, ultimoSnap?.total_afectados ?? 0);
+    return Math.max(desdeCentro, desdeSnap);
+  }, [centro, ultimoSnap]);
+
+  const metaFamilias = useMemo(() => {
+    const desdeCentro = centro?.familias_ocupadas ?? 0;
+    const desdeSnap = Math.max(0, ultimoSnap?.familias ?? 0);
+    return Math.max(desdeCentro, desdeSnap);
+  }, [centro, ultimoSnap]);
+
+  const progreso = useMemo(() => {
+    const activos = alojamientosActivos(alojamientos);
+    return progresoCensoNominal(
+      { refugiados: metaRefugiados, familias: metaFamilias },
+      {
+        refugiados: activos.length,
+        familias: contarFamiliasActivas(activos),
+      },
+    );
+  }, [alojamientos, metaFamilias, metaRefugiados]);
+
+  const demografia = useMemo(
+    () => metricasDemograficasNominal(alojamientos, estatusPorFamilia),
+    [alojamientos, estatusPorFamilia],
   );
 
   const resumen = useMemo(
@@ -164,12 +350,17 @@ export function CensoCentroPanel({
     [centroId, resumenes],
   );
 
-  const centroNombre = resumen?.centroNombre ?? centroNombreProp ?? "Campamento";
-  const totalPersonas = resumen?.totalRegistrados ?? total;
+  const centroNombre =
+    centro?.nombre ?? resumen?.centroNombre ?? centroNombreProp ?? "Campamento";
+  const totalPersonasStaging = resumen?.totalRegistrados ?? total;
   const urlPlanilla = `/censo?centro=${encodeURIComponent(centroId)}`;
 
   async function refrescarTodo() {
-    await Promise.all([refrescarResumen(), refrescarListado()]);
+    await Promise.all([
+      refrescarResumen(),
+      refrescarListado(),
+      refrescarNominal(),
+    ]);
   }
 
   const obtenerFilasExportacion = useCallback(
@@ -178,18 +369,52 @@ export function CensoCentroPanel({
     [filtrosApi],
   );
 
-  async function confirmarEliminar() {
-    if (!eliminarTarget) return;
-    setEliminando(true);
-    setErrorEliminar("");
+  function abrirRefugiado(alojamientoId: string) {
+    if (onAbrirRefugiado) {
+      onAbrirRefugiado(alojamientoId);
+      return;
+    }
+    // Ruta dedicada /centros/censo: ficha vía pestaña población del centro
+    // (supervisor no entra a /centros/refugiados).
+    navigate(
+      `/centro/${encodeURIComponent(centroId)}?vista=poblacion&refugiado=${encodeURIComponent(alojamientoId)}`,
+    );
+  }
+
+  async function confirmarEliminarStaging() {
+    if (!eliminarStaging) return;
+    setEliminandoStaging(true);
+    setErrorEliminarStaging("");
     try {
-      await eliminarCenso(eliminarTarget.id);
-      setEliminarTarget(null);
+      await eliminarCenso(eliminarStaging.id);
+      setEliminarStaging(null);
       await refrescarTodo();
     } catch (err) {
-      setErrorEliminar(err instanceof Error ? err.message : "No se pudo eliminar el registro");
+      setErrorEliminarStaging(
+        err instanceof Error ? err.message : "No se pudo eliminar el registro",
+      );
     } finally {
-      setEliminando(false);
+      setEliminandoStaging(false);
+    }
+  }
+
+  async function confirmarEliminarNominal() {
+    if (!eliminarNominal) return;
+    const id = eliminarNominal.id;
+    setErrorEliminarNominal(null);
+    setEliminandoNominalId(id);
+    try {
+      await registrarEgreso(id, { motivo: "Corrección de censo" });
+      quitarLocal(id);
+      setEliminarNominal(null);
+    } catch (err) {
+      setErrorEliminarNominal(
+        err instanceof Error
+          ? err.message
+          : "No se pudo eliminar del censo.",
+      );
+    } finally {
+      setEliminandoNominalId(null);
     }
   }
 
@@ -201,18 +426,22 @@ export function CensoCentroPanel({
       if (pendienteEstado === "completado") {
         await completarCenso(centroId, {
           jerarquia: sesion.user.jerarquia?.trim() || sesion.user.rol,
-          nombre: sesion.user.nombre?.trim() || sesion.user.username || "Usuario interno",
+          nombre:
+            sesion.user.nombre?.trim() ||
+            sesion.user.username ||
+            "Usuario interno",
           institucion: "Sala situacional",
           telefono: sesion.user.whatsapp?.trim() || "",
         });
       } else {
-        // sin_iniciar / en_curso: anula cierre; el estado real lo dan los registros.
         await reabrirCenso(centroId);
       }
       setPendienteEstado(null);
       await refrescarTodo();
     } catch (err) {
-      setErrorEstado(err instanceof Error ? err.message : "No se pudo cambiar el estado");
+      setErrorEstado(
+        err instanceof Error ? err.message : "No se pudo cambiar el estado",
+      );
     } finally {
       setCambiandoEstado(false);
     }
@@ -224,8 +453,8 @@ export function CensoCentroPanel({
         <ShieldCheck className="mx-auto mb-3 size-8 text-muted-foreground" />
         <p className="text-sm font-medium text-foreground">Acceso restringido</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Solo el administrador, el analista SAE, la autoridad y el supervisor de este campamento
-          pueden consultar el censo.
+          Solo el administrador, el analista SAE, la autoridad y el supervisor de
+          este campamento pueden consultar el censo.
         </p>
       </div>
     );
@@ -233,12 +462,15 @@ export function CensoCentroPanel({
 
   const estado = resumen
     ? estadoCensoCentro(resumen)
-    : totalPersonas > 0
+    : totalPersonasStaging > 0
       ? "en_curso"
       : "sin_iniciar";
   const metaEstado = META_ESTADO[estado];
   const estadoEditable = estadoAEditable(estado);
-  const cargandoAlgo = cargandoResumen || (tab === "personas" && cargandoListado);
+  const cargandoAlgo =
+    cargandoResumen ||
+    cargandoNominal ||
+    (tab === "anterior" && cargandoListado);
   const numeroInicial = total - pagina * filasPorPagina;
 
   function solicitarCambioEstado(nuevo: EstadoEditable) {
@@ -250,9 +482,8 @@ export function CensoCentroPanel({
       return;
     }
 
-    // Reabrir desde completado
     if (estadoEditable === "completado") {
-      if (nuevo === "sin_iniciar" && totalPersonas > 0) {
+      if (nuevo === "sin_iniciar" && totalPersonasStaging > 0) {
         setErrorEstado(
           "Hay personas registradas: al reabrir quedará «En curso». Elimine los registros si desea «Sin iniciar».",
         );
@@ -273,7 +504,7 @@ export function CensoCentroPanel({
 
     if (estadoEditable === "en_curso" && nuevo === "sin_iniciar") {
       setErrorEstado(
-        "Para volver a «Sin iniciar» elimine todos los registros en la pestaña Personas.",
+        "Para volver a «Sin iniciar» elimine todos los registros en la pestaña Censo anterior.",
       );
       return;
     }
@@ -281,9 +512,9 @@ export function CensoCentroPanel({
 
   const textoConfirmacionEstado =
     pendienteEstado === "completado"
-      ? totalPersonas === 0
+      ? totalPersonasStaging === 0
         ? `Declarará el censo de ${centroNombre} como completado sin ocupantes (0 personas).`
-        : `Declarará el censo de ${centroNombre} como completado con ${totalPersonas.toLocaleString("es")} persona${totalPersonas === 1 ? "" : "s"} registradas.`
+        : `Declarará el censo de ${centroNombre} como completado con ${totalPersonasStaging.toLocaleString("es")} persona${totalPersonasStaging === 1 ? "" : "s"} registradas.`
       : pendienteEstado === "en_curso"
         ? `Reabrirá el censo de ${centroNombre}. Se anulará el cierre declarado y quedará en curso.`
         : `Reabrirá el censo de ${centroNombre} y lo dejará como sin iniciar (sin cierre declarado).`;
@@ -303,46 +534,15 @@ export function CensoCentroPanel({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          {puedeEditar ? (
-            <Select
-              value={estadoEditable}
-              onValueChange={(v) => solicitarCambioEstado(v as EstadoEditable)}
-              disabled={cambiandoEstado || cargandoResumen}
-            >
-              <SelectTrigger
-                size="sm"
-                className={cn(
-                  CENSO_SELECT_TRIGGER,
-                  "h-8 w-auto min-w-36 gap-1.5 text-[11px]",
-                  metaEstado.clase,
-                )}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sin_iniciar">Sin iniciar</SelectItem>
-                <SelectItem value="en_curso">En curso</SelectItem>
-                <SelectItem value="completado">Completado</SelectItem>
-              </SelectContent>
-            </Select>
-          ) : (
-            <Badge variant="outline" className={cn("text-[10px]", metaEstado.clase)}>
-              {metaEstado.label}
-            </Badge>
-          )}
-          {resumen && (
-            <>
-              <span className="text-xs text-muted-foreground">
-                Último registro: {formatearFecha(resumen.ultimoRegistroEn)}
-              </span>
-              {resumen.cierreEn && (
-                <span className="text-xs text-emerald-700 dark:text-emerald-300">
-                  Cierre: {formatearFecha(resumen.cierreEn)}
-                  {resumen.cierreFuncionario ? ` · ${resumen.cierreFuncionario}` : ""}
-                </span>
-              )}
-            </>
-          )}
+          <Badge variant="outline" className="text-[10px]">
+            Censo nominal
+          </Badge>
+          {progreso.registradosRefugiados > 0 ? (
+            <span className="text-xs text-muted-foreground">
+              {progreso.registradosRefugiados.toLocaleString("es")} censado
+              {progreso.registradosRefugiados === 1 ? "" : "s"}
+            </span>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {accionesExtra}
@@ -352,54 +552,21 @@ export function CensoCentroPanel({
               Ir al censo
             </a>
           </Button>
-          {mostrarActualizar && (
+          {mostrarActualizar ? (
             <Button
               size="sm"
               variant="outline"
               onClick={() => void refrescarTodo()}
               disabled={cargandoAlgo}
             >
-              <RefreshCw className={cn("size-4", cargandoAlgo && "animate-spin")} />
+              <RefreshCw
+                className={cn("size-4", cargandoAlgo && "animate-spin")}
+              />
               Actualizar
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
-
-      {errorEstado && pendienteEstado == null && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          {errorEstado}
-        </div>
-      )}
-
-      {resumen?.cierreEn && (
-        <div
-          className={cn(
-            "flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm",
-            estado === "sin_ocupantes"
-              ? "border-violet-500/40 bg-violet-500/10 text-violet-800 dark:text-violet-300"
-              : "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300",
-          )}
-        >
-          <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-          <div className="min-w-0">
-            <p className="font-medium">
-              {estado === "sin_ocupantes"
-                ? "Censo cerrado sin ocupantes"
-                : "Censo completado declarado"}
-            </p>
-            <p className="text-xs opacity-90">
-              {formatearFecha(resumen.cierreEn)}
-              {estado === "sin_ocupantes"
-                ? " · sin personas damnificadas / en adecuación"
-                : resumen.cierreTotal != null
-                  ? ` · ${resumen.cierreTotal.toLocaleString("es")} persona${resumen.cierreTotal === 1 ? "" : "s"} al cierre`
-                  : ""}
-              {resumen.cierreFuncionario ? ` · ${resumen.cierreFuncionario}` : ""}
-            </p>
-          </div>
-        </div>
-      )}
 
       <Tabs
         value={tab}
@@ -411,32 +578,168 @@ export function CensoCentroPanel({
             variant="line"
             className="!grid h-10 w-full grid-cols-2 gap-0 overflow-hidden rounded-none bg-transparent p-0"
           >
-            <TabsTrigger value="resumen" className={tabTriggerClass}>
-              <BarChart3 className="size-3.5 shrink-0" />
-              <span className="truncate">Resumen</span>
-            </TabsTrigger>
-            <TabsTrigger value="personas" className={tabTriggerClass}>
-              <Users className="size-3.5 shrink-0" />
-              <span className="truncate">Personas</span>
-              {totalPersonas > 0 && (
-                <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[9px] tabular-nums">
-                  {totalPersonas.toLocaleString("es")}
+            <TabsTrigger value="actual" className={tabTriggerClass}>
+              <ClipboardList className="size-3.5 shrink-0" />
+              <span className="truncate">Censo actual</span>
+              {progreso.registradosRefugiados > 0 ? (
+                <Badge
+                  variant="secondary"
+                  className="h-4 min-w-4 px-1 text-[9px] tabular-nums"
+                >
+                  {progreso.registradosRefugiados.toLocaleString("es")}
                 </Badge>
-              )}
+              ) : null}
+            </TabsTrigger>
+            <TabsTrigger value="anterior" className={tabTriggerClass}>
+              <History className="size-3.5 shrink-0" />
+              <span className="truncate">Censo anterior</span>
+              {censoViejoCount > 0 ? (
+                <Badge
+                  variant="secondary"
+                  className="h-4 min-w-4 px-1 text-[9px] tabular-nums"
+                >
+                  {censoViejoCount.toLocaleString("es")}
+                </Badge>
+              ) : null}
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value="resumen" className="mt-4 space-y-4">
+        <TabsContent value="actual" className="mt-4 space-y-4">
+          <AvanceCensoNominal
+            centroNombre={centroNombre}
+            progreso={progreso}
+            censoAnterior={
+              censoViejoCount > 0
+                ? { verificados: verificadosViejo, total: censoViejoCount }
+                : null
+            }
+            demografia={demografia}
+            filtroKpi={filtroKpi}
+            onFiltroKpi={setFiltroKpi}
+          />
+          <CensoNominalTablaCentro
+            alojamientos={alojamientos}
+            cargando={cargandoNominal}
+            centroId={centroId}
+            centroNombre={centroNombre}
+            nivel={nivelColumnas}
+            puedeEditar={puedeEditar}
+            eliminandoId={eliminandoNominalId}
+            estatusPorFamilia={estatusPorFamilia}
+            filtroKpi={filtroKpi}
+            onLimpiarFiltroKpi={() => setFiltroKpi(null)}
+            onAbrirRefugiado={abrirRefugiado}
+            onEliminar={
+              puedeEditar
+                ? (a) => {
+                    setErrorEliminarNominal(null);
+                    setEliminarNominal(a);
+                  }
+                : undefined
+            }
+          />
+        </TabsContent>
+
+        <TabsContent value="anterior" className="mt-4 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {puedeEditar ? (
+                <Select
+                  value={estadoEditable}
+                  onValueChange={(v) =>
+                    solicitarCambioEstado(v as EstadoEditable)
+                  }
+                  disabled={cambiandoEstado || cargandoResumen}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className={cn(
+                      CENSO_SELECT_TRIGGER,
+                      "h-8 w-auto min-w-36 gap-1.5 text-[11px]",
+                      metaEstado.clase,
+                    )}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sin_iniciar">Sin iniciar</SelectItem>
+                    <SelectItem value="en_curso">En curso</SelectItem>
+                    <SelectItem value="completado">Completado</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className={cn("text-[10px]", metaEstado.clase)}
+                >
+                  {metaEstado.label}
+                </Badge>
+              )}
+              {resumen ? (
+                <>
+                  <span className="text-xs text-muted-foreground">
+                    Último registro: {formatearFecha(resumen.ultimoRegistroEn)}
+                  </span>
+                  {resumen.cierreEn ? (
+                    <span className="text-xs text-emerald-700 dark:text-emerald-300">
+                      Cierre: {formatearFecha(resumen.cierreEn)}
+                      {resumen.cierreFuncionario
+                        ? ` · ${resumen.cierreFuncionario}`
+                        : ""}
+                    </span>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          {errorEstado && pendienteEstado == null ? (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {errorEstado}
+            </div>
+          ) : null}
+
+          {resumen?.cierreEn ? (
+            <div
+              className={cn(
+                "flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm",
+                estado === "sin_ocupantes"
+                  ? "border-violet-500/40 bg-violet-500/10 text-violet-800 dark:text-violet-300"
+                  : "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300",
+              )}
+            >
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium">
+                  {estado === "sin_ocupantes"
+                    ? "Censo cerrado sin ocupantes"
+                    : "Censo completado declarado"}
+                </p>
+                <p className="text-xs opacity-90">
+                  {formatearFecha(resumen.cierreEn)}
+                  {estado === "sin_ocupantes"
+                    ? " · sin personas damnificadas / en adecuación"
+                    : resumen.cierreTotal != null
+                      ? ` · ${resumen.cierreTotal.toLocaleString("es")} persona${resumen.cierreTotal === 1 ? "" : "s"} al cierre`
+                      : ""}
+                  {resumen.cierreFuncionario
+                    ? ` · ${resumen.cierreFuncionario}`
+                    : ""}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
           {cargandoResumen && !resumen ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              Cargando resumen del censo…
+              Cargando resumen del censo anterior…
             </div>
           ) : resumen ? (
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground">
-                Parte (revista) vs censo
+                Parte (revista) vs censo anterior (staging)
               </p>
               <ComparacionParteCenso
                 resumen={resumen}
@@ -446,30 +749,29 @@ export function CensoCentroPanel({
             </div>
           ) : (
             <div className="rounded-lg border border-border bg-muted/30 px-3 py-4 text-center text-sm text-muted-foreground">
-              Aún no hay datos de censo rápido para este campamento.
+              Aún no hay datos del censo anterior (planilla rápida) para este
+              campamento.
             </div>
           )}
-        </TabsContent>
 
-        <TabsContent value="personas" className="mt-4 space-y-4">
-          {errorListado && (
+          {errorListado ? (
             <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
               {errorListado}
             </div>
-          )}
+          ) : null}
 
-          <Card className="border-teal-500/15">
+          <Card className="border-border/80">
             <CardHeader className="pb-2">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 space-y-1">
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <Users className="size-4 text-teal-600 dark:text-teal-300" />
-                    Personas registradas
+                    <Users className="size-4 text-muted-foreground" />
+                    Personas del censo anterior
                   </CardTitle>
                   <CardDescription>
                     {cargandoListado && registros.length === 0
                       ? "Cargando…"
-                      : `${total.toLocaleString("es")} registro${total === 1 ? "" : "s"} · busque por nombre, cédula o teléfono${puedeEditar ? " · use los iconos para corregir o eliminar" : ""}`}
+                      : `${total.toLocaleString("es")} registro${total === 1 ? "" : "s"} de la planilla rápida`}
                   </CardDescription>
                 </div>
                 <BotonExportarCensoCentro
@@ -482,10 +784,10 @@ export function CensoCentroPanel({
             </CardHeader>
             <CardContent className="space-y-3 p-4 pt-0">
               <div className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
+                  value={busquedaStaging}
+                  onChange={(e) => setBusquedaStaging(e.target.value)}
                   placeholder="Buscar por nombre, apellido, cédula o teléfono…"
                   className="h-10 pl-9"
                   autoComplete="off"
@@ -499,9 +801,9 @@ export function CensoCentroPanel({
                 </div>
               ) : total === 0 && !cargandoListado ? (
                 <p className="py-6 text-center text-sm text-muted-foreground">
-                  {busqueda.trim()
-                    ? `Ninguna persona coincide con «${busqueda.trim()}». Verifique la cédula o el nombre e intente de nuevo.`
-                    : "Aún no hay personas registradas en este campamento."}
+                  {busquedaStaging.trim()
+                    ? `Ninguna persona coincide con «${busquedaStaging.trim()}».`
+                    : "Aún no hay personas en el censo anterior de este campamento."}
                 </p>
               ) : (
                 <>
@@ -512,8 +814,8 @@ export function CensoCentroPanel({
                     puedeEditar={puedeEditar}
                     onEditar={setEditando}
                     onEliminar={(f) => {
-                      setErrorEliminar("");
-                      setEliminarTarget(f);
+                      setErrorEliminarStaging("");
+                      setEliminarStaging(f);
                     }}
                   />
                   <PaginadorTabla
@@ -540,11 +842,11 @@ export function CensoCentroPanel({
       />
 
       <AlertDialog
-        open={eliminarTarget != null}
+        open={eliminarStaging != null}
         onOpenChange={(abierto) => {
           if (!abierto) {
-            setEliminarTarget(null);
-            setErrorEliminar("");
+            setEliminarStaging(null);
+            setErrorEliminarStaging("");
           }
         }}
       >
@@ -552,28 +854,30 @@ export function CensoCentroPanel({
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar este registro?</AlertDialogTitle>
             <AlertDialogDescription>
-              {eliminarTarget
+              {eliminarStaging
                 ? `Se borrará permanentemente a ${[
-                    eliminarTarget.primer_nombre,
-                    eliminarTarget.primer_apellido,
+                    eliminarStaging.primer_nombre,
+                    eliminarStaging.primer_apellido,
                   ]
                     .filter(Boolean)
                     .join(" ")}. Esta acción no se puede deshacer.`
                 : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {errorEliminar && <p className="text-sm text-destructive">{errorEliminar}</p>}
+          {errorEliminarStaging ? (
+            <p className="text-sm text-destructive">{errorEliminarStaging}</p>
+          ) : null}
           <AlertDialogFooter className="gap-2 sm:flex-col sm:space-x-0">
             <AlertDialogAction
               variant="destructive"
               className={CENSO_BOTON_ACCION}
-              disabled={eliminando}
+              disabled={eliminandoStaging}
               onClick={(e) => {
                 e.preventDefault();
-                void confirmarEliminar();
+                void confirmarEliminarStaging();
               }}
             >
-              {eliminando ? (
+              {eliminandoStaging ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
                   Eliminando…
@@ -584,7 +888,59 @@ export function CensoCentroPanel({
             </AlertDialogAction>
             <AlertDialogCancel
               className={CENSO_BOTON_SECUNDARIO}
-              disabled={eliminando}
+              disabled={eliminandoStaging}
+            >
+              Cancelar
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={eliminarNominal != null}
+        onOpenChange={(abierto) => {
+          if (!abierto && !eliminandoNominalId) {
+            setEliminarNominal(null);
+            setErrorEliminarNominal(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar del censo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {eliminarNominal
+                ? `Se quitará a ${nombreCompleto(eliminarNominal.refugiado)} del campamento (egreso por corrección de censo).`
+                : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {errorEliminarNominal ? (
+            <p className="text-sm text-destructive">{errorEliminarNominal}</p>
+          ) : null}
+          <AlertDialogFooter className="gap-2 sm:flex-col sm:space-x-0">
+            <AlertDialogAction
+              type="button"
+              variant="destructive"
+              className={CENSO_BOTON_ACCION}
+              disabled={eliminandoNominalId != null}
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmarEliminarNominal();
+              }}
+            >
+              {eliminandoNominalId ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Eliminando…
+                </>
+              ) : (
+                "Eliminar"
+              )}
+            </AlertDialogAction>
+            <AlertDialogCancel
+              type="button"
+              className={CENSO_BOTON_SECUNDARIO}
+              disabled={eliminandoNominalId != null}
             >
               Cancelar
             </AlertDialogCancel>
@@ -610,9 +966,13 @@ export function CensoCentroPanel({
                   ? "¿Reabrir censo (en curso)?"
                   : "¿Dejar censo sin iniciar?"}
             </AlertDialogTitle>
-            <AlertDialogDescription>{textoConfirmacionEstado}</AlertDialogDescription>
+            <AlertDialogDescription>
+              {textoConfirmacionEstado}
+            </AlertDialogDescription>
           </AlertDialogHeader>
-          {errorEstado && <p className="text-sm text-destructive">{errorEstado}</p>}
+          {errorEstado ? (
+            <p className="text-sm text-destructive">{errorEstado}</p>
+          ) : null}
           <AlertDialogFooter className="gap-2 sm:flex-col sm:space-x-0">
             <AlertDialogAction
               className={CENSO_BOTON_ACCION}

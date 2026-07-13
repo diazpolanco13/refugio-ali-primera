@@ -11,7 +11,6 @@ import {
   Search,
   Trash2,
   UserCheck,
-  Users,
 } from "lucide-react";
 import { useAlojamientosCentro } from "@/data/useAlojamientosCentro";
 import {
@@ -56,8 +55,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { AvanceCensoNominal } from "@/features/censo/AvanceCensoNominal";
 import { CENSO_BOTON_ACCION, CENSO_BOTON_SECUNDARIO } from "@/features/censo/censoFormularioShared";
 
 interface Props {
@@ -99,36 +98,6 @@ function etiquetaCedula(a: AlojamientoEnriquecido): string {
 function etiquetaParentesco(a: AlojamientoEnriquecido): string | null {
   if (a.es_jefe_familia) return "Jefe/a";
   return a.parentesco_jefe?.trim() || null;
-}
-
-function BarraAvance({
-  etiqueta,
-  actual,
-  meta,
-  pct,
-}: {
-  etiqueta: string;
-  actual: number;
-  meta: number;
-  pct: number;
-}) {
-  const faltan = Math.max(0, meta - actual);
-  return (
-    <div className="space-y-1">
-      <div className="flex items-baseline justify-between text-xs">
-        <span className="font-medium">{etiqueta}</span>
-        <span className="tabular-nums text-muted-foreground">
-          {actual.toLocaleString("es")} / {meta.toLocaleString("es")}
-          {faltan > 0 ? (
-            <span className="ml-1 text-amber-500">
-              (faltan {faltan.toLocaleString("es")})
-            </span>
-          ) : null}
-        </span>
-      </div>
-      <Progress value={pct} className="h-2" />
-    </div>
-  );
 }
 
 function BotonEliminar({
@@ -501,16 +470,6 @@ export function CensoListaCensadosPanel({
     );
   }, [alojamientos, metaFamilias, metaRefugiados]);
 
-  const tieneParte = metaRefugiados > 0 || metaFamilias > 0;
-  const faltanRefugiados = Math.max(
-    0,
-    metaRefugiados - progreso.registradosRefugiados,
-  );
-  const faltanFamilias = Math.max(
-    0,
-    metaFamilias - progreso.registradosFamilias,
-  );
-
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase().replace(/\D/g, "");
     const qTexto = busqueda.trim().toLowerCase();
@@ -593,93 +552,15 @@ export function CensoListaCensadosPanel({
 
   return (
     <div className="space-y-3">
-      <Card className="shadow-lg">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Users className="size-4 text-primary" />
-            Avance del censo
-          </CardTitle>
-          <p className="truncate text-xs text-muted-foreground">
-            {centro?.nombre || centroNombre} · vs parte numérico del reporte diario
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded-lg border bg-muted/30 px-2 py-2.5 text-center">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Damnificados
-              </p>
-              <p className="text-xl font-semibold tabular-nums text-primary">
-                {progreso.registradosRefugiados.toLocaleString("es")}
-              </p>
-              <p className="text-[10px] tabular-nums text-muted-foreground">
-                {tieneParte
-                  ? `de ${metaRefugiados.toLocaleString("es")} · faltan ${faltanRefugiados.toLocaleString("es")}`
-                  : "sin parte"}
-              </p>
-            </div>
-            <div className="rounded-lg border bg-muted/30 px-2 py-2.5 text-center">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Familias
-              </p>
-              <p className="text-xl font-semibold tabular-nums text-violet-400">
-                {progreso.registradosFamilias.toLocaleString("es")}
-              </p>
-              <p className="text-[10px] tabular-nums text-muted-foreground">
-                {tieneParte
-                  ? `de ${metaFamilias.toLocaleString("es")} · faltan ${faltanFamilias.toLocaleString("es")}`
-                  : "sin parte"}
-              </p>
-            </div>
-            <div className="rounded-lg border bg-muted/30 px-2 py-2.5 text-center">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Parte pers.
-              </p>
-              <p className="text-xl font-semibold tabular-nums">
-                {tieneParte ? metaRefugiados.toLocaleString("es") : "—"}
-              </p>
-            </div>
-            <div className="rounded-lg border bg-muted/30 px-2 py-2.5 text-center">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Parte fam.
-              </p>
-              <p className="text-xl font-semibold tabular-nums">
-                {tieneParte ? metaFamilias.toLocaleString("es") : "—"}
-              </p>
-            </div>
-          </div>
-
-          {tieneParte ? (
-            <>
-              <BarraAvance
-                etiqueta="Damnificados"
-                actual={progreso.registradosRefugiados}
-                meta={progreso.metaRefugiados}
-                pct={progreso.pctRefugiados}
-              />
-              <BarraAvance
-                etiqueta="Familias"
-                actual={progreso.registradosFamilias}
-                meta={progreso.metaFamilias}
-                pct={progreso.pctFamilias}
-              />
-            </>
-          ) : (
-            <p className="text-[11px] text-muted-foreground">
-              Aún no hay parte numérico para contrastar. Se actualiza al guardar
-              el reporte diario del campamento.
-            </p>
-          )}
-          {censoViejo.length > 0 ? (
-            <BarraAvance
-              etiqueta="Censo anterior verificado"
-              actual={verificadosViejo}
-              meta={censoViejo.length}
-              pct={Math.round((verificadosViejo / censoViejo.length) * 100)}
-            />
-          ) : null}
-        </CardContent>
-      </Card>
+      <AvanceCensoNominal
+        centroNombre={centro?.nombre || centroNombre}
+        progreso={progreso}
+        censoAnterior={
+          censoViejo.length > 0
+            ? { verificados: verificadosViejo, total: censoViejo.length }
+            : null
+        }
+      />
 
       <Card className="shadow-lg">
         <CardHeader className="space-y-3 pb-2">

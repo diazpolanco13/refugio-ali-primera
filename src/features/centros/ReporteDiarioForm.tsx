@@ -900,7 +900,13 @@ export function ReporteDiarioForm({
         <p className="w-full text-xs leading-snug text-destructive">{errorGuardado}</p>
       )}
       {!ocultarCerrar && (
-        <Button variant="outline" onClick={onCerrar} disabled={guardando || confirmandoParte}>
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-10"
+          onClick={onCerrar}
+          disabled={guardando || confirmandoParte}
+        >
           {etiquetaCerrar}
         </Button>
       )}

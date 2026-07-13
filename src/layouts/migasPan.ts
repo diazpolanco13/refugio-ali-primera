@@ -124,25 +124,30 @@ export function migasPanDeRuta(
     return [INICIO, CAMPAMENTOS, { label: "Traslados" }];
   }
 
-  if (pathname === "/centros/censo-rapido") {
-    return [INICIO, CAMPAMENTOS, { label: "Censo rápido (red)" }];
+  if (pathname === "/centros/censo" || pathname === "/centros/censo-rapido") {
+    return [INICIO, CAMPAMENTOS, { label: "Censo (red)" }];
   }
 
-  if (pathname === "/centros/censo-rapido/personas") {
+  if (
+    pathname === "/centros/censo/personas" ||
+    pathname === "/centros/censo-rapido/personas"
+  ) {
     return [
       INICIO,
       CAMPAMENTOS,
-      { label: "Censo rápido (red)", to: "/centros/censo-rapido" },
+      { label: "Censo (red)", to: "/centros/censo" },
       { label: "Listado general" },
     ];
   }
 
-  const matchCensoCentro = matchPath("/centros/censo-rapido/:centroId", pathname);
+  const matchCensoCentro =
+    matchPath("/centros/censo/:centroId", pathname) ??
+    matchPath("/centros/censo-rapido/:centroId", pathname);
   if (matchCensoCentro?.params.centroId && matchCensoCentro.params.centroId !== "personas") {
     return [
       INICIO,
       CAMPAMENTOS,
-      { label: "Censo rápido (red)", to: "/centros/censo-rapido" },
+      { label: "Censo (red)", to: "/centros/censo" },
       { label: nombreCentro(centro, matchCensoCentro.params.centroId) },
     ];
   }

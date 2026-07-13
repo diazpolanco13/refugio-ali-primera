@@ -42,7 +42,7 @@ function KpiShell({
 }
 
 /**
- * Fallback Suspense de `/centros/censo-rapido`: shell real + skeleton solo
+ * Fallback Suspense de `/centros/censo`: shell real + skeleton solo
  * en la grilla de escuelas.
  */
 export function CensoRedSkeleton() {
@@ -50,8 +50,8 @@ export function CensoRedSkeleton() {
     <VistaPagina
       icono={ClipboardList}
       acento="teal"
-      titulo="Censo rápido (red)"
-      descripcion="Avance del levantamiento en terreno por escuela/campamento"
+      titulo="Censo (red)"
+      descripcion="Avance del censo nominal por escuela/campamento"
       cuerpoClassName="p-4 lg:p-6"
     >
       <div className="space-y-4">

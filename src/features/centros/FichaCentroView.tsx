@@ -615,7 +615,7 @@ export function FichaCentroView({ sesion }: Props) {
             <Button
               variant="outline"
               size="sm"
-              className="h-8 shrink-0 gap-1.5 px-2"
+              className="h-8 shrink-0 gap-1.5 px-2.5"
               onClick={cerrarReporte}
               aria-label={reporteSoloTerreno ? "Volver al resumen del reporte" : "Volver a la ficha"}
             >
@@ -886,6 +886,7 @@ export function FichaCentroView({ sesion }: Props) {
                   centroNombre={centro.nombre}
                   centro={centro}
                   sesion={sesion}
+                  onAbrirRefugiado={abrirFichaRefugiado}
                 />
               </TabsContent>
             )}

@@ -369,10 +369,10 @@ function NavContenido({ sesion }: Props) {
               activo={pathname === "/" || rutaActiva(pathname, "/centros/mapa")}
             />
             <ItemMenu
-              to="/centros/censo-rapido"
+              to="/centros/censo"
               icono={ContactRound}
-              label="Censo rápido (red)"
-              activo={rutaActiva(pathname, "/centros/censo-rapido")}
+              label="Censo (red)"
+              activo={rutaActiva(pathname, "/centros/censo")}
             />
           </SidebarMenu>
         </SidebarGroupContent>
@@ -428,10 +428,10 @@ function NavContenido({ sesion }: Props) {
             />
             {veCensoRed && (
               <ItemMenu
-                to="/centros/censo-rapido"
+                to="/centros/censo"
                 icono={ContactRound}
-                label="Censo rápido (red)"
-                activo={rutaActiva(pathname, "/centros/censo-rapido")}
+                label="Censo (red)"
+                activo={rutaActiva(pathname, "/centros/censo")}
               />
             )}
             {vePoblacionRed && (

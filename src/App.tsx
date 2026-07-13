@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { Login } from "./features/auth/Login";
 import { initAuth, useSesion, type Sesion } from "./data/authSupabase";
 import { AvisoActualizacionApp } from "./components/AvisoActualizacionApp";
@@ -120,10 +120,34 @@ const CensoCentroDetalleView = lazy(() =>
  * precargarlo en paralelo con la restauración de la sesión. Las rutas no
  * listadas caen al chunk del mapa (destino del fallback `*`).
  */
+function esListadoCensoRed(pathname: string): boolean {
+  return (
+    pathname.startsWith("/centros/censo/personas") ||
+    pathname.startsWith("/centros/censo-rapido/personas")
+  );
+}
+
+function esDetalleCensoRed(pathname: string): boolean {
+  return (
+    /^\/centros\/censo\/[^/]+$/.test(pathname) ||
+    /^\/centros\/censo-rapido\/[^/]+$/.test(pathname)
+  );
+}
+
+function esTableroCensoRed(pathname: string): boolean {
+  return pathname === "/centros/censo" || pathname === "/centros/censo-rapido";
+}
+
+/** Redirect legacy `/centros/censo-rapido/:centroId` → `/centros/censo/:centroId`. */
+function RedirigirCensoRapidoCentro() {
+  const { centroId } = useParams<{ centroId: string }>();
+  return <Navigate to={`/centros/censo/${centroId ?? ""}`} replace />;
+}
+
 function precargarRutaInicial(pathname: string): Promise<unknown> {
-  if (pathname.startsWith("/centros/censo-rapido/personas")) return importCensoRedListadoView();
-  if (pathname.startsWith("/centros/censo-rapido/")) return importCensoCentroDetalleView();
-  if (pathname.startsWith("/centros/censo-rapido")) return importCensoRedView();
+  if (esListadoCensoRed(pathname)) return importCensoRedListadoView();
+  if (esDetalleCensoRed(pathname)) return importCensoCentroDetalleView();
+  if (esTableroCensoRed(pathname)) return importCensoRedView();
   if (pathname.startsWith("/censo")) return importCensoView();
   if (pathname.startsWith("/dashboard")) return importDashboardView();
   if (pathname.startsWith("/centros/tablero")) return importCentrosView();
@@ -296,7 +320,7 @@ export function App() {
             }
           />
           <Route
-            path="/centros/censo-rapido/personas"
+            path="/centros/censo/personas"
             element={
               <RutaConSkeleton
                 fallback={<TablaRedSkeleton conTabs etiqueta="Cargando listado de censo" />}
@@ -306,7 +330,7 @@ export function App() {
             }
           />
           <Route
-            path="/centros/censo-rapido/:centroId"
+            path="/centros/censo/:centroId"
             element={
               <RutaConSkeleton fallback={<FichaCentroSkeleton />}>
                 <CensoCentroDetalleView sesion={sesion} />
@@ -314,12 +338,25 @@ export function App() {
             }
           />
           <Route
-            path="/centros/censo-rapido"
+            path="/centros/censo"
             element={
               <RutaConSkeleton fallback={<CensoRedSkeleton />}>
                 <CensoRedView sesion={sesion} />
               </RutaConSkeleton>
             }
+          />
+          {/* Alias legacy: censo-rapido → censo */}
+          <Route
+            path="/centros/censo-rapido/personas"
+            element={<Navigate to="/centros/censo/personas" replace />}
+          />
+          <Route
+            path="/centros/censo-rapido/:centroId"
+            element={<RedirigirCensoRapidoCentro />}
+          />
+          <Route
+            path="/centros/censo-rapido"
+            element={<Navigate to="/centros/censo" replace />}
           />
           <Route
             path="/centros/refugiados"

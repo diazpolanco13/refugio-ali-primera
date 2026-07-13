@@ -3,8 +3,8 @@ import { LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { to: "/centros/censo-rapido", label: "Por campamento", icono: LayoutGrid, exact: true },
-  { to: "/centros/censo-rapido/personas", label: "Listado general", icono: List, exact: false },
+  { to: "/centros/censo", label: "Por campamento", icono: LayoutGrid, exact: true },
+  { to: "/centros/censo/personas", label: "Listado general", icono: List, exact: false },
 ] as const;
 
 export function CensoRedTabs() {

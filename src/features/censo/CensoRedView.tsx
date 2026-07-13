@@ -1,13 +1,14 @@
-// Vista interna autenticada: resumen del censo rápido por escuela/campamento.
-// Acceso restringido a admin, analista SAE y autoridad (UI + RPC censo_resumen_red).
+// Vista interna: progreso del censo nominal por campamento (Realtime).
+// Acceso: admin, analista SAE, autoridad, censo_rapido.
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   CheckCircle2,
   CircleDashed,
   ClipboardList,
   FilterX,
-  RefreshCw,
+  Radio,
   Search,
   ShieldCheck,
   Users,
@@ -21,12 +22,12 @@ import {
   type FiltroEstadoCensoRed,
   type OrdenCensoRed,
 } from "@/data/preferenciasCensoRed";
-import { useCensoRedResumen } from "@/data/useCensoRedResumen";
+import { useCensoNominalRed } from "@/data/useCensoNominalRed";
 import {
-  estadoCensoCentro,
-  estadoContrasteCenso,
-  type ResumenCensoCentro,
-} from "@/domain/censoResumen";
+  deltaParteNominal,
+  estadoCensoNominalRed,
+  type ResumenCensoNominalCentro,
+} from "@/domain/censoNominalRed";
 import { puedeVerCensoRapidoRed } from "@/domain/permisos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,7 @@ import { VistaPagina } from "@/components/VistaPagina";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
-import { TarjetaCensoResumen } from "./TarjetaCensoResumen";
+import { TarjetaCensoNominal } from "./TarjetaCensoNominal";
 import { CensoRedTabs } from "./CensoRedTabs";
 
 type FiltroEstado = FiltroEstadoCensoRed;
@@ -52,14 +53,14 @@ type OrdenCenso = OrdenCensoRed;
 const OPCIONES_ESTADO: { valor: FiltroEstado; label: string }[] = [
   { valor: "todos", label: "Todos los estados" },
   { valor: "sin_iniciar", label: "Sin iniciar" },
-  { valor: "en_curso", label: "En curso" },
-  { valor: "completado_declarado", label: "Completado declarado" },
-  { valor: "sin_ocupantes", label: "Sin ocupantes / adecuación" },
+  { valor: "en_curso", label: "En progreso" },
+  { valor: "meta_alcanzada", label: "Cuadra con el parte" },
+  { valor: "discrepancia", label: "Discrepancia" },
 ];
 
 const OPCIONES_ORDEN: { valor: OrdenCenso; label: string }[] = [
   { valor: "nombre", label: "Nombre A → Z" },
-  { valor: "registrados", label: "Más registrados" },
+  { valor: "registrados", label: "Más censados" },
   { valor: "actividad", label: "Actividad reciente" },
   { valor: "discrepancia", label: "Discrepancias primero" },
 ];
@@ -95,7 +96,9 @@ function KpiRed({
           <Icono className="size-4" />
         </div>
         <div className="min-w-0">
-          <p className="text-lg font-bold tabular-nums leading-none">{valor.toLocaleString("es")}</p>
+          <p className="text-lg font-bold tabular-nums leading-none">
+            {valor.toLocaleString("es")}
+          </p>
           <p className="mt-0.5 text-[11px] text-muted-foreground">{etiqueta}</p>
         </div>
       </CardContent>
@@ -103,39 +106,55 @@ function KpiRed({
   );
 }
 
-function deltaParte(r: ResumenCensoCentro): number {
-  const parte = r.parteTotal ?? 0;
-  if (parte <= 0) return 0;
-  return Math.abs(r.totalRegistrados - parte);
-}
-
-function ordenarResumenes(items: ResumenCensoCentro[], orden: OrdenCenso): ResumenCensoCentro[] {
+function ordenarResumenes(
+  items: ResumenCensoNominalCentro[],
+  orden: OrdenCenso,
+): ResumenCensoNominalCentro[] {
   const copia = [...items];
   switch (orden) {
     case "discrepancia":
       return copia.sort((a, b) => {
-        const ca = estadoContrasteCenso(a) === "excede_parte" ? 2 : estadoContrasteCenso(a) === "en_progreso" ? 1 : 0;
-        const cb = estadoContrasteCenso(b) === "excede_parte" ? 2 : estadoContrasteCenso(b) === "en_progreso" ? 1 : 0;
+        const ca =
+          a.contraste === "excede_parte"
+            ? 2
+            : a.contraste === "en_progreso"
+              ? 1
+              : 0;
+        const cb =
+          b.contraste === "excede_parte"
+            ? 2
+            : b.contraste === "en_progreso"
+              ? 1
+              : 0;
         if (ca !== cb) return cb - ca;
-        return deltaParte(b) - deltaParte(a) || b.totalRegistrados - a.totalRegistrados;
+        return (
+          deltaParteNominal(b) - deltaParteNominal(a) ||
+          b.registrados - a.registrados
+        );
       });
     case "registrados":
-      return copia.sort((a, b) => b.totalRegistrados - a.totalRegistrados || a.centroNombre.localeCompare(b.centroNombre, "es"));
+      return copia.sort(
+        (a, b) =>
+          b.registrados - a.registrados ||
+          a.centroNombre.localeCompare(b.centroNombre, "es"),
+      );
     case "actividad":
-      return copia.sort((a, b) => {
-        const ta = a.ultimoRegistroEn ? new Date(a.ultimoRegistroEn).getTime() : 0;
-        const tb = b.ultimoRegistroEn ? new Date(b.ultimoRegistroEn).getTime() : 0;
-        return tb - ta || a.centroNombre.localeCompare(b.centroNombre, "es");
-      });
+      return copia.sort(
+        (a, b) =>
+          b.ultimoRegistroTs - a.ultimoRegistroTs ||
+          a.centroNombre.localeCompare(b.centroNombre, "es"),
+      );
     case "nombre":
     default:
-      return copia.sort((a, b) => a.centroNombre.localeCompare(b.centroNombre, "es"));
+      return copia.sort((a, b) =>
+        a.centroNombre.localeCompare(b.centroNombre, "es"),
+      );
   }
 }
 
 export function CensoRedView({ sesion }: { sesion: Sesion }) {
   const tieneAcceso = puedeVerCensoRapidoRed(sesion.user.rol);
-  const { resumenes, cargando, error, refrescar } = useCensoRedResumen();
+  const { resumenes, cargando } = useCensoNominalRed();
   const filtrosIniciales = useMemo(() => cargarFiltrosCensoRed(), []);
   const [busqueda, setBusqueda] = useState(filtrosIniciales.busqueda);
   const [estado, setEstado] = useState<FiltroEstado>(filtrosIniciales.estado);
@@ -146,72 +165,104 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
   }, [busqueda, estado, orden]);
 
   const kpis = useMemo(() => {
-    const activas = resumenes.filter((r) => estadoCensoCentro(r) === "en_curso").length;
-    const sinIniciar = resumenes.filter((r) => estadoCensoCentro(r) === "sin_iniciar").length;
-    const totalPersonas = resumenes.reduce((acc, r) => acc + r.totalRegistrados, 0);
-    const conCierre = resumenes.filter(
-      (r) =>
-        estadoCensoCentro(r) === "completado_declarado" ||
-        estadoCensoCentro(r) === "sin_ocupantes",
+    const sinIniciar = resumenes.filter(
+      (r) => estadoCensoNominalRed(r) === "sin_iniciar",
     ).length;
-    return { activas, sinIniciar, totalPersonas, conCierre };
+    const enCurso = resumenes.filter(
+      (r) => estadoCensoNominalRed(r) === "en_curso",
+    ).length;
+    const totalPersonas = resumenes.reduce((acc, r) => acc + r.registrados, 0);
+    const metaAlcanzada = resumenes.filter(
+      (r) => estadoCensoNominalRed(r) === "meta_alcanzada",
+    ).length;
+    const discrepancias = resumenes.filter(
+      (r) => estadoCensoNominalRed(r) === "discrepancia",
+    ).length;
+    return { sinIniciar, enCurso, totalPersonas, metaAlcanzada, discrepancias };
   }, [resumenes]);
 
   const visibles = useMemo(() => {
     const q = normalizarBusqueda(busqueda);
     const filtrados = resumenes.filter((r) => {
-      const coincideNombre = !q || normalizarBusqueda(r.centroNombre).includes(q);
-      const coincideEstado = estado === "todos" || estadoCensoCentro(r) === estado;
+      const coincideNombre =
+        !q ||
+        normalizarBusqueda(r.centroNombre).includes(q) ||
+        (r.nro != null && String(r.nro).includes(q));
+      const coincideEstado =
+        estado === "todos" || estadoCensoNominalRed(r) === estado;
       return coincideNombre && coincideEstado;
     });
     return ordenarResumenes(filtrados, orden);
   }, [busqueda, estado, orden, resumenes]);
 
-  const hayFiltros = filtrosCensoRedDistintosDeDefault({ busqueda, estado, orden });
+  const hayFiltros = filtrosCensoRedDistintosDeDefault({
+    busqueda,
+    estado,
+    orden,
+  });
 
   return (
     <VistaPagina
       icono={ClipboardList}
       acento="teal"
-      titulo="Censo rápido (red)"
-      descripcion="Avance del levantamiento en terreno por escuela/campamento"
+      titulo="Censo (red)"
+      descripcion="Progreso del censo nominal en tiempo real por campamento"
       cuerpoClassName="p-4 lg:p-6"
       acciones={
         tieneAcceso ? (
-          <Button size="sm" variant="outline" onClick={() => void refrescar()} disabled={cargando}>
-            <RefreshCw className={cn("size-4", cargando && "animate-spin")} />
-            Actualizar
-          </Button>
+          <Badge
+            variant="outline"
+            className="h-8 gap-1.5 border-emerald-500/40 bg-emerald-500/10 px-2.5 text-[11px] text-emerald-700 dark:text-emerald-300"
+          >
+            <Radio className="size-3.5" />
+            En vivo
+          </Badge>
         ) : undefined
       }
     >
       {!tieneAcceso ? (
         <div className="mx-auto mt-6 max-w-md rounded-xl border border-border bg-background/70 p-6 text-center">
           <ShieldCheck className="mx-auto mb-3 size-8 text-muted-foreground" />
-          <p className="text-sm font-medium text-foreground">Acceso restringido</p>
+          <p className="text-sm font-medium text-foreground">
+            Acceso restringido
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Solo el administrador, el analista SAE y la autoridad pueden consultar el censo de la
-            red.
+            Solo el administrador, el analista SAE y la autoridad pueden
+            consultar el censo de la red.
           </p>
         </div>
       ) : (
         <div className="space-y-4">
           <CensoRedTabs />
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
             <KpiRed
               valor={kpis.sinIniciar}
-              etiqueta="Escuelas sin iniciar censo"
+              etiqueta="Sin iniciar censo"
               icono={CircleDashed}
               clase="bg-muted text-muted-foreground"
             />
-            <KpiRed valor={kpis.activas} etiqueta="Escuelas con censo activo" icono={ClipboardList} />
-            <KpiRed valor={kpis.totalPersonas} etiqueta="Personas registradas (red)" icono={Users} />
             <KpiRed
-              valor={kpis.conCierre}
-              etiqueta="Escuelas con cierre declarado"
+              valor={kpis.enCurso}
+              etiqueta="Censo en progreso"
+              icono={ClipboardList}
+            />
+            <KpiRed
+              valor={kpis.totalPersonas}
+              etiqueta="Personas censadas (red)"
+              icono={Users}
+            />
+            <KpiRed
+              valor={kpis.metaAlcanzada}
+              etiqueta="Cuadran con el parte"
               icono={CheckCircle2}
               clase="bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+            />
+            <KpiRed
+              valor={kpis.discrepancias}
+              etiqueta="Con discrepancia"
+              icono={AlertTriangle}
+              clase="bg-red-500/10 text-red-600 dark:text-red-300"
             />
           </div>
 
@@ -226,8 +277,14 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
               />
             </div>
 
-            <Select value={estado} onValueChange={(v) => setEstado(v as FiltroEstado)}>
-              <SelectTrigger size="sm" className={cn(CENSO_SELECT_TRIGGER, "h-8 w-44")}>
+            <Select
+              value={estado}
+              onValueChange={(v) => setEstado(v as FiltroEstado)}
+            >
+              <SelectTrigger
+                size="sm"
+                className={cn(CENSO_SELECT_TRIGGER, "h-8 w-48")}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -239,8 +296,14 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
               </SelectContent>
             </Select>
 
-            <Select value={orden} onValueChange={(v) => setOrden(v as OrdenCenso)}>
-              <SelectTrigger size="sm" className={cn(CENSO_SELECT_TRIGGER, "h-8 w-44")}>
+            <Select
+              value={orden}
+              onValueChange={(v) => setOrden(v as OrdenCenso)}
+            >
+              <SelectTrigger
+                size="sm"
+                className={cn(CENSO_SELECT_TRIGGER, "h-8 w-44")}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -252,11 +315,11 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
               </SelectContent>
             </Select>
 
-            {hayFiltros && (
+            {hayFiltros ? (
               <Button
                 size="sm"
-                variant="ghost"
-                className="h-8 gap-1.5 text-xs text-muted-foreground"
+                variant="outline"
+                className="h-8 gap-1.5 border border-border text-xs"
                 onClick={() => {
                   setBusqueda(FILTROS_CENSO_RED_DEFAULT.busqueda);
                   setEstado(FILTROS_CENSO_RED_DEFAULT.estado);
@@ -266,18 +329,12 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
                 <FilterX className="size-3.5" />
                 Limpiar
               </Button>
-            )}
+            ) : null}
 
             <Badge variant="outline" className="ml-auto tabular-nums">
               {visibles.length} escuela{visibles.length === 1 ? "" : "s"}
             </Badge>
           </div>
-
-          {error && (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {error}
-            </div>
-          )}
 
           {cargando && resumenes.length === 0 ? (
             <div
@@ -320,7 +377,10 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {visibles.map((resumen) => (
-                <TarjetaCensoResumen key={resumen.centroId} resumen={resumen} />
+                <TarjetaCensoNominal
+                  key={resumen.centroId}
+                  resumen={resumen}
+                />
               ))}
             </div>
           )}

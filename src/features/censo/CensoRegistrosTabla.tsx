@@ -87,7 +87,7 @@ function FilaRegistro({
         <TableCell className="max-w-36 px-2 py-1.5">
           {fila.centro_id ? (
             <Link
-              to={`/centros/censo-rapido/${fila.centro_id}`}
+              to={`/centros/censo/${fila.centro_id}`}
               className="block truncate text-teal-600 hover:underline dark:text-teal-300"
               title={fila.centro_nombre}
             >
