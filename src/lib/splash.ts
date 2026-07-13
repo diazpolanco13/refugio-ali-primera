@@ -27,10 +27,14 @@ export function ocultarSplash(opciones?: { inmediato?: boolean }): void {
     return;
   }
 
-  // Completa barra de modo-campo (si aplica) antes del fade.
-  const barra = document.getElementById("app-splash-barra");
-  if (barra) barra.style.width = "100%";
-
+  // Completa barra (cine o campo) antes del fade.
+  const barraCampo = document.getElementById("app-splash-barra");
+  if (barraCampo) barraCampo.style.width = "100%";
+  const barraCine = splash.querySelector<HTMLElement>(".splash-cine .barra > div");
+  if (barraCine) {
+    barraCine.style.animation = "none";
+    barraCine.style.width = "100%";
+  }
   // Salida cinematográfica (scale + blur) sobre el MISMO nodo HTML.
   splash.classList.add("saliendo");
   window.setTimeout(() => {

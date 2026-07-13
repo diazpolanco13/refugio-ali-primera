@@ -7,7 +7,7 @@ import { useEffect, type ReactNode } from "react";
 import { ocultarSplash } from "@/lib/splash";
 
 /** Tiempo mínimo para apreciar la coreografía del logo (ms). */
-export const MIN_SPLASH_MS = 2800;
+export const MIN_SPLASH_MS = 2200;
 
 /** Marca de inicio (sobrevive StrictMode remount en dev). */
 let splashInicioMs = 0;

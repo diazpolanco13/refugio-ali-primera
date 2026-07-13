@@ -1,9 +1,9 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
-import { Login } from "./features/auth/Login";
 import { initAuth, useSesion, type Sesion } from "./data/authSupabase";
 import { AvisoActualizacionApp } from "./components/AvisoActualizacionApp";
 import { BotonBorrarCacheFlotante } from "./components/BotonBorrarCacheFlotante";
+import { CapaLogin } from "./components/CapaLogin";
 import { MarcaAgua } from "./components/MarcaAgua";
 import { PantallaCarga } from "./components/PantallaCarga";
 import { EnDesarrollo } from "./components/EnDesarrollo";
@@ -217,14 +217,14 @@ export function App() {
     // La planilla pública no necesita restaurar sesión: evita una ida a Supabase
     // Auth antes de pintar. (En /censo el bootstrap ligero ni siquiera monta App.)
     const sesionLista = esCenso ? Promise.resolve() : initAuth();
-    const chunkListo = precargarRutaInicial(window.location.pathname).catch((err) => {
-      // Solo avisar si es el fallo típico de chunk obsoleto (no cualquier error
-      // de red/compilación en localhost).
+    // Prefetch del chunk de la ruta EN PARALELO, pero NO bloquea el splash:
+    // antes se esperaba auth+chunk juntos (~10–20s en dev con MapLibre) y el
+    // intro mentía "SISTEMA LISTO". Suspense/skeleton cubren el hueco del chunk.
+    void precargarRutaInicial(window.location.pathname).catch((err) => {
       console.warn("[app] Fallo al precargar la ruta inicial:", err);
       if (esErrorModuloObsoleto(err)) señalarAppObsoleta();
-      return undefined;
     });
-    void Promise.allSettled([sesionLista, chunkListo]).then(() => setArrancando(false));
+    void sesionLista.finally(() => setArrancando(false));
   }, []);
 
   // Splash cinematográfico vive en index.html; SplashIntro solo lo cierra.
@@ -245,22 +245,16 @@ export function App() {
       );
     }
 
-    if (!sesion) {
-      return (
-        <>
-          <AvisoActualizacionApp />
-          {mostrarFabCache && <BotonBorrarCacheFlotante />}
-          <Login />
-        </>
-      );
-    }
-
-    const mostrarMarcaAgua = sesion.user.marca_agua !== false;
+    // Login vive en CapaLogin (overlay fijo, siempre en el mismo sitio del
+    // árbol): al autenticar la app monta DEBAJO y el login se disuelve con el
+    // mismo gesto del splash. Si CapaLogin se remonta, pierde el puente → corte.
+    const mostrarMarcaAgua = sesion?.user.marca_agua !== false;
 
     return (
       <>
         <AvisoActualizacionApp />
         {mostrarFabCache && <BotonBorrarCacheFlotante />}
+        {sesion ? (
         <Routes>
         <Route
           path="/dashboard"
@@ -486,7 +480,9 @@ export function App() {
           <Route path="*" element={<Navigate to="/centros/mapa" replace />} />
         </Route>
       </Routes>
-      {mostrarMarcaAgua && <MarcaAgua usuario={sesion.user} />}
+        ) : null}
+      {sesion && mostrarMarcaAgua && <MarcaAgua usuario={sesion.user} />}
+      <CapaLogin listo={!arrancando} sesion={sesion} />
     </>
     );
   })();

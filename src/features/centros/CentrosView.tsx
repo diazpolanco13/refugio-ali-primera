@@ -42,7 +42,6 @@ import { TableroCentros } from "./TableroCentros";
 import { PanelCentros, calcularEstadosFilas } from "./PanelCentros";
 import { ControlesMapaFlotantes } from "./ControlesMapaFlotantes";
 import { TotalesMapaCentros } from "./TotalesMapaCentros";
-import { MapaSectionSkeleton } from "./MapaSectionSkeleton";
 
 interface OutletContext {
   sesion: Sesion;
@@ -233,10 +232,8 @@ export function CentrosView() {
     if (centro) setExpandido(unidadSebinDe(centro), true);
   }, [seleccionado, centros]);
 
-  if (cargandoCentros && vista === "mapa") {
-    return <MapaSectionSkeleton />;
-  }
-
+  // Mapa monta YA (tiles + MapLibre en paralelo a Supabase). Antes el skeleton
+  // bloqueaba todo hasta tener filas → segunda espera de ~10–20s tras el splash.
   if (errorCentros) {
     return (
       <EstadoError

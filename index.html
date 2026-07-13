@@ -132,6 +132,7 @@
         box-shadow: 0 0 12px rgba(16,185,129,0.4);
       }
       #app-splash .splash-cine .barra > div {
+        /* No llega a 100%: React completa al ocultar. Mentía "listo" a los 2.4s. */
         animation: splashBarra 2.4s 0.5s ease-in-out forwards;
       }
       #app-splash .splash-campo .barra > div { transition: width 0.35s ease; }
@@ -144,6 +145,9 @@
         opacity: 0; animation: splashStage 0.7s ease-out forwards;
       }
       #app-splash .stages span.final { color: #2dd4bf; }
+      #app-splash .stages span.persistente {
+        animation: splashStageIn 0.5s ease-out forwards;
+      }
       #app-splash .splash-cine { display: flex; flex-direction: column; align-items: center; }
       #app-splash .splash-campo {
         display: none; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem;
@@ -176,16 +180,20 @@
       @keyframes splashSub { to { width: 100%; } }
       @keyframes splashBarra {
         0% { width: 0%; }
-        25% { width: 25%; }
-        50% { width: 50%; }
-        75% { width: 78%; }
-        100% { width: 100%; }
+        25% { width: 22%; }
+        50% { width: 42%; }
+        75% { width: 58%; }
+        100% { width: 72%; }
       }
       @keyframes splashStage {
         0% { opacity: 0; }
         10% { opacity: 1; }
         70% { opacity: 1; }
         100% { opacity: 0; }
+      }
+      @keyframes splashStageIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
       }
 
       #aviso-app-obsoleta {
@@ -215,7 +223,7 @@
           opacity: 1; transform: none; filter: none; width: auto;
         }
         #app-splash .nucleo path { stroke-dashoffset: 0; }
-        #app-splash .splash-cine .barra > div { width: 100%; }
+        #app-splash .splash-cine .barra > div { width: 72%; }
       }
     </style>
   </head>
@@ -245,7 +253,7 @@
           <span class="" style="animation-delay:0.5s">ESTABLECIENDO CONEXIÓN SEGURA...</span>
           <span class="" style="animation-delay:1.2s">CARGANDO CENTROS DE ATENCIÓN...</span>
           <span class="" style="animation-delay:1.9s">SINCRONIZANDO CAPAS GEOESPACIALES...</span>
-          <span class="final" style="animation-delay:2.6s">SISTEMA LISTO</span>
+          <span class="final persistente" style="animation-delay:2.6s">PREPARANDO INTERFAZ...</span>
           </div>
         </div>
       </div>

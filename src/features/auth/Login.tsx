@@ -74,6 +74,8 @@ export function Login() {
         widgetRef.current?.tokenValue?.trim() || capToken.trim() || undefined;
       // Detener PoW especulativo antes de emitir sesión (desmonta este Login).
       detenerCapWidget(widgetRef.current);
+      // Prefetch mapa mientras auth responde → al disolverse el login ya hay chunk.
+      void import("@/features/centros/CentrosView");
       await login(usuario.trim(), password, tokenCap);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo iniciar sesión");

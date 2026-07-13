@@ -21,5 +21,15 @@ if (rutaEs("/censo") || rutaEs("/terreno") || rutaEs("/denuncia")) {
   if (msg) msg.textContent = rutaEs("/censo") ? "Cargando planilla…" : "Cargando…";
   void import("./censo-entry").then((m) => m.mount());
 } else {
+  // Arranca el chunk del mapa en paralelo al bootstrap (Vite/dev lo transforma
+  // mientras montamos React + auth). No espera el resultado aquí.
+  const path = window.location.pathname;
+  if (
+    path === "/" ||
+    path === "/centros" ||
+    path.startsWith("/centros/")
+  ) {
+    void import("./features/centros/CentrosView");
+  }
   void import("./app-entry").then((m) => m.mount());
 }
