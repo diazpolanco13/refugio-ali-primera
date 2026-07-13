@@ -1,3 +1,5 @@
+import { textoTelegramParaDeepLink } from "@/lib/telegramFormato";
+
 /** Solo dígitos del teléfono. */
 export function digitosTelefono(raw: string): string {
   return raw.replace(/\D/g, "");
@@ -36,31 +38,35 @@ export function telegramHref(raw: string): string | null {
 }
 
 /**
- * Share web de Telegram (elige chat/grupo). Fallback si la app no responde.
- * El param `url` es obligatorio para el diálogo de compartir; el texto va en `text`.
+ * Share web de Telegram. Usar solo como fallback.
+ * Importante: `encodeURIComponent` (espacios `%20`). Nunca `URLSearchParams`
+ * aquí — convierte espacios en `+` y Telegram los deja literales.
+ * Sin param `url`: si se manda `url=https://t.me`, aparece ese link arriba
+ * y el texto va como comentario plano (sin markdown).
  */
 export function telegramCompartirHref(texto: string): string {
-  const q = new URLSearchParams({ url: "https://t.me", text: texto });
-  return `https://t.me/share/url?${q.toString()}`;
+  return `https://t.me/share/url?text=${encodeURIComponent(texto)}`;
 }
 
 /**
- * Deep link de la app Telegram (Desktop/móvil): abre el selector de contacto/chat
- * con el texto listo para enviar. Preferir sobre la URL https.
+ * Deep link de la app: borrador de mensaje. El texto debe ir ya sin Markdown
+ * (`textoTelegramParaDeepLink`): `tg://` no aplica `parse_mode`.
  */
 export function telegramCompartirAppHref(texto: string): string {
-  const q = new URLSearchParams({ url: "https://t.me", text: texto });
-  return `tg://msg_url?${q.toString()}`;
+  return `tg://msg?text=${encodeURIComponent(texto)}`;
 }
 
 /**
- * Copia no incluida: solo abre la app (o web si el protocolo no responde).
+ * Copia no incluida: abre la app (o web) con texto ya apto para deep link.
+ * Acepta Markdown del parte y lo convierte (negrita Unicode) porque `tg://`
+ * no interpreta `**…**`.
  * Devuelve `"app"` si el foco salió (Telegram tomó la ventana), `"web"` si
  * caímos al share https, `"fallo"` si no se pudo abrir nada.
  */
 export async function abrirTelegramCompartir(
-  texto: string,
+  textoMarkdown: string,
 ): Promise<"app" | "web" | "fallo"> {
+  const texto = textoTelegramParaDeepLink(textoMarkdown);
   const appHref = telegramCompartirAppHref(texto);
   const webHref = telegramCompartirHref(texto);
 
@@ -92,7 +98,7 @@ export async function abrirTelegramCompartir(
     return "app";
   }
 
-  // App no registrada / no instalada: share web (a veces redirige a la app).
+  // App no registrada / no instalada: share web (formato peor; portapapeles es respaldo).
   const ventana = window.open(webHref, "_blank", "noopener,noreferrer");
   return ventana ? "web" : "fallo";
 }
