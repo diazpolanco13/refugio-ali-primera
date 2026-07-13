@@ -26,7 +26,9 @@ import {
 } from "@/domain/centrosTransitorios";
 import type { Sesion } from "@/data/authSupabase";
 import {
+  centrosEnAlcanceUsuario,
   centrosVisiblesParaUsuario,
+  idsCentrosResaltadosMapa,
   puedeCrearCentros,
   puedeEscribir,
 } from "@/domain/permisos";
@@ -137,17 +139,25 @@ export function CentrosView() {
     },
   );
   const snapshotsOcupacion = useOcupacionesCentros();
-  const centrosBase = useMemo(
+  const centrosRed = useMemo(
     () =>
-      centrosVisiblesParaUsuario(
-        [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
-        sesion.user,
+      aplicarPartesActualesACentros(
+        centrosVisiblesParaUsuario(
+          [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
+          sesion.user,
+        ),
+        snapshotsOcupacion,
       ),
-    [filasCentros, sesion.user],
+    [filasCentros, snapshotsOcupacion, sesion.user],
   );
+  /** Listas, tablero, cinta de totales: solo alcance operativo. */
   const centros = useMemo(
-    () => aplicarPartesActualesACentros(centrosBase, snapshotsOcupacion),
-    [centrosBase, snapshotsOcupacion],
+    () => centrosEnAlcanceUsuario(centrosRed, sesion.user),
+    [centrosRed, sesion.user],
+  );
+  const idsResaltadosAmbito = useMemo(
+    () => idsCentrosResaltadosMapa(sesion.user),
+    [sesion.user],
   );
 
   const estadosFilas = useMemo(() => calcularEstadosFilas(centros), [centros]);
@@ -198,6 +208,8 @@ export function CentrosView() {
       cerrarSeleccion();
       return;
     }
+    // Alcance limitado: solo interactuar con asignados (los atenuados no reciben clic).
+    if (idsResaltadosAmbito && !idsResaltadosAmbito.has(id)) return;
     setSeleccionado(id);
   }
 
@@ -246,7 +258,7 @@ export function CentrosView() {
           <>
             <CentrosMap
               ref={mapaRef}
-              centros={centros}
+              centros={centrosRed}
               baseMapa={baseMapa}
               onCambiarBase={setBaseMapa}
               seleccionado={seleccionado}
@@ -262,6 +274,7 @@ export function CentrosView() {
               unidadesFiltro={unidadesFiltroMapa}
               onAlternarUnidadFiltro={alternarUnidadFiltro}
               onLimpiarUnidadesFiltro={limpiarUnidadesFiltro}
+              idsResaltadosAmbito={idsResaltadosAmbito}
               detalleAbierto={detalleAbierto}
               onToggleDetalle={toggleDetalle}
               onExportar={() => void exportarVista()}

@@ -33,7 +33,7 @@ import {
   puedeEditarReportesPasados,
   puedeVerBuzonCentro,
   puedeVerCensoCentro,
-  centrosVisiblesParaUsuario,
+  centrosEnAlcanceUsuario,
 } from "@/domain/permisos";
 import { irAlPortalTerreno } from "@/lib/tokenTerreno";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
@@ -192,7 +192,7 @@ export function FichaCentroView({ sesion }: Props) {
   );
   const centrosBase = useMemo(
     () =>
-      centrosVisiblesParaUsuario(
+      centrosEnAlcanceUsuario(
         [...filasCentros].sort((a, b) => (a.nro ?? 0) - (b.nro ?? 0)),
         sesion.user,
       ),

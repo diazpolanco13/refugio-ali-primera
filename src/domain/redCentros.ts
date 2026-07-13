@@ -7,6 +7,7 @@ import {
   totalPersonalOperativo,
   type CentroTransitorio,
 } from "./centrosTransitorios";
+import { normalizarUbicacionCentro } from "./catalogosHumanitarios";
 import { contarUnidadesCon, totalUnidadesConteo } from "./complejosCentros";
 import { analisisCentro } from "./capacidadCentros";
 import {
@@ -17,6 +18,87 @@ import {
   type PrioridadCentro,
 } from "./prioridadCentros";
 import { sumarVulnerables, totalVulnerables, type Vulnerables } from "./tipos";
+
+/** Zonas fijas de la sala situacional (ultrawide). */
+export type ZonaSala = "caracas_miranda" | "vargas";
+
+export const ETIQUETA_ZONA_SALA: Record<ZonaSala, string> = {
+  caracas_miranda: "Caracas / Miranda",
+  vargas: "Vargas",
+};
+
+export const ZONAS_SALA: ZonaSala[] = ["caracas_miranda", "vargas"];
+
+export interface KpisZonaSala {
+  refugiosTotal: number;
+  ocupados: number;
+  vacios: number;
+  familias: number;
+  damnificados: number;
+  mascotas: number;
+}
+
+function kpisZonaVacia(): KpisZonaSala {
+  return {
+    refugiosTotal: 0,
+    ocupados: 0,
+    vacios: 0,
+    familias: 0,
+    damnificados: 0,
+    mascotas: 0,
+  };
+}
+
+/**
+ * Asigna un centro a la zona de sala por `estado_federativo` normalizado.
+ * DC + Miranda → Caracas/Miranda; La Guaira → Vargas.
+ */
+export function zonaSalaDeCentro(c: CentroTransitorio): ZonaSala | null {
+  const estado = normalizarUbicacionCentro({
+    estado_federativo: c.estado_federativo,
+    municipio: c.municipio,
+    parroquia: c.parroquia,
+  }).estado_federativo;
+  if (estado === "Distrito Capital" || estado === "Miranda") return "caracas_miranda";
+  if (estado === "La Guaira") return "vargas";
+  return null;
+}
+
+/** Centros de producción que caen en una zona de sala (o todos si zona es null). */
+export function centrosDeZonaSala(
+  centros: CentroTransitorio[],
+  zona: ZonaSala | null,
+): CentroTransitorio[] {
+  const op = centrosDeProduccion(centros);
+  if (!zona) return op;
+  return op.filter((c) => zonaSalaDeCentro(c) === zona);
+}
+
+/** KPIs por zona de la sala (Caracas/Miranda y Vargas). */
+export function kpisPorZonaSala(
+  centros: CentroTransitorio[],
+): Record<ZonaSala, KpisZonaSala> {
+  const out: Record<ZonaSala, KpisZonaSala> = {
+    caracas_miranda: kpisZonaVacia(),
+    vargas: kpisZonaVacia(),
+  };
+
+  for (const centro of centrosDeProduccion(centros)) {
+    const zona = zonaSalaDeCentro(centro);
+    if (!zona) continue;
+    const c = normalizarCentro(centro);
+    const ref = poblacionCentro(centro);
+    const fila = out[zona];
+    fila.refugiosTotal += 1;
+    if (ref > 0) fila.ocupados += 1;
+    else fila.vacios += 1;
+    fila.familias += c.familias_ocupadas;
+    fila.damnificados += ref;
+    fila.mascotas += c.ocupacion.mascotas;
+  }
+
+  return out;
+}
 
 export interface KpisRedCentros {
   refugiadosTotal: number;

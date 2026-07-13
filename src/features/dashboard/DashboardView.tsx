@@ -1,12 +1,9 @@
-// Sala situacional 24/7 (proyectable en pantalla ultrawide, SIN scroll en
-// escritorio): mapa de la red a la izquierda (25%) y métricas en vivo a la
-// derecha (75%). Todo se refresca solo vía Realtime. En pantallas pequeñas
-// (< xl) degrada a una columna con scroll normal.
+// Sala situacional 24/7 (pantalla ultrawide mural, SIN scroll en xl+):
+// mapa izquierda + KPIs globales/por zona + cinta alertas + paneles plegables.
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Activity,
   AlertTriangle,
   ArrowLeft,
   Building2,
@@ -22,38 +19,61 @@ import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import { useReportesCentros } from "@/data/useReportesCentros";
 import { useEventosReportes } from "@/data/useEventosReportes";
+import { useDenuncias } from "@/data/useDenuncias";
+import { useCensoNominalRed } from "@/data/useCensoNominalRed";
+import { useReportesControlDia } from "@/data/useReportesControlDia";
 import { claveDia } from "@/data/reposSupabase";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import { aplicarPartesActualesACentros } from "@/domain/parteActualCentros";
 import { contarAtenciones, racionesDelDia } from "@/domain/reporteDiario";
 import {
+  serieDiariaOcupacionRed,
+  serieDiariaOcupacionRedVsAsignados,
+  variacionUltimoDia,
+} from "@/domain/serieOcupacionCentros";
+import {
   centrosDeProduccion,
   idCentroEsPrueba,
-  poblacionCentro,
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
-import { centrosVisiblesParaUsuario } from "@/domain/permisos";
 import {
-  conteoPorNivel,
+  centrosEnAlcanceUsuario,
+  centrosVisiblesParaUsuario,
+  idsCentrosResaltadosMapa,
+} from "@/domain/permisos";
+import {
+  centrosDeZonaSala,
   demografiaRed,
-  ETIQUETA_NIVEL,
+  kpisPorZonaSala,
   kpisRedCentros,
-  topPrioridadCentros,
+  ZONAS_SALA,
+  type ZonaSala,
 } from "@/domain/redCentros";
 import {
   casosSaludPendientes,
   totalCasosSaludActivosRed,
 } from "@/domain/seguimientoReportes";
-import { COLOR_NIVEL, ORDEN_NIVELES } from "@/domain/prioridadCentros";
 import type { Sesion } from "@/data/authSupabase";
 import { useSupabaseConectado } from "@/data/useSupabaseConectado";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { GraficoOcupacionRed } from "./GraficoOcupacionRed";
 import { MapaRedSala } from "./MapaRedSala";
-import { NovedadesEnVivo } from "./NovedadesEnVivo";
+import { KpisPorZonaSala } from "./KpisPorZonaSala";
+import { PanelSalaPlegable, ResumenPlegadoSala } from "./PanelSalaPlegable";
+import { GraficoOcupacionRed } from "./GraficoOcupacionRed";
+import {
+  FeedCasosSalud,
+  FeedDenuncias,
+  FeedNovedadesDiarias,
+} from "./FeedsSala";
+import {
+  calcularFilasReportesSala,
+  conteoReportesPendientes,
+  PanelReportesSala,
+} from "./PanelReportesSala";
+import { PanelCensoSala, conteosCensoNominalSala } from "./PanelCensoSala";
 
 type CentroFila = CentroTransitorio & { deleted: boolean };
 
@@ -87,9 +107,8 @@ function Reloj() {
 export function DashboardView({ sesion }: { sesion: Sesion }) {
   const navegar = useNavigate();
   const conectado = useSupabaseConectado();
+  const [filtroZona, setFiltroZona] = useState<ZonaSala | null>(null);
 
-  // Centros con geom + último parte diario aplicado (misma base que el mapa
-  // de /centros): así los KPIs reflejan el parte más reciente, no el blob viejo.
   const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(
     "centros",
     {
@@ -98,7 +117,7 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
     },
   );
   const snapshots = useOcupacionesCentros();
-  const centros = useMemo(
+  const centrosRed = useMemo(
     () =>
       aplicarPartesActualesACentros(
         centrosVisiblesParaUsuario(
@@ -109,16 +128,24 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
       ),
     [filasCentros, snapshots, sesion.user],
   );
+  /** KPIs, feeds y paneles: solo alcance operativo del rol. */
+  const centros = useMemo(
+    () => centrosEnAlcanceUsuario(centrosRed, sesion.user),
+    [centrosRed, sesion.user],
+  );
+  const idsResaltadosAmbito = useMemo(
+    () => idsCentrosResaltadosMapa(sesion.user),
+    [sesion.user],
+  );
+
+  const centrosMapa = useMemo(
+    () => centrosDeZonaSala(centrosRed, filtroZona),
+    [centrosRed, filtroZona],
+  );
 
   const kpis = useMemo(() => kpisRedCentros(centros), [centros]);
   const demografia = useMemo(() => demografiaRed(centros), [centros]);
-  const conteoNivel = useMemo(() => conteoPorNivel(centros), [centros]);
-  const prioridades = useMemo(() => topPrioridadCentros(centros, 8), [centros]);
-  const ocupados = useMemo(
-    () => centrosDeProduccion(centros).filter((c) => poblacionCentro(c) > 0).length,
-    [centros],
-  );
-  const desocupados = kpis.centrosTotal - ocupados;
+  const kpisZona = useMemo(() => kpisPorZonaSala(centros), [centros]);
 
   const nombresCentros = useMemo(
     () =>
@@ -127,30 +154,33 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
       ),
     [centros],
   );
+  const idsVisibles = useMemo(() => new Set(centros.map((c) => c.id)), [centros]);
 
-  // Casos de salud en seguimiento en toda la red (Realtime).
   const { casos: casosSalud } = useCasosSaludCentros({ soloActivos: true });
   const casosSaludProd = useMemo(
     () => casosSalud.filter((c) => !idCentroEsPrueba(c.centro_id)),
     [casosSalud],
   );
-  const casosPendientes = useMemo(() => casosSaludPendientes(casosSaludProd), [casosSaludProd]);
+  const casosPendientes = useMemo(
+    () => casosSaludPendientes(casosSaludProd),
+    [casosSaludProd],
+  );
   const casosActivos = useMemo(
     () => totalCasosSaludActivosRed(casosSaludProd),
     [casosSaludProd],
   );
-  const casosEnProceso = useMemo(
-    () => casosSaludProd.filter((c) => c.estatus === "en_proceso").length,
-    [casosSaludProd],
-  );
 
-  // Reporte diario de HOY: raciones, atenciones médicas y novedades (eventos).
   const hoy = claveDia(Date.now());
   const reportesHoy = useReportesCentros({ dia: hoy });
+  const controlesHoy = useReportesControlDia({ dia: hoy });
   const { eventos: eventosHoy } = useEventosReportes({ dia: hoy });
   const reportesHoyProd = useMemo(
     () => reportesHoy.filter((r) => !idCentroEsPrueba(r.centro_id)),
     [reportesHoy],
+  );
+  const controlesHoyProd = useMemo(
+    () => controlesHoy.filter((c) => !idCentroEsPrueba(c.centro_id)),
+    [controlesHoy],
   );
   const eventosHoyProd = useMemo(
     () => eventosHoy.filter((e) => !idCentroEsPrueba(e.centro_id)),
@@ -175,13 +205,114 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
   );
   const eventosNegativos = eventosHoyProd.length - eventosPositivos;
 
-  // Campamentos con novedad: caso de salud pendiente o evento negativo hoy.
-  const centrosConNovedad = useMemo(() => {
-    const ids = new Set<string>();
-    for (const c of casosPendientes) ids.add(c.centro_id);
-    for (const e of eventosHoyProd) if (e.tipo === "negativo") ids.add(e.centro_id);
-    return ids.size;
-  }, [casosPendientes, eventosHoyProd]);
+  const denuncias = useDenuncias({ desde: hoy });
+  const denunciasProd = useMemo(
+    () => denuncias.filter((d) => !idCentroEsPrueba(d.centro_id) && idsVisibles.has(d.centro_id)),
+    [denuncias, idsVisibles],
+  );
+  const denunciasAbiertas = useMemo(
+    () => denunciasProd.filter((d) => d.estado === "abierta").length,
+    [denunciasProd],
+  );
+  const denunciasResueltas = denunciasProd.length - denunciasAbiertas;
+
+  const casosSaludActivo = useMemo(
+    () => casosPendientes.filter((c) => c.estatus === "activo").length,
+    [casosPendientes],
+  );
+  const casosSaludEnProceso = useMemo(
+    () => casosPendientes.filter((c) => c.estatus === "en_proceso").length,
+    [casosPendientes],
+  );
+
+  const { resumenes: resumenesCenso, cargando: cargandoCenso } =
+    useCensoNominalRed();
+  const resumenesCensoVisibles = useMemo(
+    () => resumenesCenso.filter((r) => idsVisibles.has(r.centroId)),
+    [resumenesCenso, idsVisibles],
+  );
+  const conteosCenso = useMemo(
+    () => conteosCensoNominalSala(resumenesCensoVisibles),
+    [resumenesCensoVisibles],
+  );
+
+  /** Resumen plegado del gráfico de ocupación (serie = red de producción). */
+  const serieOcupacionRed = useMemo(() => {
+    const centrosSerie = centrosDeProduccion(centrosRed).map((c) => ({
+      id: c.id,
+      grupo: c.grupo,
+    }));
+    return serieDiariaOcupacionRed(snapshots, centrosSerie);
+  }, [centrosRed, snapshots]);
+  const serieOcupacionComparativa = useMemo(() => {
+    if (!idsResaltadosAmbito || idsResaltadosAmbito.size === 0) return [];
+    const centrosSerie = centrosDeProduccion(centrosRed).map((c) => ({
+      id: c.id,
+      grupo: c.grupo,
+    }));
+    return serieDiariaOcupacionRedVsAsignados(
+      snapshots,
+      centrosSerie,
+      idsResaltadosAmbito,
+    );
+  }, [centrosRed, snapshots, idsResaltadosAmbito]);
+  const variacionOcupacion = useMemo(
+    () => variacionUltimoDia(serieOcupacionRed),
+    [serieOcupacionRed],
+  );
+  const ultimoOcupacion = serieOcupacionRed[serieOcupacionRed.length - 1];
+  const ultimoComparativa =
+    serieOcupacionComparativa[serieOcupacionComparativa.length - 1];
+
+  const diasConParteHoy = useMemo(() => {
+    const s = new Set<string>();
+    for (const snap of snapshots) {
+      if (snap.dia === hoy && !idCentroEsPrueba(snap.centro_id)) {
+        s.add(snap.centro_id);
+      }
+    }
+    return s;
+  }, [snapshots, hoy]);
+
+  const snapshotsHoy = useMemo(
+    () =>
+      snapshots.filter(
+        (s) => s.dia === hoy && !idCentroEsPrueba(s.centro_id),
+      ),
+    [snapshots, hoy],
+  );
+
+  const eventosPorCentro = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of eventosHoyProd) {
+      m.set(e.centro_id, (m.get(e.centro_id) ?? 0) + 1);
+    }
+    return m;
+  }, [eventosHoyProd]);
+
+  const filasReportes = useMemo(
+    () =>
+      calcularFilasReportesSala(
+        centrosDeProduccion(centros),
+        reportesHoyProd,
+        diasConParteHoy,
+        controlesHoyProd,
+        snapshotsHoy,
+        eventosPorCentro,
+      ),
+    [
+      centros,
+      reportesHoyProd,
+      diasConParteHoy,
+      controlesHoyProd,
+      snapshotsHoy,
+      eventosPorCentro,
+    ],
+  );
+  const { sinIniciar, parciales, incompletos, completos } = useMemo(
+    () => conteoReportesPendientes(filasReportes),
+    [filasReportes],
+  );
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
@@ -208,201 +339,323 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
         </div>
       </header>
 
-      {/* Cuerpo: en xl+ ocupa exactamente el alto restante SIN scroll.
-          Mapa = 1/4 del ancho, métricas = 3/4. */}
       <div className="min-h-0 flex-1 overflow-y-auto p-3 xl:overflow-hidden lg:p-4">
-        <div className="grid h-full grid-cols-1 gap-3 xl:grid-cols-4">
-          <div className="h-[320px] min-h-0 xl:h-full">
+        <div className="grid h-full grid-cols-1 gap-3 xl:grid-cols-5">
+          <div className="h-[320px] min-h-0 xl:col-span-1 xl:h-full">
             <MapaRedSala
-              centros={centros}
-              onAbrirCentro={(id) => navegar(`/centro/${id}`)}
+              centros={centrosMapa}
+              idsResaltadosAmbito={idsResaltadosAmbito}
+              onAbrirCentro={(id) => {
+                if (idsResaltadosAmbito && !idsResaltadosAmbito.has(id)) return;
+                navegar(`/centro/${id}`);
+              }}
             />
           </div>
 
-          <div className="flex min-h-0 flex-col gap-3 xl:col-span-3">
-            {/* Fila 1: 12 KPIs en vivo (6 × 2 en ultrawide). */}
-            <div className="grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+          <div className="flex min-h-0 flex-col gap-3 xl:col-span-4">
+            {/* L1: Globales */}
+            <div className="grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-4">
               <KpiSala
-                label="Damnificados"
-                valor={kpis.refugiadosTotal}
-                icono={<Users className="size-4" />}
-                acento="text-sky-300"
+                label="Total refugios"
+                valor={kpis.centrosTotal}
+                icono={<Building2 className="size-4" />}
+                grande
               />
               <KpiSala
                 label="Familias"
                 valor={kpis.familiasTotal}
                 icono={<Home className="size-4" />}
+                grande
+              />
+              <KpiSala
+                label="Damnificados"
+                valor={kpis.refugiadosTotal}
+                icono={<Users className="size-4" />}
+                acento="text-sky-300"
+                grande
               />
               <KpiSala
                 label="Mascotas"
                 valor={demografia.mascotas}
                 icono={<PawPrint className="size-4" />}
                 acento="text-amber-200"
-              />
-              <KpiSala
-                label="Personal operativo"
-                valor={kpis.personalTotal}
-                acento="text-violet-300"
-              />
-              <KpiSala
-                label="Campamentos ocupados"
-                valor={ocupados}
-                sub={`de ${kpis.centrosTotal} · ${desocupados} vacíos`}
-                icono={<Building2 className="size-4" />}
-              />
-              <KpiSala
-                label="Cupo disponible"
-                valor={kpis.cupoDisponible}
-                sub="plazas en la red"
-                icono={<DoorOpen className="size-4" />}
-                acento="text-emerald-300"
-              />
-              <KpiSala
-                label="Campamentos críticos"
-                valor={kpis.centrosCriticos}
-                sub="nivel crítico o alto"
-                icono={<AlertTriangle className="size-4" />}
-                acento={kpis.centrosCriticos > 0 ? "text-red-300" : "text-emerald-300"}
-              />
-              <KpiSala
-                label="Salud activa"
-                valor={casosActivos}
-                sub={
-                  casosEnProceso > 0
-                    ? `${casosEnProceso} en proceso`
-                    : "casos del reporte"
-                }
-                icono={<HeartPulse className="size-4" />}
-                acento={casosActivos > 0 ? "text-rose-300" : "text-emerald-300"}
-              />
-              <KpiSala
-                label="Atenciones hoy"
-                valor={atencionesHoy}
-                sub="atenciones médicas"
-                icono={<Activity className="size-4" />}
-              />
-              <KpiSala
-                label="Con novedad"
-                valor={centrosConNovedad}
-                sub="campamentos con seguimiento"
-                acento={centrosConNovedad > 0 ? "text-amber-300" : "text-emerald-300"}
-              />
-              <KpiEventosHoy positivos={eventosPositivos} negativos={eventosNegativos} />
-              <KpiSala
-                label="Raciones hoy"
-                valor={racionesHoy}
-                sub={`de ${kpis.refugiadosTotal.toLocaleString("es")} damnificados`}
-                icono={<Utensils className="size-4" />}
-                acento="text-orange-300"
+                grande
               />
             </div>
 
-            {/* Fila 2 (flexible): histórico + novedades en vivo + estado de la red. */}
-            <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-12">
-              <Card className="flex min-h-[260px] flex-col gap-2 py-4 xl:col-span-6 xl:min-h-0">
-                <CardHeader className="shrink-0 pb-0">
-                  <CardTitle className="text-base">
-                    Histórico de ocupación de la red
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="min-h-0 flex-1">
-                  <GraficoOcupacionRed flexible />
-                </CardContent>
-              </Card>
+            {/* L2: Por estado */}
+            <div className="grid shrink-0 grid-cols-1 gap-3 xl:grid-cols-2">
+              {ZONAS_SALA.map((zona) => (
+                <KpisPorZonaSala
+                  key={zona}
+                  zona={zona}
+                  kpis={kpisZona[zona]}
+                  activo={filtroZona === zona}
+                  onSeleccionar={setFiltroZona}
+                />
+              ))}
+            </div>
 
-              <Card className="flex min-h-0 flex-col gap-2 py-4 xl:col-span-3">
-                <CardHeader className="shrink-0 pb-0">
-                  <CardTitle className="flex items-center justify-between gap-2 text-base">
-                    Novedades en vivo
-                    {casosPendientes.length + eventosHoy.length > 0 && (
-                      <Badge variant="outline" className="text-[10px]">
-                        {casosPendientes.length + eventosHoy.length}
-                      </Badge>
-                    )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="min-h-0 flex-1 overflow-y-auto">
-                  <NovedadesEnVivo
-                    casos={casosPendientes}
-                    eventos={eventosHoy}
-                    nombresCentros={nombresCentros}
-                    hoy={hoy}
+            {/* Cinta alertas */}
+            <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-border bg-card/50 px-3 py-2">
+              <ChipAlerta
+                tono={kpis.centrosCriticos > 0 ? "danger" : "ok"}
+                icono={<AlertTriangle className="size-3.5" />}
+                label="Críticos"
+                valor={kpis.centrosCriticos}
+              />
+              <ChipAlerta
+                tono="neutral"
+                icono={<DoorOpen className="size-3.5" />}
+                label="Cupo"
+                valor={kpis.cupoDisponible}
+              />
+              <ChipAlerta
+                tono="neutral"
+                label="Personal"
+                valor={kpis.personalTotal}
+              />
+              <ChipAlerta
+                tono={casosActivos > 0 ? "warn" : "ok"}
+                icono={<HeartPulse className="size-3.5" />}
+                label="Salud activa"
+                valor={casosActivos}
+              />
+              <ChipAlerta
+                tono="neutral"
+                label="Atenciones hoy"
+                valor={atencionesHoy}
+              />
+              <ChipAlerta
+                tono={eventosNegativos > 0 ? "warn" : "ok"}
+                label="Eventos"
+                valor={`+${eventosPositivos} / −${eventosNegativos}`}
+              />
+              <ChipAlerta
+                tono="neutral"
+                icono={<Utensils className="size-3.5" />}
+                label="Raciones"
+                valor={racionesHoy}
+              />
+              <ChipAlerta
+                tono={incompletos > 0 ? "warn" : "ok"}
+                label="Reportes incompletos"
+                valor={incompletos}
+              />
+              {parciales > 0 && (
+                <ChipAlerta tono="warn" label="Reportes parciales" valor={parciales} />
+              )}
+              {sinIniciar > 0 && (
+                <ChipAlerta tono="warn" label="Sin iniciar" valor={sinIniciar} />
+              )}
+              {denunciasAbiertas > 0 && (
+                <ChipAlerta
+                  tono="warn"
+                  label="Denuncias abiertas"
+                  valor={denunciasAbiertas}
+                />
+              )}
+            </div>
+
+            {/* Fila paneles operativos — ocupación primero (izq → der) */}
+            <div className="flex min-h-0 flex-1 gap-2 overflow-x-auto xl:overflow-hidden">
+              <PanelSalaPlegable
+                id="ocupacion"
+                titulo="Histórico de ocupación de la red"
+                tituloCorto="Ocupación"
+                contenidoFlexible
+                className="min-w-[18rem] sm:min-w-[22rem]"
+                resumenPlegado={
+                  <ResumenPlegadoSala
+                    nombre="Ocupación"
+                    items={
+                      ultimoComparativa
+                        ? [
+                            {
+                              valor: ultimoComparativa.totalRed,
+                              tono: "neutral",
+                              label: "Total red",
+                            },
+                            {
+                              valor: ultimoComparativa.totalAsignados,
+                              tono: "ok",
+                              label: "Mis centros",
+                            },
+                          ]
+                        : [
+                            {
+                              valor: ultimoOcupacion?.total ?? 0,
+                              tono: "neutral",
+                              label: "Damnificados",
+                            },
+                            ...(variacionOcupacion &&
+                            variacionOcupacion.total !== 0
+                              ? [
+                                  {
+                                    valor: Math.abs(variacionOcupacion.total),
+                                    tono:
+                                      variacionOcupacion.total > 0
+                                        ? ("ok" as const)
+                                        : ("danger" as const),
+                                    label: "vs día previo",
+                                  },
+                                ]
+                              : []),
+                          ]
+                    }
                   />
-                </CardContent>
-              </Card>
+                }
+              >
+                <GraficoOcupacionRed
+                  flexible
+                  idsAsignados={idsResaltadosAmbito}
+                />
+              </PanelSalaPlegable>
 
-              <Card className="flex min-h-0 flex-col gap-2 py-4 xl:col-span-3">
-                <CardHeader className="shrink-0 pb-0">
-                  <CardTitle className="text-base">Estado de la red</CardTitle>
-                </CardHeader>
-                <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">
-                  {ORDEN_NIVELES.map((nivel) => {
-                    const n = conteoNivel[nivel];
-                    if (n === 0 && nivel !== "sin_datos") return null;
-                    const pct =
-                      kpis.centrosTotal > 0
-                        ? Math.round((n / kpis.centrosTotal) * 100)
-                        : 0;
-                    return (
-                      <div key={nivel}>
-                        <div className="mb-0.5 flex items-center justify-between gap-2 text-xs">
-                          <span className="text-foreground">{ETIQUETA_NIVEL[nivel]}</span>
-                          <span className="shrink-0 font-semibold tabular-nums text-muted-foreground">
-                            {n} · {pct}%
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${Math.max(pct, n > 0 ? 4 : 0)}%`,
-                              background: COLOR_NIVEL[nivel],
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+              <PanelSalaPlegable
+                id="novedades"
+                titulo="Novedades diarias"
+                tituloCorto="Novedades"
+                badge={eventosHoyProd.length}
+                resumenPlegado={
+                  <ResumenPlegadoSala
+                    nombre="Novedades"
+                    items={[
+                      { valor: eventosPositivos, tono: "ok", label: "Positivas" },
+                      { valor: eventosNegativos, tono: "danger", label: "Negativas" },
+                    ]}
+                  />
+                }
+              >
+                <FeedNovedadesDiarias
+                  eventos={eventosHoyProd}
+                  nombresCentros={nombresCentros}
+                  hoy={hoy}
+                />
+              </PanelSalaPlegable>
 
-                  <p className="pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                    Atención prioritaria
-                  </p>
-                  <div className="space-y-1.5">
-                    {prioridades
-                      .filter(({ prioridad }) =>
-                        ["critico", "alto"].includes(prioridad.nivel),
-                      )
-                      .map(({ centro, prioridad }) => (
-                        <Link
-                          key={centro.id}
-                          to={`/centro/${centro.id}`}
-                          className="flex items-center justify-between gap-2 rounded-md border border-border bg-card/60 px-2 py-1.5 hover:bg-muted/40"
-                        >
-                          <span className="truncate text-xs font-medium text-foreground">
-                            N.° {centro.nro} · {centro.nombre}
-                          </span>
-                          <Badge
-                            variant="outline"
-                            className="shrink-0 px-1.5 py-0 text-[10px]"
-                            style={{
-                              borderColor: `${COLOR_NIVEL[prioridad.nivel]}66`,
-                              color: COLOR_NIVEL[prioridad.nivel],
-                            }}
-                          >
-                            {ETIQUETA_NIVEL[prioridad.nivel]}
-                          </Badge>
-                        </Link>
-                      ))}
-                    {prioridades.every(
-                      ({ prioridad }) => !["critico", "alto"].includes(prioridad.nivel),
-                    ) && (
-                      <p className="text-xs text-muted-foreground">
-                        Ningún campamento en nivel crítico o alto.
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              <PanelSalaPlegable
+                id="salud"
+                titulo="Casos de salud"
+                tituloCorto="Salud"
+                badge={casosPendientes.length}
+                resumenPlegado={
+                  <ResumenPlegadoSala
+                    nombre="Salud"
+                    items={[
+                      {
+                        valor: casosSaludEnProceso,
+                        tono: "warn",
+                        label: "En proceso",
+                      },
+                      {
+                        valor: casosSaludActivo,
+                        tono: "danger",
+                        label: "Activos",
+                      },
+                    ]}
+                  />
+                }
+              >
+                <FeedCasosSalud
+                  casos={casosPendientes}
+                  nombresCentros={nombresCentros}
+                  hoy={hoy}
+                />
+              </PanelSalaPlegable>
+
+              <PanelSalaPlegable
+                id="denuncias"
+                titulo="Denuncias"
+                tituloCorto="Denuncias"
+                badge={denunciasAbiertas || denunciasProd.length}
+                resumenPlegado={
+                  <ResumenPlegadoSala
+                    nombre="Denuncias"
+                    items={[
+                      {
+                        valor: denunciasResueltas,
+                        tono: "ok",
+                        label: "Resueltas",
+                      },
+                      {
+                        valor: denunciasAbiertas,
+                        tono: "danger",
+                        label: "Abiertas",
+                      },
+                    ]}
+                  />
+                }
+              >
+                <FeedDenuncias
+                  denuncias={denunciasProd}
+                  nombresCentros={nombresCentros}
+                  hoy={hoy}
+                />
+              </PanelSalaPlegable>
+
+              <PanelSalaPlegable
+                id="reportes"
+                titulo="Reportes diarios"
+                tituloCorto="Reportes"
+                badge={incompletos > 0 ? incompletos : null}
+                resumenPlegado={
+                  <ResumenPlegadoSala
+                    nombre="Reportes"
+                    items={[
+                      { valor: completos, tono: "ok", label: "Completos" },
+                      { valor: parciales, tono: "warn", label: "Parciales" },
+                      {
+                        valor: sinIniciar,
+                        tono: "danger",
+                        label: "Sin iniciar",
+                      },
+                    ]}
+                  />
+                }
+              >
+                <PanelReportesSala filas={filasReportes} hoy={hoy} />
+              </PanelSalaPlegable>
+
+              <PanelSalaPlegable
+                id="censo"
+                titulo="Censo nominal vs parte"
+                tituloCorto="Censo"
+                badge={
+                  conteosCenso.enCurso > 0
+                    ? conteosCenso.enCurso
+                    : conteosCenso.sinIniciar > 0
+                      ? conteosCenso.sinIniciar
+                      : null
+                }
+                resumenPlegado={
+                  <ResumenPlegadoSala
+                    nombre="Censo"
+                    items={[
+                      {
+                        valor: conteosCenso.completo,
+                        tono: "ok",
+                        label: "Completo",
+                      },
+                      {
+                        valor: conteosCenso.enCurso,
+                        tono: "warn",
+                        label: "En curso",
+                      },
+                      {
+                        valor: conteosCenso.sinIniciar,
+                        tono: "danger",
+                        label: "Sin iniciar",
+                      },
+                    ]}
+                  />
+                }
+              >
+                <PanelCensoSala
+                  resumenes={resumenesCensoVisibles}
+                  cargando={cargandoCenso}
+                />
+              </PanelSalaPlegable>
             </div>
           </div>
         </div>
@@ -412,27 +665,23 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
 }
 
 function IndicadorConexion({ conectado }: { conectado: boolean }) {
-  const online = typeof navigator !== "undefined" ? navigator.onLine : true;
-  if (!online) {
-    return (
-      <Badge variant="outline" className="gap-1 border-amber-500/40 text-amber-300">
-        <span className="size-1.5 rounded-full bg-amber-400" />
-        Sin conexión
-      </Badge>
-    );
-  }
-  if (!conectado) {
-    return (
-      <Badge variant="destructive" className="gap-1">
-        <span className="size-1.5 rounded-full bg-red-400" />
-        Sin conexión
-      </Badge>
-    );
-  }
   return (
-    <Badge variant="outline" className="gap-1 border-emerald-500/30 text-emerald-300">
-      <span className="size-1.5 rounded-full bg-emerald-400" />
-      En vivo
+    <Badge
+      variant="outline"
+      className={cn(
+        "gap-1.5 px-2.5 py-1 text-xs font-medium",
+        conectado
+          ? "border-emerald-500/40 text-emerald-300"
+          : "border-amber-500/40 text-amber-200",
+      )}
+    >
+      <span
+        className={cn(
+          "size-2 rounded-full",
+          conectado ? "bg-emerald-400 animate-pulse" : "bg-amber-400",
+        )}
+      />
+      {conectado ? "En vivo" : "Reconectando…"}
     </Badge>
   );
 }
@@ -444,59 +693,69 @@ function KpiSala({
   subClassName,
   icono,
   acento = "text-foreground",
+  grande = false,
 }: {
   label: string;
   valor: number;
   sub?: string;
-  /** Clases extra para el subtexto (p. ej. destacar urgentes en rojo). */
   subClassName?: string;
   icono?: ReactNode;
   acento?: string;
+  grande?: boolean;
 }) {
   return (
-    <Card className="justify-center gap-0 py-2.5">
-      <CardContent className="flex flex-col gap-0.5 px-3 py-0">
-        <div className="flex items-center justify-between gap-1 text-muted-foreground">
-          <span className="truncate text-[11px] font-medium uppercase tracking-wide 2xl:text-xs">
-            {label}
-          </span>
+    <Card className="gap-1 py-3">
+      <CardContent className="px-3 pt-0">
+        <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           {icono}
+          <span className="truncate">{label}</span>
         </div>
-        <div className="flex items-baseline gap-1.5">
-          <span className={cn("text-2xl font-bold tabular-nums 2xl:text-4xl", acento)}>
-            {valor.toLocaleString("es")}
-          </span>
-          {sub && (
-            <span className={cn("truncate text-[11px] text-muted-foreground", subClassName)}>
-              {sub}
-            </span>
+        <div
+          className={cn(
+            "mt-1 font-bold tabular-nums",
+            grande ? "text-3xl lg:text-4xl" : "text-2xl lg:text-3xl",
+            acento,
           )}
+        >
+          {valor.toLocaleString("es")}
         </div>
+        {sub && (
+          <p className={cn("mt-0.5 text-xs text-muted-foreground", subClassName)}>
+            {sub}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-/** KPI doble: eventos del día positivos (verde) y negativos (rojo). */
-function KpiEventosHoy({ positivos, negativos }: { positivos: number; negativos: number }) {
+function ChipAlerta({
+  label,
+  valor,
+  icono,
+  tono = "neutral",
+}: {
+  label: string;
+  valor: number | string;
+  icono?: ReactNode;
+  tono?: "ok" | "warn" | "danger" | "neutral";
+}) {
   return (
-    <Card className="justify-center gap-0 py-2.5">
-      <CardContent className="flex flex-col gap-0.5 px-3 py-0">
-        <div className="flex items-center justify-between gap-1 text-muted-foreground">
-          <span className="truncate text-[11px] font-medium uppercase tracking-wide 2xl:text-xs">
-            Eventos hoy
-          </span>
-          <Activity className="size-4" />
-        </div>
-        <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold tabular-nums text-emerald-300 2xl:text-4xl">
-            +{positivos.toLocaleString("es")}
-          </span>
-          <span className="text-2xl font-bold tabular-nums text-red-300 2xl:text-4xl">
-            −{negativos.toLocaleString("es")}
-          </span>
-        </div>
-      </CardContent>
-    </Card>
+    <Badge
+      variant="outline"
+      className={cn(
+        "h-8 gap-1.5 border px-2.5 text-xs font-medium",
+        tono === "danger" && "border-red-500/50 text-red-300",
+        tono === "warn" && "border-amber-500/50 text-amber-200",
+        tono === "ok" && "border-emerald-500/40 text-emerald-300",
+        tono === "neutral" && "border-border text-foreground",
+      )}
+    >
+      {icono}
+      <span className="text-muted-foreground">{label}</span>
+      <span className="tabular-nums font-semibold">
+        {typeof valor === "number" ? valor.toLocaleString("es") : valor}
+      </span>
+    </Badge>
   );
 }

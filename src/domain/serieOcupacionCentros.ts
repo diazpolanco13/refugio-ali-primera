@@ -57,6 +57,14 @@ export interface PuntoSeriePorGrupo {
   granCaracas: number;
 }
 
+/** Red completa vs subconjunto asignado (gráfica superpuesta). */
+export interface PuntoSerieRedVsAsignados {
+  /** YYYY-MM-DD */
+  dia: string;
+  totalRed: number;
+  totalAsignados: number;
+}
+
 /** Punto diario de población desglosada (gráfico de la pestaña Población). */
 export interface PuntoSeriePoblacion {
   dia: string;
@@ -292,6 +300,30 @@ export function serieDiariaPorGrupo(
     }
     return { dia, areaMetropolitana, granCaracas };
   });
+}
+
+/**
+ * Serie diaria: total de la red vs total de centros asignados al usuario.
+ * Misma escala temporal (carry-forward). Pensada para superponer dos áreas
+ * sin apilar valores.
+ */
+export function serieDiariaOcupacionRedVsAsignados(
+  snapshots: SnapshotOcupacion[],
+  centros: CentroParaAgregado[],
+  idsAsignados: ReadonlySet<string>,
+): PuntoSerieRedVsAsignados[] {
+  const serieRed = serieDiariaOcupacionRed(snapshots, centros);
+  if (serieRed.length === 0) return [];
+  const centrosAsignados = centros.filter((c) => idsAsignados.has(c.id));
+  const serieAsignados = serieDiariaOcupacionRed(snapshots, centrosAsignados);
+  const totalAsigPorDia = new Map(
+    serieAsignados.map((p) => [p.dia, p.total] as const),
+  );
+  return serieRed.map((p) => ({
+    dia: p.dia,
+    totalRed: p.total,
+    totalAsignados: totalAsigPorDia.get(p.dia) ?? 0,
+  }));
 }
 
 /**

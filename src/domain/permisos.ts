@@ -12,9 +12,13 @@ import {
  * | admin        | Sí       | Todos       | Todos        | Abrir/resolver en todos        | Sí   | Sí        | Sí (editar) | Todos        |
  * | analista_sae | No       | Todos       | Todos        | Abrir/resolver en todos        | No   | Sí        | Sí (editar) | Todos        |
  * | autoridad    | No       | Todos       | No           | No                             | Sí   | Sí        | Solo lectura| Todos (leer) |
- * | supervisor   | No       | Asignados   | Asignados    | Abrir/resolver en asignados    | No   | No        | Asignados (editar) | Asignados |
- * | operador     | No       | Asignados   | Asignados    | Abrir; resolver solo las suyas | No   | No        | No          | No           |
+ * | supervisor   | No       | Asignados¹  | Asignados    | Abrir/resolver en asignados    | No   | No        | Asignados (editar) | Asignados |
+ * | operador     | No       | Asignados¹  | Asignados    | Abrir; resolver solo las suyas | No   | No        | No          | No           |
  * | censo_rapido | No       | Todos       | No           | No                             | No   | Sí        | Solo lectura| No           |
+ *
+ * ¹ Mapa: red completa con no asignados atenuados (mismo efecto visual que
+ *   el filtro por unidad SEBIN). Listas, KPIs, ficha y reportes = solo
+ *   asignados.
  *
  * La RLS de Supabase aplica esta misma matriz en el servidor (migración
  * `sistema_usuarios_5_roles`); estos helpers solo controlan la UI.
@@ -85,7 +89,7 @@ export const INFO_ROLES: Record<Rol, InfoRol> = {
     rol: "supervisor",
     etiqueta: "Supervisor",
     descripcion:
-      "Responsabilidad operativa integral sobre sus campamentos asignados (uno o varios)",
+      "Opera sus campamentos asignados; en el mapa ve la red con el resto atenuado",
     alcanceTotal: false,
     puedeEscribir: true,
     escrituraTotal: false,
@@ -244,10 +248,14 @@ export function puedeVerCentrosPrueba(usuario: Usuario): boolean {
 }
 
 /**
- * Lista operativa de campamentos según quién puede ver el sandbox.
+ * Lista de campamentos según quién puede ver el sandbox.
  * Admin: toda la red incluido entrenamiento.
  * Operador/supervisor con el sandbox asignado: lo ven (QR de terreno).
  * Resto: solo campamentos de producción.
+ *
+ * No filtra por `centros_asignados`: el mapa de roles con alcance limitado
+ * muestra la red completa (marcadores no asignados atenuados). Para listas /
+ * KPIs / ficha usar `centrosEnAlcanceUsuario`.
  */
 export function centrosVisiblesParaUsuario(
   centros: CentroTransitorio[],
@@ -259,6 +267,39 @@ export function centrosVisiblesParaUsuario(
     if (!esCentroDePrueba(c)) return true;
     return asignados.has(c.id);
   });
+}
+
+/** ¿Rol con lectura de toda la red (sin atenuar por asignación en el mapa)? */
+export function tieneAlcanceTotalRed(usuario: Usuario | null | undefined): boolean {
+  if (!usuario) return false;
+  return permisosDeRol(usuario.rol).alcanceTotal;
+}
+
+/**
+ * Campamentos operativos del usuario.
+ * Alcance total → mismos que `centrosVisiblesParaUsuario`.
+ * Alcance limitado → solo `centros_asignados` (listas, KPIs, ficha, reportes).
+ */
+export function centrosEnAlcanceUsuario(
+  centros: CentroTransitorio[],
+  usuario: Usuario | null | undefined,
+): CentroTransitorio[] {
+  const visibles = centrosVisiblesParaUsuario(centros, usuario);
+  if (!usuario || permisosDeRol(usuario.rol).alcanceTotal) return visibles;
+  const asignados = new Set(usuario.centros_asignados ?? []);
+  return visibles.filter((c) => asignados.has(c.id));
+}
+
+/**
+ * IDs a resaltar en el mapa por ámbito del usuario.
+ * `null` = sin atenuación por asignación (roles de red completa).
+ * Con alcance limitado = solo asignados (el resto se opaca como filtro unidad).
+ */
+export function idsCentrosResaltadosMapa(
+  usuario: Usuario | null | undefined,
+): ReadonlySet<string> | null {
+  if (!usuario || permisosDeRol(usuario.rol).alcanceTotal) return null;
+  return new Set(usuario.centros_asignados ?? []);
 }
 
 export function puedeVerSaludMental(rol: Rol): boolean {

@@ -49,6 +49,12 @@ interface Props {
   unidadesFiltro: ReadonlySet<ClaveUnidadSebin>;
   onAlternarUnidadFiltro: (clave: ClaveUnidadSebin) => void;
   onLimpiarUnidadesFiltro: () => void;
+  /**
+   * IDs resaltados por ámbito del usuario (supervisor/operador).
+   * `null`/`undefined` = sin atenuación por asignación.
+   * Con set: el resto se opaca igual que el filtro por unidad SEBIN.
+   */
+  idsResaltadosAmbito?: ReadonlySet<string> | null;
   /** Indica si el panel DetalleCentro está abierto (estado "presionado" del botón "detalles"). */
   detalleAbierto: boolean;
   /** Alternar (abrir/cerrar) el panel de detalle completo del centro seleccionado. */
@@ -81,6 +87,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     unidadesFiltro,
     onAlternarUnidadFiltro,
     onLimpiarUnidadesFiltro,
+    idsResaltadosAmbito = null,
     detalleAbierto,
     onToggleDetalle,
     onExportar,
@@ -123,6 +130,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     mostrarParteMarcador,
     mostrarEtiquetaNombre,
     unidadesFiltro,
+    idsResaltadosAmbito,
     onSeleccionar,
     onToggleDetalle,
   });
@@ -134,6 +142,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     mostrarParteMarcador,
     mostrarEtiquetaNombre,
     unidadesFiltro,
+    idsResaltadosAmbito,
     onSeleccionar,
     onToggleDetalle,
   };
@@ -359,8 +368,11 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       const metaUnidad = metaUnidadSebinCentro(c);
       const claveUnidad = unidadSebinDe(c);
       const filtro = cbRef.current.unidadesFiltro;
-      const hayFiltro = filtro.size > 0;
-      const resaltado = !hayFiltro || filtro.has(claveUnidad);
+      const hayFiltroUnidad = filtro.size > 0;
+      const ambito = cbRef.current.idsResaltadosAmbito;
+      const resaltadoAmbito = ambito == null || ambito.has(c.id);
+      const resaltadoUnidad = !hayFiltroUnidad || filtro.has(claveUnidad);
+      const resaltado = resaltadoAmbito && resaltadoUnidad;
       let marcador = marcadores.current.get(c.id);
       if (!marcador) {
         const anchor = document.createElement("div");
@@ -372,10 +384,10 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
         marcador.addTo(map);
         marcadores.current.set(c.id, marcador);
       }
-      // Los atenuados van detrás para que la dirección filtrada quede al frente.
+      // Los atenuados van detrás para que la dirección / ámbito filtrado quede al frente.
       const el = marcador.getElement();
       el.style.zIndex = resaltado ? "2" : "1";
-      el.style.pointerEvents = resaltado || !hayFiltro ? "auto" : "none";
+      el.style.pointerEvents = resaltado ? "auto" : "none";
       const analisis = analisisCentro(c);
       const refugiados = poblacionCentro(c);
       const personalTotal = totalPersonalOperativo(normalizarCentro(c).personal);
@@ -424,7 +436,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     sincronizarMarcadores();
     aplicarVistaDefectoSiCorresponde();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [centros, seleccionado, modoMarcador, mostrarParteMarcador, mostrarEtiquetaNombre, unidadesFiltro]);
+  }, [centros, seleccionado, modoMarcador, mostrarParteMarcador, mostrarEtiquetaNombre, unidadesFiltro, idsResaltadosAmbito]);
 
   useEffect(() => {
     const map = mapRef.current;

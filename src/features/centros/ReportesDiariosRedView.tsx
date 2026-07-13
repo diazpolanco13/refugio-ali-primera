@@ -79,7 +79,7 @@ import {
   totalUnidadesConteo,
 } from "@/domain/complejosCentros";
 import { construirReporteEjecutivoCampamentos } from "@/domain/reporteEjecutivoCampamentos";
-import { centrosVisiblesParaUsuario } from "@/domain/permisos";
+import { centrosEnAlcanceUsuario } from "@/domain/permisos";
 import type { Sesion } from "@/data/authSupabase";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -754,7 +754,7 @@ export function ReportesDiariosRedView() {
   );
   const centros = useMemo(
     () =>
-      centrosVisiblesParaUsuario(
+      centrosEnAlcanceUsuario(
         [...filasCentros].sort(
           (a, b) =>
             (a.nro ?? 0) - (b.nro ?? 0) || a.nombre.localeCompare(b.nombre, "es"),
