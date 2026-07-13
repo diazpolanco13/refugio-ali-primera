@@ -99,9 +99,11 @@ import {
   PARENTESCOS_JEFE,
   calcularEdad,
   formatearCedula,
+  normalizarCedula,
   type EstatusVivienda,
   type FamiliarSeparado,
   type SexoRefugiado,
+  type TipoDoc,
 } from "@/domain/refugiados";
 import {
   EstadoNexusApi,
@@ -134,7 +136,16 @@ const SEVERIDAD_VIVIENDA_OPCIONES: { valor: EstatusVivienda; label: string; emoj
 const UBICACIONES_VIVIENDA = ["Caracas", "Miranda", "La Guaira"] as const;
 
 function nuevaPerdidaVacia(): FamiliarSeparado {
-  return { id: nuevoId(), nombre: "", parentesco: "Otro familiar", estado: "fallecido" };
+  return {
+    id: nuevoId(),
+    nombre: "",
+    parentesco: "Otro familiar",
+    estado: "fallecido",
+    cedula: "",
+    tipo_doc: "V",
+    cedula_norm: null,
+    verificado_nexus: false,
+  };
 }
 
 function StepperInline({
@@ -555,6 +566,9 @@ export function CensoNexusPanel({
   const [desaparecidosCount, setDesaparecidosCount] = useState(0);
   const [detallePerdidas, setDetallePerdidas] = useState<FamiliarSeparado[]>([]);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
+  /** Id de la fila de pérdida cuya cédula se está verificando en Nexus. */
+  const [verificandoPerdidaId, setVerificandoPerdidaId] = useState<string | null>(null);
+  const [errorPerdidaCedula, setErrorPerdidaCedula] = useState<Record<string, string>>({});
   // Nivel de afectación del hogar recién creado, para el badge del header.
   const [nivelHogar, setNivelHogar] = useState<{
     estatusVivienda: EstatusVivienda;
@@ -801,6 +815,64 @@ export function CensoNexusPanel({
     setDesaparecidosCount(0);
     setDetallePerdidas([]);
     setDetalleAbierto(false);
+    setVerificandoPerdidaId(null);
+    setErrorPerdidaCedula({});
+  }
+
+  function actualizarPerdida(
+    id: string,
+    patch: Partial<FamiliarSeparado> | ((prev: FamiliarSeparado) => FamiliarSeparado),
+  ) {
+    setDetallePerdidas((prev) =>
+      prev.map((x) => {
+        if (x.id !== id) return x;
+        return typeof patch === "function" ? patch(x) : { ...x, ...patch };
+      }),
+    );
+  }
+
+  /** Verifica en Nexus la cédula de un fallecido/desaparecido y rellena nombre/edad. */
+  async function verificarCedulaPerdida(id: string) {
+    const fila = detallePerdidas.find((x) => x.id === id);
+    if (!fila) return;
+    const digits = soloDigitos(fila.cedula ?? "");
+    if (digits.length < 5) {
+      setErrorPerdidaCedula((prev) => ({
+        ...prev,
+        [id]: "Indique al menos 5 dígitos de la cédula.",
+      }));
+      return;
+    }
+    const letraDoc: Letra = fila.tipo_doc === "E" ? "E" : "V";
+    setVerificandoPerdidaId(id);
+    setErrorPerdidaCedula((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    try {
+      const ficha = await buscarPersonaNexusConCache(letraDoc, digits);
+      const p = ficha.persona;
+      const norm = normalizarCedula(digits, letraDoc);
+      actualizarPerdida(id, {
+        nombre: p.nombre_completo?.trim() || fila.nombre,
+        edad_aproximada: typeof p.edad === "number" ? p.edad : fila.edad_aproximada ?? null,
+        cedula: norm.cedula,
+        tipo_doc: norm.tipo_doc,
+        cedula_norm: norm.cedula_norm,
+        verificado_nexus: true,
+        estado: p.fallecido ? "fallecido" : fila.estado,
+        fecha_fallecimiento: p.fecha_fallecimiento ?? fila.fecha_fallecimiento ?? null,
+      });
+    } catch (err) {
+      actualizarPerdida(id, { verificado_nexus: false });
+      setErrorPerdidaCedula((prev) => ({
+        ...prev,
+        [id]: mensajeErrorParaUsuario(err, "No se pudo verificar la cédula en Nexus."),
+      }));
+    } finally {
+      setVerificandoPerdidaId(null);
+    }
   }
 
   async function onBuscar(
@@ -884,6 +956,12 @@ export function CensoNexusPanel({
     }
   }
 
+  function detallePerdidasAGuardar(): FamiliarSeparado[] {
+    return detallePerdidas.filter(
+      (f) => f.nombre.trim().length > 0 || soloDigitos(f.cedula ?? "").length >= 5,
+    );
+  }
+
   async function onCrearHogar() {
     if (!persona) return;
     if (!estatusVivienda) {
@@ -922,8 +1000,8 @@ export function CensoNexusPanel({
           fallecidos_confirmados: fallecidosCount,
           desaparecidos: desaparecidosCount,
         });
-        if (detallePerdidas.length > 0) {
-          await guardarFamiliaresReferencia(r.familiaId, [], detallePerdidas);
+        if (detallePerdidasAGuardar().length > 0) {
+          await guardarFamiliaresReferencia(r.familiaId, [], detallePerdidasAGuardar());
         }
         setNivelHogar({ estatusVivienda, fallecidos: fallecidosCount, desaparecidos: desaparecidosCount });
       } catch {
@@ -971,8 +1049,8 @@ export function CensoNexusPanel({
         fallecidos_confirmados: fallecidosCount,
         desaparecidos: desaparecidosCount,
       });
-      if (detallePerdidas.length > 0) {
-        await guardarFamiliaresReferencia(familiaId, [], detallePerdidas);
+      if (detallePerdidasAGuardar().length > 0) {
+        await guardarFamiliaresReferencia(familiaId, [], detallePerdidasAGuardar());
       }
       setNivelHogar({
         estatusVivienda,
@@ -2883,7 +2961,7 @@ export function CensoNexusPanel({
                   </div>
                   <p className="text-[11px] leading-snug text-muted-foreground">
                     <span className="font-semibold text-foreground">No es obligatorio.</span>{" "}
-                    Si conoce los nombres de las personas del conteo de arriba (
+                    Si conoce nombres o cédulas de las personas del conteo de arriba (
                     {[
                       fallecidosCount > 0
                         ? `${fallecidosCount} fallecido${fallecidosCount === 1 ? "" : "s"}`
@@ -2894,8 +2972,9 @@ export function CensoNexusPanel({
                     ]
                       .filter(Boolean)
                       .join(", ")}
-                    ), anote aquí nombre aproximado, parentesco y edad. Si no los
-                    conocen, puede crear el hogar sin completarlos.
+                    ), anótelos aquí. Con cédula puede verificar en Nexus para
+                    rellenar el nombre. Si no los conocen, puede crear el hogar
+                    sin completarlos.
                   </p>
                 </div>
                 {!detalleAbierto ? (
@@ -2915,92 +2994,186 @@ export function CensoNexusPanel({
                   </Button>
                 ) : (
                   <div className="space-y-2">
-                    {detallePerdidas.map((f, i) => (
-                      <div key={f.id} className="grid grid-cols-2 gap-1.5 rounded-md border p-2">
-                        <Input
-                          placeholder="Nombre aproximado"
-                          value={f.nombre}
-                          onChange={(e) =>
-                            setDetallePerdidas((prev) =>
-                              prev.map((x, j) => (j === i ? { ...x, nombre: e.target.value } : x)),
-                            )
-                          }
-                          className="h-8 text-xs"
-                        />
-                        <Select
-                          value={f.parentesco}
-                          onValueChange={(v) =>
-                            setDetallePerdidas((prev) =>
-                              prev.map((x, j) => (j === i ? { ...x, parentesco: v } : x)),
-                            )
-                          }
-                        >
-                          <SelectTrigger
-                            className={cn(CENSO_SELECT_TRIGGER, "h-9 w-full text-xs")}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {PARENTESCOS_JEFE.map((p) => (
-                              <SelectItem key={p} value={p}>
-                                {p}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          placeholder="Edad aproximada"
-                          type="number"
-                          inputMode="numeric"
-                          min={0}
-                          max={120}
-                          value={f.edad_aproximada ?? ""}
-                          onChange={(e) =>
-                            setDetallePerdidas((prev) =>
-                              prev.map((x, j) =>
-                                j === i
-                                  ? { ...x, edad_aproximada: e.target.value ? Number(e.target.value) : null }
-                                  : x,
-                              ),
-                            )
-                          }
-                          className="h-8 text-xs"
-                        />
-                        <div className="flex items-center gap-1.5">
-                          <Select
-                            value={f.estado}
-                            onValueChange={(v) =>
-                              setDetallePerdidas((prev) =>
-                                prev.map((x, j) =>
-                                  j === i ? { ...x, estado: v as FamiliarSeparado["estado"] } : x,
-                                ),
-                              )
-                            }
-                          >
-                            <SelectTrigger
-                              className={cn(CENSO_SELECT_TRIGGER, "h-9 flex-1 text-xs")}
+                    {detallePerdidas.map((f) => {
+                      const verificando = verificandoPerdidaId === f.id;
+                      const errorCed = errorPerdidaCedula[f.id];
+                      const digitsCed = soloDigitos(f.cedula ?? "");
+                      return (
+                        <div key={f.id} className="space-y-1.5 rounded-md border p-2">
+                          <div className="flex items-stretch gap-1.5">
+                            <div className="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-lg border border-border bg-background">
+                              <div
+                                className="flex shrink-0 border-r border-border bg-muted/40 p-0.5"
+                                role="group"
+                                aria-label="Tipo de documento"
+                              >
+                                {(["V", "E"] as const).map((op) => {
+                                  const activo = (f.tipo_doc === "E" ? "E" : "V") === op;
+                                  return (
+                                    <button
+                                      key={op}
+                                      type="button"
+                                      aria-pressed={activo}
+                                      className={cn(
+                                        "h-8 min-w-8 rounded-md px-1.5 text-xs font-bold tabular-nums transition-colors",
+                                        activo
+                                          ? "bg-primary text-primary-foreground shadow-sm"
+                                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                                      )}
+                                      onClick={() =>
+                                        actualizarPerdida(f.id, {
+                                          tipo_doc: op as TipoDoc,
+                                          verificado_nexus: false,
+                                        })
+                                      }
+                                    >
+                                      {op}-
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <Input
+                                inputMode="numeric"
+                                autoComplete="off"
+                                placeholder="Cédula (opcional)"
+                                value={digitsCed}
+                                onChange={(e) => {
+                                  const digitos = soloDigitos(e.target.value);
+                                  actualizarPerdida(f.id, {
+                                    cedula: digitos,
+                                    cedula_norm: null,
+                                    verificado_nexus: false,
+                                  });
+                                  setErrorPerdidaCedula((prev) => {
+                                    if (!prev[f.id]) return prev;
+                                    const next = { ...prev };
+                                    delete next[f.id];
+                                    return next;
+                                  });
+                                }}
+                                className="h-8 flex-1 rounded-none border-0 bg-transparent px-2 font-mono text-xs tracking-wider shadow-none focus-visible:ring-0"
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="h-8 shrink-0 gap-1 px-2.5 text-xs"
+                              disabled={verificando || digitsCed.length < 5}
+                              onClick={() => void verificarCedulaPerdida(f.id)}
                             >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="fallecido">Fallecido</SelectItem>
-                              <SelectItem value="desaparecido">Desaparecido</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-8 shrink-0 text-rose-400"
-                            onClick={() =>
-                              setDetallePerdidas((prev) => prev.filter((_, j) => j !== i))
-                            }
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
+                              {verificando ? (
+                                <Loader2 className="size-3.5 animate-spin" />
+                              ) : (
+                                <Search className="size-3.5" />
+                              )}
+                              Verificar
+                            </Button>
+                          </div>
+                          {f.verificado_nexus ? (
+                            <Badge
+                              variant="secondary"
+                              className="h-5 gap-1 bg-emerald-600/15 text-[10px] text-emerald-700 dark:text-emerald-400"
+                            >
+                              <ShieldCheck className="size-3" />
+                              Verificado en Nexus
+                            </Badge>
+                          ) : null}
+                          {errorCed ? (
+                            <p className="text-[11px] leading-snug text-rose-600 dark:text-rose-400">
+                              {errorCed}
+                            </p>
+                          ) : null}
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <Input
+                              placeholder="Nombre aproximado"
+                              value={f.nombre}
+                              onChange={(e) =>
+                                actualizarPerdida(f.id, {
+                                  nombre: e.target.value,
+                                  verificado_nexus: false,
+                                })
+                              }
+                              className="h-8 text-xs"
+                            />
+                            <Select
+                              value={f.parentesco}
+                              onValueChange={(v) =>
+                                actualizarPerdida(f.id, { parentesco: v })
+                              }
+                            >
+                              <SelectTrigger
+                                className={cn(CENSO_SELECT_TRIGGER, "h-9 w-full text-xs")}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {PARENTESCOS_JEFE.map((p) => (
+                                  <SelectItem key={p} value={p}>
+                                    {p}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              placeholder="Edad aproximada"
+                              type="number"
+                              inputMode="numeric"
+                              min={0}
+                              max={120}
+                              value={f.edad_aproximada ?? ""}
+                              onChange={(e) =>
+                                actualizarPerdida(f.id, {
+                                  edad_aproximada: e.target.value
+                                    ? Number(e.target.value)
+                                    : null,
+                                })
+                              }
+                              className="h-8 text-xs"
+                            />
+                            <div className="flex items-center gap-1.5">
+                              <Select
+                                value={f.estado}
+                                onValueChange={(v) =>
+                                  actualizarPerdida(f.id, {
+                                    estado: v as FamiliarSeparado["estado"],
+                                  })
+                                }
+                              >
+                                <SelectTrigger
+                                  className={cn(CENSO_SELECT_TRIGGER, "h-9 flex-1 text-xs")}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="fallecido">Fallecido</SelectItem>
+                                  <SelectItem value="desaparecido">Desaparecido</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 shrink-0 text-rose-400"
+                                onClick={() => {
+                                  setDetallePerdidas((prev) =>
+                                    prev.filter((x) => x.id !== f.id),
+                                  );
+                                  setErrorPerdidaCedula((prev) => {
+                                    if (!prev[f.id]) return prev;
+                                    const next = { ...prev };
+                                    delete next[f.id];
+                                    return next;
+                                  });
+                                }}
+                              >
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <Button
                       type="button"
                       variant="secondary"

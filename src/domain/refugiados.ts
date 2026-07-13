@@ -81,6 +81,12 @@ export interface FamiliarSeparado {
   edad_aproximada?: number | null;
   fecha_fallecimiento?: string | null;
   notas?: string;
+  /** Cédula opcional si el censista la conoce (verificable en Nexus). */
+  cedula?: string | null;
+  tipo_doc?: TipoDoc | null;
+  cedula_norm?: string | null;
+  /** true si nombre/edad se rellenaron desde una consulta Nexus exitosa. */
+  verificado_nexus?: boolean;
 }
 
 /** Bloque de salud y bienestar. */
@@ -695,19 +701,39 @@ export function normalizarFamiliaresSeparados(raw: unknown): FamiliarSeparado[] 
   const estados = ["desaparecido", "separado", "contacto_perdido", "fallecido"] as const;
   return raw
     .filter((f): f is FamiliarSeparado => typeof f?.id === "string" && typeof f?.nombre === "string")
-    .map((f) => ({
-      id: f.id,
-      nombre: f.nombre.trim(),
-      parentesco: (f.parentesco ?? "").trim(),
-      ultima_ubicacion: typeof f.ultima_ubicacion === "string" ? f.ultima_ubicacion : undefined,
-      contacto: typeof f.contacto === "string" ? f.contacto : undefined,
-      estado: estados.includes(f.estado as (typeof estados)[number])
-        ? (f.estado as FamiliarSeparado["estado"])
-        : "separado",
-      edad_aproximada: typeof f.edad_aproximada === "number" ? f.edad_aproximada : null,
-      fecha_fallecimiento: typeof f.fecha_fallecimiento === "string" ? f.fecha_fallecimiento : null,
-      notas: typeof f.notas === "string" ? f.notas : undefined,
-    }));
+    .map((f) => {
+      const tipoRaw = f.tipo_doc;
+      const tipo_doc: TipoDoc | null =
+        tipoRaw === "V" || tipoRaw === "E" || tipoRaw === "P" ? tipoRaw : null;
+      let cedula: string | null =
+        typeof f.cedula === "string" && f.cedula.trim() ? f.cedula.trim() : null;
+      let cedula_norm: string | null =
+        typeof f.cedula_norm === "string" && f.cedula_norm.trim()
+          ? f.cedula_norm.trim()
+          : null;
+      if (cedula && !cedula_norm) {
+        const norm = normalizarCedula(cedula, tipo_doc ?? "V");
+        cedula = norm.cedula;
+        cedula_norm = norm.cedula_norm;
+      }
+      return {
+        id: f.id,
+        nombre: f.nombre.trim(),
+        parentesco: (f.parentesco ?? "").trim(),
+        ultima_ubicacion: typeof f.ultima_ubicacion === "string" ? f.ultima_ubicacion : undefined,
+        contacto: typeof f.contacto === "string" ? f.contacto : undefined,
+        estado: estados.includes(f.estado as (typeof estados)[number])
+          ? (f.estado as FamiliarSeparado["estado"])
+          : "separado",
+        edad_aproximada: typeof f.edad_aproximada === "number" ? f.edad_aproximada : null,
+        fecha_fallecimiento: typeof f.fecha_fallecimiento === "string" ? f.fecha_fallecimiento : null,
+        notas: typeof f.notas === "string" ? f.notas : undefined,
+        cedula,
+        tipo_doc: tipo_doc ?? (cedula ? "V" : null),
+        cedula_norm,
+        verificado_nexus: f.verificado_nexus === true,
+      };
+    });
 }
 
 export function resumenFamiliaVulnerable(
