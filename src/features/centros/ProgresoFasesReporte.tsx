@@ -31,6 +31,7 @@ interface Props {
 export function ProgresoFasesReporte({ fases, faseActiva, className }: Props) {
   const indiceActivo = fases.findIndex((f) => f.value === faseActiva);
   const completadas = fases.filter((f) => f.completa).length;
+  const pendientes = fases.length - completadas;
   const progreso = fases.length > 0 ? (completadas / fases.length) * 100 : 0;
   const tituloActivo = fases[indiceActivo]?.titulo ?? "";
   const total = fases.length;
@@ -46,7 +47,10 @@ export function ProgresoFasesReporte({ fases, faseActiva, className }: Props) {
             <>
               Fase{" "}
               <span className="font-semibold text-foreground">{tituloActivo}</span>
-              {" · confirma y avanza"}
+              {" · "}
+              <span className="font-medium text-amber-400">
+                {pendientes === 1 ? "1 pendiente" : `${pendientes} pendientes`}
+              </span>
             </>
           ) : (
             "Reporte por fases"
@@ -57,7 +61,7 @@ export function ProgresoFasesReporte({ fases, faseActiva, className }: Props) {
             "shrink-0 rounded-md px-1.5 py-0.5 tabular-nums text-[10px] font-medium",
             reporteCompleto
               ? "bg-emerald-500/15 text-emerald-400"
-              : "bg-muted/50 text-foreground",
+              : "bg-amber-500/15 text-amber-400",
           )}
         >
           {completadas}/{total}

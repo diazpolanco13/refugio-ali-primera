@@ -93,11 +93,12 @@ export function BloqueConfirmacionReporte({
 
   const textoBadge = revisado && !modificado ? "Revisado" : modificado ? "Con cambios" : "Pendiente";
   const botonDeshabilitado = deshabilitado || guardando || confirmacionBloqueada;
+  const mostrarDesmarcar = Boolean(revisado && !modificado && onDesmarcar);
 
   return (
     <div
       className={cn(
-        "rounded-lg border px-3 py-3",
+        "rounded-lg border px-3 py-2.5 sm:py-3",
         revisado && !modificado
           ? "border-emerald-500/35 bg-emerald-500/5"
           : modificado
@@ -106,51 +107,67 @@ export function BloqueConfirmacionReporte({
         className,
       )}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-1">
-          <p className="flex items-center gap-1.5 text-sm font-semibold">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <p className="flex items-center gap-1.5 text-sm font-semibold leading-snug">
             {revisado && !modificado ? (
-              <CheckCircle2 className="size-4 text-emerald-400" />
+              <CheckCircle2 className="size-4 shrink-0 text-emerald-400" />
             ) : (
-              <Icono className={cn("size-4", estilos.icono)} />
+              <Icono className={cn("size-4 shrink-0", estilos.icono)} />
             )}
-            {tituloMostrado}
+            <span className="min-w-0 truncate">{tituloMostrado}</span>
           </p>
-          <p className="text-xs text-muted-foreground">{descripcion}</p>
+          <p className="text-[11px] leading-snug text-muted-foreground sm:text-xs">
+            {descripcion}
+          </p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
           {badgeExtra}
-          <Badge variant="outline" className="w-fit shrink-0 gap-1 tabular-nums">
+          <Badge
+            variant="outline"
+            className="w-fit shrink-0 gap-1 px-1.5 py-0.5 text-[10px] tabular-nums"
+          >
             {revisado && !modificado ? <Check className="size-3 text-emerald-400" /> : null}
             {textoBadge}
           </Badge>
         </div>
       </div>
       {confirmacionBloqueada && mensajeConfirmacionBloqueada ? (
-        <p className="mt-3 text-xs leading-snug text-amber-400/95">{mensajeConfirmacionBloqueada}</p>
+        <p className="mt-2 text-xs leading-snug text-amber-400/95">{mensajeConfirmacionBloqueada}</p>
       ) : null}
-      <div className={cn("flex flex-wrap gap-2", confirmacionBloqueada && mensajeConfirmacionBloqueada ? "mt-2" : "mt-3")}>
+      <div
+        className={cn(
+          "flex gap-2",
+          confirmacionBloqueada && mensajeConfirmacionBloqueada ? "mt-2" : "mt-2.5",
+        )}
+      >
         <Button
           type="button"
-          className="min-h-10 bg-teal-600 font-semibold text-white shadow-sm hover:bg-teal-500"
+          size="sm"
+          className={cn(
+            "h-9 min-w-0 bg-teal-600 font-semibold text-white shadow-sm hover:bg-teal-500",
+            mostrarDesmarcar ? "flex-1 sm:flex-none" : "w-full sm:w-auto",
+          )}
           disabled={botonDeshabilitado}
           onClick={onConfirmar}
         >
-          {guardando ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-          {textoBoton}
+          {guardando ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+          <span className="truncate">{textoBoton}</span>
         </Button>
-        {revisado && !modificado && onDesmarcar && (
+        {mostrarDesmarcar ? (
           <Button
             type="button"
+            size="sm"
             variant="outline"
-            className="min-h-10"
+            className="h-9 min-w-0 flex-1 sm:flex-none"
             disabled={botonDeshabilitado}
             onClick={onDesmarcar}
           >
-            <Undo2 className="size-4" />
-            Desmarcar revisión
+            <Undo2 className="size-3.5" />
+            <span className="truncate sm:hidden">Desmarcar</span>
+            <span className="hidden truncate sm:inline">Desmarcar revisión</span>
           </Button>
-        )}
+        ) : null}
       </div>
     </div>
   );

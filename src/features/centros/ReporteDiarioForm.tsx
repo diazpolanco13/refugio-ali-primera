@@ -63,6 +63,7 @@ import { ControlReporteTab } from "./ControlReporteTab";
 import { TrabajosReporteTab } from "./TrabajosReporteTab";
 import { RequerimientosReporteTab } from "./RequerimientosReporteTab";
 import { CasosSaludParte } from "./CasosSaludParte";
+import { DialogReporteCompleto } from "./DialogReporteCompleto";
 import { NavegacionFasesReporteMovil } from "./NavegacionFasesReporteMovil";
 import { NavegacionFasesReporteDesktop } from "./NavegacionFasesReporteDesktop";
 import {
@@ -216,10 +217,13 @@ export function ReporteDiarioForm({
   const [parteDesmarcadoOk, setParteDesmarcadoOk] = useState(false);
   const [saludConfirmadaOk, setSaludConfirmadaOk] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
+  const [mostrarReporteCompleto, setMostrarReporteCompleto] = useState(false);
   const [pestanaActiva, setPestanaActiva] = useState(() =>
     PESTANAS_REPORTE.some((p) => p.value === faseInicial) ? (faseInicial as string) : "parte",
   );
   const guardando = guardandoBloque !== null || confirmandoSalud;
+  const ocupadoGuardando = guardando || confirmandoParte;
+  const ocupadoPrevioRef = useRef(false);
 
   const baselineParte = useRef<ParteForm>({
     ocupacion: base.ocupacion,
@@ -271,6 +275,7 @@ export function ReporteDiarioForm({
     parteDiaSincronizado.current = null;
     incidenciasInicializado.current = false;
     controlTocado.current = false;
+    setMostrarReporteCompleto(false);
     setPrecargadoReporte(false);
     setPrecargadoEventos(false);
     setParteConfirmadoOk(false);
@@ -476,9 +481,9 @@ export function ReporteDiarioForm({
 
   const eventosModificados =
     eventosBorradorPendiente || !eventosIguales(eventosReporte, baselineEventos.current);
-  const novedadesCompletas =
-    !eventosModificados &&
-    (eventosRevisados || (eventosReporte.length > 0 && eventosIguales(eventosReporte, baselineEventos.current)));
+  // Solo el flag explícito: si hay eventos pero el operador desmarcó, la fase
+  // vuelve a pendiente (antes `length > 0` la dejaba “completa” al desmarcar).
+  const novedadesCompletas = !eventosModificados && eventosRevisados;
 
   const fasesNav: FaseReporteNav[] = PESTANAS_REPORTE.map(({ value, titulo, icono }) => {
     const estado =
@@ -521,6 +526,15 @@ export function ReporteDiarioForm({
       completo: reporteFormCompleto,
     });
   }, [completasNav, fasesNav.length, reporteFormCompleto, onProgresoChange]);
+
+  // Celebra al terminar un guardado que deja el reporte 6/6 (no al abrir día ya completo).
+  useEffect(() => {
+    const estabaOcupado = ocupadoPrevioRef.current;
+    ocupadoPrevioRef.current = ocupadoGuardando;
+    if (estabaOcupado && !ocupadoGuardando && reporteFormCompleto) {
+      setMostrarReporteCompleto(true);
+    }
+  }, [ocupadoGuardando, reporteFormCompleto]);
 
   const refugiados = poblacionCentro({ ...centro, ocupacion, total_afectados: totalAfectados });
 
@@ -565,8 +579,7 @@ export function ReporteDiarioForm({
         saludConfirmadaOk ||
         (reporteExistente?.salud_reportada ?? false) ||
         (snapHoy != null && (snapHoy.incidencias_salud ?? 0) > 0),
-      eventos_revisados:
-        overrides?.eventos_revisados ?? (eventosRevisados || eventosReporte.length > 0),
+      eventos_revisados: overrides?.eventos_revisados ?? eventosRevisados,
       trabajos_revisados: overrides?.trabajos_revisados ?? trabajosRevisados,
       requerimientos_revisados: overrides?.requerimientos_revisados ?? requerimientosRevisados,
       observaciones: reporteExistente?.observaciones ?? "",
@@ -640,7 +653,7 @@ export function ReporteDiarioForm({
         atenciones_medicas_detalle: reporteExistente?.atenciones_medicas_detalle ?? [],
         atenciones_medicas: reporteExistente?.atenciones_medicas ?? 0,
         salud_reportada: true,
-        eventos_revisados: eventosRevisados || eventosReporte.length > 0,
+        eventos_revisados: eventosRevisados,
         trabajos_revisados: trabajosRevisados,
         requerimientos_revisados: requerimientosRevisados,
         observaciones: reporteExistente?.observaciones ?? "",
@@ -671,7 +684,7 @@ export function ReporteDiarioForm({
         atenciones_medicas_detalle: reporteExistente?.atenciones_medicas_detalle ?? [],
         atenciones_medicas: reporteExistente?.atenciones_medicas ?? 0,
         salud_reportada: false,
-        eventos_revisados: eventosRevisados || eventosReporte.length > 0,
+        eventos_revisados: eventosRevisados,
         trabajos_revisados: trabajosRevisados,
         requerimientos_revisados: requerimientosRevisados,
         observaciones: reporteExistente?.observaciones ?? "",
@@ -1100,6 +1113,13 @@ export function ReporteDiarioForm({
         </div>
       </Tabs>
       {pieFormulario}
+      <DialogReporteCompleto
+        abierto={mostrarReporteCompleto}
+        onAbiertoChange={setMostrarReporteCompleto}
+        centro={centro}
+        dia={diaReporte}
+        onCerrar={onCerrar}
+      />
     </div>
   );
 

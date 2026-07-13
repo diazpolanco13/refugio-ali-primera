@@ -155,7 +155,10 @@ function TarjetaCaso({
 }
 
 export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabilitado }: Props) {
-  const { casos: casosActivos } = useCasosSaludCentros({ centroId, soloActivos: true });
+  const { casos: casosActivos, recargar } = useCasosSaludCentros({
+    centroId,
+    soloActivos: true,
+  });
 
   const casosSeguimiento = useMemo(
     () => casosAbiertosSeguimiento(casosActivos),
@@ -234,6 +237,7 @@ export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabil
           reportado_dia: hoyClave,
         });
       }
+      await recargar();
       cancelarEdicion();
     } finally {
       setGuardando(false);
@@ -244,6 +248,7 @@ export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabil
     setCambiandoEstatusId(id);
     try {
       await actualizarCasoSalud(id, { estatus: nuevo });
+      await recargar();
     } finally {
       setCambiandoEstatusId(null);
     }
@@ -253,6 +258,7 @@ export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabil
     setEliminandoId(id);
     try {
       await archivarCasoSalud(id);
+      await recargar();
       if (editandoId === id) cancelarEdicion();
     } finally {
       setEliminandoId(null);

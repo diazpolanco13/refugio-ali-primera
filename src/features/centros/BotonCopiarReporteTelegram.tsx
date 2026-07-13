@@ -95,7 +95,7 @@ export function BotonCopiarReporteTelegram({ centro, dia, className }: Props) {
       ) : (
         <>
           <IconoTelegram className="size-3.5" />
-          Compartir a Telegram
+          Compartir en Telegram
         </>
       )}
     </Button>

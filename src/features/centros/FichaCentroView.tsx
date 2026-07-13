@@ -607,15 +607,15 @@ export function FichaCentroView({ sesion }: Props) {
       <MarcoVista
         ancho={ANCHO_VISTA_PRINCIPAL}
         rellenarAltura
-        className="overflow-hidden p-2 sm:p-4 lg:p-6"
+        className="overflow-hidden p-1.5 sm:p-4 lg:p-6"
         marcoClassName="flex min-h-0 flex-col text-foreground"
       >
-        <header className="shrink-0 border-b border-border/70 px-3 pb-3 pt-3 sm:px-4 lg:px-6">
-          <div className="flex items-start gap-2">
+        <header className="shrink-0 border-b border-border/70 px-2.5 py-2 sm:px-4 sm:py-3 lg:px-6">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="h-8 shrink-0 gap-1.5 px-2.5"
+              className="h-7 shrink-0 gap-1 px-2 sm:h-8 sm:gap-1.5 sm:px-2.5"
               onClick={cerrarReporte}
               aria-label={reporteSoloTerreno ? "Volver al resumen del reporte" : "Volver a la ficha"}
             >
@@ -625,18 +625,20 @@ export function FichaCentroView({ sesion }: Props) {
               </span>
               <span className="sm:hidden">Volver</span>
             </Button>
-            <div className="min-w-0 flex-1 pt-0.5">
-              <h1 className="truncate text-sm font-semibold sm:text-base">Reporte del día</h1>
-              <p className="truncate text-xs text-muted-foreground">{titulo}</p>
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-sm font-semibold leading-tight">Reporte del día</h1>
+              <p className="truncate text-[10px] leading-tight text-muted-foreground sm:text-xs">
+                {titulo}
+              </p>
             </div>
             {reporteSoloTerreno && (
               <BotonVolverInicioTerreno
-                className="h-8"
+                className="h-7 sm:h-8"
                 onClick={volverPortalTerreno}
               />
             )}
           </div>
-          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 sm:mt-2 sm:gap-2">
             <VisorFechaReporte
               dia={diaReporte}
               onDiaChange={cambiarDiaReporte}
@@ -645,10 +647,14 @@ export function FichaCentroView({ sesion }: Props) {
               leyenda={leyendaCalendario}
               compacto
               soloHoy={!puedeEditarPasado}
-              className="h-9 min-w-0 flex-1 sm:h-8 sm:flex-none"
+              className="h-8 min-w-0 flex-1 basis-[11rem] sm:max-w-[13.5rem] sm:flex-none sm:basis-auto"
             />
             <BadgeEstadoReporte estado={estadoDiaReporte} destacado />
-            <BotonCopiarReporteTelegram centro={centro} dia={diaReporte} />
+            <BotonCopiarReporteTelegram
+              centro={centro}
+              dia={diaReporte}
+              className="h-8 min-w-0 flex-1 basis-full justify-center px-2.5 sm:flex-none sm:basis-auto"
+            />
           </div>
         </header>
         <ReporteDiarioForm

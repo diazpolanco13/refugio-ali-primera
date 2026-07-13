@@ -99,8 +99,8 @@ export function VisorFechaReporte({
         variant="ghost"
         size="icon-xs"
         className={cn(
-          "h-full shrink-0 rounded-none border-r border-border/60",
-          compacto && "size-7",
+          "h-full w-7 shrink-0 rounded-none border-r border-border/60",
+          !compacto && "w-8",
         )}
         title={navegacionBloqueada ? "Solo puede reportar el día de hoy" : "Día anterior"}
         aria-label="Día anterior"
@@ -139,7 +139,7 @@ export function VisorFechaReporte({
               type="button"
               variant="ghost"
               className={cn(
-                "h-full min-w-0 flex-1 gap-1.5 rounded-none px-2 font-semibold tracking-wide tabular-nums hover:bg-muted/40",
+                "h-full min-w-0 flex-1 gap-1.5 truncate rounded-none px-2 font-semibold tracking-wide tabular-nums hover:bg-muted/40",
                 compacto ? "text-[10px] sm:text-xs" : "text-xs",
                 esHoy && "text-emerald-400 hover:bg-emerald-500/10",
               )}
@@ -177,8 +177,8 @@ export function VisorFechaReporte({
         variant="ghost"
         size="icon-xs"
         className={cn(
-          "h-full shrink-0 rounded-none border-l border-border/60",
-          compacto && "size-7",
+          "h-full w-7 shrink-0 rounded-none border-l border-border/60",
+          !compacto && "w-8",
         )}
         title={navegacionBloqueada ? "Solo puede reportar el día de hoy" : "Día siguiente"}
         aria-label="Día siguiente"

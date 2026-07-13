@@ -1,5 +1,6 @@
 // Barra inferior móvil del reporte diario: fases secuenciales con flechas.
 
+import { Fragment } from "react";
 import { ChevronRight } from "lucide-react";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -13,53 +14,31 @@ interface Props {
   faseActiva: string;
 }
 
-/** Posición horizontal (%) de cada flecha entre columnas iguales. */
-function posicionFlecha(indice: number, total: number): number {
-  return ((indice + 1) / total) * 100;
-}
-
 export function NavegacionFasesReporteMovil({ fases, faseActiva }: Props) {
-  const total = fases.length;
-
   return (
-    <div className="box-border w-full max-w-[100dvw] overflow-hidden border-t border-border/80 bg-background shadow-[0_-6px_28px_rgba(0,0,0,0.45)]">
-      <div className="space-y-1.5 border-b border-border/50 px-4 pb-2.5 pt-2.5">
+    <div className="box-border w-full max-w-[100dvw] border-t border-border/80 bg-background shadow-[0_-6px_28px_rgba(0,0,0,0.45)]">
+      <div className="space-y-1.5 border-b border-border/50 px-3 pb-2 pt-2 sm:px-4">
         <ProgresoFasesReporte fases={fases} faseActiva={faseActiva} />
       </div>
 
-      <div className="relative box-border px-4 pb-3 pt-3">
-        {fases.slice(0, -1).map((fase, i) => (
-          <ChevronRight
-            key={`flecha-${fase.value}`}
-            aria-hidden
-            className={cn(
-              "pointer-events-none absolute top-1/2 z-0 size-3.5 -translate-x-1/2 -translate-y-1/2",
-              fase.estado === "completa" ? "text-emerald-500/80" : "text-muted-foreground/55",
-            )}
-            style={{ left: `${posicionFlecha(i, total)}%` }}
-            strokeWidth={2.5}
-          />
-        ))}
+      <TabsList
+        className={cn(
+          "flex h-auto w-full items-center gap-0.5 overflow-visible rounded-none border-0 bg-transparent",
+          "px-2 pb-3.5 pt-3 sm:gap-1 sm:px-3 sm:pb-4 sm:pt-3.5",
+        )}
+      >
+        {fases.map((fase, i) => {
+          const activa = fase.value === faseActiva;
+          const esUltima = i === fases.length - 1;
 
-        <TabsList
-          className={cn(
-            "relative z-10 !grid w-full gap-0",
-            "rounded-none border-0 bg-transparent p-0",
-            "!inline-grid",
-          )}
-          style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}
-        >
-          {fases.map((fase) => {
-            const activa = fase.value === faseActiva;
-
-            return (
+          return (
+            <Fragment key={fase.value}>
               <TabsTrigger
-                key={fase.value}
                 value={fase.value}
                 title={fase.etiquetaMovil || fase.titulo}
-                aria-label={fase.titulo}
+                aria-label={`${fase.titulo}${fase.completa ? " (completa)" : " (pendiente)"}`}
                 className={cn(
-                  "flex h-auto min-w-0 flex-col items-center justify-center rounded-lg border-0 bg-transparent p-0 shadow-none",
+                  "flex h-auto min-w-0 flex-1 flex-col items-center justify-center overflow-visible rounded-lg border-0 bg-transparent p-1 shadow-none",
                   "text-muted-foreground transition-colors",
                   "hover:bg-muted/15 hover:text-foreground",
                   "data-active:bg-transparent data-active:shadow-none",
@@ -72,10 +51,22 @@ export function NavegacionFasesReporteMovil({ fases, faseActiva }: Props) {
                   activa={activa}
                 />
               </TabsTrigger>
-            );
-          })}
-        </TabsList>
-      </div>
+              {!esUltima ? (
+                <ChevronRight
+                  aria-hidden
+                  className={cn(
+                    "pointer-events-none size-3 shrink-0",
+                    fase.estado === "completa"
+                      ? "text-emerald-500/70"
+                      : "text-muted-foreground/35",
+                  )}
+                  strokeWidth={2.5}
+                />
+              ) : null}
+            </Fragment>
+          );
+        })}
+      </TabsList>
     </div>
   );
 }

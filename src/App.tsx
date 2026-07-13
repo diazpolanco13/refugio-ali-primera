@@ -198,8 +198,11 @@ export function App() {
     location.pathname === "/centros/mapa" ||
     location.pathname === "/centros" ||
     location.pathname === "/";
+  // En reporte diario el FAB tapa la barra de fases móvil.
+  const enReporteDiario =
+    new URLSearchParams(location.search).get("reportar") === "1";
   /** En móvil + mapa el botón va en la columna de controles, no como FAB. */
-  const mostrarFabCache = !(esMovil && enMapa);
+  const mostrarFabCache = !(esMovil && enMapa) && !enReporteDiario;
 
   useEffect(() => {
     const esCenso =

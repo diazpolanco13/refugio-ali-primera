@@ -109,7 +109,7 @@ export function BadgeEstadoReporte({
       variant="outline"
       className={cn(
         "gap-1 text-[10px] font-medium",
-        destacado && "px-2.5 py-1",
+        destacado && "px-2 py-0.5",
       )}
       style={{ borderColor: `${meta.color}66`, color: meta.color }}
     >

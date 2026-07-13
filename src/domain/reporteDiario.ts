@@ -352,12 +352,17 @@ export function alimentacionReportada(reporte: ReporteDiario | undefined | null)
   return jornadasReportadas(reporte).length === JORNADAS_REPORTE.length;
 }
 
-/** ¿El bloque Eventos fue revisado aunque no haya eventos registrados? */
+/**
+ * ¿El bloque Eventos quedó marcado como revisado?
+ * Solo cuenta el flag explícito `eventos_revisados`. Tener eventos guardados no
+ * implica fase completa: el operador puede desmarcar la revisión y seguir con
+ * novedades en borrador. `_totalEventos` se conserva por compatibilidad de firma.
+ */
 export function eventosRevisados(
   reporte: ReporteDiario | undefined | null,
-  totalEventos = 0,
+  _totalEventos = 0,
 ): boolean {
-  return Boolean(reporte?.eventos_revisados || totalEventos > 0);
+  return reporte?.eventos_revisados === true;
 }
 
 export interface BloquesReporteDia {
