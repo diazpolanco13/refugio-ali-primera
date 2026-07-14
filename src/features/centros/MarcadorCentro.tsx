@@ -1,6 +1,7 @@
 import { LogoCuerpo } from "@/components/LogoCuerpo";
 import { BadgePruebaCentro } from "@/components/BadgePruebaCentro";
 import { COLOR_MARCADOR_ATENUADO } from "@/domain/unidadesSebin";
+import { TOTAL_FASES_REPORTE_DIA } from "@/data/useEstadoReporteHoy";
 import { cn } from "@/lib/utils";
 
 export type ModoMarcadorCentro = "logo" | "color";
@@ -26,6 +27,14 @@ interface Props {
   personalTotal?: number;
   /** Color de alerta crítica (rojo). null = sin alerta → aro blanco / onda de la unidad. */
   semaforoColor?: string | null;
+  /**
+   * Fases del reporte diario abiertas/confirmadas hoy (0-6). Alimenta el aro
+   * de la baliza en modo "color". No es "verificado": cada fase solo prueba
+   * que el operador la guardó/confirmó, no que cambió un dato real.
+   */
+  fasesReporteHoy?: number;
+  /** Novedad negativa reportada hoy o denuncia sin resolver en este campamento. */
+  alertaBase?: boolean;
   /** Campamento sandbox: muestra marca «Prueba». */
   esPrueba?: boolean;
   onClick: () => void;
@@ -56,44 +65,99 @@ function ParteNumerico({
   );
 }
 
-/** Núcleo circular con el N.° del campamento.
- * El aro toma el color del semáforo de ocupación (alerta); si no hay, queda blanco. */
-function NucleoNumero({
+/**
+ * Color del estado del reporte diario — mismos 3 tonos y el mismo criterio
+ * que la sala situacional (`ResumenPlegadoSala`: completos/parciales/sin
+ * iniciar en verde/amarillo/rojo): 0 fases = sin iniciar, 1-5 = incompleto,
+ * 6/6 = completo. Un solo criterio en toda la app, no dos convenciones.
+ */
+function colorEstadoReporte(fases: number): string {
+  if (fases <= 0) return "#ef4444"; // rojo — sin iniciar
+  if (fases >= TOTAL_FASES_REPORTE_DIA) return "#10b981"; // verde — completo
+  return "#f59e0b"; // amarillo — incompleto
+}
+
+/** Color neutro de la base cuando no hay nada que atender (gris/blanco). */
+const COLOR_BASE_NEUTRA = "#e5e7eb";
+/** Color de la base cuando hay novedad negativa hoy o una denuncia sin resolver. */
+const COLOR_BASE_ALERTA = "#ef4444";
+
+/**
+ * Baliza del campamento: núcleo en diamante con el N.°, envuelto en un aro
+ * que mide el progreso del reporte diario (n/6 fases — ver `fasesReporteHoy`).
+ * La base (haz + charco) es una señal aparte: neutra por defecto, roja solo
+ * si hay una novedad negativa hoy o una denuncia sin resolver (`alertaBase`).
+ */
+function Baliza({
   nro,
   color,
-  colorAro,
+  fasesReporteHoy,
+  alertaBase,
   resaltado,
   seleccionado,
 }: {
   nro: number;
   color: string;
-  /** Color del aro (semáforo). null/undefined → blanco. */
-  colorAro?: string | null;
+  fasesReporteHoy: number;
+  /** Novedad negativa hoy o denuncia abierta en este campamento. */
+  alertaBase: boolean;
   resaltado: boolean;
   seleccionado: boolean;
 }) {
+  const pct = Math.max(0, Math.min(1, fasesReporteHoy / TOTAL_FASES_REPORTE_DIA)) * 100;
+  const colorAro = colorEstadoReporte(fasesReporteHoy);
+  const colorBase = alertaBase ? COLOR_BASE_ALERTA : COLOR_BASE_NEUTRA;
   return (
-    <span
-      className={cn(
-        "relative flex h-5 min-w-5 items-center justify-center rounded-full border-2 px-1 shadow-md",
-        !colorAro && "border-white",
-        resaltado && "marcador-latido-nucleo",
-        seleccionado && resaltado && "ring-2 ring-white/90",
+    <div className="relative flex flex-col items-center">
+      <span
+        className="relative flex size-[30px] shrink-0 items-center justify-center rounded-full"
+        style={{
+          background: resaltado
+            ? `radial-gradient(closest-side, var(--background) 0 62%, transparent 63% 100%), conic-gradient(${colorAro} ${pct}%, rgba(255,255,255,0.14) 0)`
+            : undefined,
+        }}
+      >
+        <span
+          className={cn(
+            "relative flex size-[19px] items-center justify-center rounded-full shadow-md",
+            seleccionado && resaltado && "ring-2 ring-white/90",
+          )}
+          style={{
+            backgroundColor: color,
+            boxShadow: resaltado
+              ? `0 0 0 1.5px rgba(255,255,255,0.85), 0 0 10px -3px ${colorBase}`
+              : "0 0 0 1.5px rgba(255,255,255,0.6)",
+          }}
+        >
+          <span className="text-[9px] font-bold tabular-nums leading-none text-white">{nro}</span>
+        </span>
+      </span>
+      {resaltado && (
+        <>
+          <span
+            className="h-[9px] w-px opacity-80"
+            style={{ background: `linear-gradient(180deg, transparent, ${colorBase} 85%)` }}
+            aria-hidden="true"
+          />
+          <span
+            className={cn(
+              "h-[6px] w-5 rounded-full opacity-75",
+              alertaBase && "marcador-latido-charco",
+            )}
+            style={{ backgroundColor: colorBase, filter: "blur(2px)" }}
+            aria-hidden="true"
+          />
+        </>
       )}
-      style={{
-        backgroundColor: color,
-        ...(colorAro ? { borderColor: colorAro } : null),
-      }}
-    >
-      <span className="text-[9px] font-bold tabular-nums leading-none text-white">{nro}</span>
-    </span>
+    </div>
   );
 }
 
+/** Etiqueta HUD del nombre: mono, mayúsculas trackeadas, acento teal — no un chip genérico. */
 function EtiquetaNombre({ nombre }: { nombre: string }) {
   return (
     <span
-      className="mt-0.5 max-w-[9.5rem] truncate rounded-md bg-background/90 px-1.5 py-0.5 text-center text-[10px] font-semibold leading-tight text-foreground shadow-md backdrop-blur-sm"
+      className="mt-1 max-w-[9.5rem] truncate rounded-[3px] border border-primary/30 bg-background/90 px-1.5 py-0.5 text-center font-mono text-[9px] font-semibold uppercase leading-tight tracking-wide text-foreground shadow-[0_0_6px_-2px_var(--primary)] backdrop-blur-sm"
       title={nombre}
     >
       {nombre}
@@ -116,12 +180,21 @@ export function MarcadorCentro({
   refugiados = 0,
   personalTotal = 0,
   semaforoColor,
+  fasesReporteHoy = 0,
+  alertaBase = false,
   esPrueba = false,
   onClick,
 }: Props) {
   const colorMarcador = resaltado ? color : COLOR_MARCADOR_ATENUADO;
+  const etiquetaReporteHoy =
+    fasesReporteHoy <= 0
+      ? "Reporte no iniciado"
+      : fasesReporteHoy >= TOTAL_FASES_REPORTE_DIA
+        ? "Reporte del día abierto (completo)"
+        : `Reporte del día: ${fasesReporteHoy}/${TOTAL_FASES_REPORTE_DIA} fases`;
   const titulo =
-    `${esPrueba ? "[PRUEBA] " : ""}${nombre} · N.° ${nro} · ${refugiados.toLocaleString("es")} damnificados · ${personalTotal.toLocaleString("es")} personal operativo`;
+    `${esPrueba ? "[PRUEBA] " : ""}${nombre} · N.° ${nro} · ${refugiados.toLocaleString("es")} damnificados · ${personalTotal.toLocaleString("es")} personal operativo · ${etiquetaReporteHoy}` +
+    (alertaBase ? " · Novedad negativa o denuncia sin resolver" : "");
   const verNombre = mostrarNombre && resaltado;
 
   const marcaPrueba = esPrueba ? (
@@ -147,24 +220,14 @@ export function MarcadorCentro({
         onClick={manejarClick}
       >
         <div className="relative flex flex-col items-center">
-          <div className="relative flex size-6 items-center justify-center">
-            {resaltado && (
-              <span
-                className="marcador-latido-aura absolute size-6 rounded-full"
-                style={{
-                  backgroundColor: semaforoColor ?? colorMarcador,
-                }}
-                aria-hidden
-              />
-            )}
-            <NucleoNumero
-              nro={nro}
-              color={colorMarcador}
-              colorAro={resaltado ? semaforoColor : null}
-              resaltado={resaltado}
-              seleccionado={seleccionado}
-            />
-          </div>
+          <Baliza
+            nro={nro}
+            color={colorMarcador}
+            fasesReporteHoy={fasesReporteHoy}
+            alertaBase={alertaBase}
+            resaltado={resaltado}
+            seleccionado={seleccionado}
+          />
           {verNombre && <EtiquetaNombre nombre={nombre} />}
           {mostrarParte && resaltado && (
             <span className="mt-1 rounded-md bg-background/90 px-1.5 py-0.5 shadow-md backdrop-blur-sm">

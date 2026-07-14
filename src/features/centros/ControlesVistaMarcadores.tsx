@@ -1,4 +1,4 @@
-import { BarChart3, Globe2, Hash, List, Palette } from "lucide-react";
+import { BarChart3, Droplet, Globe2, Hash, List, Palette } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,9 @@ export interface PropsTogglesVistaMapa {
   /** Proyección esfera (MapLibre globe). Independiente del estilo Carto/sat. */
   modoGlobo: boolean;
   onCambiarModoGlobo: (activo: boolean) => void;
+  /** Núcleo del marcador coloreado por unidad SEBIN. Default: off (un solo color neutro). */
+  colorearPorUnidad: boolean;
+  onCambiarColorearPorUnidad: (activo: boolean) => void;
 }
 
 /** Panel de switches para la vista del mapa (dentro del popover de controles). */
@@ -30,6 +33,8 @@ export function PanelTogglesVistaMapa({
   onCambiarMostrarCintaTotales,
   modoGlobo,
   onCambiarModoGlobo,
+  colorearPorUnidad,
+  onCambiarColorearPorUnidad,
 }: PropsTogglesVistaMapa) {
   const vistaColor = modoMarcador === "color";
 
@@ -74,6 +79,16 @@ export function PanelTogglesVistaMapa({
         conBorde
       />
       <FilaToggle
+        id="toggle-colorear-unidad"
+        icono={<Droplet className="size-3.5 shrink-0 text-muted-foreground" />}
+        etiqueta="Colorear por unidad"
+        checked={colorearPorUnidad}
+        onCheckedChange={onCambiarColorearPorUnidad}
+        ariaLabel="Colorear el núcleo del marcador por unidad responsable (si no, un solo color)"
+        conBorde
+        deshabilitado={!vistaColor}
+      />
+      <FilaToggle
         id="toggle-leyenda-sebin"
         icono={<List className="size-3.5 shrink-0 text-muted-foreground" />}
         etiqueta="Unidades responsables"
@@ -90,11 +105,13 @@ export function PanelTogglesVistaMapa({
             ? mostrarParte
               ? "Logo SEBIN con parte diario."
               : "Solo logo SEBIN por campamento."
-            : mostrarParte
-              ? "Puntos de color con conteo debajo."
-              : mostrarLeyenda
-                ? "Toque una o varias unidades responsables para filtrar."
-                : "Solo puntos de color por dirección SEBIN."}
+            : !colorearPorUnidad
+              ? "Un solo color: el aro de progreso del reporte es lo que resalta."
+              : mostrarParte
+                ? "Puntos de color con conteo debajo."
+                : mostrarLeyenda
+                  ? "Toque una o varias unidades responsables para filtrar."
+                  : "Solo puntos de color por dirección SEBIN."}
       </p>
     </div>
   );

@@ -52,6 +52,11 @@ import {
 } from "@/lib/introMapa";
 import { analisisCentro, COLOR_SEMAFORO } from "@/domain/capacidadCentros";
 import { boundsRedCentros } from "@/domain/redCentros";
+import { COLOR_NUCLEO_NEUTRO } from "@/domain/unidadesSebin";
+import { useEstadoReporteHoy, fasesCompletadasHoy } from "@/data/useEstadoReporteHoy";
+import { useEventosReportes } from "@/data/useEventosReportes";
+import { useDenuncias } from "@/data/useDenuncias";
+import { claveDia } from "@/data/reposSupabase";
 import { MarcadorCentro } from "./MarcadorCentro";
 import { InfoCentro } from "./InfoCentro";
 import { ControlesMapaCentros } from "./ControlesMapaCentros";
@@ -73,6 +78,9 @@ interface Props {
   onCambiarMostrarLeyenda: (mostrar: boolean) => void;
   mostrarCintaTotales: boolean;
   onCambiarMostrarCintaTotales: (mostrar: boolean) => void;
+  /** Núcleo del marcador coloreado por unidad SEBIN. Default: off (un solo color neutro). */
+  colorearPorUnidad: boolean;
+  onCambiarColorearPorUnidad: (activo: boolean) => void;
   /** Direcciones SEBIN activas (vacío = ver todas). */
   unidadesFiltro: ReadonlySet<ClaveUnidadSebin>;
   onAlternarUnidadFiltro: (clave: ClaveUnidadSebin) => void;
@@ -112,6 +120,8 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     onCambiarMostrarLeyenda,
     mostrarCintaTotales,
     onCambiarMostrarCintaTotales,
+    colorearPorUnidad,
+    onCambiarColorearPorUnidad,
     unidadesFiltro,
     onAlternarUnidadFiltro,
     onLimpiarUnidadesFiltro,
@@ -152,6 +162,17 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   /** Intro Google Earth: una vez por carga de página, sync con fade splash/login. */
   const hacerIntroRef = useRef(reservarIntroMapa());
   const introEnCursoRef = useRef(hacerIntroRef.current);
+  const estadoReporteHoy = useEstadoReporteHoy();
+  const hoy = useMemo(() => claveDia(Date.now()), []);
+  const { eventos: eventosHoy } = useEventosReportes({ dia: hoy });
+  const denunciasAbiertas = useDenuncias({ estado: "abierta" });
+  /** Campamentos con novedad negativa hoy o una denuncia sin resolver → base roja del marcador. */
+  const centrosConAlertaBase = useMemo(() => {
+    const s = new Set<string>();
+    for (const e of eventosHoy) if (e.tipo === "negativo") s.add(e.centro_id);
+    for (const d of denunciasAbiertas) s.add(d.centro_id);
+    return s;
+  }, [eventosHoy, denunciasAbiertas]);
 
   useEffect(() => {
     guardarModo3dCentros(modo3d);
@@ -179,8 +200,11 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     modoMarcador,
     mostrarParteMarcador,
     mostrarEtiquetaNombre,
+    colorearPorUnidad,
     unidadesFiltro,
     idsResaltadosAmbito,
+    estadoReporteHoy,
+    centrosConAlertaBase,
     onSeleccionar,
     onToggleDetalle,
   });
@@ -191,8 +215,11 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     modoMarcador,
     mostrarParteMarcador,
     mostrarEtiquetaNombre,
+    colorearPorUnidad,
     unidadesFiltro,
     idsResaltadosAmbito,
+    estadoReporteHoy,
+    centrosConAlertaBase,
     onSeleccionar,
     onToggleDetalle,
   };
@@ -551,6 +578,13 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       const analisis = analisisCentro(c);
       const refugiados = poblacionCentro(c);
       const personalTotal = totalPersonalOperativo(normalizarCentro(c).personal);
+      // El núcleo del marcador (modo "color") es neutro por defecto: el número ya
+      // identifica el campamento, y un solo tono deja que el aro de progreso del
+      // reporte se lea en vez de competir con ~12 colores de unidad SEBIN.
+      const colorNucleo =
+        cbRef.current.modoMarcador === "color" && !cbRef.current.colorearPorUnidad
+          ? COLOR_NUCLEO_NEUTRO
+          : metaUnidad.color;
       roots.current.get(c.id)?.render(
         <MarcadorCentro
           modo={cbRef.current.modoMarcador}
@@ -558,7 +592,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
           nombre={c.nombre}
           icono="🛡️"
           logo={LOGO_SEBIN}
-          color={metaUnidad.color}
+          color={colorNucleo}
           seleccionado={cbRef.current.seleccionado === c.id}
           resaltado={resaltado}
           mostrarParte={cbRef.current.mostrarParteMarcador}
@@ -568,6 +602,8 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
           semaforoColor={
             analisis.semaforo === "rojo" ? COLOR_SEMAFORO.rojo : null
           }
+          fasesReporteHoy={fasesCompletadasHoy(cbRef.current.estadoReporteHoy.get(c.id))}
+          alertaBase={cbRef.current.centrosConAlertaBase.has(c.id)}
           esPrueba={esCentroDePrueba(c)}
           onClick={() => cbRef.current.onSeleccionar(c.id)}
         />,
@@ -596,7 +632,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     sincronizarMarcadores();
     aplicarVistaDefectoSiCorresponde();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [centros, seleccionado, modoMarcador, mostrarParteMarcador, mostrarEtiquetaNombre, unidadesFiltro, idsResaltadosAmbito]);
+  }, [centros, seleccionado, modoMarcador, mostrarParteMarcador, mostrarEtiquetaNombre, colorearPorUnidad, unidadesFiltro, idsResaltadosAmbito, estadoReporteHoy, centrosConAlertaBase]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -780,6 +816,8 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
           onCambiarMostrarLeyenda,
           mostrarCintaTotales,
           onCambiarMostrarCintaTotales,
+          colorearPorUnidad,
+          onCambiarColorearPorUnidad,
           modoGlobo,
           onCambiarModoGlobo: setModoGlobo,
         }}

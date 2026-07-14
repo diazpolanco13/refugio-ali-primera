@@ -13,6 +13,7 @@ const CLAVE_MODO_MARCADOR = "refugio-modo-marcador-centros";
 const CLAVE_MOSTRAR_PARTE = "refugio-mostrar-parte-marcador";
 const CLAVE_MOSTRAR_LEYENDA = "refugio-mostrar-leyenda-marcador";
 const CLAVE_MOSTRAR_CINTA = "refugio-mostrar-cinta-totales";
+const CLAVE_COLOREAR_UNIDAD = "refugio-colorear-marcador-unidad";
 
 /** Vista del ícono en el mapa: logo SEBIN o punto de color por dirección. */
 export type ModoMarcadorCentros = "logo" | "color";
@@ -199,6 +200,26 @@ export function cargarMostrarCintaTotales(): boolean | null {
 export function guardarMostrarCintaTotales(mostrar: boolean): void {
   try {
     localStorage.setItem(CLAVE_MOSTRAR_CINTA, mostrar ? "1" : "0");
+  } catch {
+    // ignorar
+  }
+}
+
+/** Núcleo del marcador coloreado por unidad SEBIN (default: off → un solo color neutro). */
+export function cargarColorearPorUnidad(): boolean | null {
+  try {
+    const v = localStorage.getItem(CLAVE_COLOREAR_UNIDAD);
+    if (v === "1") return true;
+    if (v === "0") return false;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function guardarColorearPorUnidad(activo: boolean): void {
+  try {
+    localStorage.setItem(CLAVE_COLOREAR_UNIDAD, activo ? "1" : "0");
   } catch {
     // ignorar
   }

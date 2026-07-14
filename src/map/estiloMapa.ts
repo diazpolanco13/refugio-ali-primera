@@ -168,7 +168,18 @@ export function asegurarEdificios3d(map: MapLibreMap): void {
           15,
           ["coalesce", ["get", "render_min_height"], 0],
         ],
-        "fill-extrusion-opacity": 0.85,
+        // Fade-in con el zoom (igual que Osiris): opacidad 0 justo al cruzar
+        // minzoom y sube a la opacidad plena a medio nivel de zoom, para que
+        // los edificios se "materialicen" en vez de aparecer de golpe.
+        "fill-extrusion-opacity": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          14,
+          0,
+          14.5,
+          0.85,
+        ],
       },
     },
     beforeId,

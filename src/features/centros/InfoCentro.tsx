@@ -18,7 +18,7 @@ import {
 } from "@/domain/refugiados";
 import { useAlojamientosCentro } from "@/data/useAlojamientosCentro";
 import { BarraCensoVsParteMini } from "@/features/censo/ContrasteCensoParte";
-import { IconosEstadoReporteDia } from "./IconosEstadoReporteDia";
+import { BarraReporteDiarioMini } from "./BarraReporteDiarioMini";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -214,14 +214,7 @@ export function InfoCentro({ centro, className, detalleAbierto, onToggleDetalle 
         className="pt-0.5"
       />
 
-      <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2 text-[10px] text-muted-foreground">
-        <span>Reporte diario</span>
-        <IconosEstadoReporteDia
-          centroId={centro.id}
-          metaRefugiados={damnificados}
-          metaFamilias={familias}
-        />
-      </div>
+      <BarraReporteDiarioMini centroId={centro.id} className="border-t border-border/60 pt-2" />
 
       <div className="flex gap-2 pt-1">
         <Button asChild variant="outline" size="sm" className="flex-1">

@@ -8,10 +8,12 @@ import {
   cargarMostrarParteMarcador,
   cargarMostrarLeyendaMarcador,
   cargarMostrarCintaTotales,
+  cargarColorearPorUnidad,
   guardarModoMarcadorCentros,
   guardarMostrarParteMarcador,
   guardarMostrarLeyendaMarcador,
   guardarMostrarCintaTotales,
+  guardarColorearPorUnidad,
   type ModoMarcadorCentros,
 } from "@/data/preferenciasMapa";
 import type { BaseMapa } from "@/map/estiloMapa";
@@ -78,6 +80,9 @@ export function CentrosView() {
   const [mostrarCintaTotales, setMostrarCintaTotales] = useState(
     () => cargarMostrarCintaTotales() ?? true,
   );
+  const [colorearPorUnidad, setColorearPorUnidad] = useState(
+    () => cargarColorearPorUnidad() ?? false,
+  );
   const [unidadesFiltroMapa, setUnidadesFiltroMapa] = useState<Set<ClaveUnidadSebin>>(
     () => new Set(),
   );
@@ -117,6 +122,10 @@ export function CentrosView() {
   useEffect(() => {
     guardarMostrarCintaTotales(mostrarCintaTotales);
   }, [mostrarCintaTotales]);
+
+  useEffect(() => {
+    guardarColorearPorUnidad(colorearPorUnidad);
+  }, [colorearPorUnidad]);
 
   useEffect(() => {
     if (modoMarcador !== "color") setUnidadesFiltroMapa(new Set());
@@ -270,6 +279,8 @@ export function CentrosView() {
               onCambiarMostrarLeyenda={setMostrarLeyendaMarcador}
               mostrarCintaTotales={mostrarCintaTotales}
               onCambiarMostrarCintaTotales={setMostrarCintaTotales}
+              colorearPorUnidad={colorearPorUnidad}
+              onCambiarColorearPorUnidad={setColorearPorUnidad}
               unidadesFiltro={unidadesFiltroMapa}
               onAlternarUnidadFiltro={alternarUnidadFiltro}
               onLimpiarUnidadesFiltro={limpiarUnidadesFiltro}

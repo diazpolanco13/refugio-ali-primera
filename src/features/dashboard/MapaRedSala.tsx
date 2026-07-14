@@ -43,6 +43,8 @@ function MapaInterno({
   setMostrarLeyenda,
   mostrarCintaTotales,
   setMostrarCintaTotales,
+  colorearPorUnidad,
+  setColorearPorUnidad,
   unidadesFiltro,
   alternarUnidadFiltro,
   setUnidadesFiltro,
@@ -62,6 +64,8 @@ function MapaInterno({
   setMostrarLeyenda: (v: boolean) => void;
   mostrarCintaTotales: boolean;
   setMostrarCintaTotales: (v: boolean) => void;
+  colorearPorUnidad: boolean;
+  setColorearPorUnidad: (v: boolean) => void;
   unidadesFiltro: Set<ClaveUnidadSebin>;
   alternarUnidadFiltro: (clave: ClaveUnidadSebin) => void;
   setUnidadesFiltro: (s: Set<ClaveUnidadSebin>) => void;
@@ -91,6 +95,8 @@ function MapaInterno({
       onCambiarMostrarLeyenda={setMostrarLeyenda}
       mostrarCintaTotales={mostrarCintaTotales}
       onCambiarMostrarCintaTotales={setMostrarCintaTotales}
+      colorearPorUnidad={colorearPorUnidad}
+      onCambiarColorearPorUnidad={setColorearPorUnidad}
       unidadesFiltro={unidadesFiltro}
       onAlternarUnidadFiltro={alternarUnidadFiltro}
       onLimpiarUnidadesFiltro={() => setUnidadesFiltro(new Set())}
@@ -113,6 +119,7 @@ export function MapaRedSala({
   const [mostrarParteMarcador, setMostrarParteMarcador] = useState(true);
   const [mostrarLeyenda, setMostrarLeyenda] = useState(true);
   const [mostrarCintaTotales, setMostrarCintaTotales] = useState(false);
+  const [colorearPorUnidad, setColorearPorUnidad] = useState(false);
   const [unidadesFiltro, setUnidadesFiltro] = useState<Set<ClaveUnidadSebin>>(
     () => new Set(),
   );
@@ -151,6 +158,8 @@ export function MapaRedSala({
     setMostrarLeyenda,
     mostrarCintaTotales,
     setMostrarCintaTotales,
+    colorearPorUnidad,
+    setColorearPorUnidad,
     unidadesFiltro,
     alternarUnidadFiltro,
     setUnidadesFiltro,

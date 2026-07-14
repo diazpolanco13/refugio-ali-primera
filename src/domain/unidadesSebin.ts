@@ -226,3 +226,11 @@ export const LOGO_SEBIN = "/logos-cuerpos/sebin.webp";
 
 /** Color de marcadores atenuados al filtrar por otra dirección SEBIN. */
 export const COLOR_MARCADOR_ATENUADO = "#52525b";
+
+/**
+ * Color neutro del núcleo del marcador (modo "color") cuando NO se colorea
+ * por unidad SEBIN — default. El número ya identifica el campamento; un
+ * solo tono deja que el aro de progreso del reporte (gris/teal/verde) sea
+ * lo que realmente se lea, en vez de competir con ~12 colores de unidad.
+ */
+export const COLOR_NUCLEO_NEUTRO = "#475569";

@@ -297,37 +297,29 @@ button {
   }
 }
 
-/* Marcadores del mapa de campamentos: latido suave en vista por color. */
-@keyframes marcador-latido-nucleo {
+/* Baliza de los marcadores del mapa (modo color): el charco de tierra late
+   suave, como si el campamento "respirara" sobre el terreno 3D. */
+@keyframes marcador-latido-charco {
   0%,
   100% {
-    transform: scale(1);
-    filter: brightness(1);
+    transform: scale(0.9);
+    opacity: 0.6;
   }
   50% {
-    transform: scale(1.15);
-    filter: brightness(1.15);
+    transform: scale(1.2);
+    opacity: 0.9;
   }
 }
 
-@keyframes marcador-latido-aura {
-  0%,
-  100% {
-    transform: scale(0.85);
-    opacity: 0.55;
-  }
-  50% {
-    transform: scale(1.65);
-    opacity: 0;
-  }
+.marcador-latido-charco {
+  animation: marcador-latido-charco 2.6s ease-in-out infinite;
 }
 
-.marcador-latido-nucleo {
-  animation: marcador-latido-nucleo 2.4s ease-in-out infinite;
-}
-
-.marcador-latido-aura {
-  animation: marcador-latido-aura 2.4s ease-in-out infinite;
+/* MapLibre no le da z-index propio al popup (queda en "auto"), pero los
+   marcadores sí lo tienen (`el.style.zIndex` en CentrosMap.tsx) — sin esto,
+   la tarjeta de info queda detrás de los círculos/etiquetas vecinos. */
+.maplibregl-popup {
+  z-index: 10;
 }
 
 .scrollbar-oculto {
