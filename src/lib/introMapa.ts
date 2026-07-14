@@ -2,10 +2,13 @@
  * Intro tipo Google Earth: el mapa parte desde órbita y se acerca a Caracas
  * al mismo tiempo que se disuelve el splash o el login (`CapaLogin`).
  *
- * Flujo:
+ * Flujo (reload con sesión O login):
  * 1. CentrosMap monta en zoom órbita + globo → `avisarMapaOrbitaLista()`
  * 2. splash / CapaLogin inician fade → `avisarInicioSalidaOverlay()`
  * 3. CentrosMap escucha (2) y lanza `flyTo` a Caracas ~30 km
+ *
+ * En pantalla de login (sin sesión) hay que `resetearEstadoIntroMapa()` para
+ * no heredar señales del splash ni bloquear el intro tras un logout.
  */
 
 type Listener = () => void;
@@ -14,7 +17,7 @@ const listenersSalida = new Set<Listener>();
 const listenersOrbita = new Set<Listener>();
 let salidaOverlayEmpezada = false;
 let mapaOrbitaLista = false;
-/** Una sola intro por carga de página (sobrevive remounts de StrictMode). */
+/** Una sola intro por “entrada al mapa”; se resetea al volver al login. */
 let introYaLanzada = false;
 
 /** Duración del acercamiento (ms). Más larga que el fade (900) para ver el vuelo. */
@@ -43,19 +46,23 @@ export function preferirMenosMovimiento(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+/**
+ * Limpia señales y permite otra intro (logout → login, o splash sobre login
+ * que no debe disparar el fly).
+ */
+export function resetearEstadoIntroMapa(): void {
+  salidaOverlayEmpezada = false;
+  mapaOrbitaLista = false;
+  introYaLanzada = false;
+  listenersSalida.clear();
+  listenersOrbita.clear();
+}
+
 /** Emite al iniciar el fade del splash o del login. Idempotente. */
 export function avisarInicioSalidaOverlay(): void {
   if (salidaOverlayEmpezada) return;
   salidaOverlayEmpezada = true;
   for (const l of [...listenersSalida]) l();
-}
-
-/**
- * Anula un aviso prematuro (p. ej. splash cerró sobre la pantalla de login
- * sin mapa debajo). El fly-in esperará al fade real de `CapaLogin`.
- */
-export function invalidarSalidaOverlay(): void {
-  salidaOverlayEmpezada = false;
 }
 
 /** Suscribe al inicio del fade. Si ya empezó, invoca en microtask. */

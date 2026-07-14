@@ -42,7 +42,10 @@ export function SplashIntro({ listo, esperarOrbitaMapa = false, children }: Prop
     if (!listo) return;
 
     if (preferirMenosMovimiento()) {
-      ocultarSplash({ inmediato: true });
+      ocultarSplash({
+        inmediato: true,
+        dispararIntroMapa: esperarOrbitaMapa,
+      });
       return;
     }
 
@@ -55,13 +58,14 @@ export function SplashIntro({ listo, esperarOrbitaMapa = false, children }: Prop
       cerrado = true;
       unsubOrbita();
       window.clearTimeout(timeoutOrbita);
-      ocultarSplash();
+      // Solo dispara fly-in si hay mapa debajo (sesión + ruta mapa).
+      ocultarSplash({ dispararIntroMapa: esperarOrbitaMapa });
     };
 
     const trasMinimoCoreografia = () => {
       if (cerrado) return;
       if (!esperarOrbitaMapa) {
-        // Login u otra ruta: cerrar ya (el fly lo alinea CapaLogin al autenticar).
+        // Login: cerrar sin envenenar señales; CapaLogin alinea el fly al autenticar.
         cerrar();
         return;
       }

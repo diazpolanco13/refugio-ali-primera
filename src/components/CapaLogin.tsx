@@ -3,8 +3,8 @@
  * opacity + scale + blur). El mapa monta DEBAJO mientras esta capa se disuelve
  * → no hay corte seco login → shell.
  *
- * Tras autenticar espera a que el mapa esté en órbita (intro Google Earth) y
- * entonces disuelve en paralelo al fly-in.
+ * Tras autenticar: igual que reload — espera órbita del mapa, lanza fly y
+ * disuelve el login 180 ms después para revelar el zoom en movimiento.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -15,8 +15,8 @@ import {
   ADELANTO_FLY_ANTES_FADE_MS,
   TIMEOUT_ESPERA_ORBITA_MS,
   avisarInicioSalidaOverlay,
-  invalidarSalidaOverlay,
   onMapaOrbitaLista,
+  resetearEstadoIntroMapa,
 } from "@/lib/introMapa";
 
 const VOID = "#05100C";
@@ -35,6 +35,8 @@ export function CapaLogin({ listo, sesion }: Props) {
   const reduced = useReducedMotion();
   /** Mantener capa montada tras emitir sesión hasta terminar el fade. */
   const puente = useRef(false);
+  /** Evita reentrar y que el cleanup por `setSaliendo` mate los timers del fade. */
+  const salidaIniciadaRef = useRef(false);
   const [saliendo, setSaliendo] = useState(false);
   const [, forzar] = useState(0);
 
@@ -44,29 +46,32 @@ export function CapaLogin({ listo, sesion }: Props) {
 
   const visible = listo && (!sesion || puente.current);
 
-  // El splash pudo avisar salida al cerrar sobre el login (sin mapa). Invalidar
-  // para que el fly-in espere al fade real de esta capa.
+  // Pantalla de login: estado limpio para que el próximo auth tenga intro fresca
+  // (también tras logout, donde introYaLanzada quedaba true del reload anterior).
   useEffect(() => {
-    if (listo && !sesion) {
-      invalidarSalidaOverlay();
-    }
+    if (!listo || sesion) return;
+    resetearEstadoIntroMapa();
+    salidaIniciadaRef.current = false;
+    setSaliendo(false);
   }, [listo, sesion]);
 
   useEffect(() => {
-    if (!listo || !sesion || !puente.current || saliendo) return;
+    if (!listo || !sesion || !puente.current) return;
+    if (salidaIniciadaRef.current) return;
 
     let timeoutAdelanto = 0;
     let timeoutSalida = 0;
     let timeoutOrbita = 0;
     let cancelado = false;
-    let iniciada = false;
 
     const empezarSalida = () => {
-      if (cancelado || iniciada || !puente.current) return;
-      iniciada = true;
+      if (cancelado || salidaIniciadaRef.current || !puente.current) return;
+      salidaIniciadaRef.current = true;
       window.clearTimeout(timeoutOrbita);
-      // Fly primero (mapa tapado); fade un instante después → revelar en movimiento.
+
+      // Mismo protocolo que el splash con sesión: fly primero, fade después.
       avisarInicioSalidaOverlay();
+
       const arrancarFade = () => {
         if (cancelado) return;
         setSaliendo(true);
@@ -77,6 +82,7 @@ export function CapaLogin({ listo, sesion }: Props) {
           forzar((n) => n + 1);
         }, ms);
       };
+
       if (reduced) {
         arrancarFade();
       } else {
@@ -84,19 +90,20 @@ export function CapaLogin({ listo, sesion }: Props) {
       }
     };
 
-    // Esperar órbita del mapa para alinear fade + fly-in. Si la ruta no monta
-    // mapa (p. ej. rol que cae en otra vista), timeout y salir igual.
+    // Esperar órbita (mapa montó debajo). Timeout si el rol no cae al mapa.
     const unsubOrbita = onMapaOrbitaLista(empezarSalida);
     timeoutOrbita = window.setTimeout(empezarSalida, TIMEOUT_ESPERA_ORBITA_MS);
 
     return () => {
+      // Si la salida ya empezó, no cancelar timers (setSaliendo no debe abortar).
+      if (salidaIniciadaRef.current) return;
       cancelado = true;
       unsubOrbita();
       window.clearTimeout(timeoutOrbita);
       window.clearTimeout(timeoutAdelanto);
       window.clearTimeout(timeoutSalida);
     };
-  }, [listo, sesion, saliendo, reduced]);
+  }, [listo, sesion, reduced]);
 
   if (!visible) return null;
 
