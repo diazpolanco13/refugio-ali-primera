@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Document, Image, Page, Path, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
+import type { Style } from "@react-pdf/types";
 import type { ReporteEjecutivoCampamentos } from "@/domain/reporteEjecutivoCampamentos";
 
 const azul = "#0f2f3f";
@@ -753,7 +754,7 @@ function TextoDelta({
   style,
 }: {
   delta: number | null | undefined;
-  style: object | object[];
+  style: Style | Style[];
 }) {
   if (delta == null || delta === 0) return null;
   const color = delta > 0 ? verdeDelta : rojoDelta;
