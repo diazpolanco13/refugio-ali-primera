@@ -1,5 +1,8 @@
 // Hook Realtime: todos los alojamientos activos visibles por RLS + metadatos
 // de refugiado (vista global /centros/refugiados).
+//
+// Carga inicial con embed PostgREST (evita `.in(id, N)` enorme que falla por
+// límite de URL y dejaba la lista vacía en silencio).
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient";
@@ -10,6 +13,22 @@ import {
   type AlojamientoRefugiado,
   type Refugiado,
 } from "../domain/refugiados";
+
+/** Filas por página en la carga inicial (margen de max-rows de PostgREST). */
+const PAGE_ALOJA = 500;
+
+type FilaAlojConRef = AlojamientoRefugiado & {
+  refugiado: Refugiado | Refugiado[] | null;
+};
+
+function refDesdeEmbed(
+  raw: Refugiado | Refugiado[] | null | undefined,
+): Refugiado | null {
+  if (!raw) return null;
+  const fila = Array.isArray(raw) ? raw[0] : raw;
+  if (!fila || typeof fila !== "object" || !("id" in fila)) return null;
+  return normalizarRefugiado(fila);
+}
 
 export function useRefugiadosRed(): {
   alojamientos: AlojamientoEnriquecido[];
@@ -23,38 +42,47 @@ export function useRefugiadosRed(): {
     let cancelado = false;
     const channelName = `useRefugiadosRed:${Math.random().toString(36).slice(2)}`;
 
-    async function cargarRefs(ids: string[]) {
-      if (ids.length === 0) {
-        setRefugiados(new Map());
-        return;
+    async function cargarInicial() {
+      setCargando(true);
+      const alojAcum: AlojamientoRefugiado[] = [];
+      const refsAcum = new Map<string, Refugiado>();
+      let desde = 0;
+
+      for (;;) {
+        const { data, error } = await supabase
+          .from("alojamientos_refugiados")
+          .select("*, refugiado:refugiados(*)")
+          .eq("estado", "activo")
+          .order("id", { ascending: true })
+          .range(desde, desde + PAGE_ALOJA - 1);
+
+        if (cancelado) return;
+        if (error) {
+          console.warn("[useRefugiadosRed] select:", error.message);
+          setAlojamientos([]);
+          setRefugiados(new Map());
+          setCargando(false);
+          return;
+        }
+
+        const filas = (data ?? []) as FilaAlojConRef[];
+        for (const fila of filas) {
+          alojAcum.push(normalizarAlojamiento(fila));
+          const ref = refDesdeEmbed(fila.refugiado);
+          if (ref) refsAcum.set(ref.id, ref);
+        }
+
+        if (filas.length < PAGE_ALOJA) break;
+        desde += PAGE_ALOJA;
       }
-      const { data, error } = await supabase.from("refugiados").select("*").in("id", ids);
-      if (cancelado || error) return;
-      const map = new Map<string, Refugiado>();
-      for (const r of (data ?? []) as Refugiado[]) {
-        map.set(r.id, normalizarRefugiado(r));
-      }
-      setRefugiados(map);
+
+      if (cancelado) return;
+      setAlojamientos(alojAcum);
+      setRefugiados(refsAcum);
+      setCargando(false);
     }
 
-    (async () => {
-      setCargando(true);
-      const { data, error } = await supabase
-        .from("alojamientos_refugiados")
-        .select("*")
-        .eq("estado", "activo");
-      if (cancelado) return;
-      if (error) {
-        console.warn("[useRefugiadosRed] select:", error.message);
-        setAlojamientos([]);
-        setCargando(false);
-        return;
-      }
-      const aloj = ((data ?? []) as AlojamientoRefugiado[]).map(normalizarAlojamiento);
-      setAlojamientos(aloj);
-      await cargarRefs([...new Set(aloj.map((a) => a.refugiado_id))]);
-      setCargando(false);
-    })();
+    void cargarInicial();
 
     const channel = supabase
       .channel(channelName)
@@ -77,11 +105,15 @@ export function useRefugiadosRed(): {
               ? prev.map((a) => (a.id === fila.id ? fila : a))
               : [...prev, fila],
           );
-          const { data: ref } = await supabase
+          const { data: ref, error } = await supabase
             .from("refugiados")
             .select("*")
             .eq("id", fila.refugiado_id)
             .maybeSingle();
+          if (error) {
+            console.warn("[useRefugiadosRed] realtime ref:", error.message);
+            return;
+          }
           if (ref) {
             setRefugiados((prev) => {
               const next = new Map(prev);

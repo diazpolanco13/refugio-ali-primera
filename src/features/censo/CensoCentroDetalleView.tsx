@@ -4,7 +4,7 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ClipboardList } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
-import { useCensoNominalRed } from "@/data/useCensoNominalRed";
+import { useCensoRedResumen } from "@/data/useCensoRedResumen";
 import { puedeVerCensoCentro, puedeVerCensoRapidoRed } from "@/domain/permisos";
 import { CensoCentroPanel } from "@/features/censo/CensoCentroPanel";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
   const tieneAccesoRed = puedeVerCensoRapidoRed(sesion.user.rol);
   const tieneAcceso =
     centroId != null && puedeVerCensoCentro(sesion.user, centroId);
-  const { resumenes } = useCensoNominalRed();
+  const { resumenes } = useCensoRedResumen();
 
   if (!centroId) {
     navigate("/centros/censo", { replace: true });
@@ -24,18 +24,14 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
   }
 
   const resumen = resumenes.find((r) => r.centroId === centroId);
-  const centroNombre = resumen
-    ? resumen.nro != null
-      ? `N.° ${resumen.nro} · ${resumen.centroNombre}`
-      : resumen.centroNombre
-    : "Campamento";
+  const centroNombre = resumen?.centroNombre ?? "Campamento";
 
   return (
     <VistaPagina
       icono={ClipboardList}
       acento="teal"
       titulo={centroNombre}
-      descripcion="Avance del censo nominal y personas registradas en este campamento"
+      descripcion="Avance del censo rápido y personas registradas en este campamento"
       cuerpoClassName="p-4 lg:p-6"
       acciones={
         tieneAccesoRed ? (
@@ -57,7 +53,7 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
     >
       <CensoCentroPanel
         centroId={centroId}
-        centroNombre={resumen?.centroNombre ?? centroNombre}
+        centroNombre={centroNombre}
         sesion={sesion}
       />
     </VistaPagina>

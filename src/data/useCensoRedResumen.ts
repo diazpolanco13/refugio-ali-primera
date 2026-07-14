@@ -1,4 +1,4 @@
-// Hook para la vista interna /centros/censo-rapido: carga el resumen agregado
+// Hook para la vista interna /centros/censo: carga el resumen agregado
 // de toda la red vía RPC censo_resumen_red() con refresh manual.
 
 import { useCallback, useEffect, useState } from "react";
