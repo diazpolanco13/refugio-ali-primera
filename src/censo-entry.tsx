@@ -6,7 +6,7 @@ import { BotonBorrarCacheFlotante } from "./components/BotonBorrarCacheFlotante"
 import { CensoView } from "./features/censo/CensoView";
 import { DenunciaView } from "./features/terreno/DenunciaView";
 import { TerrenoView } from "./features/terreno/TerrenoView";
-import { ocultarSplash } from "./lib/splash";
+import { ocultarSplashCuandoListo } from "./lib/splash";
 
 /**
  * Arranque mínimo de las vistas públicas de campo (sin login ni mapa):
@@ -38,6 +38,7 @@ export function mount(): void {
     </StrictMode>,
   );
 
-  // No hay sesión que restaurar: ocultamos el splash en cuanto React monta.
-  requestAnimationFrame(() => ocultarSplash());
+  // Sin sesión que restaurar, pero hay que dejar ver la coreografía del logo
+  // (mismo mínimo que SplashIntro en la app completa).
+  requestAnimationFrame(() => ocultarSplashCuandoListo());
 }

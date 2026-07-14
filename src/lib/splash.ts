@@ -5,6 +5,7 @@
 import {
   ADELANTO_FLY_ANTES_FADE_MS,
   avisarInicioSalidaOverlay,
+  preferirMenosMovimiento,
 } from "@/lib/introMapa";
 
 declare global {
@@ -15,6 +16,26 @@ declare global {
 }
 
 const SALIDA_MS = 900;
+
+/** Tiempo mínimo para apreciar la coreografía del logo (ms). */
+export const MIN_SPLASH_MS = 2200;
+
+/**
+ * Oculta el splash respetando el mínimo de coreografía (rutas de campo sin
+ * SplashIntro: /terreno, /censo, /denuncia).
+ */
+export function ocultarSplashCuandoListo(opciones?: {
+  inmediato?: boolean;
+  dispararIntroMapa?: boolean;
+}): void {
+  if (opciones?.inmediato || preferirMenosMovimiento()) {
+    ocultarSplash({ ...opciones, inmediato: true });
+    return;
+  }
+  const inicio = window.__splashInicioMs || Date.now();
+  const restante = Math.max(0, MIN_SPLASH_MS - (Date.now() - inicio));
+  window.setTimeout(() => ocultarSplash(opciones), restante);
+}
 
 export function ocultarSplash(opciones?: {
   inmediato?: boolean;

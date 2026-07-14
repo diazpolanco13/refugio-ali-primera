@@ -12,10 +12,9 @@ import {
   onMapaOrbitaLista,
   preferirMenosMovimiento,
 } from "@/lib/introMapa";
-import { ocultarSplash } from "@/lib/splash";
+import { MIN_SPLASH_MS, ocultarSplash } from "@/lib/splash";
 
-/** Tiempo mínimo para apreciar la coreografía del logo (ms). */
-export const MIN_SPLASH_MS = 2200;
+export { MIN_SPLASH_MS };
 
 /** Marca de inicio (sobrevive StrictMode remount en dev). */
 let splashInicioMs = 0;

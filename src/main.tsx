@@ -15,10 +15,8 @@ function rutaEs(base: string): boolean {
 }
 
 if (rutaEs("/censo") || rutaEs("/terreno") || rutaEs("/denuncia")) {
-  const splash = document.getElementById("app-splash");
-  if (splash) splash.classList.add("modo-campo");
-  const msg = document.getElementById("app-splash-msg");
-  if (msg) msg.textContent = rutaEs("/censo") ? "Cargando planilla…" : "Cargando…";
+  // Mismo splash cinematográfico que el resto de la app (logo + CAMPAMENTOS).
+  // Antes se forzaba `modo-campo` (solo barra verde) y /terreno se veía vacío.
   void import("./censo-entry").then((m) => m.mount());
 } else {
   // Arranca el chunk del mapa en paralelo al bootstrap (Vite/dev lo transforma
