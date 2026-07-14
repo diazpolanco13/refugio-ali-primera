@@ -289,7 +289,13 @@ export function CentrosView() {
             />
 
             {mostrarCintaTotales && (
-              <div className="map-controls-overlay pointer-events-none absolute inset-x-3 bottom-3 z-10 md:bottom-auto md:left-1/2 md:top-3 md:w-[calc(100%-29rem)] md:-translate-x-1/2">
+              <div
+                className={
+                  panelCentrosAbierto
+                    ? "map-controls-overlay pointer-events-none absolute inset-x-3 bottom-3 z-10 md:inset-x-auto md:bottom-auto md:left-[calc(min(21rem,86vw)+0.75rem)] md:right-14 md:top-3"
+                    : "map-controls-overlay pointer-events-none absolute inset-x-3 bottom-3 z-10 md:inset-x-auto md:bottom-auto md:left-14 md:right-14 md:top-3"
+                }
+              >
                 <TotalesMapaCentros centros={centros} />
               </div>
             )}

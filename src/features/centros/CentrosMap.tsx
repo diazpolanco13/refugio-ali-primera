@@ -326,7 +326,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       pitch: esBaseEstiloExterno(baseInicial) && modo3dRef.current ? 45 : 0,
       maxZoom: 19,
       minZoom: 3,
-      attributionControl: { compact: true },
+      attributionControl: false,
       canvasContextAttributes: { preserveDrawingBuffer: true },
     });
     mapRef.current = map;

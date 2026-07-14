@@ -28,7 +28,7 @@ function KpiMapa({
   return (
     <Card
       size="sm"
-      className="min-w-[7rem] shrink-0 border-white/10 bg-background/60 py-2 shadow-lg shadow-black/25 backdrop-blur-md sm:min-w-0"
+      className="min-w-[6.5rem] shrink-0 border-white/10 bg-background/60 py-2 shadow-lg shadow-black/25 backdrop-blur-md lg:min-w-0"
     >
       <CardContent className="flex items-center gap-2 px-2.5 sm:px-3">
         <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/5 text-primary ring-1 ring-white/10">
@@ -65,7 +65,9 @@ export function TotalesMapaCentros({ centros, className }: Props) {
   return (
     <div
       className={cn(
-        "pointer-events-auto flex gap-1.5 overflow-x-auto scrollbar-oculto sm:grid sm:grid-cols-5 sm:gap-2 sm:overflow-visible",
+        // Grid 5 cols solo en lg+: en tablet (md) el ancho no alcanza y las cards
+        // se aplastaban a solo icono. Hasta lg se mantiene fila con scroll.
+        "pointer-events-auto flex gap-1.5 overflow-x-auto scrollbar-oculto lg:grid lg:grid-cols-5 lg:gap-2 lg:overflow-visible",
         className,
       )}
     >
