@@ -3,9 +3,10 @@ import { createRoot, type Root } from "react-dom/client";
 import maplibregl from "maplibre-gl";
 import { toPng } from "html-to-image";
 import {
-  escalaVistaDelMapa,
+  calcularReglaEscala,
   debeMostrarEtiquetaNombre,
   zoomParaAnchoMetros,
+  type ReglaEscala,
 } from "@/map/escalaVista";
 import {
   CAPAS_BASE,
@@ -140,7 +141,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   );
   const generacionEstiloRef = useRef(0);
   const [gpsActivo, setGpsActivo] = useState(false);
-  const [escalaVista, setEscalaVista] = useState<string | undefined>();
+  const [reglaEscala, setReglaEscala] = useState<ReglaEscala | undefined>();
   const [mostrarEtiquetaNombre, setMostrarEtiquetaNombre] = useState(false);
   const [modo3d, setModo3d] = useState(() => cargarModo3dCentros() ?? true);
   const modo3dRef = useRef(modo3d);
@@ -163,7 +164,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   function actualizarEscalaVista() {
     const map = mapRef.current;
     if (!map || !listoRef.current) return;
-    setEscalaVista(escalaVistaDelMapa(map));
+    setReglaEscala(calcularReglaEscala(map.getZoom(), map.getCenter().lat));
     const mostrarNombre = debeMostrarEtiquetaNombre(map);
     if (mostrarNombre !== cbRef.current.mostrarEtiquetaNombre) {
       cbRef.current.mostrarEtiquetaNombre = mostrarNombre;
@@ -434,7 +435,6 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       canvasContextAttributes: { preserveDrawingBuffer: true },
     });
     mapRef.current = map;
-    map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
     map.on("moveend", programarPersistirVista);
     map.on("move", actualizarEscalaVista);
     map.on("zoom", actualizarEscalaVista);
@@ -761,15 +761,13 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
         modo3d={modo3d}
         onCambiarBase={onCambiarBase}
         onCambiarModo3d={setModo3d}
+        reglaEscala={reglaEscala}
       />
       <ControlesMapaCentros
         gpsActivo={gpsActivo}
-        escalaVista={escalaVista}
         exportando={exportando}
         baseMapa={baseMapa}
         onCambiarBase={onCambiarBase}
-        onZoomIn={() => mapRef.current?.zoomIn({ duration: 250 })}
-        onZoomOut={() => mapRef.current?.zoomOut({ duration: 250 })}
         onGps={alternarGps}
         onCentrarCaracas={centrarCaracas}
         onExportar={onExportar}

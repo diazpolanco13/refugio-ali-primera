@@ -47,25 +47,43 @@ export function zoomParaAnchoMetros(
   return Math.min(19, Math.max(0, zoom));
 }
 
-/** Etiqueta compacta de escala: "500m", "3k", "45k". */
-export function formatearEscalaVista(metros: number): string {
-  if (metros < 1000) {
-    const m = Math.max(50, Math.round(metros / 50) * 50);
-    return `${m}m`;
-  }
-  const km = metros / 1000;
-  if (km < 10) {
-    const redondeado = Math.round(km);
-    return `${redondeado}k`;
-  }
-  if (km < 100) {
-    return `${Math.round(km / 5) * 5}k`;
-  }
-  return `${Math.round(km / 10) * 10}k`;
+export interface ReglaEscala {
+  /** Ancho de la barra en píxeles (representa `etiqueta` a la escala actual). */
+  anchoPx: number;
+  /** Distancia "redonda" que representa la barra: "1 km", "200 m"… */
+  etiqueta: string;
 }
 
-export function escalaVistaDelMapa(map: maplibregl.Map): string {
-  return formatearEscalaVista(anchoVisibleMetros(map));
+/** Pasos "redondos" de la regla, en km, de mayor a menor (igual que Osiris). */
+const PASOS_REGLA_ESCALA_KM = [
+  5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1,
+];
+
+/**
+ * Regla de escala cartográfica: la barra representa siempre una distancia
+ * redonda (1 km, 500 m, 200 m…) y su ancho en px cambia con el zoom — al
+ * acercar, la misma distancia real ocupa más píxeles, así que la barra crece
+ * (y al llegar a su tope se salta al siguiente paso más chico). Fórmula de
+ * metros/px de Web Mercator, igual que `zoomParaAnchoMetros`.
+ */
+export function calcularReglaEscala(zoom: number, latitud: number): ReglaEscala {
+  const cosLat = Math.max(0.05, Math.cos((latitud * Math.PI) / 180));
+  const metrosPorPx = (156543.03392 * cosLat) / 2 ** zoom;
+  const anchoMaximoPx = 100;
+  const kmMaximo = (metrosPorPx * anchoMaximoPx) / 1000;
+
+  const menorPaso = PASOS_REGLA_ESCALA_KM[PASOS_REGLA_ESCALA_KM.length - 1];
+  let paso = menorPaso;
+  for (const candidato of PASOS_REGLA_ESCALA_KM) {
+    if (candidato <= kmMaximo) {
+      paso = candidato;
+      break;
+    }
+  }
+
+  const anchoPx = Math.max(24, Math.round((paso * 1000) / metrosPorPx));
+  const etiqueta = paso >= 1 ? `${paso} km` : `${Math.round(paso * 1000)} m`;
+  return { anchoPx, etiqueta };
 }
 
 /** Umbral de etiquetas según ancho del contenedor del mapa (móvil vs escritorio). */

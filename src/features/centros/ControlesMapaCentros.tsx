@@ -8,8 +8,6 @@ import {
   Loader2,
   Locate,
   LocateFixed,
-  Minus,
-  Plus,
   SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,12 +30,9 @@ import {
 interface ControlesProps {
   className?: string;
   gpsActivo: boolean;
-  escalaVista?: string;
   exportando?: boolean;
   baseMapa: BaseMapa;
   onCambiarBase: (base: BaseMapa) => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
   onGps: () => void;
   onCentrarCaracas: () => void;
   onExportar?: () => void;
@@ -190,16 +185,13 @@ function MenuVistaMarcadores(props: PropsTogglesVistaMapa) {
   );
 }
 
-/** Controles laterales: zoom, GPS, Caracas y captura (cámara). */
+/** Controles laterales: GPS, Caracas y captura (cámara). */
 export function ControlesMapaCentros({
   className,
   gpsActivo,
-  escalaVista,
   exportando = false,
   baseMapa,
   onCambiarBase,
-  onZoomIn,
-  onZoomOut,
   onGps,
   onCentrarCaracas,
   onExportar,
@@ -209,33 +201,10 @@ export function ControlesMapaCentros({
     <TooltipProvider delayDuration={200}>
       <div
         className={cn(
-          "map-controls-overlay pointer-events-none absolute right-3 top-3 z-10 flex flex-col gap-2",
+          "map-controls-overlay pointer-events-none absolute right-3 z-10 flex flex-col gap-2 top-3 translate-y-0 md:top-1/2 md:-translate-y-1/2",
           className,
         )}
       >
-        <ButtonGroup
-          orientation="vertical"
-          className="pointer-events-auto w-10 min-w-10 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
-        >
-          <BotonMapa etiqueta="Acercar" onClick={onZoomIn}>
-            <Plus className="size-4" />
-          </BotonMapa>
-          {escalaVista && (
-            <div
-              className="flex h-8 shrink-0 items-center justify-center border-y border-border/60 bg-muted/40 px-0.5"
-              aria-hidden="true"
-              title={`Vista ~${escalaVista} de ancho`}
-            >
-              <span className="text-[10px] font-semibold tabular-nums leading-none text-muted-foreground">
-                {escalaVista}
-              </span>
-            </div>
-          )}
-          <BotonMapa etiqueta="Alejar" onClick={onZoomOut}>
-            <Minus className="size-4" />
-          </BotonMapa>
-        </ButtonGroup>
-
         <ButtonGroup
           orientation="vertical"
           className="pointer-events-auto w-10 min-w-10 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
