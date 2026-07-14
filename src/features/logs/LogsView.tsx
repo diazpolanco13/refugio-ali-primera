@@ -62,6 +62,11 @@ const META_ACCION: Record<
     icono: KeyRound,
     clase: "text-amber-400",
   },
+  editar_perfil_propio: {
+    label: "Editó su perfil",
+    icono: UserRound,
+    clase: "text-sky-400",
+  },
   registrar_refugiado: {
     label: "Registró damnificado",
     icono: Plus,

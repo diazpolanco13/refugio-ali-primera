@@ -88,11 +88,15 @@ Deno.serve(async (req: Request) => {
   }
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  // Fallos esperados del usuario (credenciales, Cap, body) van con HTTP 200
+  // + `{ error }` en el body. Así el navegador no pinta en consola
+  // "Failed to load resource …/login-with-cap" con la URL del proyecto.
+  // Solo errores de infraestructura usan 4xx/5xx reales.
   let body: { username?: string; password?: string; capToken?: string };
   try {
     body = await req.json();
   } catch {
-    return json({ error: "Body inválido" }, 400);
+    return json({ error: "Body inválido" }, 200);
   }
 
   const username = body.username?.trim();
@@ -100,12 +104,15 @@ Deno.serve(async (req: Request) => {
   const capToken = body.capToken?.trim();
 
   if (!username || !password || !capToken) {
-    return json({ error: "Faltan credenciales o verificación de seguridad" }, 400);
+    return json(
+      { error: "Faltan credenciales o verificación de seguridad" },
+      200,
+    );
   }
 
   const cap = await verificarCap(capToken);
   if (!cap.ok) {
-    return json({ error: cap.motivo }, 403);
+    return json({ error: cap.motivo }, 200);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -124,8 +131,8 @@ Deno.serve(async (req: Request) => {
     password,
   });
 
-  if (error) return json({ error: error.message }, 401);
-  if (!data.session) return json({ error: "Login sin sesión devuelta" }, 401);
+  if (error) return json({ error: error.message }, 200);
+  if (!data.session) return json({ error: "Login sin sesión devuelta" }, 200);
 
   return json(
     {

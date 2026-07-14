@@ -52,6 +52,7 @@ export type AccionHistorial =
   | "crear_usuario"
   | "eliminar_usuario"
   | "cambiar_password"
+  | "editar_perfil_propio"
   | (string & {});
 
 /** Fila de la tabla `historial`. */

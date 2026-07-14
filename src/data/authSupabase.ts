@@ -12,6 +12,7 @@
 import { useSyncExternalStore } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { FunctionsHttpError } from "@supabase/supabase-js";
+import { puedeEditarCuentaPropia } from "@/domain/permisos";
 import { capHabilitado } from "./capConfig";
 import { supabase } from "./supabaseClient";
 
@@ -190,6 +191,111 @@ export function usuarioActual(): Usuario | null {
   return getUsuario();
 }
 
+/** Traduce mensajes típicos de Supabase Auth al español (UI). */
+export function mensajeErrorLogin(mensaje: string | null | undefined): string {
+  const raw = (mensaje ?? "").trim();
+  if (!raw) return "No se pudo iniciar sesión";
+  const lower = raw.toLowerCase();
+  if (lower.includes("invalid login credentials")) {
+    return "Usuario o contraseña incorrectos";
+  }
+  if (lower.includes("email not confirmed")) {
+    return "La cuenta aún no está confirmada";
+  }
+  if (lower.includes("user banned") || lower.includes("user is banned")) {
+    return "Esta cuenta está deshabilitada";
+  }
+  if (lower.includes("too many requests") || lower.includes("rate limit")) {
+    return "Demasiados intentos. Espera un momento e inténtalo de nuevo";
+  }
+  if (lower.includes("network") || lower.includes("failed to fetch")) {
+    return "Sin conexión. Revisa la red e inténtalo de nuevo";
+  }
+  return raw;
+}
+
+/** Campos que el propio usuario puede editar en `/config/perfil`. */
+export type DatosPerfilEditable = {
+  nombre: string;
+  jerarquia: string;
+  cedula: string;
+  responsabilidad: string;
+  whatsapp: string;
+  telegram: string;
+  brazalete: string;
+  marca_agua: boolean;
+};
+
+/**
+ * Actualiza la ficha del usuario autenticado (sin tocar rol, centros ni hash_id).
+ * La RLS de `perfiles` ya limita el UPDATE a la fila propia.
+ */
+export async function actualizarMiPerfil(
+  datos: DatosPerfilEditable,
+): Promise<Sesion> {
+  await initAuth();
+  const sesion = getSesion();
+  if (!sesion) throw new Error("No autenticado");
+  if (!puedeEditarCuentaPropia(sesion.user)) {
+    throw new Error("Las cuentas temporales de terreno no editan su perfil");
+  }
+  const nombre = datos.nombre.trim();
+  if (!nombre) throw new Error("El nombre es obligatorio");
+
+  const { error } = await supabase
+    .from("perfiles")
+    .update({
+      nombre,
+      jerarquia: datos.jerarquia.trim() || null,
+      cedula: datos.cedula.trim() || null,
+      responsabilidad: datos.responsabilidad.trim() || null,
+      whatsapp: datos.whatsapp.trim() || null,
+      telegram: datos.telegram.trim() || null,
+      brazalete: datos.brazalete.trim() || null,
+      marca_agua: datos.marca_agua,
+    })
+    .eq("user_id", sesion.user.sub);
+
+  if (error) throw new Error(error.message);
+
+  const sincronizada = await sincronizarSesion();
+  if (!sincronizada) throw new Error("Sesión perdida tras guardar el perfil");
+  return sincronizada;
+}
+
+/**
+ * Cambia la contraseña del usuario autenticado.
+ * Exige la actual (re-auth) y aplica la nueva con `auth.updateUser`.
+ */
+export async function cambiarMiPassword(
+  passwordActual: string,
+  passwordNueva: string,
+): Promise<void> {
+  await initAuth();
+  const sesion = getSesion();
+  if (!sesion) throw new Error("No autenticado");
+  if (!puedeEditarCuentaPropia(sesion.user)) {
+    throw new Error("Las cuentas temporales de terreno no tienen contraseña propia");
+  }
+  if (!passwordActual) throw new Error("Indica la contraseña actual");
+  if (typeof passwordNueva !== "string" || passwordNueva.length < 6) {
+    throw new Error("La nueva contraseña debe tener al menos 6 caracteres");
+  }
+  if (passwordActual === passwordNueva) {
+    throw new Error("La nueva contraseña debe ser distinta a la actual");
+  }
+
+  const email = `${sesion.user.username}@refugio.app`;
+  const { error: reauthErr } = await supabase.auth.signInWithPassword({
+    email,
+    password: passwordActual,
+  });
+  if (reauthErr) throw new Error("Contraseña actual incorrecta");
+
+  const { error } = await supabase.auth.updateUser({ password: passwordNueva });
+  if (error) throw new Error(error.message);
+}
+
 /**
  * Login con username (se mapea a `<username>@refugio.app`) + password.
  * Supabase Auth gestiona el refresh del token; no hace falta reenviarlo en
@@ -210,7 +316,7 @@ export async function login(
 
   const email = `${username.trim()}@refugio.app`;
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(mensajeErrorLogin(error.message));
   if (!data.session) throw new Error("Login sin sesión devuelta");
   const perfil = await cargarPerfil(data.session.user.id);
   estado = { token: data.session.access_token, user: mapearUsuario(data.session, perfil) };
@@ -237,12 +343,12 @@ async function loginConCap(
       const detalle = (await error.context.json().catch(() => null)) as
         | { error?: string }
         | null;
-      throw new Error(detalle?.error || "No se pudo iniciar sesión");
+      throw new Error(mensajeErrorLogin(detalle?.error || "No se pudo iniciar sesión"));
     }
-    throw new Error(error.message || "No se pudo iniciar sesión");
+    throw new Error(mensajeErrorLogin(error.message || "No se pudo iniciar sesión"));
   }
 
-  if (data?.error) throw new Error(data.error);
+  if (data?.error) throw new Error(mensajeErrorLogin(data.error));
   if (!data?.access_token || !data.refresh_token) {
     throw new Error("Login sin sesión devuelta");
   }

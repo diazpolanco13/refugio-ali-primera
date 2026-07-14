@@ -338,6 +338,22 @@ export function esRolTerreno(rol: Rol): boolean {
   return rol === "operador";
 }
 
+/**
+ * Usuario temporal de terreno (`operador-<centro>` o `operador-<centro>-<huella>`):
+ * entra por QR, sin contraseña propia. No edita perfil ni cambia password.
+ */
+export function esUsuarioTemporalTerreno(username: string): boolean {
+  return /^operador-/.test(username.trim());
+}
+
+/** Cuenta permanente: puede ver/editar su ficha y cambiar su contraseña. */
+export function puedeEditarCuentaPropia(
+  usuario: Pick<Usuario, "username"> | null | undefined,
+): boolean {
+  if (!usuario?.username) return false;
+  return !esUsuarioTemporalTerreno(usuario.username);
+}
+
 /** Pestañas de la ficha del campamento visibles para la sesión de terreno. */
 export const SECCIONES_FICHA_TERRENO = [
   "resumen",
@@ -353,6 +369,10 @@ export function rutaInicialDeRol(rol: Rol): string {
 
 /** Rutas permitidas para los roles restringidos (censo_rapido, operador, supervisor). */
 export function rutaPermitidaParaRol(pathname: string, rol: Rol): boolean {
+  // Preferencias de cuenta: todos los roles permanentes (la vista bloquea temporales).
+  if (pathname === "/config/perfil" || pathname.startsWith("/config/perfil/")) {
+    return true;
+  }
   if (esRolCensoRapido(rol)) {
     return (
       pathname === "/" ||

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
 import {
+  puedeEditarCuentaPropia,
   puedeGestionarUnidadesSebin,
   puedeGestionarUsuarios,
   puedeVerBuzonCentro,
@@ -36,7 +37,6 @@ import {
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import { totalCasosSaludActivosRed } from "@/domain/seguimientoReportes";
 import { usePathnameNavegacion } from "@/contexts/PathnameNavegacionContext";
-import { BadgeEnDesarrollo } from "@/components/BadgeEnDesarrollo";
 import {
   Collapsible,
   CollapsibleContent,
@@ -252,26 +252,21 @@ function ItemMenuReportesDiarios({
   );
 }
 
-function ItemEnDesarrollo({
-  icono: Icono,
-  label,
+function ItemPreferenciasCuenta({
+  pathname,
+  visible,
 }: {
-  icono: IconoMenu;
-  label: string;
+  pathname: string;
+  visible: boolean;
 }) {
+  if (!visible) return null;
   return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        aria-disabled
-        tooltip={label}
-        className="pointer-events-none opacity-60"
-        onClick={(e) => e.preventDefault()}
-      >
-        <Icono />
-        <TextoMenu>{label}</TextoMenu>
-        <BadgeEnDesarrollo className="group-data-[collapsible=icon]:hidden" />
-      </SidebarMenuButton>
-    </SidebarMenuItem>
+    <ItemMenu
+      to="/config/perfil"
+      icono={Settings}
+      label="Preferencias de cuenta"
+      activo={rutaActiva(pathname, "/config/perfil")}
+    />
   );
 }
 
@@ -284,6 +279,7 @@ function NavTerreno({ sesion }: Props) {
     ? `/centros/reportes/${encodeURIComponent(centroId)}?vista=reporte`
     : "/centros/reportes";
   const enReporte = rutaActiva(pathname, "/centros/reportes");
+  const vePreferencias = puedeEditarCuentaPropia(sesion.user);
 
   function irPortal(tarea?: TareaTerreno) {
     irAlPortalTerreno(tarea ? { tarea } : undefined);
@@ -299,36 +295,48 @@ function NavTerreno({ sesion }: Props) {
   }
 
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>Trabajo en terreno</SidebarGroupLabel>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          <ItemMenuPortal icono={Home} label="Inicio" onClick={() => irPortal()} />
-          <ItemMenu
-            to={rutaReporte}
-            icono={ClipboardList}
-            label="Reporte"
-            activo={enReporte}
-          />
-          <ItemMenuPortal
-            icono={MapPinned}
-            label="Geolocalizar"
-            onClick={() => irPortal("geo")}
-          />
-          <ItemMenuPortal
-            icono={Landmark}
-            label="Autoridades"
-            onClick={() => irPortal("autoridades")}
-          />
-          <ItemMenuPortal
-            icono={BedDouble}
-            label="Capacidad"
-            onClick={() => irPortal("capacidad")}
-          />
-          <ItemMenuPortal icono={Users} label="Censo" onClick={irCenso} />
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
+    <>
+      <SidebarGroup>
+        <SidebarGroupLabel>Trabajo en terreno</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <ItemMenuPortal icono={Home} label="Inicio" onClick={() => irPortal()} />
+            <ItemMenu
+              to={rutaReporte}
+              icono={ClipboardList}
+              label="Reporte"
+              activo={enReporte}
+            />
+            <ItemMenuPortal
+              icono={MapPinned}
+              label="Geolocalizar"
+              onClick={() => irPortal("geo")}
+            />
+            <ItemMenuPortal
+              icono={Landmark}
+              label="Autoridades"
+              onClick={() => irPortal("autoridades")}
+            />
+            <ItemMenuPortal
+              icono={BedDouble}
+              label="Capacidad"
+              onClick={() => irPortal("capacidad")}
+            />
+            <ItemMenuPortal icono={Users} label="Censo" onClick={irCenso} />
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+      {vePreferencias && (
+        <SidebarGroup>
+          <SidebarGroupLabel>Cuenta</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <ItemPreferenciasCuenta pathname={pathname} visible />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      )}
+    </>
   );
 }
 
@@ -339,6 +347,7 @@ function NavContenido({ sesion }: Props) {
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const gestionaUnidades = puedeGestionarUnidadesSebin(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
+  const vePreferencias = puedeEditarCuentaPropia(sesion.user);
   const vePapeleraDenuncias = puedeVerPapeleraDenuncias(sesion.user.rol);
   const veCensoRed = puedeVerCensoRapidoRed(sesion.user.rol);
   const vePoblacionRed = puedeVerPoblacionRed(sesion.user.rol);
@@ -360,25 +369,37 @@ function NavContenido({ sesion }: Props) {
 
   if (esCensoRapido) {
     return (
-      <SidebarGroup>
-        <SidebarGroupLabel>Campamentos transitorios</SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            <ItemMenu
-              to="/centros/mapa"
-              icono={MapPinned}
-              label="Mapa"
-              activo={pathname === "/" || rutaActiva(pathname, "/centros/mapa")}
-            />
-            <ItemMenu
-              to="/centros/censo"
-              icono={ContactRound}
-              label="Censo (red)"
-              activo={rutaActiva(pathname, "/centros/censo")}
-            />
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      <>
+        <SidebarGroup>
+          <SidebarGroupLabel>Campamentos transitorios</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <ItemMenu
+                to="/centros/mapa"
+                icono={MapPinned}
+                label="Mapa"
+                activo={pathname === "/" || rutaActiva(pathname, "/centros/mapa")}
+              />
+              <ItemMenu
+                to="/centros/censo"
+                icono={ContactRound}
+                label="Censo (red)"
+                activo={rutaActiva(pathname, "/centros/censo")}
+              />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        {vePreferencias && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Cuenta</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <ItemPreferenciasCuenta pathname={pathname} visible />
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+      </>
     );
   }
 
@@ -486,7 +507,7 @@ function NavContenido({ sesion }: Props) {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      {(esAdmin || gestionaUnidades || veLogs) && (
+      {(esAdmin || gestionaUnidades || veLogs || vePreferencias) && (
         <SidebarGroup>
           <SidebarGroupLabel>Configuración</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -515,7 +536,7 @@ function NavContenido({ sesion }: Props) {
                   activo={rutaActiva(pathname, "/logs")}
                 />
               )}
-              <ItemEnDesarrollo icono={Settings} label="Preferencias de cuenta" />
+              <ItemPreferenciasCuenta pathname={pathname} visible={vePreferencias} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

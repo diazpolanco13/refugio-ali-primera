@@ -2,6 +2,7 @@
 // Cache + batch en el módulo para que varios MetaActualizacionBloque compartan un solo SELECT.
 
 import { useEffect, useSyncExternalStore } from "react";
+import { esUsuarioTemporalTerreno } from "@/domain/permisos";
 import { supabase } from "./supabaseClient";
 
 function formatearEtiqueta(row: {
@@ -18,7 +19,7 @@ function formatearEtiqueta(row: {
 
 /** ¿Username temporal de terreno (compartido o por persona)? */
 export function esUsernameOperadorTerreno(username: string): boolean {
-  return /^operador-/.test(username.trim());
+  return esUsuarioTemporalTerreno(username);
 }
 
 const etiquetas = new Map<string, string>();

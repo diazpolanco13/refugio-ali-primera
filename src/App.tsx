@@ -6,7 +6,6 @@ import { BotonBorrarCacheFlotante } from "./components/BotonBorrarCacheFlotante"
 import { CapaLogin } from "./components/CapaLogin";
 import { MarcaAgua } from "./components/MarcaAgua";
 import { PantallaCarga } from "./components/PantallaCarga";
-import { EnDesarrollo } from "./components/EnDesarrollo";
 import { SectionSuspense } from "./components/SectionSuspense";
 import { SplashIntro } from "./components/SplashIntro";
 import { AppShell } from "./layouts/AppShell";
@@ -45,6 +44,8 @@ const importDenunciasEliminadasView = () =>
 const importGestionUsuarios = () => import("./features/usuarios/GestionUsuarios");
 const importGestionUnidadesSebin = () =>
   import("./features/config/GestionUnidadesSebin");
+const importPreferenciasCuentaView = () =>
+  import("./features/config/PreferenciasCuentaView");
 const importLogsView = () => import("./features/logs/LogsView");
 const importReportesDiariosRedView = () => import("./features/centros/ReportesDiariosRedView");
 const importRefugiadosRedView = () => import("./features/refugiados/RefugiadosRedView");
@@ -93,6 +94,9 @@ const GestionUsuarios = lazy(() =>
 );
 const GestionUnidadesSebin = lazy(() =>
   importGestionUnidadesSebin().then((m) => ({ default: m.GestionUnidadesSebin })),
+);
+const PreferenciasCuentaView = lazy(() =>
+  importPreferenciasCuentaView().then((m) => ({ default: m.PreferenciasCuentaView })),
 );
 const LogsView = lazy(() => importLogsView().then((m) => ({ default: m.LogsView })));
 const ReportesDiariosRedView = lazy(() =>
@@ -169,6 +173,7 @@ function precargarRutaInicial(pathname: string): Promise<unknown> {
     return Promise.all([importIncidenciasLayout(), importIncidenciasRedirect()]);
   if (pathname.startsWith("/usuarios")) return importGestionUsuarios();
   if (pathname.startsWith("/config/unidades-sebin")) return importGestionUnidadesSebin();
+  if (pathname.startsWith("/config/perfil")) return importPreferenciasCuentaView();
   if (pathname.startsWith("/logs")) return importLogsView();
   return importCentrosView();
 }
@@ -467,10 +472,9 @@ export function App() {
           <Route
             path="/config/perfil"
             element={
-              <EnDesarrollo
-                titulo="Preferencias de cuenta"
-                descripcion="Configuración personal como marca de agua y notificaciones."
-              />
+              <RutaConSkeleton fallback={<GestionSkeleton variante="usuarios" />}>
+                <PreferenciasCuentaView sesion={sesion} />
+              </RutaConSkeleton>
             }
           />
           <Route
