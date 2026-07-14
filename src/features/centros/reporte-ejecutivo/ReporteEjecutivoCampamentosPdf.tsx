@@ -754,7 +754,7 @@ function TextoDelta({
   style,
 }: {
   delta: number | null | undefined;
-  style: Style | Style[];
+  style: Style;
 }) {
   if (delta == null || delta === 0) return null;
   const color = delta > 0 ? verdeDelta : rojoDelta;
