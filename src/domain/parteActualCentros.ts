@@ -41,6 +41,19 @@ export function ultimosPartesPorCentro(
   return porCentro;
 }
 
+/**
+ * Último parte estrictamente anterior a `dia` por campamento.
+ * Misma lógica que el Δ del parte numérico en ficha.
+ */
+export function partesAnterioresPorCentro(
+  snapshots: SnapshotOcupacion[],
+  dia: string,
+): Map<string, SnapshotOcupacion> {
+  return ultimosPartesPorCentro(
+    snapshots.filter((s) => s.dia < dia),
+  );
+}
+
 function personalConTotal(
   personal: Partial<PersonalCentro> | null | undefined,
   total: number,

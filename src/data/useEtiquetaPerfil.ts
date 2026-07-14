@@ -5,6 +5,11 @@ import { useEffect, useSyncExternalStore } from "react";
 import { esUsuarioTemporalTerreno } from "@/domain/permisos";
 import { supabase } from "./supabaseClient";
 
+export type AtribucionPerfil = {
+  etiqueta: string;
+  telefono: string | null;
+};
+
 function formatearEtiqueta(row: {
   username: string;
   nombre: string | null;
@@ -22,7 +27,7 @@ export function esUsernameOperadorTerreno(username: string): boolean {
   return esUsuarioTemporalTerreno(username);
 }
 
-const etiquetas = new Map<string, string>();
+const atribuciones = new Map<string, AtribucionPerfil>();
 const listeners = new Set<() => void>();
 const enVuelo = new Set<string>();
 let cola = new Set<string>();
@@ -39,8 +44,12 @@ function suscribir(listener: () => void): () => void {
   };
 }
 
+function atribucionFallback(username: string): AtribucionPerfil {
+  return { etiqueta: username, telefono: null };
+}
+
 async function flushCola(): Promise<void> {
-  const usernames = [...cola].filter((u) => !etiquetas.has(u) && !enVuelo.has(u));
+  const usernames = [...cola].filter((u) => !atribuciones.has(u) && !enVuelo.has(u));
   cola = new Set();
   if (usernames.length === 0) return;
 
@@ -48,14 +57,14 @@ async function flushCola(): Promise<void> {
 
   const { data, error } = await supabase
     .from("perfiles")
-    .select("username, nombre, jerarquia")
+    .select("username, nombre, jerarquia, whatsapp")
     .in("username", usernames);
 
   if (error) {
     console.warn("[useEtiquetaPerfil]", error.message);
     for (const u of usernames) {
       enVuelo.delete(u);
-      if (!etiquetas.has(u)) etiquetas.set(u, u);
+      if (!atribuciones.has(u)) atribuciones.set(u, atribucionFallback(u));
     }
     emitir();
     return;
@@ -65,19 +74,22 @@ async function flushCola(): Promise<void> {
   for (const row of data ?? []) {
     if (!row.username) continue;
     hallados.add(row.username);
-    etiquetas.set(
-      row.username,
-      formatearEtiqueta({
+    const telefono = typeof row.whatsapp === "string" ? row.whatsapp.trim() || null : null;
+    atribuciones.set(row.username, {
+      etiqueta: formatearEtiqueta({
         username: row.username,
         nombre: row.nombre,
         jerarquia: row.jerarquia,
       }),
-    );
+      telefono,
+    });
     enVuelo.delete(row.username);
   }
   for (const u of usernames) {
     enVuelo.delete(u);
-    if (!hallados.has(u) && !etiquetas.has(u)) etiquetas.set(u, u);
+    if (!hallados.has(u) && !atribuciones.has(u)) {
+      atribuciones.set(u, atribucionFallback(u));
+    }
   }
   emitir();
 }
@@ -85,13 +97,18 @@ async function flushCola(): Promise<void> {
 function solicitar(username: string): void {
   const u = username.trim();
   if (!u || !esUsernameOperadorTerreno(u)) return;
-  if (etiquetas.has(u) || enVuelo.has(u) || cola.has(u)) return;
+  if (atribuciones.has(u) || enVuelo.has(u) || cola.has(u)) return;
   cola.add(u);
   if (timerFlush != null) return;
   timerFlush = setTimeout(() => {
     timerFlush = null;
     void flushCola();
   }, 0);
+}
+
+function leerAtribucion(quien: string): AtribucionPerfil {
+  if (!quien) return { etiqueta: "", telefono: null };
+  return atribuciones.get(quien) ?? atribucionFallback(quien);
 }
 
 /**
@@ -107,7 +124,22 @@ export function useEtiquetaPerfil(username: string | null | undefined): string {
 
   return useSyncExternalStore(
     suscribir,
-    () => (quien ? (etiquetas.get(quien) ?? quien) : ""),
+    () => leerAtribucion(quien).etiqueta,
     () => quien,
+  );
+}
+
+/** Teléfono (WhatsApp) del perfil de terreno, si está cargado. */
+export function useTelefonoPerfil(username: string | null | undefined): string | null {
+  const quien = (username ?? "").trim();
+
+  useEffect(() => {
+    if (quien) solicitar(quien);
+  }, [quien]);
+
+  return useSyncExternalStore(
+    suscribir,
+    () => leerAtribucion(quien).telefono,
+    () => null,
   );
 }

@@ -1,6 +1,7 @@
 import {
   aplicarParteActualACentro,
   aplicarPartesActualesACentros,
+  partesAnterioresPorCentro,
 } from "./parteActualCentros";
 import {
   centrosDeProduccion,
@@ -198,6 +199,10 @@ export interface FilaRedEjecutiva {
   responsableSebin: string;
   refugiados: number;
   familias: number;
+  /** Δ damnificados vs último parte anterior a `dia` (null si no hay histórico). */
+  deltaRefugiados: number | null;
+  /** Δ familias vs último parte anterior a `dia` (null si no hay histórico). */
+  deltaFamilias: number | null;
   parteDia: boolean;
   captahuella: boolean | null;
   juezPaz: boolean | null;
@@ -343,6 +348,16 @@ export interface ReporteEjecutivoCampamentos {
   ocupacionPorSegmento: OcupacionSegmentoEjecutivo[];
   /** Total de personas (damnificados) por día, últimos 7 días hasta el corte. */
   serieSemanal: PuntoSerieSemanalEjecutivo[];
+  /**
+   * Variación de la 1ª fila de KPIs vs el agregado del último parte anterior.
+   * `null` = sin histórico para comparar; `0` = sin cambio (el PDF no lo pinta).
+   */
+  variacionVsDiaAnterior: {
+    campamentos: number | null;
+    familias: number | null;
+    damnificados: number | null;
+    mascotas: number | null;
+  };
 }
 
 function etiquetaSegmentoOcupacion(segmento: string): string {
@@ -616,6 +631,7 @@ export function construirReporteEjecutivoCampamentos({
     snapshotsOp.filter((s) => s.dia === dia).map((s) => s.centro_id),
   );
   const nombreDe = new Map(centrosConParte.map((c) => [c.id, c.nombre]));
+  const partesAntes = partesAnterioresPorCentro(snapshotsOp, dia);
 
   const control: ControlEjecutivo = {
     campamentosRevisados: contarUnidadesCon(centrosConParte, (c) =>
@@ -627,6 +643,11 @@ export function construirReporteEjecutivoCampamentos({
     ambulancia: conteoSiNoUnidades(centrosConParte, controlesDia, "ambulancia"),
   };
 
+  let sumDeltaRefugiados = 0;
+  let sumDeltaFamilias = 0;
+  let sumDeltaMascotas = 0;
+  let centrosConAnterior = 0;
+
   const filasRed: FilaRedEjecutiva[] = centrosConParte
     .map((centro) => {
       const c = normalizarCentro(centro);
@@ -637,6 +658,19 @@ export function construirReporteEjecutivoCampamentos({
         ? Math.max(...trabajosCentro.map((t) => diasAbierto(t.reportada_dia, hoyRef)))
         : null;
       const unidad = metaUnidadSebinDe(centro.supervision?.unidad_sebin);
+      const refugiados = poblacionCentro(c);
+      const familias = c.familias_ocupadas;
+      const ant = partesAntes.get(centro.id);
+      const deltaRefugiados = ant ? refugiados - ant.total_afectados : null;
+      const deltaFamilias = ant ? familias - ant.familias : null;
+      if (ant) {
+        centrosConAnterior += 1;
+        sumDeltaRefugiados += deltaRefugiados ?? 0;
+        sumDeltaFamilias += deltaFamilias ?? 0;
+        const mascotasHoy = c.ocupacion?.mascotas ?? 0;
+        const mascotasAnt = ant.ocupacion?.mascotas ?? 0;
+        sumDeltaMascotas += mascotasHoy - mascotasAnt;
+      }
       return {
         nro: centro.nro ?? null,
         nombre: centro.nombre,
@@ -647,8 +681,10 @@ export function construirReporteEjecutivoCampamentos({
         cuerpo: metaCuerpoDe(centro.cuerpo).label,
         unidadSebin: unidad.clave !== "sin_asignar" ? unidad.label : "",
         responsableSebin: centro.supervision?.supervisor_sebin?.trim() ?? "",
-        refugiados: poblacionCentro(c),
-        familias: c.familias_ocupadas,
+        refugiados,
+        familias,
+        deltaRefugiados,
+        deltaFamilias,
         parteDia: diasConParteHoy.has(centro.id),
         captahuella: ctrl ? ctrl.captahuella : null,
         juezPaz: ctrl ? ctrl.juez_paz : null,
@@ -679,6 +715,15 @@ export function construirReporteEjecutivoCampamentos({
         (a.nro ?? 9999) - (b.nro ?? 9999) ||
         a.nombre.localeCompare(b.nombre, "es"),
     );
+
+  const hayVariacionRed = centrosConAnterior > 0;
+  const variacionVsDiaAnterior = {
+    // Misma lista de campamentos de producción: el total no cambia día a día.
+    campamentos: null as number | null,
+    familias: hayVariacionRed ? sumDeltaFamilias : null,
+    damnificados: hayVariacionRed ? sumDeltaRefugiados : null,
+    mascotas: hayVariacionRed ? sumDeltaMascotas : null,
+  };
 
   const casosSaludDetalle: CasoSaludEjecutivo[] = [...casosOp]
     .sort(
@@ -808,5 +853,6 @@ export function construirReporteEjecutivoCampamentos({
       7,
       dia,
     ).map((p) => ({ dia: p.dia, total: p.total })),
+    variacionVsDiaAnterior,
   };
 }

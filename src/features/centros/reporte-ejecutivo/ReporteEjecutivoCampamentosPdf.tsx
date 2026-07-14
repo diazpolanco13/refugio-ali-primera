@@ -9,8 +9,10 @@ const verdeOcupacion = "#22c55e";
 const grisOcupacion = "#64748b";
 const teal = "#0f766e";
 const verde = "#047857";
+const verdeDelta = "#059669";
 const ambar = "#b45309";
 const rojo = "#b91c1c";
+const rojoDelta = "#e11d48";
 const gris = "#64748b";
 const borde = "#d8e2ea";
 const fondoSuave = "#f4f8fb";
@@ -238,12 +240,22 @@ const styles = StyleSheet.create({
   kpiValue: {
     marginTop: 2,
     color: azul,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: 700,
   },
   kpiValueCompact: {
     marginTop: 1,
     fontSize: 13,
+  },
+  kpiValueRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginTop: 2,
+  },
+  kpiDelta: {
+    marginLeft: 4,
+    fontSize: 9,
+    fontWeight: 700,
   },
   kpiSub: {
     marginTop: 1,
@@ -517,9 +529,19 @@ const styles = StyleSheet.create({
   },
   celdaNumero: {
     color: azul,
-    fontSize: 7.4,
+    fontSize: 8.4,
     fontWeight: 700,
     textAlign: "center",
+  },
+  celdaNumeroWrap: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "center",
+  },
+  celdaDelta: {
+    marginLeft: 2,
+    fontSize: 6.2,
+    fontWeight: 700,
   },
   celdaCentro: {
     fontSize: 7.2,
@@ -725,18 +747,35 @@ function textoMayusculas(s: string): string {
   return s.trim().toLocaleUpperCase("es");
 }
 
+/** Δ vs día anterior: verde +N / rojo -N; nada si null o 0. */
+function TextoDelta({
+  delta,
+  style,
+}: {
+  delta: number | null | undefined;
+  style: object | object[];
+}) {
+  if (delta == null || delta === 0) return null;
+  const color = delta > 0 ? verdeDelta : rojoDelta;
+  const texto = delta > 0 ? `+${n(delta)}` : n(delta);
+  return <Text style={[style, { color }]}>{texto}</Text>;
+}
+
 function Kpi({
   label,
   value,
   sub,
   last,
   compact,
+  delta,
 }: {
   label: string;
   value: number | string;
   sub?: ReactNode;
   last?: boolean;
   compact?: boolean;
+  /** Variación vs día anterior (solo 1ª fila de KPIs). */
+  delta?: number | null;
 }) {
   const cardStyles =
     compact && last
@@ -747,12 +786,21 @@ function Kpi({
           ? [styles.kpiCard, styles.kpiCardLast]
           : styles.kpiCard;
   const subStyle = compact ? [styles.kpiSub, styles.kpiSubCompact] : styles.kpiSub;
+  const valueStyle = compact ? [styles.kpiValue, styles.kpiValueCompact] : styles.kpiValue;
+  const valor = typeof value === "number" ? n(value) : value;
   return (
     <View style={cardStyles}>
       <Text style={styles.kpiLabel}>{label}</Text>
-      <Text style={compact ? [styles.kpiValue, styles.kpiValueCompact] : styles.kpiValue}>
-        {typeof value === "number" ? n(value) : value}
-      </Text>
+      {delta == null || delta === 0 ? (
+        <Text style={valueStyle}>{valor}</Text>
+      ) : (
+        <View style={styles.kpiValueRow}>
+          <Text style={compact ? [styles.kpiValue, styles.kpiValueCompact, { marginTop: 0 }] : [styles.kpiValue, { marginTop: 0 }]}>
+            {valor}
+          </Text>
+          <TextoDelta delta={delta} style={styles.kpiDelta} />
+        </View>
+      )}
       {sub == null ? null : typeof sub === "string" || typeof sub === "number" ? (
         <Text style={subStyle}>{sub}</Text>
       ) : (
@@ -849,14 +897,14 @@ function MiniDato({ label, value }: { label: string; value: number }) {
 
 const ANCHOS_TABLA = {
   nro: 0.35,
-  campamento: 1.7,
-  ente: 1.25,
-  cuerpo: 1.0,
-  damnif: 0.55,
-  fam: 0.48,
-  trabajos: 1.65,
-  salud: 1.45,
-  noved: 1.45,
+  campamento: 1.6,
+  ente: 1.2,
+  cuerpo: 0.95,
+  damnif: 0.72,
+  fam: 0.62,
+  trabajos: 1.6,
+  salud: 1.4,
+  noved: 1.4,
 };
 
 function arcoDonut(cx: number, cy: number, r: number, fraccion: number): string {
@@ -986,10 +1034,28 @@ export function ReporteEjecutivoCampamentosPdf({
           </View>
 
         <View style={styles.kpiRow}>
-          <Kpi label="Campamentos" value={reporte.kpis.centrosTotal} sub={`${reporte.kpis.centrosConDatos} con datos`} />
-          <Kpi label="Familias" value={reporte.kpis.familiasTotal} />
-          <Kpi label="Damnificados" value={reporte.kpis.refugiadosTotal} />
-          <Kpi label="Mascotas" value={reporte.kpis.mascotasTotal} last />
+          <Kpi
+            label="Campamentos"
+            value={reporte.kpis.centrosTotal}
+            sub={`${reporte.kpis.centrosConDatos} con datos`}
+            delta={reporte.variacionVsDiaAnterior.campamentos}
+          />
+          <Kpi
+            label="Familias"
+            value={reporte.kpis.familiasTotal}
+            delta={reporte.variacionVsDiaAnterior.familias}
+          />
+          <Kpi
+            label="Damnificados"
+            value={reporte.kpis.refugiadosTotal}
+            delta={reporte.variacionVsDiaAnterior.damnificados}
+          />
+          <Kpi
+            label="Mascotas"
+            value={reporte.kpis.mascotasTotal}
+            delta={reporte.variacionVsDiaAnterior.mascotas}
+            last
+          />
         </View>
 
         <View style={styles.kpiRowTight}>
@@ -1278,8 +1344,14 @@ export function ReporteEjecutivoCampamentosPdf({
                     <Text style={styles.celdaSub}>{fila.responsableSebin}</Text>
                   ) : null}
                 </View>
-                <Text style={[styles.celdaNumero, { flex: ANCHOS_TABLA.damnif }]}>{n(fila.refugiados)}</Text>
-                <Text style={[styles.celdaNumero, { flex: ANCHOS_TABLA.fam }]}>{n(fila.familias)}</Text>
+                <View style={[{ flex: ANCHOS_TABLA.damnif }, styles.celdaNumeroWrap]}>
+                  <Text style={styles.celdaNumero}>{n(fila.refugiados)}</Text>
+                  <TextoDelta delta={fila.deltaRefugiados} style={styles.celdaDelta} />
+                </View>
+                <View style={[{ flex: ANCHOS_TABLA.fam }, styles.celdaNumeroWrap]}>
+                  <Text style={styles.celdaNumero}>{n(fila.familias)}</Text>
+                  <TextoDelta delta={fila.deltaFamilias} style={styles.celdaDelta} />
+                </View>
                 <View style={{ flex: ANCHOS_TABLA.trabajos, paddingRight: 4 }}>
                   {fila.trabajosDetalle.length === 0 ? (
                     <Text style={[styles.celdaTexto, { color: gris }]}>—</Text>

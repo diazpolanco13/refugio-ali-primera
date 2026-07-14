@@ -1,6 +1,7 @@
-/** Línea compacta: fecha · hora · usuario de la última actualización de un bloque. */
+/** Línea compacta: fecha · hora · usuario · teléfono de la última actualización. */
 
-import { useEtiquetaPerfil } from "@/data/useEtiquetaPerfil";
+import { useEtiquetaPerfil, useTelefonoPerfil } from "@/data/useEtiquetaPerfil";
+import { telHref, tieneTelefonoContacto } from "@/lib/contacto";
 
 function formatearFechaHoraCorta(ts: number): string {
   const d = new Date(ts);
@@ -26,11 +27,14 @@ export function MetaActualizacionBloque({
 }) {
   const marca = ts && ts > 0 ? formatearFechaHoraCorta(ts) : "";
   const quien = (by ?? "").trim();
-  // Operadores de terreno: resolver a «jerarquía · nombre» desde perfiles.
+  // Operadores de terreno: resolver a «jerarquía · nombre» (+ teléfono) desde perfiles.
   const etiqueta = useEtiquetaPerfil(quien || null);
+  const telefono = useTelefonoPerfil(quien || null);
   if (!marca && !quien) return null;
 
   const partes = [marca, etiqueta || quien].filter(Boolean);
+  const mostrarTel = telefono && tieneTelefonoContacto(telefono);
+
   return (
     <p
       className={
@@ -40,6 +44,18 @@ export function MetaActualizacionBloque({
       title={quien && etiqueta !== quien ? quien : undefined}
     >
       {partes.join(" · ")}
+      {mostrarTel ? (
+        <>
+          {" · "}
+          <a
+            href={telHref(telefono)}
+            className="font-medium text-foreground/80 underline-offset-2 hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {telefono}
+          </a>
+        </>
+      ) : null}
     </p>
   );
 }
