@@ -131,18 +131,24 @@ export function asegurarEdificios3d(map: MapLibreMap): void {
       filter: ["!=", ["get", "hide_3d"], true],
       layout: { visibility: "visible" },
       paint: {
+        // Ramp por altura con los mismos acentos que los pines de unidad SEBIN
+        // (slate "sin unidad" → teal de marca → azul/violeta/magenta): las
+        // estructuras bajas quedan en un tono neutro que se funde con el fondo,
+        // y cada tramo de altura resalta en el acento que ya usan tarjetas/badges.
         "fill-extrusion-color": [
           "interpolate",
           ["linear"],
           ["coalesce", ["get", "render_height"], 0],
           0,
-          "#5a6575",
-          40,
-          "#7a889c",
-          100,
-          "#a0b0c4",
+          "#334155",
+          15,
+          "#0d9488",
+          50,
+          "#2563eb",
+          120,
+          "#7c3aed",
           200,
-          "#c5d2e0",
+          "#db2777",
         ],
         "fill-extrusion-height": [
           "interpolate",
