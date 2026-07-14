@@ -8,6 +8,7 @@ import { CLAVES_BASE_MAPA } from "@/map/estiloMapa";
 const CLAVE_VISTA = "refugio-vista-centros-v2";
 const CLAVE_BASE = "refugio-base-centros";
 const CLAVE_MODO_3D = "refugio-modo-3d-centros";
+const CLAVE_MODO_GLOBO = "refugio-modo-globo-centros";
 const CLAVE_MODO_MARCADOR = "refugio-modo-marcador-centros";
 const CLAVE_MOSTRAR_PARTE = "refugio-mostrar-parte-marcador";
 const CLAVE_MOSTRAR_LEYENDA = "refugio-mostrar-leyenda-marcador";
@@ -48,7 +49,8 @@ export function cargarVistaCentros(): VistaMapaCentros | null {
     }
     return {
       center: data.center,
-      zoom: Math.min(19, Math.max(3, data.zoom)),
+      // 0 permite alejarse hasta ver la esfera (proyección globe de MapLibre).
+      zoom: Math.min(19, Math.max(0, data.zoom)),
     };
   } catch {
     return null;
@@ -61,7 +63,7 @@ export function guardarVistaCentros(vista: VistaMapaCentros): void {
       CLAVE_VISTA,
       JSON.stringify({
         center: vista.center,
-        zoom: Math.min(19, Math.max(3, vista.zoom)),
+        zoom: Math.min(19, Math.max(0, vista.zoom)),
       }),
     );
   } catch {
@@ -102,6 +104,26 @@ export function cargarModo3dCentros(): boolean | null {
 export function guardarModo3dCentros(activo: boolean): void {
   try {
     localStorage.setItem(CLAVE_MODO_3D, activo ? "1" : "0");
+  } catch {
+    // ignorar
+  }
+}
+
+/** Preferencia de proyección globo/esfera (MapLibre `setProjection`). Default: off. */
+export function cargarModoGloboCentros(): boolean | null {
+  try {
+    const v = localStorage.getItem(CLAVE_MODO_GLOBO);
+    if (v === "1") return true;
+    if (v === "0") return false;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function guardarModoGloboCentros(activo: boolean): void {
+  try {
+    localStorage.setItem(CLAVE_MODO_GLOBO, activo ? "1" : "0");
   } catch {
     // ignorar
   }

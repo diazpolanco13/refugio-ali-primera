@@ -30,6 +30,23 @@ export function anchoVisibleMetros(map: maplibregl.Map): number {
   return distanciaMetros(oeste.lat, oeste.lng, este.lat, este.lng);
 }
 
+/**
+ * Zoom mercator aproximado para un ancho de viewport en metros a una latitud.
+ * Sirve para aterrizar la intro cerca de la etiqueta de escala ("30k", etc.).
+ */
+export function zoomParaAnchoMetros(
+  anchoMetros: number,
+  latitud: number,
+  anchoViewportPx: number,
+): number {
+  const w = Math.max(1, anchoViewportPx);
+  const metros = Math.max(100, anchoMetros);
+  const cosLat = Math.max(0.05, Math.cos((latitud * Math.PI) / 180));
+  // metros/px en z=0 ≈ 156543.03392 * cos(lat)
+  const zoom = Math.log2((156543.03392 * cosLat * w) / metros);
+  return Math.min(19, Math.max(0, zoom));
+}
+
 /** Etiqueta compacta de escala: "500m", "3k", "45k". */
 export function formatearEscalaVista(metros: number): string {
   if (metros < 1000) {

@@ -251,7 +251,8 @@ export function CentrosView() {
 
   return (
     <>
-      <div className="relative h-full min-h-0 animate-in fade-in-0 duration-200">
+      {/* Sin fade-in en el mapa: pelea con la intro órbita→Caracas bajo el splash. */}
+      <div className="relative h-full min-h-0">
         {vista === "mapa" ? (
           <>
             <CentrosMap

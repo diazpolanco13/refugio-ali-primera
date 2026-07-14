@@ -2,6 +2,11 @@
 // La intro cinematográfica vive SOLO en el HTML (CSS). React llama a
 // `ocultarSplash()` cuando la app está lista — no monta un segundo splash.
 
+import {
+  ADELANTO_FLY_ANTES_FADE_MS,
+  avisarInicioSalidaOverlay,
+} from "@/lib/introMapa";
+
 declare global {
   interface Window {
     __appSplash?: { detener: () => void };
@@ -23,6 +28,7 @@ export function ocultarSplash(opciones?: { inmediato?: boolean }): void {
   }
 
   if (opciones?.inmediato) {
+    avisarInicioSalidaOverlay();
     splash.remove();
     return;
   }
@@ -35,10 +41,17 @@ export function ocultarSplash(opciones?: { inmediato?: boolean }): void {
     barraCine.style.animation = "none";
     barraCine.style.width = "100%";
   }
-  // Salida cinematográfica (scale + blur) sobre el MISMO nodo HTML.
-  splash.classList.add("saliendo");
+
+  // 1) Fly YA (mapa debajo, aún tapado por splash opaco).
+  avisarInicioSalidaOverlay();
+  // 2) Un instante después: fade — al transparentarse, el zoom ya corre.
   window.setTimeout(() => {
-    splash.classList.add("oculto");
-    splash.remove();
-  }, SALIDA_MS);
+    const el = document.getElementById("app-splash");
+    if (!el) return;
+    el.classList.add("saliendo");
+    window.setTimeout(() => {
+      el.classList.add("oculto");
+      el.remove();
+    }, SALIDA_MS);
+  }, ADELANTO_FLY_ANTES_FADE_MS);
 }

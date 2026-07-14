@@ -487,5 +487,9 @@ export function App() {
     );
   })();
 
-  return <SplashIntro listo={!arrancando}>{contenido}</SplashIntro>;
+  return (
+    <SplashIntro listo={!arrancando} esperarOrbitaMapa={!!sesion && enMapa}>
+      {contenido}
+    </SplashIntro>
+  );
 }

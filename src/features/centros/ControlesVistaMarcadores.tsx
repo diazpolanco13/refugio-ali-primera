@@ -1,4 +1,4 @@
-import { BarChart3, Hash, List, Palette } from "lucide-react";
+import { BarChart3, Globe2, Hash, List, Palette } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,9 @@ export interface PropsTogglesVistaMapa {
   onCambiarMostrarLeyenda: (mostrar: boolean) => void;
   mostrarCintaTotales: boolean;
   onCambiarMostrarCintaTotales: (mostrar: boolean) => void;
+  /** Proyección esfera (MapLibre globe). Independiente del estilo Carto/sat. */
+  modoGlobo: boolean;
+  onCambiarModoGlobo: (activo: boolean) => void;
 }
 
 /** Panel de switches para la vista del mapa (dentro del popover de controles). */
@@ -25,6 +28,8 @@ export function PanelTogglesVistaMapa({
   onCambiarMostrarLeyenda,
   mostrarCintaTotales,
   onCambiarMostrarCintaTotales,
+  modoGlobo,
+  onCambiarModoGlobo,
 }: PropsTogglesVistaMapa) {
   const vistaColor = modoMarcador === "color";
 
@@ -40,6 +45,15 @@ export function PanelTogglesVistaMapa({
         checked={mostrarCintaTotales}
         onCheckedChange={onCambiarMostrarCintaTotales}
         ariaLabel="Mostrar u ocultar la cinta de totales en la parte superior"
+      />
+      <FilaToggle
+        id="toggle-globo"
+        icono={<Globe2 className="size-3.5 shrink-0 text-muted-foreground" />}
+        etiqueta="Vista globo (esfera)"
+        checked={modoGlobo}
+        onCheckedChange={onCambiarModoGlobo}
+        ariaLabel="Activar o desactivar la proyección esférica del planeta"
+        conBorde
       />
       <FilaToggle
         id="toggle-vista-color"
@@ -70,15 +84,17 @@ export function PanelTogglesVistaMapa({
         deshabilitado={!vistaColor}
       />
       <p className="px-1 text-[10px] leading-snug text-muted-foreground">
-        {!vistaColor
-          ? mostrarParte
-            ? "Logo SEBIN con parte diario."
-            : "Solo logo SEBIN por campamento."
-          : mostrarParte
-            ? "Puntos de color con conteo debajo."
-            : mostrarLeyenda
-              ? "Toque una o varias unidades responsables para filtrar."
-              : "Solo puntos de color por dirección SEBIN."}
+        {modoGlobo
+          ? "Aleja el zoom para ver el planeta en esfera."
+          : !vistaColor
+            ? mostrarParte
+              ? "Logo SEBIN con parte diario."
+              : "Solo logo SEBIN por campamento."
+            : mostrarParte
+              ? "Puntos de color con conteo debajo."
+              : mostrarLeyenda
+                ? "Toque una o varias unidades responsables para filtrar."
+                : "Solo puntos de color por dirección SEBIN."}
       </p>
     </div>
   );

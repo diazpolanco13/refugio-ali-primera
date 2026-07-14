@@ -2,7 +2,11 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { createRoot, type Root } from "react-dom/client";
 import maplibregl from "maplibre-gl";
 import { toPng } from "html-to-image";
-import { escalaVistaDelMapa, debeMostrarEtiquetaNombre } from "@/map/escalaVista";
+import {
+  escalaVistaDelMapa,
+  debeMostrarEtiquetaNombre,
+  zoomParaAnchoMetros,
+} from "@/map/escalaVista";
 import {
   CAPAS_BASE,
   VISIBILIDAD_BASE,
@@ -27,12 +31,24 @@ import {
 } from "@/domain/centrosTransitorios";
 import {
   cargarModo3dCentros,
+  cargarModoGloboCentros,
   cargarVistaCentros,
   guardarModo3dCentros,
+  guardarModoGloboCentros,
   guardarVistaCentros,
   VISTA_DEFECTO_CENTROS,
   type ModoMarcadorCentros,
 } from "@/data/preferenciasMapa";
+import {
+  ANCHO_INTRO_DESTINO_METROS,
+  DURACION_INTRO_MAPA_MS,
+  TIMEOUT_INTRO_FALLBACK_MS,
+  ZOOM_INTRO_ORBITA,
+  avisarMapaOrbitaLista,
+  marcarIntroMapaLanzada,
+  onInicioSalidaOverlay,
+  reservarIntroMapa,
+} from "@/lib/introMapa";
 import { analisisCentro, COLOR_SEMAFORO } from "@/domain/capacidadCentros";
 import { boundsRedCentros } from "@/domain/redCentros";
 import { MarcadorCentro } from "./MarcadorCentro";
@@ -129,10 +145,20 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   const [modo3d, setModo3d] = useState(() => cargarModo3dCentros() ?? true);
   const modo3dRef = useRef(modo3d);
   modo3dRef.current = modo3d;
+  const [modoGlobo, setModoGlobo] = useState(() => cargarModoGloboCentros() ?? false);
+  const modoGloboRef = useRef(modoGlobo);
+  modoGloboRef.current = modoGlobo;
+  /** Intro Google Earth: una vez por carga de página, sync con fade splash/login. */
+  const hacerIntroRef = useRef(reservarIntroMapa());
+  const introEnCursoRef = useRef(hacerIntroRef.current);
 
   useEffect(() => {
     guardarModo3dCentros(modo3d);
   }, [modo3d]);
+
+  useEffect(() => {
+    guardarModoGloboCentros(modoGlobo);
+  }, [modoGlobo]);
 
   function actualizarEscalaVista() {
     const map = mapRef.current;
@@ -178,7 +204,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
 
   function persistirVista() {
     const map = mapRef.current;
-    if (!map || !listoRef.current) return;
+    if (!map || !listoRef.current || introEnCursoRef.current) return;
     const c = map.getCenter();
     guardarVistaCentros({
       center: [c.lng, c.lat],
@@ -187,6 +213,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   }
 
   function programarPersistirVista() {
+    if (introEnCursoRef.current) return;
     if (guardarVistaTimer.current) clearTimeout(guardarVistaTimer.current);
     guardarVistaTimer.current = setTimeout(persistirVista, 400);
   }
@@ -276,6 +303,72 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     encuadrarRed({ animar: true });
   }
 
+  /**
+   * Espera el fade del splash/login y lanza flyTo órbita → Caracas ~30 km.
+   * Devuelve cancelador para StrictMode / unmount.
+   */
+  function programarIntroFly(map: maplibregl.Map): () => void {
+    let lanzado = false;
+    let fallbackId = 0;
+
+    const finalizarIntro = () => {
+      introEnCursoRef.current = false;
+      // Restaura preferencia de globo del usuario (puede ser off).
+      if (mapRef.current) {
+        aplicarProyeccionGlobo(mapRef.current, modoGloboRef.current);
+      }
+      vistaDefectoAplicadaRef.current = true;
+      actualizarEscalaVista();
+      persistirVista();
+    };
+
+    const lanzar = () => {
+      if (lanzado || !mapRef.current || mapRef.current !== map) return;
+      lanzado = true;
+      marcarIntroMapaLanzada();
+      window.clearTimeout(fallbackId);
+
+      const m = mapRef.current;
+      const anchoPx = m.getContainer().clientWidth || 1200;
+      const zoomDestino = zoomParaAnchoMetros(
+        ANCHO_INTRO_DESTINO_METROS,
+        CARACAS_CENTRO[1],
+        anchoPx,
+      );
+      const pitchFinal =
+        modoEstiloRef.current === "dark-matter" && modo3dRef.current ? 45 : 0;
+
+      introEnCursoRef.current = true;
+      m.setMinZoom(0);
+      m.flyTo({
+        center: CARACAS_CENTRO,
+        zoom: zoomDestino,
+        pitch: pitchFinal,
+        bearing: 0,
+        duration: DURACION_INTRO_MAPA_MS,
+        essential: true,
+        // Ease-out: rápido al salir de órbita, frena al aterrizar.
+        easing: (t) => 1 - (1 - t) * (1 - t),
+      });
+      m.once("moveend", finalizarIntro);
+    };
+
+    // Ya en órbita: el login puede empezar a disolverse encima.
+    avisarMapaOrbitaLista();
+
+    const unsub = onInicioSalidaOverlay(lanzar);
+    fallbackId = window.setTimeout(lanzar, TIMEOUT_INTRO_FALLBACK_MS);
+
+    return () => {
+      unsub();
+      window.clearTimeout(fallbackId);
+      if (!lanzado) {
+        // Remount StrictMode: no marcar hecha; el siguiente montaje reintenta.
+        introEnCursoRef.current = hacerIntroRef.current;
+      }
+    };
+  }
+
   function ocultarPopup() {
     popupRef.current?.remove();
     popupRootRef.current?.unmount();
@@ -315,7 +408,12 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
 
   useEffect(() => {
     if (!contenedorRef.current || mapRef.current) return;
-    const vistaInicial = cargarVistaCentros() ?? VISTA_DEFECTO_CENTROS;
+    const hacerIntro = hacerIntroRef.current;
+    const vistaGuardada = cargarVistaCentros();
+    // Intro: parte desde órbita sobre Caracas. Si no, vista guardada / default.
+    const vistaInicial = hacerIntro
+      ? { center: CARACAS_CENTRO, zoom: ZOOM_INTRO_ORBITA }
+      : (vistaGuardada ?? VISTA_DEFECTO_CENTROS);
     const baseInicial = baseMapa;
     modoEstiloRef.current = esBaseEstiloExterno(baseInicial) ? "dark-matter" : "raster";
     const map = new maplibregl.Map({
@@ -323,9 +421,15 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       style: estiloMapaParaBase(baseInicial),
       center: vistaInicial.center,
       zoom: vistaInicial.zoom,
-      pitch: esBaseEstiloExterno(baseInicial) && modo3dRef.current ? 45 : 0,
+      pitch:
+        hacerIntro
+          ? 0
+          : esBaseEstiloExterno(baseInicial) && modo3dRef.current
+            ? 45
+            : 0,
       maxZoom: 19,
-      minZoom: 3,
+      // Intro / globo: minZoom 0 para ver el planeta.
+      minZoom: hacerIntro || modoGloboRef.current ? 0 : 3,
       attributionControl: false,
       canvasContextAttributes: { preserveDrawingBuffer: true },
     });
@@ -336,11 +440,38 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     map.on("zoom", actualizarEscalaVista);
     map.on("resize", actualizarEscalaVista);
 
+    let cancelarIntro: (() => void) | null = null;
+    let timeoutArmarIntro = 0;
+    let introArmada = false;
+
     map.on("load", () => {
       listoRef.current = true;
       sincronizarMarcadores();
       aplicarBase();
-      aplicarVistaDefectoSiCorresponde();
+      if (hacerIntro) {
+        // Esfera durante el vuelo (aunque el usuario no tenga globo permanente).
+        aplicarProyeccionGlobo(map, true);
+        map.resize();
+        map.triggerRepaint();
+        // Pintar órbita debajo del splash opaco; solo entonces avisar.
+        // El splash ESPERA este aviso antes de disolverse.
+        const armarIntro = () => {
+          if (introArmada || !mapRef.current) return;
+          introArmada = true;
+          window.clearTimeout(timeoutArmarIntro);
+          cancelarIntro = programarIntroFly(map);
+        };
+        requestAnimationFrame(() => {
+          requestAnimationFrame(armarIntro);
+        });
+        map.once("idle", armarIntro);
+        timeoutArmarIntro = window.setTimeout(armarIntro, 1200);
+      } else {
+        aplicarProyeccionGlobo(map, modoGloboRef.current);
+        aplicarVistaDefectoSiCorresponde();
+        // Sin intro: desbloquear igual el fade del login (no esperar timeout).
+        avisarMapaOrbitaLista();
+      }
       actualizarEscalaVista();
       map.resize();
     });
@@ -358,6 +489,9 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     });
 
     return () => {
+      introArmada = true;
+      window.clearTimeout(timeoutArmarIntro);
+      cancelarIntro?.();
       ro.disconnect();
       if (guardarVistaTimer.current) clearTimeout(guardarVistaTimer.current);
       detenerGps();
@@ -510,6 +644,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       if (modoEstiloRef.current === "dark-matter") {
         aplicarEdificios3d(map, con3d);
         sincronizarPitch3d(map, con3d);
+        aplicarProyeccionGlobo(map, modoGloboRef.current);
         return;
       }
       const gen = ++generacionEstiloRef.current;
@@ -519,6 +654,8 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
         if (generacionEstiloRef.current !== gen || !mapRef.current) return;
         aplicarEdificios3d(mapRef.current, modo3dRef.current);
         sincronizarPitch3d(mapRef.current, modo3dRef.current);
+        // setStyle resetea la proyección: hay que reponer el globo.
+        aplicarProyeccionGlobo(mapRef.current, modoGloboRef.current);
       });
       return;
     }
@@ -535,14 +672,29 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
         if (mapRef.current.getPitch() > 0 || mapRef.current.getBearing() !== 0) {
           mapRef.current.easeTo({ pitch: 0, bearing: 0, duration: 600 });
         }
+        aplicarProyeccionGlobo(mapRef.current, modoGloboRef.current);
       });
       return;
     }
 
     aplicarVisibilidadRaster(map, base);
+    aplicarProyeccionGlobo(map, modoGloboRef.current);
+  }
+
+  /** Proyección esfera de MapLibre (funciona con Carto Dark y con raster/sat). */
+  function aplicarProyeccionGlobo(map: maplibregl.Map, activo: boolean) {
+    // Mientras dura la intro (órbita → Caracas), no dejar que un setStyle quite el globo.
+    const usarGlobo = introEnCursoRef.current ? true : activo;
+    map.setMinZoom(usarGlobo ? 0 : 3);
+    const tipoActual = map.getProjection()?.type;
+    const tipoObjetivo = usarGlobo ? "globe" : "mercator";
+    if (tipoActual === tipoObjetivo) return;
+    map.setProjection({ type: tipoObjetivo });
   }
 
   function sincronizarPitch3d(map: maplibregl.Map, con3d: boolean) {
+    // El flyTo de intro lleva el pitch final; no pelear con easeTo aquí.
+    if (introEnCursoRef.current) return;
     if (con3d) {
       if (map.getPitch() < 30) {
         map.easeTo({ pitch: 45, duration: 800 });
@@ -558,6 +710,13 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     aplicarBase();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseMapa, modo3d]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !listoRef.current) return;
+    aplicarProyeccionGlobo(map, modoGlobo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modoGlobo]);
 
   async function exportarImagen(nombreArchivo: string) {
     const contenedor = contenedorRef.current?.parentElement;
@@ -623,6 +782,8 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
           onCambiarMostrarLeyenda,
           mostrarCintaTotales,
           onCambiarMostrarCintaTotales,
+          modoGlobo,
+          onCambiarModoGlobo: setModoGlobo,
         }}
       />
       <LogoMini
