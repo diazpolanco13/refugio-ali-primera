@@ -1,7 +1,7 @@
-/** Línea compacta: fecha · hora · usuario · teléfono de la última actualización. */
+/** Línea compacta: fecha · hora · usuario · teléfono (abre chat Telegram). */
 
 import { useEtiquetaPerfil, useTelefonoPerfil } from "@/data/useEtiquetaPerfil";
-import { telHref, tieneTelefonoContacto } from "@/lib/contacto";
+import { telegramHref, tieneTelefonoContacto } from "@/lib/contacto";
 
 function formatearFechaHoraCorta(ts: number): string {
   const d = new Date(ts);
@@ -33,7 +33,8 @@ export function MetaActualizacionBloque({
   if (!marca && !quien) return null;
 
   const partes = [marca, etiqueta || quien].filter(Boolean);
-  const mostrarTel = telefono && tieneTelefonoContacto(telefono);
+  const hrefTg =
+    telefono && tieneTelefonoContacto(telefono) ? telegramHref(telefono) : null;
 
   return (
     <p
@@ -44,12 +45,15 @@ export function MetaActualizacionBloque({
       title={quien && etiqueta !== quien ? quien : undefined}
     >
       {partes.join(" · ")}
-      {mostrarTel ? (
+      {hrefTg && telefono ? (
         <>
           {" · "}
           <a
-            href={telHref(telefono)}
-            className="font-medium text-foreground/80 underline-offset-2 hover:underline"
+            href={hrefTg}
+            target="_blank"
+            rel="noreferrer"
+            title="Abrir chat en Telegram"
+            className="text-inherit no-underline hover:text-sky-400 hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
             {telefono}
