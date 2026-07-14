@@ -43,8 +43,32 @@ export interface HogarTrasladable {
   /** Solo cuando no hay familia (persona sola). */
   alojamiento_id: string | null;
   centro_id: string;
+  centro_nombre?: string;
   nombre_hogar: string;
+  /** Alojamiento de la persona buscada (pre-selección en UI). */
+  referencia_alojamiento_id?: string | null;
   miembros: MiembroHogarTraslado[];
+}
+
+/** Candidato devuelto por búsqueda por nombre (máx. 20). */
+export interface CandidatoTrasladoNombre {
+  alojamiento_id: string;
+  refugiado_id: string;
+  nombre: string;
+  cedula: string | null;
+  tipo_doc: string | null;
+  sexo: string | null;
+  edad: number | null;
+  centro_id: string;
+  centro_nombre: string;
+}
+
+export interface FiltrosTrasladoNombre {
+  nombres?: string;
+  apellidos?: string;
+  sexo?: string | null;
+  edadMin?: number | null;
+  edadMax?: number | null;
 }
 
 export interface ResultadoTraslado {
@@ -59,8 +83,9 @@ export interface InputEjecutarTraslado {
   centroOrigen: string;
   centroDestino: string;
   motivo: string;
-  familiaId?: string | null;
-  alojamientoId?: string | null;
+  alojamientoIds: string[];
+  /** Persona buscada / referencia para jefe si el líder no viaja. */
+  jefeAlojamientoId?: string | null;
   fecha?: string | null;
 }
 

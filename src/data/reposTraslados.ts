@@ -2,12 +2,12 @@
 
 import {
   formatearCedula,
-  nombreCompleto,
-  normalizarCedula,
   type TipoDoc,
 } from "../domain/refugiados";
 import {
   normalizarTraslado,
+  type CandidatoTrasladoNombre,
+  type FiltrosTrasladoNombre,
   type HogarTrasladable,
   type InputEjecutarTraslado,
   type MiembroHogarTraslado,
@@ -24,153 +24,101 @@ function errorRepos(contexto: string, message: string): Error {
   return new Error(`[reposTraslados] ${contexto}: ${message}`);
 }
 
-interface RefugiadoJoin {
-  id: string;
-  cedula: string | null;
-  cedula_norm: string | null;
-  tipo_doc: string | null;
-  nombres: string;
-  apellidos: string;
-  primer_nombre: string;
-  segundo_nombre: string;
-  primer_apellido: string;
-  segundo_apellido: string;
-}
-
-interface FamiliaJoin {
-  id: string;
-  nombre: string;
-  centro_id: string;
-}
-
-interface FilaAlojJoin {
-  id: string;
-  refugiado_id: string;
-  centro_id: string;
-  familia_id: string | null;
-  estado: string;
-  es_jefe_familia: boolean;
-  parentesco_jefe: string;
-  refugiados: RefugiadoJoin | RefugiadoJoin[] | null;
-  familias_centro: FamiliaJoin | FamiliaJoin[] | null;
-}
-
-function uno<T>(v: T | T[] | null | undefined): T | null {
-  if (v == null) return null;
-  return Array.isArray(v) ? (v[0] ?? null) : v;
-}
-
-function miembroDeFila(fila: FilaAlojJoin): MiembroHogarTraslado {
-  const r = uno(fila.refugiados);
-  const nombre = r ? nombreCompleto(r) : "Sin nombre";
+function normalizarMiembroHogar(raw: unknown): MiembroHogarTraslado {
+  const m = (raw ?? {}) as Record<string, unknown>;
   return {
-    alojamiento_id: fila.id,
-    refugiado_id: fila.refugiado_id,
-    nombre,
-    cedula: r?.cedula ?? null,
-    tipo_doc: r?.tipo_doc ?? null,
-    es_jefe_familia: Boolean(fila.es_jefe_familia),
-    parentesco_jefe: fila.parentesco_jefe ?? "",
-    estado: fila.estado,
+    alojamiento_id: String(m.alojamiento_id ?? ""),
+    refugiado_id: String(m.refugiado_id ?? ""),
+    nombre: String(m.nombre ?? "Sin nombre"),
+    cedula: m.cedula != null ? String(m.cedula) : null,
+    tipo_doc: m.tipo_doc != null ? String(m.tipo_doc) : null,
+    es_jefe_familia: Boolean(m.es_jefe_familia),
+    parentesco_jefe: String(m.parentesco_jefe ?? ""),
+    estado: String(m.estado ?? "activo"),
   };
 }
 
-/**
- * Hogares activos en un campamento, filtrables por nombre de familia o
- * cédula/nombre de un miembro.
- */
-export async function buscarHogaresTrasladables(
-  centroId: string,
-  busqueda?: string,
-): Promise<HogarTrasladable[]> {
-  const { data, error } = await supabase
-    .from("alojamientos_refugiados")
-    .select(
-      `
-      id, refugiado_id, centro_id, familia_id, estado,
-      es_jefe_familia, parentesco_jefe,
-      refugiados (
-        id, cedula, cedula_norm, tipo_doc,
-        nombres, apellidos,
-        primer_nombre, segundo_nombre, primer_apellido, segundo_apellido
-      ),
-      familias_centro ( id, nombre, centro_id )
-    `,
-    )
-    .eq("centro_id", centroId)
-    .in("estado", ["activo", "observacion"])
-    .order("es_jefe_familia", { ascending: false });
+function normalizarHogarTrasladable(raw: unknown): HogarTrasladable | null {
+  if (!raw || typeof raw !== "object") return null;
+  const h = raw as Record<string, unknown>;
+  const miembrosRaw = Array.isArray(h.miembros) ? h.miembros : [];
+  return {
+    clave: String(h.clave ?? ""),
+    familia_id: h.familia_id ? String(h.familia_id) : null,
+    alojamiento_id: h.alojamiento_id ? String(h.alojamiento_id) : null,
+    centro_id: String(h.centro_id ?? ""),
+    centro_nombre: h.centro_nombre ? String(h.centro_nombre) : undefined,
+    nombre_hogar: String(h.nombre_hogar ?? "Hogar"),
+    referencia_alojamiento_id: h.referencia_alojamiento_id
+      ? String(h.referencia_alojamiento_id)
+      : null,
+    miembros: miembrosRaw.map(normalizarMiembroHogar),
+  };
+}
 
+function normalizarCandidatoNombre(raw: unknown): CandidatoTrasladoNombre {
+  const c = (raw ?? {}) as Record<string, unknown>;
+  return {
+    alojamiento_id: String(c.alojamiento_id ?? ""),
+    refugiado_id: String(c.refugiado_id ?? ""),
+    nombre: String(c.nombre ?? "Sin nombre"),
+    cedula: c.cedula != null ? String(c.cedula) : null,
+    tipo_doc: c.tipo_doc != null ? String(c.tipo_doc) : null,
+    sexo: c.sexo != null ? String(c.sexo) : null,
+    edad: c.edad != null && c.edad !== "" ? Number(c.edad) : null,
+    centro_id: String(c.centro_id ?? ""),
+    centro_nombre: String(c.centro_nombre ?? ""),
+  };
+}
+
+/** Búsqueda exacta por cédula (botón explícito, sin debounce). */
+export async function buscarTrasladoPorCedula(
+  cedula: string,
+  tipoDoc: TipoDoc = "V",
+): Promise<HogarTrasladable | null> {
+  const { data, error } = await supabase.rpc("buscar_trasladable_por_cedula", {
+    p_cedula: cedula.trim(),
+    p_tipo_doc: tipoDoc,
+  });
   if (error) {
-    throw errorRepos("buscar hogares", error.message);
+    throw errorRepos("buscar por cédula", error.message);
   }
+  return normalizarHogarTrasladable(data);
+}
 
-  const filas = (data ?? []) as unknown as FilaAlojJoin[];
-  const porClave = new Map<string, HogarTrasladable>();
-
-  for (const fila of filas) {
-    const esFamilia = Boolean(fila.familia_id);
-    const clave = esFamilia
-      ? `fam:${fila.familia_id}`
-      : `solo:${fila.id}`;
-
-    let hogar = porClave.get(clave);
-    if (!hogar) {
-      const fam = uno(fila.familias_centro);
-      const nombreFam = fam?.nombre?.trim();
-      hogar = {
-        clave,
-        familia_id: fila.familia_id,
-        alojamiento_id: esFamilia ? null : fila.id,
-        centro_id: centroId,
-        nombre_hogar: esFamilia
-          ? nombreFam || "Familia sin nombre"
-          : "Persona sin hogar",
-        miembros: [],
-      };
-      porClave.set(clave, hogar);
-    }
-    hogar.miembros.push(miembroDeFila(fila));
+/** Búsqueda por nombre/apellidos con filtros (máx. 20 en servidor). */
+export async function buscarTrasladoPorNombre(
+  filtros: FiltrosTrasladoNombre,
+): Promise<CandidatoTrasladoNombre[]> {
+  const { data, error } = await supabase.rpc("buscar_trasladables_por_nombre", {
+    p_nombres: filtros.nombres?.trim() || null,
+    p_apellidos: filtros.apellidos?.trim() || null,
+    p_sexo: filtros.sexo || null,
+    p_edad_min: filtros.edadMin ?? null,
+    p_edad_max: filtros.edadMax ?? null,
+    p_limite: 20,
+  });
+  if (error) {
+    throw errorRepos("buscar por nombre", error.message);
   }
+  const raw = (data ?? {}) as Record<string, unknown>;
+  const lista = Array.isArray(raw.resultados) ? raw.resultados : [];
+  return lista.map(normalizarCandidatoNombre);
+}
 
-  // Persona sola: nombre del hogar = nombre de la persona
-  for (const hogar of porClave.values()) {
-    if (!hogar.familia_id && hogar.miembros[0]) {
-      hogar.nombre_hogar = hogar.miembros[0].nombre || "Persona sin hogar";
-    }
-    hogar.miembros.sort((a, b) => {
-      if (a.es_jefe_familia !== b.es_jefe_familia) {
-        return a.es_jefe_familia ? -1 : 1;
-      }
-      return a.nombre.localeCompare(b.nombre, "es");
-    });
+/** Carga hogar completo tras elegir candidato de búsqueda por nombre. */
+export async function obtenerHogarTrasladable(
+  alojamientoId: string,
+  referenciaAlojamientoId?: string | null,
+): Promise<HogarTrasladable | null> {
+  const { data, error } = await supabase.rpc("obtener_hogar_trasladable", {
+    p_alojamiento_id: alojamientoId,
+    p_referencia_alojamiento_id: referenciaAlojamientoId ?? alojamientoId,
+  });
+  if (error) {
+    throw errorRepos("obtener hogar", error.message);
   }
-
-  let lista = [...porClave.values()];
-  const q = (busqueda ?? "").trim();
-  if (q) {
-    const qLower = q.toLowerCase();
-    const qDoc = q.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    lista = lista.filter((h) => {
-      if (h.nombre_hogar.toLowerCase().includes(qLower)) return true;
-      return h.miembros.some((m) => {
-        if (m.nombre.toLowerCase().includes(qLower)) return true;
-        const ced = (m.cedula ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-        if (qDoc && ced.includes(qDoc)) return true;
-        try {
-          const norm = normalizarCedula(q, (m.tipo_doc as TipoDoc) || "V");
-          if (norm.cedula_norm && ced.includes(norm.cedula_norm)) return true;
-        } catch {
-          /* ignore */
-        }
-        return false;
-      });
-    });
-  }
-
-  return lista.sort((a, b) =>
-    a.nombre_hogar.localeCompare(b.nombre_hogar, "es"),
-  );
+  return normalizarHogarTrasladable(data);
 }
 
 /** Historial de traslados (más recientes primero). */
@@ -197,25 +145,21 @@ export async function listarTraslados(opts?: {
   return ((data ?? []) as Record<string, unknown>[]).map(normalizarTraslado);
 }
 
-/** Ejecuta el traslado atómico vía RPC. */
+/** Ejecuta traslado parcial vía RPC dedicada. */
 export async function ejecutarTraslado(
   input: InputEjecutarTraslado,
 ): Promise<ResultadoTraslado> {
-  const familiaId = input.familiaId ?? null;
-  const alojamientoId = input.alojamientoId ?? null;
-
-  if ((familiaId && alojamientoId) || (!familiaId && !alojamientoId)) {
-    throw new Error(
-      "Indique exactamente una familia o un alojamiento (persona sin hogar).",
-    );
+  const ids = input.alojamientoIds.filter(Boolean);
+  if (ids.length === 0) {
+    throw new Error("Seleccione al menos un miembro para trasladar.");
   }
 
-  const { data, error } = await supabase.rpc("trasladar_entre_centros", {
+  const { data, error } = await supabase.rpc("trasladar_miembros_entre_centros", {
     p_centro_origen: input.centroOrigen,
     p_centro_destino: input.centroDestino,
     p_motivo: input.motivo.trim(),
-    p_familia_id: familiaId,
-    p_alojamiento_id: alojamientoId,
+    p_alojamiento_ids: ids,
+    p_jefe_alojamiento_id: input.jefeAlojamientoId ?? null,
     p_fecha: input.fecha ?? null,
   });
 
@@ -235,12 +179,11 @@ export async function ejecutarTraslado(
   };
 
   registrarHistorial("trasladar_familia", "traslado", resultado.traslado_id, {
-    familia_id_origen: familiaId,
-    familia_id_destino: resultado.familia_id_destino,
     centro_origen: resultado.centro_origen,
     centro_destino: resultado.centro_destino,
     motivo: input.motivo.trim(),
     miembros: resultado.miembros.length,
+    alojamiento_ids: ids,
   });
 
   return resultado;

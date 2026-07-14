@@ -15,6 +15,7 @@ import {
   type ModoMarcadorCentros,
 } from "@/data/preferenciasMapa";
 import type { BaseMapa } from "@/map/estiloMapa";
+import { BASE_MAPA_DEFECTO } from "@/map/estiloMapa";
 import { useSupabaseQueryConEstado } from "@/data/useSupabaseQuery";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
@@ -61,7 +62,7 @@ export function CentrosView() {
   } = useMapaCentros();
 
   const [baseMapa, setBaseMapa] = useState<BaseMapa>(
-    () => cargarBaseMapaCentros() ?? "calles",
+    () => cargarBaseMapaCentros() ?? BASE_MAPA_DEFECTO,
   );
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);

@@ -3,14 +3,11 @@ import type { Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 // Bases de mapa disponibles. Las de MapTiler ("*-hd", outdoor) requieren
 // VITE_MAPTILER_KEY (clave gratuita) y solo aparecen si está configurada.
 export type BaseMapa =
-  | "calles"
   | "dark-matter"
   | "calles-claro"
   | "positron"
   | "osm"
-  | "satelite"
   | "hibrido"
-  | "topo"
   | "satelite-hd"
   | "calles-hd"
   | "outdoor";
@@ -37,20 +34,13 @@ function tilesCarto(path: string): string[] {
   );
 }
 
-const openTopo = ["a", "b", "c"].map(
-  (s) => `https://${s}.tile.opentopomap.org/{z}/{x}/{y}.png`,
-);
-
 /** Opciones que se muestran en la UI (MapTiler solo si hay clave). */
 export const BASES_DISPONIBLES: { valor: BaseMapa; label: string }[] = [
-  { valor: "dark-matter", label: "🌑 Carto Dark Matter (Oscuro)" },
-  { valor: "calles", label: "🗺️ Calles" },
+  { valor: "dark-matter", label: "🌑 Carto Dark Matter" },
   { valor: "calles-claro", label: "🗺️ Calles claro" },
   { valor: "positron", label: "◻️ Positron" },
   { valor: "osm", label: "🌍 OpenStreetMap" },
-  { valor: "satelite", label: "🛰️ Satélite" },
   { valor: "hibrido", label: "🛰️ Híbrido" },
-  { valor: "topo", label: "🏔️ Topo" },
   ...(MAPTILER_DISPONIBLE
     ? ([
         { valor: "satelite-hd", label: "🛰️ Satélite HD" },
@@ -62,12 +52,10 @@ export const BASES_DISPONIBLES: { valor: BaseMapa; label: string }[] = [
 
 /** Capas base (raster) que se activan/desactivan según la base seleccionada. */
 export const CAPAS_BASE = [
-  "base-carto-dark",
   "base-carto-voyager",
   "base-carto-positron",
   "base-osm",
   "base-esri-img",
-  "base-topo",
   "base-esri-transp",
   "base-esri-ref",
   "base-mt-sat",
@@ -77,16 +65,11 @@ export const CAPAS_BASE = [
 
 /** Qué capas base deben estar visibles para cada modo. */
 export const VISIBILIDAD_BASE: Record<BaseMapa, string[]> = {
-  // Oscuro por defecto — encaja con la UI de la app.
-  calles: ["base-carto-dark"],
-  // Estilo vectorial externo: no usa capas raster del estilo compuesto.
   "dark-matter": [],
   "calles-claro": ["base-carto-voyager"],
   positron: ["base-carto-positron"],
   osm: ["base-osm"],
-  satelite: ["base-esri-img"],
   hibrido: ["base-esri-img", "base-esri-transp", "base-esri-ref"],
-  topo: ["base-topo"],
   "satelite-hd": ["base-mt-sat", "base-esri-transp", "base-esri-ref"],
   "calles-hd": ["base-mt-calles"],
   outdoor: ["base-mt-outdoor"],
@@ -207,19 +190,15 @@ export function aplicarEdificios3d(map: MapLibreMap, activo: boolean): void {
 export const BASE_MAPA_CARTO: BaseMapa = "dark-matter";
 export const BASE_MAPA_SATELITE: BaseMapa = "hibrido";
 
-export function construirEstilo(baseActiva: BaseMapa = "calles"): StyleSpecification {
-  const visibles = new Set(VISIBILIDAD_BASE[baseActiva] ?? VISIBILIDAD_BASE.calles);
+/** Base al primer ingreso (sin preferencia guardada en localStorage). */
+export const BASE_MAPA_DEFECTO: BaseMapa = BASE_MAPA_CARTO;
+
+export function construirEstilo(baseActiva: BaseMapa = "hibrido"): StyleSpecification {
+  const visibles = new Set(VISIBILIDAD_BASE[baseActiva] ?? VISIBILIDAD_BASE.hibrido);
   const vis = (id: string): "visible" | "none" =>
     visibles.has(id) ? "visible" : "none";
 
   const sources: StyleSpecification["sources"] = {
-    "carto-dark": {
-      type: "raster",
-      tiles: tilesCarto("dark_all"),
-      tileSize: 256,
-      maxzoom: 20,
-      attribution: "© OpenStreetMap contributors, © CARTO",
-    },
     "carto-voyager": {
       type: "raster",
       tiles: tilesCarto("rastertiles/voyager"),
@@ -266,22 +245,9 @@ export function construirEstilo(baseActiva: BaseMapa = "calles"): StyleSpecifica
       tileSize: 256,
       maxzoom: 19,
     },
-    topo: {
-      type: "raster",
-      tiles: openTopo,
-      tileSize: 256,
-      maxzoom: 17,
-      attribution: "© OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors",
-    },
   };
 
   const layers: StyleSpecification["layers"] = [
-    {
-      id: "base-carto-dark",
-      type: "raster",
-      source: "carto-dark",
-      layout: { visibility: vis("base-carto-dark") },
-    },
     {
       id: "base-carto-voyager",
       type: "raster",
@@ -305,12 +271,6 @@ export function construirEstilo(baseActiva: BaseMapa = "calles"): StyleSpecifica
       type: "raster",
       source: "esri-img",
       layout: { visibility: vis("base-esri-img") },
-    },
-    {
-      id: "base-topo",
-      type: "raster",
-      source: "topo",
-      layout: { visibility: vis("base-topo") },
     },
   ];
 

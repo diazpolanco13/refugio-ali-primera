@@ -29,6 +29,7 @@ import {
   puedeVerLogs,
   puedeVerPapeleraDenuncias,
   puedeVerPoblacionRed,
+  puedeVerTraslados,
   esRolCensoRapido,
   esRolTerreno,
 } from "@/domain/permisos";
@@ -341,6 +342,7 @@ function NavContenido({ sesion }: Props) {
   const vePapeleraDenuncias = puedeVerPapeleraDenuncias(sesion.user.rol);
   const veCensoRed = puedeVerCensoRapidoRed(sesion.user.rol);
   const vePoblacionRed = puedeVerPoblacionRed(sesion.user.rol);
+  const veTraslados = puedeVerTraslados(sesion.user.rol);
   const centroIdRuta = centroIdDePathname(pathname);
   const veCensoFicha =
     centroIdRuta != null && puedeVerCensoCentro(sesion.user, centroIdRuta);
@@ -442,12 +444,14 @@ function NavContenido({ sesion }: Props) {
                 activo={rutaActiva(pathname, "/centros/refugiados")}
               />
             )}
-            <ItemMenu
-              to="/centros/traslados"
-              icono={Truck}
-              label="Traslados entre campamentos"
-              activo={rutaActiva(pathname, "/centros/traslados")}
-            />
+            {veTraslados && (
+              <ItemMenu
+                to="/centros/traslados"
+                icono={Truck}
+                label="Traslados entre campamentos"
+                activo={rutaActiva(pathname, "/centros/traslados")}
+              />
+            )}
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>

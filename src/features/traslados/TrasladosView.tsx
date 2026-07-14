@@ -8,6 +8,7 @@ import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import { listarTraslados } from "@/data/reposTraslados";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import type { Traslado } from "@/domain/traslados";
+import { puedeTrasladarEntreCentros, puedeVerTraslados } from "@/domain/permisos";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,22 @@ export function TrasladosView() {
     );
   }
 
+  if (!puedeVerTraslados(usuario.rol)) {
+    return (
+      <MarcoVista ancho={ANCHO_VISTA_PRINCIPAL}>
+        <Alert>
+          <AlertTitle>Sin permiso</AlertTitle>
+          <AlertDescription>
+            Solo administradores, analistas SAE, supervisores y autoridad pueden
+            consultar traslados entre campamentos.
+          </AlertDescription>
+        </Alert>
+      </MarcoVista>
+    );
+  }
+
+  const puedeTrasladar = puedeTrasladarEntreCentros(usuario.rol);
+
   return (
     <MarcoVista ancho={ANCHO_VISTA_PRINCIPAL}>
       <div className="space-y-6">
@@ -118,21 +135,27 @@ export function TrasladosView() {
           icono={Truck}
           acento="amber"
           titulo="Traslados entre campamentos"
-          descripcion="Registro formal de movimientos de familias (o personas solas) entre campamentos de la red."
+          descripcion={
+            puedeTrasladar
+              ? "Busque por cédula o nombre, seleccione quién se traslada y registre el movimiento entre campamentos."
+              : "Consulta del historial de movimientos entre campamentos (solo lectura)."
+          }
         />
 
-        <TrasladoWizard
-          usuario={usuario}
-          centros={centros}
-          cargandoCentros={cargandoCentros}
-          errorCentros={
-            errorCentros
-              ? "No se pudieron cargar los campamentos."
-              : null
-          }
-          nombresCentros={nombresCentros}
-          onExito={() => void refrescarHistorial()}
-        />
+        {puedeTrasladar && (
+          <TrasladoWizard
+            usuario={usuario}
+            centros={centros}
+            cargandoCentros={cargandoCentros}
+            errorCentros={
+              errorCentros
+                ? "No se pudieron cargar los campamentos."
+                : null
+            }
+            nombresCentros={nombresCentros}
+            onExito={() => void refrescarHistorial()}
+          />
+        )}
 
         <Card>
           <CardHeader className="pb-3">

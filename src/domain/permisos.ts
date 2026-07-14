@@ -14,6 +14,8 @@ import {
  * | autoridad    | No       | Todos       | No           | No                             | Sí   | Sí        | Solo lectura| Todos (leer) |
  * | supervisor   | No       | Asignados¹  | Asignados    | Abrir/resolver en asignados    | No   | No        | Asignados (editar) | Asignados |
  * | operador     | No       | Asignados¹  | Asignados    | Abrir; resolver solo las suyas | No   | No        | No          | No           |
+ *
+ * Traslados entre campamentos: solo admin, analista SAE y supervisor (RLS + RPC).
  * | censo_rapido | No       | Todos       | No           | No                             | No   | Sí        | Solo lectura| No           |
  *
  * ¹ Mapa: red completa con no asignados atenuados (mismo efecto visual que
@@ -177,6 +179,16 @@ export function rolUsaCentrosAsignados(rol: Rol): boolean {
  */
 export function puedeEditarReportesPasados(usuario: Usuario): boolean {
   return usuario.rol === "admin" || usuario.rol === "analista_sae";
+}
+
+/** Registrar traslados formales entre campamentos (origen → destino). */
+export function puedeTrasladarEntreCentros(rol: Rol): boolean {
+  return rol === "admin" || rol === "analista_sae" || rol === "supervisor";
+}
+
+/** Ver la vista /centros/traslados (wizard o historial). */
+export function puedeVerTraslados(rol: Rol): boolean {
+  return puedeTrasladarEntreCentros(rol) || rol === "autoridad";
 }
 
 /** ¿Puede este usuario editar los datos de un centro concreto? */

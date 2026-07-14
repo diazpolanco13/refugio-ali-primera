@@ -38,8 +38,22 @@ create policy traslados_select on public.traslados
 -- INSERT/UPDATE/DELETE solo vía RPC (SECURITY DEFINER). Sin policies de escritura.
 
 -- ============================================================================
--- 2) Helper: ¿puede escribir en ambos centros?
+-- 2) Helpers de rol y escritura en ambos centros
 -- ============================================================================
+create or replace function public.puede_trasladar_entre_centros()
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  return (select public.mi_rol()) in ('admin', 'analista_sae', 'supervisor');
+end;
+$$;
+
+revoke all on function public.puede_trasladar_entre_centros() from public, anon, authenticated;
+
 create or replace function public.puede_escribir_ambos_centros(
   p_centro_a text,
   p_centro_b text
@@ -54,10 +68,13 @@ declare
   v_rol text := public.mi_rol();
   v_centros text[] := public.mis_centros();
 begin
+  if not public.puede_trasladar_entre_centros() then
+    return false;
+  end if;
   if v_rol in ('admin', 'analista_sae') then
     return true;
   end if;
-  if v_rol in ('supervisor', 'operador')
+  if v_rol = 'supervisor'
      and p_centro_a = any (v_centros)
      and p_centro_b = any (v_centros) then
     return true;
@@ -102,6 +119,10 @@ declare
 begin
   if v_rol is null then
     raise exception 'No autenticado';
+  end if;
+
+  if not public.puede_trasladar_entre_centros() then
+    raise exception 'Sin permiso para registrar traslados entre campamentos';
   end if;
 
   if p_centro_origen is null or p_centro_destino is null then

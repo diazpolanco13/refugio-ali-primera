@@ -6,6 +6,7 @@ import { Maximize2, Minimize2 } from "lucide-react";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { cargarBaseMapaCentros, type ModoMarcadorCentros } from "@/data/preferenciasMapa";
 import type { BaseMapa } from "@/map/estiloMapa";
+import { BASE_MAPA_DEFECTO } from "@/map/estiloMapa";
 import type { ClaveUnidadSebin } from "@/domain/centrosTransitorios";
 import { CentrosMap } from "@/features/centros/CentrosMap";
 import { Button } from "@/components/ui/button";
@@ -105,7 +106,7 @@ export function MapaRedSala({
   idsResaltadosAmbito = null,
 }: Props) {
   const [baseMapa, setBaseMapa] = useState<BaseMapa>(
-    () => cargarBaseMapaCentros() ?? "calles",
+    () => cargarBaseMapaCentros() ?? BASE_MAPA_DEFECTO,
   );
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
   const [modoMarcador, setModoMarcador] = useState<ModoMarcadorCentros>("color");

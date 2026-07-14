@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 interface Props {
   baseMapa: BaseMapa;
   onCambiarBase: (base: BaseMapa) => void;
-  /** Bases visibles en el menú (default: calles, osm, satélite, híbrido, topo). */
+  /** Bases visibles en el menú (default: dark matter, calles claro, osm, híbrido, positron). */
   bases?: BaseMapa[];
   className?: string;
   size?: "sm" | "default";
@@ -19,12 +19,10 @@ interface Props {
 
 const BASES_RESIDENCIA: BaseMapa[] = [
   "dark-matter",
-  "calles",
   "calles-claro",
+  "positron",
   "osm",
-  "satelite",
   "hibrido",
-  "topo",
 ];
 
 export function MenuCapasMapa({
