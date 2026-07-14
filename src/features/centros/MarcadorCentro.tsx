@@ -140,10 +140,7 @@ function Baliza({
             aria-hidden="true"
           />
           <span
-            className={cn(
-              "h-[6px] w-5 rounded-full opacity-75",
-              alertaBase && "marcador-latido-charco",
-            )}
+            className="marcador-latido-charco h-[6px] w-5 rounded-full opacity-75"
             style={{ backgroundColor: colorBase, filter: "blur(2px)" }}
             aria-hidden="true"
           />
@@ -153,11 +150,16 @@ function Baliza({
   );
 }
 
-/** Etiqueta HUD del nombre: mono, mayúsculas trackeadas, acento teal — no un chip genérico. */
+/**
+ * Etiqueta HUD del nombre: mono, mayúsculas trackeadas, acento teal — no un
+ * chip genérico. Opacidad continua vía `--etiqueta-opacity` (CentrosMap.tsx):
+ * aparece progresivamente con el zoom, en el mismo rango que los edificios 3D.
+ */
 function EtiquetaNombre({ nombre }: { nombre: string }) {
   return (
     <span
       className="mt-1 max-w-[9.5rem] truncate rounded-[3px] border border-primary/30 bg-background/90 px-1.5 py-0.5 text-center font-mono text-[9px] font-semibold uppercase leading-tight tracking-wide text-foreground shadow-[0_0_6px_-2px_var(--primary)] backdrop-blur-sm"
+      style={{ opacity: "var(--etiqueta-opacity, 1)", transition: "opacity 150ms linear" }}
       title={nombre}
     >
       {nombre}

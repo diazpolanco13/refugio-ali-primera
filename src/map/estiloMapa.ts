@@ -87,6 +87,15 @@ export function estiloMapaParaBase(base: BaseMapa): string | StyleSpecification 
 }
 
 /**
+ * Rango de zoom del fade-in de los edificios 3D (ver `fill-extrusion-opacity`
+ * abajo): invisibles hasta este punto, opacidad plena al llegar al segundo.
+ * Las etiquetas de nombre de los marcadores (`escalaVista.ts`) usan el mismo
+ * rango para aparecer "en la misma proporción" — una sola fuente de verdad.
+ */
+export const ZOOM_INICIO_FADE_EDIFICIOS_3D = 14;
+export const ZOOM_FIN_FADE_EDIFICIOS_3D = 14.5;
+
+/**
  * Fuente OpenFreeMap + capa fill-extrusion. Visible por defecto.
  * Idempotente. Colores pensados para contrastar sobre Dark Matter.
  */
@@ -127,7 +136,7 @@ export function asegurarEdificios3d(map: MapLibreMap): void {
       source: ID_FUENTE_EDIFICIOS_3D,
       "source-layer": "building",
       type: "fill-extrusion",
-      minzoom: 14,
+      minzoom: ZOOM_INICIO_FADE_EDIFICIOS_3D,
       filter: ["!=", ["get", "hide_3d"], true],
       layout: { visibility: "visible" },
       paint: {
@@ -175,9 +184,9 @@ export function asegurarEdificios3d(map: MapLibreMap): void {
           "interpolate",
           ["linear"],
           ["zoom"],
-          14,
+          ZOOM_INICIO_FADE_EDIFICIOS_3D,
           0,
-          14.5,
+          ZOOM_FIN_FADE_EDIFICIOS_3D,
           0.85,
         ],
       },

@@ -5,6 +5,7 @@ import { toPng } from "html-to-image";
 import {
   calcularReglaEscala,
   debeMostrarEtiquetaNombre,
+  opacidadEtiquetaNombre,
   zoomParaAnchoMetros,
   type ReglaEscala,
 } from "@/map/escalaVista";
@@ -185,8 +186,16 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   function actualizarEscalaVista() {
     const map = mapRef.current;
     if (!map || !listoRef.current) return;
-    setReglaEscala(calcularReglaEscala(map.getZoom(), map.getCenter().lat));
-    const mostrarNombre = debeMostrarEtiquetaNombre(map);
+    const zoom = map.getZoom();
+    setReglaEscala(calcularReglaEscala(zoom, map.getCenter().lat));
+    // Fade continuo vía variable CSS (sin re-renderizar los marcadores en
+    // cada frame de zoom): mismo rango que el fill-extrusion-opacity de los
+    // edificios 3D, para que las etiquetas "aparezcan progresivamente" igual.
+    map.getContainer().style.setProperty(
+      "--etiqueta-opacity",
+      opacidadEtiquetaNombre(zoom).toFixed(3),
+    );
+    const mostrarNombre = debeMostrarEtiquetaNombre(zoom);
     if (mostrarNombre !== cbRef.current.mostrarEtiquetaNombre) {
       cbRef.current.mostrarEtiquetaNombre = mostrarNombre;
       setMostrarEtiquetaNombre(mostrarNombre);
