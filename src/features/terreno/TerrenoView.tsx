@@ -31,6 +31,7 @@ import { AutoridadesTerrenoPanel } from "@/features/terreno/AutoridadesTerrenoPa
 import { CapacidadInstrucciones } from "@/features/terreno/CapacidadInstrucciones";
 import { CapacidadTerrenoPanel } from "@/features/terreno/CapacidadTerrenoPanel";
 import { ContactoAnalistasTerreno } from "@/features/terreno/ContactoAnalistasTerreno";
+import { InstalarAppTerreno } from "@/features/terreno/InstalarAppTerreno";
 import { TerrenoBienvenida } from "@/features/terreno/TerrenoBienvenida";
 import { listarCentrosCenso, obtenerCentroTerreno, type CentroCenso } from "@/data/reposCenso";
 import type { FuncionarioCenso } from "@/data/reposCenso";
@@ -992,6 +993,8 @@ export function TerrenoView() {
           </nav>
         )}
 
+        <InstalarAppTerreno />
+
         {!accesoDenegado && (
           <section
             aria-label="Actualizar aplicación"
@@ -1052,12 +1055,6 @@ export function TerrenoView() {
 
         {!accesoDenegado && centroValido && (
           <ContactoAnalistasTerreno analistas={centro?.analistas_contacto} />
-        )}
-
-        {!accesoDenegado && (
-          <p className="max-w-xs text-center text-xs text-muted-foreground">
-            Guarde esta página en la pantalla de inicio para acceder más rápido durante la jornada.
-          </p>
         )}
 
         <section

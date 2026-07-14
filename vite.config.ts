@@ -38,24 +38,53 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.svg"],
+      includeAssets: [
+        "favicon.svg",
+        "icon.svg",
+        "apple-touch-icon.png",
+        "icon-192.png",
+        "icon-512.png",
+        "icon-512-maskable.png",
+      ],
       manifest: {
+        id: "/",
         name: "Campamentos Transitorios",
         short_name: "Campamentos",
         description:
           "Gestión de campamentos transitorios del Área Metropolitana de Caracas",
-        theme_color: "#0f766e",
-        background_color: "#0b1120",
+        lang: "es",
+        dir: "ltr",
+        // Campo: aterriza en el portal de terreno (el token ?t= ya vive en
+        // localStorage tras el primer escaneo del QR). Escritorio sigue
+        // entrando por / con sesión normal.
+        start_url: "/terreno",
+        scope: "/",
+        theme_color: "#041410",
+        background_color: "#041410",
         display: "standalone",
+        display_override: ["standalone", "browser"],
         orientation: "any",
+        categories: ["productivity", "government"],
         icons: [
-          { src: "icon.svg", sizes: "any", type: "image/svg+xml" },
           {
-            src: "icon.svg",
-            sizes: "any",
-            type: "image/svg+xml",
+            src: "icon-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "icon-512-maskable.png",
+            sizes: "512x512",
+            type: "image/png",
             purpose: "maskable",
           },
+          { src: "icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
         ],
       },
       workbox: {
