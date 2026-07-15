@@ -449,7 +449,7 @@ function SeccionLista({
   tint?: boolean;
 }) {
   return (
-    <View style={[styles.seccion, tint ? { backgroundColor: fondoSuave } : null]} wrap>
+    <View style={tint ? [styles.seccion, { backgroundColor: fondoSuave }] : styles.seccion} wrap>
       <View style={styles.seccionHeader}>
         <Text style={styles.seccionTitulo}>{titulo}</Text>
         <Text style={styles.seccionConteo}>
@@ -482,9 +482,11 @@ function KpiCard({
   last?: boolean;
 }) {
   return (
-    <View style={[styles.kpiCard, last ? styles.kpiCardLast : null]}>
+    <View style={last ? [styles.kpiCard, styles.kpiCardLast] : styles.kpiCard}>
       <Text style={styles.kpiLabel}>{label}</Text>
-      <Text style={[styles.kpiValue, accent ? { color: accent } : null]}>{n(value)}</Text>
+      <Text style={accent ? [styles.kpiValue, { color: accent }] : styles.kpiValue}>
+        {n(value)}
+      </Text>
     </View>
   );
 }

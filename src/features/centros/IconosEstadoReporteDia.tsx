@@ -210,6 +210,7 @@ export function IconosEstadoReporteDia({
       centroId,
       centroNombre: "",
       nro: null,
+      unidadSebin: "",
       registrados: progreso.registradosRefugiados,
       familias: progreso.registradosFamilias,
       metaRefugiados: progreso.metaRefugiados,
