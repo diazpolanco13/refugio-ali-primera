@@ -141,6 +141,33 @@ export async function subirFotoInfraestructura(
 /** Bucket privado para fotos de residencias afectadas (URLs firmadas). */
 export const BUCKET_RESIDENCIAS = "residencias-fotos";
 
+/** Bucket público para logos de cuerpos / unidades de supervisión. */
+export const BUCKET_LOGOS_CATALOGO = "logos-catalogo";
+
+/**
+ * Sube un logo de catálogo (cuerpo o unidad) y devuelve la URL pública.
+ * Usa el cliente autenticado (`supabaseClient`) porque el bucket exige rol admin/analista.
+ */
+export async function subirLogoCatalogo(
+  tipo: "cuerpo" | "unidad",
+  clave: string,
+  file: File,
+): Promise<string> {
+  const { supabase } = await import("./supabaseClient");
+  const blob = await comprimirImagen(file, 256, 0.9);
+  const path = `${tipo}/${clave}/${Date.now()}.jpg`;
+
+  const { error } = await supabase.storage.from(BUCKET_LOGOS_CATALOGO).upload(path, blob, {
+    contentType: "image/jpeg",
+    upsert: true,
+    cacheControl: "3600",
+  });
+  if (error) throw new Error(error.message);
+
+  const { data } = supabase.storage.from(BUCKET_LOGOS_CATALOGO).getPublicUrl(path);
+  return data.publicUrl;
+}
+
 /**
  * Sube (comprimida) foto de refugiado al bucket privado.
  * Path: `{refugiadoId}/{timestamp}.jpg`

@@ -1,4 +1,4 @@
-// Asignación operativa del campamento: cuerpo → unidad SEBIN → revista → analistas SAE.
+// Asignación operativa del campamento: cuerpo → unidad de supervisión → revista → analistas SAE.
 // Fuente de verdad: `cuerpo` + `supervision.{unidad_sebin,supervisor_sebin,analistas_sae}`.
 
 import { useEffect, useMemo, useState } from "react";
@@ -9,9 +9,9 @@ import {
   useAnalistasSae,
 } from "@/data/useAnalistasSae";
 import { useSupervisoresSebin } from "@/data/useSupervisoresSebin";
-import { useCatalogoUnidadesSebinActivas } from "@/data/useUnidadesSebin";
+import { useCatalogoCuerposActivos } from "@/data/useCuerposPoliciales";
+import { useCatalogoUnidadesPorCuerpo } from "@/data/useUnidadesSebin";
 import {
-  CATALOGO_CUERPOS,
   META_CUERPO,
   normalizarCentro,
   normalizarCuerpo,
@@ -70,18 +70,24 @@ export function AsignacionOperativaCampos({
   onSupervisionChange: (patch: Partial<SupervisionCentro>) => void;
   disabled?: boolean;
 }) {
-  const catalogoUnidades = useCatalogoUnidadesSebinActivas();
+  const catalogoCuerpos = useCatalogoCuerposActivos();
+  const claveCuerpo = normalizarCuerpo(cuerpo);
+  const catalogoUnidades = useCatalogoUnidadesPorCuerpo(
+    claveCuerpo === "sin_asignar" ? null : claveCuerpo,
+  );
   const { supervisores, cargando: cargandoSupervisores } = useSupervisoresSebin();
   const analistasSae = useAnalistasSae();
   const supervisionN = normalizarSupervision(supervision);
 
   const opcionesCuerpo: OpcionAsignacion[] = useMemo(
     () =>
-      CATALOGO_CUERPOS.filter((c) => c.clave !== "sin_asignar").map((c) => ({
-        valor: c.clave,
-        etiqueta: c.label,
-      })),
-    [],
+      catalogoCuerpos
+        .filter((c) => c.clave !== "sin_asignar")
+        .map((c) => ({
+          valor: c.clave,
+          etiqueta: c.label,
+        })),
+    [catalogoCuerpos],
   );
 
   const opcionesUnidad: OpcionAsignacion[] = useMemo(
@@ -126,8 +132,11 @@ export function AsignacionOperativaCampos({
     [analistasSae],
   );
 
-  const claveCuerpo = normalizarCuerpo(cuerpo);
   const claveUnidad = normalizarUnidadSebin(supervisionN.unidad_sebin);
+  const unidadPerteneceAlCuerpo = useMemo(() => {
+    if (claveUnidad === "sin_asignar") return true;
+    return catalogoUnidades.some((u) => u.clave === claveUnidad);
+  }, [catalogoUnidades, claveUnidad]);
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-muted/15">
@@ -155,14 +164,21 @@ export function AsignacionOperativaCampos({
           />
         </CampoCompacto>
 
-        <CampoCompacto n={2} label="Unidad interna SEBIN">
+        <CampoCompacto n={2} label="Unidad de supervisión">
           <SelectorAsignacionBusqueda
             modo="unico"
             opciones={opcionesUnidad}
-            seleccion={claveUnidad === "sin_asignar" ? [] : [claveUnidad]}
-            disabled={disabled}
-            placeholder="Unidad"
+            seleccion={
+              claveUnidad === "sin_asignar" || !unidadPerteneceAlCuerpo
+                ? []
+                : [claveUnidad]
+            }
+            disabled={disabled || claveCuerpo === "sin_asignar"}
+            placeholder={
+              claveCuerpo === "sin_asignar" ? "Elegí cuerpo primero" : "Unidad"
+            }
             buscarPlaceholder="Buscar unidad…"
+            vacioMensaje="Sin unidades para este cuerpo."
             onCambiar={(vals) => {
               const clave = (vals[0] ?? "sin_asignar") as ClaveUnidadSebin;
               const meta = catalogoUnidades.find((u) => u.clave === clave);
@@ -283,7 +299,15 @@ export function AsignacionOperativaCentro({
         cuerpo={c.cuerpo ?? ""}
         supervision={supervision}
         disabled={!puedeEditar || guardando}
-        onCuerpoChange={(cuerpo) => void persistir({ cuerpo })}
+        onCuerpoChange={(cuerpo) =>
+          void persistir({
+            cuerpo,
+            supervision: normalizarSupervision({
+              ...supervision,
+              unidad_sebin: "",
+            }),
+          })
+        }
         onSupervisionChange={(patch) =>
           void persistir({
             supervision: normalizarSupervision({ ...supervision, ...patch }),

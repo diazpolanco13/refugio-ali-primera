@@ -16,6 +16,10 @@ export interface MetaUnidadSebin {
   valorDb: string;
   /** Color del anillo del marcador. */
   color: string;
+  /** Cuerpo al que pertenece (`null` = global, p. ej. sin_asignar). */
+  cuerpoClave?: string | null;
+  /** Logo opcional (path o URL Storage). */
+  logoUrl?: string | null;
   /** Orden de presentación (menor = primero). */
   orden?: number;
   /** Si false, no aparece en selectores nuevos (sigue resolviendo datos viejos). */
@@ -28,28 +32,46 @@ export interface UnidadSebinFila {
   label: string;
   valor_db: string;
   color: string;
+  cuerpo_clave?: string | null;
+  logo_url?: string | null;
   orden: number;
   activo: boolean;
   updated_at?: number;
   updated_by?: string | null;
 }
 
-/** Seed / fallback si aún no cargó Supabase. */
+/** Seed / fallback si aún no cargó Supabase (históricamente unidades SEBIN). */
 export const CATALOGO_UNIDADES_SEBIN_FALLBACK: MetaUnidadSebin[] = [
-  { clave: "dir_reg", label: "DIR. REG", valorDb: "DIR. REG - SEBIN", color: "#2563eb", orden: 10 },
+  {
+    clave: "dir_reg",
+    label: "DIR. REG",
+    valorDb: "DIR. REG - SEBIN",
+    color: "#2563eb",
+    cuerpoClave: "sebin",
+    orden: 10,
+  },
   {
     clave: "dir_educacion",
     label: "DIR. EDUCACIÓN",
     valorDb: "DIR. EDUCACION - SEBIN",
     color: "#0891b2",
+    cuerpoClave: "sebin",
     orden: 20,
   },
-  { clave: "dai", label: "DAI", valorDb: "DAI - SEBIN", color: "#0d9488", orden: 30 },
+  {
+    clave: "dai",
+    label: "DAI",
+    valorDb: "DAI - SEBIN",
+    color: "#0d9488",
+    cuerpoClave: "sebin",
+    orden: 30,
+  },
   {
     clave: "int_financ",
     label: "INT. FINANC.",
     valorDb: "INT. FINANC. - SEBIN",
     color: "#059669",
+    cuerpoClave: "sebin",
     orden: 40,
   },
   {
@@ -57,6 +79,7 @@ export const CATALOGO_UNIDADES_SEBIN_FALLBACK: MetaUnidadSebin[] = [
     label: "DIR. SECRETARÍA",
     valorDb: "DIR. SECRETARIA - SEBIN",
     color: "#ca8a04",
+    cuerpoClave: "sebin",
     orden: 50,
   },
   {
@@ -64,6 +87,7 @@ export const CATALOGO_UNIDADES_SEBIN_FALLBACK: MetaUnidadSebin[] = [
     label: "DIR. PATRULLAJE",
     valorDb: "DIR. PATRULLAJE - SEBIN",
     color: "#d97706",
+    cuerpoClave: "sebin",
     orden: 60,
   },
   {
@@ -71,6 +95,7 @@ export const CATALOGO_UNIDADES_SEBIN_FALLBACK: MetaUnidadSebin[] = [
     label: "DIR. CONTROL ADM.",
     valorDb: "DIR. CONTROL ADM. - SEBIN",
     color: "#ea580c",
+    cuerpoClave: "sebin",
     orden: 70,
   },
   {
@@ -78,6 +103,7 @@ export const CATALOGO_UNIDADES_SEBIN_FALLBACK: MetaUnidadSebin[] = [
     label: "DIR. CIBER INT.",
     valorDb: "DIR. CIBER INT. - SEBIN",
     color: "#7c3aed",
+    cuerpoClave: "sebin",
     orden: 80,
   },
   {
@@ -85,6 +111,7 @@ export const CATALOGO_UNIDADES_SEBIN_FALLBACK: MetaUnidadSebin[] = [
     label: "DIR. CONTRA INT.",
     valorDb: "DIR. CONTRA INT. - SEBIN",
     color: "#db2777",
+    cuerpoClave: "sebin",
     orden: 90,
   },
   {
@@ -92,17 +119,33 @@ export const CATALOGO_UNIDADES_SEBIN_FALLBACK: MetaUnidadSebin[] = [
     label: "DIR. CONTRA INT. (ORTEGA)",
     valorDb: "DIR. CONTRA INT. (ORTEGA) - SEBIN",
     color: "#e11d48",
+    cuerpoClave: "sebin",
     orden: 100,
   },
-  { clave: "dir_int", label: "DIR. INT.", valorDb: "DIR. INT. - SEBIN", color: "#4f46e5", orden: 110 },
+  {
+    clave: "dir_int",
+    label: "DIR. INT.",
+    valorDb: "DIR. INT. - SEBIN",
+    color: "#4f46e5",
+    cuerpoClave: "sebin",
+    orden: 110,
+  },
   {
     clave: "control_educativo",
     label: "CONTROL EDUCATIVO",
     valorDb: "CONTROL EDUCATIVO - SEBIN",
     color: "#65a30d",
+    cuerpoClave: "sebin",
     orden: 120,
   },
-  { clave: "sin_asignar", label: "Sin unidad", valorDb: "", color: "#64748b", orden: 999 },
+  {
+    clave: "sin_asignar",
+    label: "Sin unidad",
+    valorDb: "",
+    color: "#64748b",
+    cuerpoClave: null,
+    orden: 999,
+  },
 ];
 
 /** @deprecated Usar `getCatalogoUnidadesSebin()`. Se mantiene por compatibilidad. */
@@ -113,6 +156,8 @@ const META_SIN_ASIGNAR: MetaUnidadSebin = {
   label: "Sin unidad",
   valorDb: "",
   color: "#64748b",
+  cuerpoClave: null,
+  logoUrl: null,
   orden: 999,
   activo: true,
 };
@@ -136,6 +181,22 @@ export function getCatalogoUnidadesSebinActivas(): MetaUnidadSebin[] {
     return [...activas, META_SIN_ASIGNAR];
   }
   return activas;
+}
+
+/**
+ * Unidades activas de un cuerpo (+ globales / sin_asignar).
+ * Si `cuerpoClave` es vacío o `sin_asignar`, solo globales.
+ */
+export function getCatalogoUnidadesPorCuerpo(
+  cuerpoClave: string | null | undefined,
+): MetaUnidadSebin[] {
+  const activas = getCatalogoUnidadesSebinActivas();
+  if (!cuerpoClave || cuerpoClave === "sin_asignar") {
+    return activas.filter((u) => !u.cuerpoClave || u.clave === "sin_asignar");
+  }
+  return activas.filter(
+    (u) => u.clave === "sin_asignar" || !u.cuerpoClave || u.cuerpoClave === cuerpoClave,
+  );
 }
 
 /** Actualiza el caché en memoria (lo llama el hook tras leer Supabase). */
@@ -164,6 +225,8 @@ export function filaAMetaUnidad(f: UnidadSebinFila): MetaUnidadSebin {
     label: f.label,
     valorDb: f.valor_db ?? "",
     color: f.color || "#64748b",
+    cuerpoClave: f.cuerpo_clave ?? null,
+    logoUrl: f.logo_url?.trim() ? f.logo_url.trim() : null,
     orden: f.orden ?? 100,
     activo: f.activo !== false,
   };

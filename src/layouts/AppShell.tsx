@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import type { Sesion } from "@/data/authSupabase";
+import { useBootstrapCuerposPoliciales } from "@/data/useCuerposPoliciales";
 import { useBootstrapUnidadesSebin } from "@/data/useUnidadesSebin";
 import { MapaCentrosProvider } from "@/contexts/MapaCentrosContext";
 import { PathnameNavegacionProvider } from "@/contexts/PathnameNavegacionContext";
@@ -18,6 +19,7 @@ interface Props {
 }
 
 function AppShellInner({ sesion }: Props) {
+  useBootstrapCuerposPoliciales();
   useBootstrapUnidadesSebin();
 
   return (

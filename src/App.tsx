@@ -42,8 +42,8 @@ const importIncidenciasRefugiadosView = () =>
 const importDenunciasEliminadasView = () =>
   import("./features/incidencias/DenunciasEliminadasView");
 const importGestionUsuarios = () => import("./features/usuarios/GestionUsuarios");
-const importGestionUnidadesSebin = () =>
-  import("./features/config/GestionUnidadesSebin");
+const importGestionCatalogosOperativos = () =>
+  import("./features/config/GestionCatalogosOperativos");
 const importPreferenciasCuentaView = () =>
   import("./features/config/PreferenciasCuentaView");
 const importLogsView = () => import("./features/logs/LogsView");
@@ -92,8 +92,10 @@ const HojaQrsTerrenoView = lazy(() =>
 const GestionUsuarios = lazy(() =>
   importGestionUsuarios().then((m) => ({ default: m.GestionUsuarios })),
 );
-const GestionUnidadesSebin = lazy(() =>
-  importGestionUnidadesSebin().then((m) => ({ default: m.GestionUnidadesSebin })),
+const GestionCatalogosOperativos = lazy(() =>
+  importGestionCatalogosOperativos().then((m) => ({
+    default: m.GestionCatalogosOperativos,
+  })),
 );
 const PreferenciasCuentaView = lazy(() =>
   importPreferenciasCuentaView().then((m) => ({ default: m.PreferenciasCuentaView })),
@@ -172,7 +174,10 @@ function precargarRutaInicial(pathname: string): Promise<unknown> {
   if (pathname.startsWith("/incidencias"))
     return Promise.all([importIncidenciasLayout(), importIncidenciasRedirect()]);
   if (pathname.startsWith("/usuarios")) return importGestionUsuarios();
-  if (pathname.startsWith("/config/unidades-sebin")) return importGestionUnidadesSebin();
+  if (pathname.startsWith("/config/catalogos-operativos"))
+    return importGestionCatalogosOperativos();
+  if (pathname.startsWith("/config/unidades-sebin"))
+    return importGestionCatalogosOperativos();
   if (pathname.startsWith("/config/perfil")) return importPreferenciasCuentaView();
   if (pathname.startsWith("/logs")) return importLogsView();
   return importCentrosView();
@@ -454,12 +459,16 @@ export function App() {
             }
           />
           <Route
-            path="/config/unidades-sebin"
+            path="/config/catalogos-operativos"
             element={
               <RutaConSkeleton fallback={<GestionSkeleton variante="unidades" />}>
-                <GestionUnidadesSebin sesion={sesion} />
+                <GestionCatalogosOperativos sesion={sesion} />
               </RutaConSkeleton>
             }
+          />
+          <Route
+            path="/config/unidades-sebin"
+            element={<Navigate to="/config/catalogos-operativos" replace />}
           />
           <Route
             path="/logs"
@@ -479,7 +488,7 @@ export function App() {
           />
           <Route
             path="/config/sistema"
-            element={<Navigate to="/config/unidades-sebin" replace />}
+            element={<Navigate to="/config/catalogos-operativos" replace />}
           />
           <Route path="*" element={<Navigate to="/centros/mapa" replace />} />
         </Route>

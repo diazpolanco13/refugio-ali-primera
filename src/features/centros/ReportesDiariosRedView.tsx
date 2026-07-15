@@ -45,7 +45,6 @@ import { claveDia } from "@/data/reposSupabase";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import {
   centrosDeProduccion,
-  CATALOGO_CUERPOS,
   idCentroEsPrueba,
   META_MARCADOR_OCUPACION,
   marcadorOcupacionCentro,
@@ -129,6 +128,7 @@ import {
   etiquetaAnalistaSae,
   useAnalistasSae,
 } from "@/data/useAnalistasSae";
+import { useCatalogoCuerposActivos } from "@/data/useCuerposPoliciales";
 import { useCatalogoUnidadesSebinActivas } from "@/data/useUnidadesSebin";
 import { useSupervisoresSebin } from "@/data/useSupervisoresSebin";
 import {
@@ -769,6 +769,7 @@ export function ReportesDiariosRedView() {
 
   const analistasSae = useAnalistasSae();
   const catalogoUnidades = useCatalogoUnidadesSebinActivas();
+  const catalogoCuerpos = useCatalogoCuerposActivos();
   const { supervisores } = useSupervisoresSebin();
 
   const reportes = useReportesCentros({ desde });
@@ -964,15 +965,17 @@ export function ReportesDiariosRedView() {
       if (arr) arr.push(centro);
       else m.set(clave, [centro]);
     }
-    const opciones: OpcionFiltroMulti[] = CATALOGO_CUERPOS.filter(
-      (c) => c.clave !== VALOR_SIN_ASIGNAR && (m.get(c.clave)?.length ?? 0) > 0,
-    ).map((c) => ({
-      valor: c.clave,
-      etiqueta: c.label,
-      cantidad: totalUnidadesConteo(m.get(c.clave) ?? []),
-    }));
+    const opciones: OpcionFiltroMulti[] = catalogoCuerpos
+      .filter(
+        (c) => c.clave !== VALOR_SIN_ASIGNAR && (m.get(c.clave)?.length ?? 0) > 0,
+      )
+      .map((c) => ({
+        valor: c.clave,
+        etiqueta: c.label,
+        cantidad: totalUnidadesConteo(m.get(c.clave) ?? []),
+      }));
     return { opciones, cantidadSinAsignar: totalUnidadesConteo(sinAsignar) };
-  }, [centrosParteRed]);
+  }, [centrosParteRed, catalogoCuerpos]);
 
   const opcionesUnidad = useMemo(() => {
     const m = new Map<string, CentroTransitorio[]>();
@@ -991,7 +994,9 @@ export function ReportesDiariosRedView() {
       .filter((u) => u.clave !== VALOR_SIN_ASIGNAR && (m.get(u.clave)?.length ?? 0) > 0)
       .map((u) => ({
         valor: u.clave,
-        etiqueta: u.label,
+        etiqueta: u.cuerpoClave
+          ? `${u.label} (${catalogoCuerpos.find((c) => c.clave === u.cuerpoClave)?.label ?? u.cuerpoClave})`
+          : u.label,
         cantidad: totalUnidadesConteo(m.get(u.clave) ?? []),
         indicador: (
           <span
@@ -1010,7 +1015,7 @@ export function ReportesDiariosRedView() {
       });
     }
     return { opciones, cantidadSinAsignar: totalUnidadesConteo(sinAsignar) };
-  }, [centrosParteRed, catalogoUnidades]);
+  }, [centrosParteRed, catalogoUnidades, catalogoCuerpos]);
 
   const opcionesRevista = useMemo(() => {
     const porValor = new Map<string, { etiqueta: string; centros: CentroTransitorio[] }>();
@@ -1415,7 +1420,7 @@ export function ReportesDiariosRedView() {
         cantidadSinAsignar={opcionesCuerpo.cantidadSinAsignar}
       />
       <FiltroMultiBusqueda
-        placeholder="Unidad SEBIN"
+        placeholder="Unidad de supervisión"
         buscarPlaceholder="Buscar unidad…"
         opciones={opcionesUnidad.opciones}
         seleccion={filtroUnidades}

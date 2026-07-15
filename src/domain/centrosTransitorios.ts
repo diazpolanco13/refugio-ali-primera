@@ -24,163 +24,25 @@ import {
   type ClaveUnidadSebin,
   type MetaUnidadSebin,
 } from "./unidadesSebin";
+import type { ClaveCuerpo, MetaCuerpo } from "./cuerposPoliciales";
 
-export type { ClaveUnidadSebin, MetaUnidadSebin };
+export type { ClaveUnidadSebin, MetaUnidadSebin, ClaveCuerpo, MetaCuerpo };
 export {
   CATALOGO_UNIDADES_SEBIN,
   LOGO_SEBIN,
   metaUnidadSebinDe,
   normalizarUnidadSebin,
 } from "./unidadesSebin";
-
-/** Clave canónica del cuerpo de seguridad/militar responsable de un centro. */
-export type ClaveCuerpo =
-  | "gnb"
-  | "sebin"
-  | "dgcim"
-  | "cicpc"
-  | "pnb"
-  | "poli_baruta"
-  | "poli_caracas"
-  | "poli_chacao"
-  | "poli_hatillo"
-  | "poli_sucre"
-  | "poli_miranda"
-  | "psuv"
-  | "min_educacion"
-  | "alcaldia_ccs"
-  | "milicia"
-  | "gbp"
-  | "armada"
-  | "ejercito"
-  | "sin_asignar";
-
-export interface MetaCuerpo {
-  clave: ClaveCuerpo;
-  label: string;
-  icono: string;
-  color: string;
-  /** Logo/escudo oficial (WebP 96×96 en `public/logos-cuerpos/`). `null` si no hay uno. */
-  logo: string | null;
-}
-
-/**
- * Catálogo de cuerpos con color propio (para el anillo del marcador) y logo/
- * escudo oficial para identificarlos en el mapa. GNB/SEBIN/DGCIM/CICPC vienen
- * de Wikimedia Commons; los escudos de las policías (PNB y las municipales)
- * fueron provistos directamente por el equipo de campo.
- */
-export const CATALOGO_CUERPOS: MetaCuerpo[] = [
-  { clave: "gnb", label: "GNB", icono: "🪖", color: "#4d7c0f", logo: "/logos-cuerpos/gnb.webp" },
-  { clave: "sebin", label: "SEBIN", icono: "🛡️", color: "#1e3a8a", logo: "/logos-cuerpos/sebin.webp" },
-  { clave: "dgcim", label: "DGCIM", icono: "🎖️", color: "#334155", logo: "/logos-cuerpos/dgcim.webp" },
-  { clave: "cicpc", label: "CICPC", icono: "🔍", color: "#7c3aed", logo: "/logos-cuerpos/cicpc.webp" },
-  { clave: "pnb", label: "PNB", icono: "👮", color: "#1d4ed8", logo: "/logos-cuerpos/pnb.webp" },
-  { clave: "poli_baruta", label: "Poli Baruta", icono: "🚓", color: "#0ea5e9", logo: "/logos-cuerpos/poli_baruta.webp" },
-  { clave: "poli_caracas", label: "PoliCaracas", icono: "🚔", color: "#059669", logo: "/logos-cuerpos/poli_caracas.webp" },
-  { clave: "poli_chacao", label: "PoliChacao", icono: "🚨", color: "#d97706", logo: "/logos-cuerpos/poli_chacao.webp" },
-  { clave: "poli_hatillo", label: "Poli El Hatillo", icono: "🛵", color: "#db2777", logo: "/logos-cuerpos/poli_hatillo.webp" },
-  { clave: "poli_sucre", label: "Poli Sucre", icono: "🚦", color: "#ea580c", logo: "/logos-cuerpos/poli_sucre.webp" },
-  { clave: "poli_miranda", label: "Poli Miranda", icono: "🏍️", color: "#65a30d", logo: "/logos-cuerpos/poli_miranda.webp" },
-  { clave: "psuv", label: "PSUV", icono: "🌹", color: "#dc2626", logo: "/logos-cuerpos/psuv.webp" },
-  {
-    clave: "min_educacion",
-    label: "Min Educación",
-    icono: "📚",
-    color: "#2563eb",
-    logo: "/logos-cuerpos/min_educacion.webp",
-  },
-  {
-    clave: "alcaldia_ccs",
-    label: "Alcaldía de Caracas",
-    icono: "🏛️",
-    color: "#ca8a04",
-    logo: "/logos-cuerpos/alcaldia_ccs.webp",
-  },
-  {
-    clave: "milicia",
-    label: "Milicia",
-    icono: "⚔️",
-    color: "#15803d",
-    logo: "/logos-cuerpos/milicia.webp",
-  },
-  {
-    clave: "gbp",
-    label: "Guardia del Pueblo",
-    icono: "🛡️",
-    color: "#b91c1c",
-    logo: "/logos-cuerpos/gbp.webp",
-  },
-  {
-    clave: "armada",
-    label: "Armada Bolivariana",
-    icono: "⚓",
-    color: "#0369a1",
-    logo: null,
-  },
-  {
-    clave: "ejercito",
-    label: "Ejército",
-    icono: "🎖️",
-    color: "#166534",
-    logo: null,
-  },
-  { clave: "sin_asignar", label: "Sin asignar", icono: "❔", color: "#64748b", logo: null },
-];
-
-export const META_CUERPO: Record<ClaveCuerpo, MetaCuerpo> = Object.fromEntries(
-  CATALOGO_CUERPOS.map((c) => [c.clave, c]),
-) as Record<ClaveCuerpo, MetaCuerpo>;
-
-/**
- * Normaliza el texto crudo del cuerpo de seguridad (con variantes de
- * espacios/mayúsculas) a una clave canónica. Es defensiva: acepta
- * `undefined`/`null`/`""` (centros cargados sin ese campo, p. ej. desde el
- * Excel 03JUL26) y devuelve `"sin_asignar"` en esos casos.
- */
-export function normalizarCuerpo(raw: string | undefined | null): ClaveCuerpo {
-  if (!raw) return "sin_asignar";
-  const limpio = raw.trim().toLowerCase().replace(/\s+/g, "");
-  const mapa: Record<string, ClaveCuerpo> = {
-    guardianacionalbolivariana: "gnb",
-    gnb: "gnb",
-    sebin: "sebin",
-    dgcim: "dgcim",
-    cicpc: "cicpc",
-    pnb: "pnb",
-    polibaruta: "poli_baruta",
-    policaracas: "poli_caracas",
-    polichacao: "poli_chacao",
-    polihatillo: "poli_hatillo",
-    polielhatillo: "poli_hatillo",
-    polisucre: "poli_sucre",
-    polimiranda: "poli_miranda",
-    psuv: "psuv",
-    mineducacion: "min_educacion",
-    ministeriodeducacion: "min_educacion",
-    btssantateresa: "min_educacion",
-    bts: "min_educacion",
-    alcaldiadecaracas: "alcaldia_ccs",
-    alcaldiadeccs: "alcaldia_ccs",
-    alcaldiaccs: "alcaldia_ccs",
-    milicia: "milicia",
-    miliciabolivariana: "milicia",
-    gbp: "gbp",
-    guardiadelpueblo: "gbp",
-    guardiabolivarianadelpueblo: "gbp",
-    armada: "armada",
-    armadabolivariana: "armada",
-    ejercito: "ejercito",
-    ejercitobolivariano: "ejercito",
-    sinasignar: "sin_asignar",
-  };
-  return mapa[limpio] ?? "sin_asignar";
-}
-
-/** Devuelve la metadata (color/ícono/label) del cuerpo a partir del texto crudo del dato. */
-export function metaCuerpoDe(raw: string | undefined | null): MetaCuerpo {
-  return META_CUERPO[normalizarCuerpo(raw)];
-}
+export {
+  CATALOGO_CUERPOS,
+  CATALOGO_CUERPOS_FALLBACK,
+  META_CUERPO,
+  getCatalogoCuerpos,
+  getCatalogoCuerposActivos,
+  metaCuerpoDe,
+  normalizarCuerpo,
+  slugCuerpo,
+} from "./cuerposPoliciales";
 
 /** Estado operativo del centro (semáforo de gestión). */
 export type EstadoCentro = "preparacion" | "operativo" | "saturado" | "cerrado";

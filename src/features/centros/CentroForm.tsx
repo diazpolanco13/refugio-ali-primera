@@ -680,7 +680,10 @@ export function CentroForm({
               cuerpo={cuerpo}
               supervision={supervision}
               disabled={soloLectura}
-              onCuerpoChange={setCuerpo}
+              onCuerpoChange={(nuevo) => {
+                setCuerpo(nuevo);
+                setSupervision((prev) => ({ ...prev, unidad_sebin: "" }));
+              }}
               onSupervisionChange={(patch) =>
                 setSupervision((prev) => ({ ...prev, ...patch }))
               }

@@ -7,6 +7,7 @@ import { registrarHistorial } from "./historial";
 import { supabase } from "./supabaseClient";
 import {
   filaAMetaUnidad,
+  getCatalogoUnidadesPorCuerpo,
   getCatalogoUnidadesSebin,
   getCatalogoUnidadesSebinActivas,
   setCatalogoUnidadesSebin,
@@ -34,10 +35,23 @@ export function useCatalogoUnidadesSebinActivas(): MetaUnidadSebin[] {
   return useMemo(() => getCatalogoUnidadesSebinActivas(), [todo]);
 }
 
+/** Unidades activas filtradas por cuerpo (+ globales). */
+export function useCatalogoUnidadesPorCuerpo(
+  cuerpoClave: string | null | undefined,
+): MetaUnidadSebin[] {
+  const todo = useCatalogoUnidadesSebin();
+  return useMemo(
+    () => getCatalogoUnidadesPorCuerpo(cuerpoClave),
+    [todo, cuerpoClave],
+  );
+}
+
 async function cargarDesdeSupabase(): Promise<void> {
   const { data, error } = await supabase
     .from("unidades_sebin")
-    .select("clave, label, valor_db, color, orden, activo, updated_at, updated_by")
+    .select(
+      "clave, label, valor_db, color, cuerpo_clave, logo_url, orden, activo, updated_at, updated_by",
+    )
     .order("orden", { ascending: true });
   if (error) {
     console.warn("[useUnidadesSebin] no se pudo cargar el catálogo:", error.message);
@@ -81,6 +95,8 @@ export interface UnidadSebinInput {
   label: string;
   valor_db: string;
   color: string;
+  cuerpo_clave: string | null;
+  logo_url: string | null;
   orden: number;
   activo: boolean;
 }
@@ -109,11 +125,17 @@ export function useGestionUnidadesSebin() {
 
   async function guardar(input: UnidadSebinInput, esNueva: boolean): Promise<void> {
     const usuario = getSesion()?.user.username ?? "sistema";
+    const valorAnterior = esNueva
+      ? null
+      : (unidades.find((u) => u.clave === input.clave.trim())?.valorDb ?? null);
     const fila = {
       clave: input.clave.trim(),
       label: input.label.trim(),
       valor_db: input.valor_db.trim(),
       color: input.color.trim() || "#64748b",
+      cuerpo_clave:
+        input.clave.trim() === "sin_asignar" ? null : input.cuerpo_clave?.trim() || null,
+      logo_url: input.logo_url?.trim() || null,
       orden: input.orden,
       activo: input.activo,
       updated_at: Date.now(),
@@ -132,6 +154,8 @@ export function useGestionUnidadesSebin() {
           label: fila.label,
           valor_db: fila.valor_db,
           color: fila.color,
+          cuerpo_clave: fila.cuerpo_clave,
+          logo_url: fila.logo_url,
           orden: fila.orden,
           activo: fila.activo,
           updated_at: fila.updated_at,
@@ -142,6 +166,15 @@ export function useGestionUnidadesSebin() {
       registrarHistorial("editar_unidad_sebin", "unidades_sebin", fila.clave, {
         label: fila.label,
       });
+      if (valorAnterior && valorAnterior !== fila.valor_db) {
+        const { error: remapErr } = await supabase.rpc("remapear_unidad_sebin_en_centros", {
+          p_valor_antiguo: valorAnterior,
+          p_valor_nuevo: fila.valor_db,
+        });
+        if (remapErr) {
+          console.warn("[useUnidadesSebin] remapear unidad:", remapErr.message);
+        }
+      }
     }
     await cargarDesdeSupabase();
   }

@@ -180,8 +180,12 @@ export function migasPanDeRuta(
     return [INICIO, { label: "Gestión de usuarios" }];
   }
 
-  if (pathname === "/config/unidades-sebin" || pathname === "/config/sistema") {
-    return [INICIO, { label: "Unidades SEBIN" }];
+  if (
+    pathname === "/config/catalogos-operativos" ||
+    pathname === "/config/unidades-sebin" ||
+    pathname === "/config/sistema"
+  ) {
+    return [INICIO, { label: "Cuerpos y unidades" }];
   }
 
   if (pathname === "/logs") {

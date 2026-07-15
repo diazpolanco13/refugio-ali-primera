@@ -163,8 +163,14 @@ export function puedeCrearCentros(rol: Rol): boolean {
 }
 
 /** Catálogo de unidades internas SEBIN (crear/editar/eliminar). */
-export function puedeGestionarUnidadesSebin(rol: Rol): boolean {
+/** Puede administrar catálogos operativos (cuerpos + unidades de supervisión). */
+export function puedeGestionarCatalogosOperativos(rol: Rol): boolean {
   return rol === "admin" || rol === "analista_sae";
+}
+
+/** @deprecated Usar `puedeGestionarCatalogosOperativos`. */
+export function puedeGestionarUnidadesSebin(rol: Rol): boolean {
+  return puedeGestionarCatalogosOperativos(rol);
 }
 
 /** Rol con centros asignados como ámbito operativo o de monitoreo. */

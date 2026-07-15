@@ -22,7 +22,7 @@ import {
 import type { Sesion } from "@/data/authSupabase";
 import {
   puedeEditarCuentaPropia,
-  puedeGestionarUnidadesSebin,
+  puedeGestionarCatalogosOperativos,
   puedeGestionarUsuarios,
   puedeVerBuzonCentro,
   puedeVerCensoCentro,
@@ -345,7 +345,7 @@ function NavContenido({ sesion }: Props) {
   const esCensoRapido = esRolCensoRapido(sesion.user.rol);
   const esTerreno = esRolTerreno(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
-  const gestionaUnidades = puedeGestionarUnidadesSebin(sesion.user.rol);
+  const gestionaCatalogos = puedeGestionarCatalogosOperativos(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
   const vePreferencias = puedeEditarCuentaPropia(sesion.user);
   const vePapeleraDenuncias = puedeVerPapeleraDenuncias(sesion.user.rol);
@@ -507,7 +507,7 @@ function NavContenido({ sesion }: Props) {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      {(esAdmin || gestionaUnidades || veLogs || vePreferencias) && (
+      {(esAdmin || gestionaCatalogos || veLogs || vePreferencias) && (
         <SidebarGroup>
           <SidebarGroupLabel>Configuración</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -520,12 +520,12 @@ function NavContenido({ sesion }: Props) {
                   activo={rutaActiva(pathname, "/usuarios")}
                 />
               )}
-              {gestionaUnidades && (
+              {gestionaCatalogos && (
                 <ItemMenu
-                  to="/config/unidades-sebin"
+                  to="/config/catalogos-operativos"
                   icono={Shield}
-                  label="Unidades SEBIN"
-                  activo={rutaActiva(pathname, "/config/unidades-sebin")}
+                  label="Cuerpos y unidades"
+                  activo={rutaActiva(pathname, "/config/catalogos-operativos")}
                 />
               )}
               {veLogs && (
