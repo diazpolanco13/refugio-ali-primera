@@ -11,9 +11,10 @@ export default defineConfig({
     },
   },
   // Puerto distinto del default de Vite (5173) para no chocar con otros
-  // proyectos en la misma máquina / túneles SSH locales.
+  // proyectos en la misma máquina / túneles SSH locales. PORT (env) permite
+  // que el preview del asistente asigne un puerto libre (autoPort).
   server: {
-    port: 5180,
+    port: Number(process.env.PORT) || 5180,
     strictPort: true,
   },
   // Sin proxy: la PWA habla directo con Supabase (Postgres, Auth, Realtime,

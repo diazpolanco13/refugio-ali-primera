@@ -175,6 +175,8 @@ create policy logos_catalogo_delete on storage.objects
 -- 4. Remapear labels en centros.data al renombrar
 -- ============================================================================
 
+-- p_label_nuevo = '' limpia la referencia (se usa al ELIMINAR un cuerpo).
+-- (Migración `remapear_cuerpo_permite_vacio`, 15-jul-2026.)
 create or replace function public.remapear_cuerpo_en_centros(
   p_label_antiguo text,
   p_label_nuevo text
@@ -190,14 +192,13 @@ begin
     raise exception 'Sin permiso para remapear cuerpos';
   end if;
   if coalesce(trim(p_label_antiguo), '') = ''
-     or coalesce(trim(p_label_nuevo), '') = ''
-     or trim(p_label_antiguo) = trim(p_label_nuevo) then
+     or trim(p_label_antiguo) = coalesce(trim(p_label_nuevo), '') then
     return 0;
   end if;
 
   update public.centros
   set
-    data = jsonb_set(data, '{cuerpo}', to_jsonb(trim(p_label_nuevo))),
+    data = jsonb_set(data, '{cuerpo}', to_jsonb(coalesce(trim(p_label_nuevo), ''))),
     updated_at = (extract(epoch from now()) * 1000)::bigint
   where data->>'cuerpo' = trim(p_label_antiguo);
 

@@ -1,10 +1,11 @@
 // Administración de catálogos operativos: cuerpos policiales + unidades de supervisión.
 // Ruta: `/config/catalogos-operativos` (redirect desde `/config/unidades-sebin`).
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { ImagePlus, Loader2, Pencil, Plus, Shield, Trash2 } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
+import { supabase } from "@/data/supabaseClient";
 import {
   useGestionCuerposPoliciales,
   type CuerpoPolicialInput,
@@ -251,6 +252,52 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
   const [eliminandoCuerpo, setEliminandoCuerpo] = useState<MetaCuerpo | null>(null);
   const [eliminandoUnidad, setEliminandoUnidad] = useState<MetaUnidadSebin | null>(null);
   const [eliminandoEnCurso, setEliminandoEnCurso] = useState(false);
+  /** Campamentos que usan el cuerpo/unidad a eliminar (null = cargando). */
+  const [usoEliminando, setUsoEliminando] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!eliminandoCuerpo) return;
+    let cancelado = false;
+    setUsoEliminando(null);
+    void supabase
+      .from("centros")
+      .select("id", { count: "exact", head: true })
+      .not("deleted", "is", true)
+      .eq("data->>cuerpo", eliminandoCuerpo.label)
+      .then(({ count }) => {
+        if (!cancelado) setUsoEliminando(count ?? 0);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [eliminandoCuerpo]);
+
+  useEffect(() => {
+    if (!eliminandoUnidad?.valorDb) {
+      if (eliminandoUnidad) setUsoEliminando(0);
+      return;
+    }
+    let cancelado = false;
+    setUsoEliminando(null);
+    void supabase
+      .from("centros")
+      .select("id", { count: "exact", head: true })
+      .not("deleted", "is", true)
+      .eq("data->supervision->>unidad_sebin", eliminandoUnidad.valorDb)
+      .then(({ count }) => {
+        if (!cancelado) setUsoEliminando(count ?? 0);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [eliminandoUnidad]);
+
+  const unidadesDelCuerpoEliminando = useMemo(() => {
+    if (!eliminandoCuerpo) return 0;
+    return unidades.filter(
+      (u) => u.cuerpoClave === eliminandoCuerpo.clave && u.clave !== "sin_asignar",
+    ).length;
+  }, [unidades, eliminandoCuerpo]);
 
   const cuerposActivosSelect = useMemo(
     () => cuerpos.filter((c) => c.clave !== "sin_asignar" && c.activo !== false),
@@ -1046,8 +1093,16 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar «{eliminandoCuerpo?.label}»?</AlertDialogTitle>
             <AlertDialogDescription>
-              Preferí desactivar si solo querés ocultarlo. Campamentos con este cuerpo
-              quedarán como «Sin asignar» en filtros hasta reasignarlos.
+              {usoEliminando == null
+                ? "Calculando impacto…"
+                : usoEliminando > 0
+                  ? `${usoEliminando} campamento${usoEliminando === 1 ? "" : "s"} lo ${usoEliminando === 1 ? "tiene" : "tienen"} asignado: quedará${usoEliminando === 1 ? "" : "n"} como «Sin asignar» hasta reasignarlo${usoEliminando === 1 ? "" : "s"}.`
+                  : "Ningún campamento lo tiene asignado."}
+              {unidadesDelCuerpoEliminando > 0 &&
+                (unidadesDelCuerpoEliminando === 1
+                  ? " Su unidad de supervisión se desactivará."
+                  : ` Sus ${unidadesDelCuerpoEliminando} unidades de supervisión se desactivarán.`)}{" "}
+              Preferí desactivar si solo querés ocultarlo.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1075,8 +1130,12 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar «{eliminandoUnidad?.label}»?</AlertDialogTitle>
             <AlertDialogDescription>
-              Los campamentos que ya tenían esta unidad quedarán como «Sin unidad» en el mapa
-              hasta que los reasignés. Preferí desactivar si solo querés ocultarla.
+              {usoEliminando == null
+                ? "Calculando impacto…"
+                : usoEliminando > 0
+                  ? `${usoEliminando} campamento${usoEliminando === 1 ? "" : "s"} la ${usoEliminando === 1 ? "tiene" : "tienen"} asignada: quedará${usoEliminando === 1 ? "" : "n"} como «Sin unidad» en el mapa hasta reasignarlo${usoEliminando === 1 ? "" : "s"}.`
+                  : "Ningún campamento la tiene asignada."}{" "}
+              Preferí desactivar si solo querés ocultarla.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -146,7 +146,11 @@ export function useGestionCuerposPoliciales() {
           p_label_nuevo: fila.label,
         });
         if (remapErr) {
-          console.warn("[useCuerposPoliciales] remapear cuerpo:", remapErr.message);
+          // Sin recargar el catálogo local: al reintentar, `labelAnterior`
+          // sigue siendo el viejo y el remapeo se vuelve a intentar.
+          throw new Error(
+            `El cuerpo se guardó, pero no se pudieron actualizar los campamentos que lo tenían asignado (${remapErr.message}). Reintentá guardar.`,
+          );
         }
       }
     }
@@ -157,9 +161,38 @@ export function useGestionCuerposPoliciales() {
     if (clave === "sin_asignar") {
       throw new Error("El cuerpo «Sin asignar» no se puede eliminar.");
     }
+    const label = cuerpos.find((c) => c.clave === clave)?.label ?? null;
+
+    // Desactiva las unidades del cuerpo ANTES del delete: el FK las deja con
+    // `cuerpo_clave = null` (globales) y aparecerían en el selector de todos
+    // los cuerpos si siguieran activas.
+    const { error: errUnidades } = await supabase
+      .from("unidades_sebin")
+      .update({ activo: false, updated_at: Date.now(), updated_by: getSesion()?.user.username ?? "sistema" })
+      .eq("cuerpo_clave", clave);
+    if (errUnidades) {
+      throw new Error(`No se pudieron desactivar las unidades del cuerpo: ${errUnidades.message}`);
+    }
+
+    // Limpia la referencia en los campamentos (quedan «Sin asignar» de verdad,
+    // no con un label huérfano).
+    if (label) {
+      const { error: remapErr } = await supabase.rpc("remapear_cuerpo_en_centros", {
+        p_label_antiguo: label,
+        p_label_nuevo: "",
+      });
+      if (remapErr) {
+        throw new Error(
+          `No se pudo desasignar el cuerpo de los campamentos (${remapErr.message}). No se eliminó.`,
+        );
+      }
+    }
+
     const { error: err } = await supabase.from("cuerpos_policiales").delete().eq("clave", clave);
     if (err) throw new Error(err.message);
-    registrarHistorial("eliminar_cuerpo_policial", "cuerpos_policiales", clave);
+    registrarHistorial("eliminar_cuerpo_policial", "cuerpos_policiales", clave, {
+      label: label ?? clave,
+    });
     await cargarDesdeSupabase();
   }
 

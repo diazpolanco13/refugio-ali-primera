@@ -172,7 +172,11 @@ export function useGestionUnidadesSebin() {
           p_valor_nuevo: fila.valor_db,
         });
         if (remapErr) {
-          console.warn("[useUnidadesSebin] remapear unidad:", remapErr.message);
+          // Sin recargar el catálogo local: al reintentar, `valorAnterior`
+          // sigue siendo el viejo y el remapeo se vuelve a intentar.
+          throw new Error(
+            `La unidad se guardó, pero no se pudieron actualizar los campamentos que la tenían asignada (${remapErr.message}). Reintentá guardar.`,
+          );
         }
       }
     }
@@ -182,6 +186,20 @@ export function useGestionUnidadesSebin() {
   async function eliminar(clave: string): Promise<void> {
     if (clave === "sin_asignar") {
       throw new Error("La unidad «Sin asignar» no se puede eliminar.");
+    }
+    // Limpia la referencia en los campamentos (quedan «Sin unidad» de verdad,
+    // no con un texto huérfano).
+    const valorDb = unidades.find((u) => u.clave === clave)?.valorDb ?? "";
+    if (valorDb) {
+      const { error: remapErr } = await supabase.rpc("remapear_unidad_sebin_en_centros", {
+        p_valor_antiguo: valorDb,
+        p_valor_nuevo: "",
+      });
+      if (remapErr) {
+        throw new Error(
+          `No se pudo desasignar la unidad de los campamentos (${remapErr.message}). No se eliminó.`,
+        );
+      }
     }
     const { error: err } = await supabase.from("unidades_sebin").delete().eq("clave", clave);
     if (err) throw new Error(err.message);
