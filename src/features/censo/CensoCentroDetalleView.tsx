@@ -4,7 +4,7 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ClipboardList } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
-import { useCensoRedResumen } from "@/data/useCensoRedResumen";
+import { useCensoNominalRed } from "@/data/useCensoNominalRed";
 import { puedeVerCensoCentro, puedeVerCensoRapidoRed } from "@/domain/permisos";
 import { CensoCentroPanel } from "@/features/censo/CensoCentroPanel";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
   const tieneAccesoRed = puedeVerCensoRapidoRed(sesion.user.rol);
   const tieneAcceso =
     centroId != null && puedeVerCensoCentro(sesion.user, centroId);
-  const { resumenes } = useCensoRedResumen();
+  const { resumenes } = useCensoNominalRed();
 
   if (!centroId) {
     navigate("/centros/censo", { replace: true });
@@ -31,7 +31,7 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
       icono={ClipboardList}
       acento="teal"
       titulo={centroNombre}
-      descripcion="Avance del censo rápido y personas registradas en este campamento"
+      descripcion="Avance del censo nominal vs parte y personas registradas en este campamento"
       cuerpoClassName="p-4 lg:p-6"
       acciones={
         tieneAccesoRed ? (

@@ -1,4 +1,4 @@
-// Vista interna: progreso del censo rápido por campamento (RPC censo_resumen_red).
+// Vista interna: progreso del censo nominal por campamento (vs parte).
 // Acceso: admin, analista SAE, autoridad, censo_rapido.
 
 import { useEffect, useMemo, useState } from "react";
@@ -8,7 +8,6 @@ import {
   CircleDashed,
   ClipboardList,
   FilterX,
-  RefreshCw,
   Search,
   ShieldCheck,
   Users,
@@ -22,12 +21,12 @@ import {
   type FiltroEstadoCensoRed,
   type OrdenCensoRed,
 } from "@/data/preferenciasCensoRed";
-import { useCensoRedResumen } from "@/data/useCensoRedResumen";
+import { useCensoNominalRed } from "@/data/useCensoNominalRed";
 import {
-  estadoCensoCentro,
-  estadoContrasteCenso,
-  type ResumenCensoCentro,
-} from "@/domain/censoResumen";
+  deltaParteNominal,
+  estadoCensoNominalRed,
+  type ResumenCensoNominalCentro,
+} from "@/domain/censoNominalRed";
 import { puedeVerCensoRapidoRed } from "@/domain/permisos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,7 +43,7 @@ import { VistaPagina } from "@/components/VistaPagina";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
-import { TarjetaCensoResumen } from "./TarjetaCensoResumen";
+import { TarjetaCensoNominal } from "./TarjetaCensoNominal";
 import { CensoRedTabs } from "./CensoRedTabs";
 
 type FiltroEstado = FiltroEstadoCensoRed;
@@ -74,33 +73,49 @@ function normalizarBusqueda(texto: string): string {
 }
 
 function coincideFiltroEstado(
-  resumen: ResumenCensoCentro,
+  resumen: ResumenCensoNominalCentro,
   estado: FiltroEstado,
 ): boolean {
   if (estado === "todos") return true;
-  const contraste = estadoContrasteCenso(resumen);
-  const levantamiento = estadoCensoCentro(resumen);
-  if (estado === "discrepancia") return contraste === "excede_parte";
-  if (estado === "meta_alcanzada") {
-    return contraste === "cuadra" || levantamiento === "completado_declarado";
-  }
-  if (estado === "sin_iniciar") {
-    return levantamiento === "sin_iniciar" || levantamiento === "sin_ocupantes";
-  }
-  if (estado === "en_curso") return levantamiento === "en_curso";
-  return true;
+  return estadoCensoNominalRed(resumen) === estado;
 }
 
-function deltaParte(resumen: ResumenCensoCentro): number {
-  const meta = resumen.parteTotal ?? 0;
-  if (meta <= 0) return 0;
-  return Math.abs(resumen.totalRegistrados - meta);
-}
-
-function tsUltimoRegistro(resumen: ResumenCensoCentro): number {
-  if (!resumen.ultimoRegistroEn) return 0;
-  const t = new Date(resumen.ultimoRegistroEn).getTime();
-  return Number.isFinite(t) ? t : 0;
+function ordenarResumenes(
+  items: ResumenCensoNominalCentro[],
+  orden: OrdenCenso,
+): ResumenCensoNominalCentro[] {
+  const copia = [...items];
+  switch (orden) {
+    case "discrepancia":
+      return copia.sort((a, b) => {
+        const ca = a.contraste === "excede_parte" ? 2 : 0;
+        const cb = b.contraste === "excede_parte" ? 2 : 0;
+        if (ca !== cb) return cb - ca;
+        return (
+          deltaParteNominal(b) - deltaParteNominal(a) ||
+          b.registrados - a.registrados
+        );
+      });
+    case "registrados":
+      return copia.sort(
+        (a, b) =>
+          b.registrados - a.registrados ||
+          a.centroNombre.localeCompare(b.centroNombre, "es"),
+      );
+    case "actividad":
+      return copia.sort(
+        (a, b) =>
+          b.ultimoRegistroTs - a.ultimoRegistroTs ||
+          a.centroNombre.localeCompare(b.centroNombre, "es"),
+      );
+    case "nombre":
+    default:
+      return copia.sort(
+        (a, b) =>
+          (a.nro ?? 9999) - (b.nro ?? 9999) ||
+          a.centroNombre.localeCompare(b.centroNombre, "es"),
+      );
+  }
 }
 
 function KpiRed({
@@ -136,45 +151,9 @@ function KpiRed({
   );
 }
 
-function ordenarResumenes(
-  items: ResumenCensoCentro[],
-  orden: OrdenCenso,
-): ResumenCensoCentro[] {
-  const copia = [...items];
-  switch (orden) {
-    case "discrepancia":
-      return copia.sort((a, b) => {
-        const ca = estadoContrasteCenso(a) === "excede_parte" ? 2 : 0;
-        const cb = estadoContrasteCenso(b) === "excede_parte" ? 2 : 0;
-        if (ca !== cb) return cb - ca;
-        return (
-          deltaParte(b) - deltaParte(a) ||
-          b.totalRegistrados - a.totalRegistrados
-        );
-      });
-    case "registrados":
-      return copia.sort(
-        (a, b) =>
-          b.totalRegistrados - a.totalRegistrados ||
-          a.centroNombre.localeCompare(b.centroNombre, "es"),
-      );
-    case "actividad":
-      return copia.sort(
-        (a, b) =>
-          tsUltimoRegistro(b) - tsUltimoRegistro(a) ||
-          a.centroNombre.localeCompare(b.centroNombre, "es"),
-      );
-    case "nombre":
-    default:
-      return copia.sort((a, b) =>
-        a.centroNombre.localeCompare(b.centroNombre, "es"),
-      );
-  }
-}
-
 export function CensoRedView({ sesion }: { sesion: Sesion }) {
   const tieneAcceso = puedeVerCensoRapidoRed(sesion.user.rol);
-  const { resumenes, cargando, error, refrescar } = useCensoRedResumen();
+  const { resumenes, cargando } = useCensoNominalRed();
   const filtrosIniciales = useMemo(() => cargarFiltrosCensoRed(), []);
   const [busqueda, setBusqueda] = useState(filtrosIniciales.busqueda);
   const [estado, setEstado] = useState<FiltroEstado>(filtrosIniciales.estado);
@@ -191,8 +170,9 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
     const enCurso = resumenes.filter((r) =>
       coincideFiltroEstado(r, "en_curso"),
     ).length;
-    const totalPersonas = resumenes.reduce(
-      (acc, r) => acc + r.totalRegistrados,
+    const totalPersonas = resumenes.reduce((acc, r) => acc + r.registrados, 0);
+    const totalParte = resumenes.reduce(
+      (acc, r) => acc + r.metaRefugiados,
       0,
     );
     const metaAlcanzada = resumenes.filter((r) =>
@@ -201,14 +181,23 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
     const discrepancias = resumenes.filter((r) =>
       coincideFiltroEstado(r, "discrepancia"),
     ).length;
-    return { sinIniciar, enCurso, totalPersonas, metaAlcanzada, discrepancias };
+    return {
+      sinIniciar,
+      enCurso,
+      totalPersonas,
+      totalParte,
+      metaAlcanzada,
+      discrepancias,
+    };
   }, [resumenes]);
 
   const visibles = useMemo(() => {
     const q = normalizarBusqueda(busqueda);
     const filtrados = resumenes.filter((r) => {
       const coincideNombre =
-        !q || normalizarBusqueda(r.centroNombre).includes(q);
+        !q ||
+        normalizarBusqueda(r.centroNombre).includes(q) ||
+        (r.nro != null && String(r.nro).includes(q));
       return coincideNombre && coincideFiltroEstado(r, estado);
     });
     return ordenarResumenes(filtrados, orden);
@@ -225,22 +214,8 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
       icono={ClipboardList}
       acento="teal"
       titulo="Censo (red)"
-      descripcion="Progreso del censo rápido por campamento (contraste vs parte)"
+      descripcion="Progreso del censo nominal por campamento (contraste vs parte)"
       cuerpoClassName="p-4 lg:p-6"
-      acciones={
-        tieneAcceso ? (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 gap-1.5 border border-border"
-            disabled={cargando}
-            onClick={() => void refrescar()}
-          >
-            <RefreshCw className={cn("size-3.5", cargando && "animate-spin")} />
-            Actualizar
-          </Button>
-        ) : undefined
-      }
     >
       {!tieneAcceso ? (
         <div className="mx-auto mt-6 max-w-md rounded-xl border border-border bg-background/70 p-6 text-center">
@@ -257,12 +232,6 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
         <div className="space-y-4">
           <CensoRedTabs />
 
-          {error ? (
-            <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              {error}
-            </div>
-          ) : null}
-
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
             <KpiRed
               valor={kpis.sinIniciar}
@@ -277,7 +246,11 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
             />
             <KpiRed
               valor={kpis.totalPersonas}
-              etiqueta="Personas censadas (red)"
+              etiqueta={
+                kpis.totalParte > 0
+                  ? `Censados / parte (${kpis.totalParte.toLocaleString("es")})`
+                  : "Personas censadas (red)"
+              }
               icono={Users}
             />
             <KpiRed
@@ -405,7 +378,7 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {visibles.map((resumen) => (
-                <TarjetaCensoResumen key={resumen.centroId} resumen={resumen} />
+                <TarjetaCensoNominal key={resumen.centroId} resumen={resumen} />
               ))}
             </div>
           )}

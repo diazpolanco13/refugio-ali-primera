@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   { to: "/centros/censo", label: "Por campamento", icono: LayoutGrid, exact: true },
-  { to: "/centros/censo/personas", label: "Listado general", icono: List, exact: false },
+  // Staging (censo_registros): planilla previa; el listado nominal vive en /centros/refugiados.
+  { to: "/centros/censo/personas", label: "Censo anterior", icono: List, exact: false },
 ] as const;
 
 export function CensoRedTabs() {
