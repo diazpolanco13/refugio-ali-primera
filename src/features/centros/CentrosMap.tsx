@@ -18,6 +18,19 @@ import {
   type BaseMapa,
 } from "@/map/estiloMapa";
 import {
+  ERRORES_CARTO_PARA_FALLBACK,
+  TIMEOUT_CARGA_ESTILO_CARTO_MS,
+  baseDependeDeCarto,
+  cartoDisponible,
+  esUrlOErrorCarto,
+  siguienteFallbackSinCarto,
+  textoErrorMapa,
+} from "@/map/disponibilidadCarto";
+import {
+  AvisoFallbackBaseMapa,
+  type InfoFallbackBaseMapa,
+} from "@/features/centros/AvisoFallbackBaseMapa";
+import {
   esCentroDePrueba,
   CARACAS_CENTRO,
   CARACAS_ZOOM,
@@ -160,6 +173,22 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   const [modoGlobo, setModoGlobo] = useState(() => cargarModoGloboCentros() ?? false);
   const modoGloboRef = useRef(modoGlobo);
   modoGloboRef.current = modoGlobo;
+  /**
+   * Override de sesión si Carto (u otra base Carto) no carga.
+   * No pisa la preferencia del usuario en localStorage.
+   */
+  const [baseSesion, setBaseSesion] = useState<BaseMapa | null>(null);
+  const [avisoFallback, setAvisoFallback] = useState<InfoFallbackBaseMapa | null>(null);
+  const [reintentandoCarto, setReintentandoCarto] = useState(false);
+  const baseEfectiva = baseSesion ?? baseMapa;
+  const baseEfectivaRef = useRef(baseEfectiva);
+  baseEfectivaRef.current = baseEfectiva;
+  const basePreferidaRef = useRef(baseMapa);
+  basePreferidaRef.current = baseMapa;
+  const fallbackActivoRef = useRef(false);
+  const erroresCartoRef = useRef(0);
+  const basesFallbackProbadasRef = useRef<Set<BaseMapa>>(new Set());
+  const activarFallbackRef = useRef<(motivo: string) => void>(() => {});
   /** Intro Google Earth: una vez por carga de página, sync con fade splash/login. */
   const hacerIntroRef = useRef(reservarIntroMapa());
   const introEnCursoRef = useRef(hacerIntroRef.current);
@@ -443,6 +472,140 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     popupRef.current.on("close", () => cbRef.current.onSeleccionar(null));
   }
 
+  /**
+   * Aplica un estilo aunque el mapa aún no haya disparado `load`
+   * (Carto a veces nunca carga: hay que rescatar con setStyle).
+   */
+  function forzarEstiloBase(base: BaseMapa, trasCargar?: (map: maplibregl.Map) => void) {
+    const map = mapRef.current;
+    if (!map) return;
+    const gen = ++generacionEstiloRef.current;
+    const externo = esBaseEstiloExterno(base);
+    modoEstiloRef.current = externo ? "dark-matter" : "raster";
+    map.setStyle(estiloMapaParaBase(base));
+    map.once("style.load", () => {
+      if (generacionEstiloRef.current !== gen || !mapRef.current) return;
+      const m = mapRef.current;
+      if (externo) {
+        aplicarEdificios3d(m, modo3dRef.current);
+        sincronizarPitch3d(m, modo3dRef.current);
+      } else {
+        aplicarVisibilidadRaster(m, base);
+        if (m.getPitch() > 0 || m.getBearing() !== 0) {
+          m.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+        }
+      }
+      aplicarProyeccionGlobo(m, modoGloboRef.current);
+      trasCargar?.(m);
+    });
+  }
+
+  function activarFallbackCarto(motivo: string) {
+    if (fallbackActivoRef.current) return;
+
+    const preferida = basePreferidaRef.current;
+    const actual = baseEfectivaRef.current;
+    if (baseDependeDeCarto(actual)) {
+      basesFallbackProbadasRef.current.add(actual);
+    }
+    const siguiente = siguienteFallbackSinCarto(
+      preferida,
+      basesFallbackProbadasRef.current,
+    );
+    if (!siguiente) return;
+
+    basesFallbackProbadasRef.current.add(siguiente);
+    fallbackActivoRef.current = true;
+    erroresCartoRef.current = 0;
+    setBaseSesion(siguiente);
+    setAvisoFallback({
+      preferida: baseDependeDeCarto(preferida) ? preferida : "dark-matter",
+      usada: siguiente,
+      motivo,
+    });
+
+    // Si el estilo Carto nunca disparó `load`, hay que rescatar con setStyle.
+    // Si ya estaba listo, el useEffect de baseSesion llama aplicarBase.
+    if (!listoRef.current) {
+      forzarEstiloBase(siguiente, (m) => {
+        if (listoRef.current) return;
+        listoRef.current = true;
+        sincronizarMarcadores();
+        if (hacerIntroRef.current) {
+          aplicarProyeccionGlobo(m, true);
+          m.resize();
+          m.triggerRepaint();
+          avisarMapaOrbitaLista();
+        } else {
+          aplicarProyeccionGlobo(m, modoGloboRef.current);
+          aplicarVistaDefectoSiCorresponde();
+          avisarMapaOrbitaLista();
+        }
+        actualizarEscalaVista();
+        m.resize();
+      });
+    }
+  }
+  activarFallbackRef.current = activarFallbackCarto;
+
+  function limpiarFallbackSesion() {
+    fallbackActivoRef.current = false;
+    erroresCartoRef.current = 0;
+    basesFallbackProbadasRef.current = new Set();
+    setBaseSesion(null);
+    setAvisoFallback(null);
+  }
+
+  function manejarCambiarBase(base: BaseMapa) {
+    if (baseDependeDeCarto(base)) {
+      void (async () => {
+        setReintentandoCarto(true);
+        const ok = await cartoDisponible();
+        setReintentandoCarto(false);
+        if (!ok) {
+          activarFallbackCarto("CDN Carto no responde desde esta red");
+          // Preferencia del usuario sigue siendo Carto (padre).
+          if (base !== basePreferidaRef.current) onCambiarBase(base);
+          return;
+        }
+        limpiarFallbackSesion();
+        onCambiarBase(base);
+        // Si el padre ya tenía Carto, forzar reaplicación del estilo.
+        if (base === basePreferidaRef.current) {
+          forzarEstiloBase(base);
+        }
+      })();
+      return;
+    }
+    limpiarFallbackSesion();
+    onCambiarBase(base);
+  }
+
+  async function reintentarCarto() {
+    setReintentandoCarto(true);
+    const ok = await cartoDisponible();
+    setReintentandoCarto(false);
+    if (!ok) {
+      setAvisoFallback((prev) =>
+        prev
+          ? {
+              ...prev,
+              motivo: "Sigue sin respuesta basemaps.cartocdn.com",
+            }
+          : prev,
+      );
+      return;
+    }
+    const preferida = baseDependeDeCarto(basePreferidaRef.current)
+      ? basePreferidaRef.current
+      : "dark-matter";
+    limpiarFallbackSesion();
+    if (preferida !== basePreferidaRef.current) {
+      onCambiarBase(preferida);
+    }
+    forzarEstiloBase(preferida);
+  }
+
   useEffect(() => {
     if (!contenedorRef.current || mapRef.current) return;
     const hacerIntro = hacerIntroRef.current;
@@ -479,9 +642,25 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     let cancelarIntro: (() => void) | null = null;
     let timeoutArmarIntro = 0;
     let introArmada = false;
+    let timeoutCarto = 0;
+    let cancelado = false;
+
+    map.on("error", (ev) => {
+      if (cancelado) return;
+      if (!baseDependeDeCarto(baseEfectivaRef.current)) return;
+      const texto = textoErrorMapa(ev.error);
+      if (!esUrlOErrorCarto(texto)) return;
+      erroresCartoRef.current += 1;
+      if (erroresCartoRef.current >= ERRORES_CARTO_PARA_FALLBACK) {
+        activarFallbackRef.current(
+          "timeout o bloqueo de basemaps.cartocdn.com",
+        );
+      }
+    });
 
     map.on("load", () => {
       listoRef.current = true;
+      window.clearTimeout(timeoutCarto);
       sincronizarMarcadores();
       aplicarBase();
       if (hacerIntro) {
@@ -512,6 +691,18 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
       map.resize();
     });
 
+    if (baseDependeDeCarto(baseInicial)) {
+      void cartoDisponible().then((ok) => {
+        if (cancelado || ok || listoRef.current) return;
+        activarFallbackRef.current("CDN Carto no responde desde esta red");
+      });
+      timeoutCarto = window.setTimeout(() => {
+        if (cancelado || listoRef.current) return;
+        if (!baseDependeDeCarto(baseEfectivaRef.current)) return;
+        activarFallbackRef.current("Carto no cargó a tiempo");
+      }, TIMEOUT_CARGA_ESTILO_CARTO_MS);
+    }
+
     const contenedor = contenedorRef.current;
     const ro = new ResizeObserver(() => {
       const mapActual = mapRef.current;
@@ -525,8 +716,10 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
     });
 
     return () => {
+      cancelado = true;
       introArmada = true;
       window.clearTimeout(timeoutArmarIntro);
+      window.clearTimeout(timeoutCarto);
       cancelarIntro?.();
       ro.disconnect();
       if (guardarVistaTimer.current) clearTimeout(guardarVistaTimer.current);
@@ -682,7 +875,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   function aplicarBase() {
     const map = mapRef.current;
     if (!map || !listoRef.current) return;
-    const base = baseMapa;
+    const base = baseEfectivaRef.current;
     const con3d = modo3dRef.current;
 
     if (esBaseEstiloExterno(base)) {
@@ -754,7 +947,7 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   useEffect(() => {
     aplicarBase();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseMapa, modo3d]);
+  }, [baseMapa, baseSesion, modo3d]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -801,18 +994,26 @@ export const CentrosMap = forwardRef<CentrosMapHandle, Props>(function CentrosMa
   return (
     <div className="relative h-full w-full">
       <div ref={contenedorRef} className="h-full w-full" />
+      {avisoFallback && (
+        <AvisoFallbackBaseMapa
+          info={avisoFallback}
+          reintentando={reintentandoCarto}
+          onReintentar={() => void reintentarCarto()}
+          onCerrar={() => setAvisoFallback(null)}
+        />
+      )}
       <SelectoresVistaMapa
-        baseMapa={baseMapa}
+        baseMapa={baseEfectiva}
         modo3d={modo3d}
-        onCambiarBase={onCambiarBase}
+        onCambiarBase={manejarCambiarBase}
         onCambiarModo3d={setModo3d}
         reglaEscala={reglaEscala}
       />
       <ControlesMapaCentros
         gpsActivo={gpsActivo}
         exportando={exportando}
-        baseMapa={baseMapa}
-        onCambiarBase={onCambiarBase}
+        baseMapa={baseEfectiva}
+        onCambiarBase={manejarCambiarBase}
         onGps={alternarGps}
         onCentrarCaracas={centrarCaracas}
         onExportar={onExportar}
