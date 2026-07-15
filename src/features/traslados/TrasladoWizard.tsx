@@ -346,7 +346,7 @@ export function TrasladoWizard({
       <Alert>
         <AlertTitle>Sin permiso</AlertTitle>
         <AlertDescription>
-          Solo administradores, analistas SAE y supervisores pueden registrar
+          Solo administradores, analistas y supervisores pueden registrar
           traslados entre campamentos.
         </AlertDescription>
       </Alert>

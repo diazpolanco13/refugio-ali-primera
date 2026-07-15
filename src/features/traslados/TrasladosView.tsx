@@ -118,7 +118,7 @@ export function TrasladosView() {
         <Alert>
           <AlertTitle>Sin permiso</AlertTitle>
           <AlertDescription>
-            Solo administradores, analistas SAE, supervisores y autoridad pueden
+            Solo administradores, analistas, supervisores y autoridad pueden
             consultar traslados entre campamentos.
           </AlertDescription>
         </Alert>

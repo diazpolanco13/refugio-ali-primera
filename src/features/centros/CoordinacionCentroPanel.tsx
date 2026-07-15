@@ -83,7 +83,7 @@ function pestanaInicial(responsables: ResponsableCoordinacion[]): IdPestana {
 function descripcionPestana(id: IdPestana): string {
   switch (id) {
     case "supervision_rotatoria":
-      return "Cuerpo policial, unidad de supervisión, revista y analista(s) SAE del campamento.";
+      return "Cuerpo policial, unidad de supervisión, revista y analista(s) del campamento.";
     case "politica":
       return "Coordinación política e institucional del campamento.";
     case "seguridad":

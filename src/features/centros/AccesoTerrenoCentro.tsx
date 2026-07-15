@@ -67,7 +67,7 @@ function textoPortapapelesTerreno(
   const ids = supervision.analistas_sae;
   if (ids.length > 0) {
     const porId = new Map(analistasSae.map((a) => [a.user_id, a]));
-    lineas.push("**Analistas SAE:**");
+    lineas.push("**Analistas:**");
     for (const id of ids) {
       const analista = porId.get(id);
       const etiqueta = analista

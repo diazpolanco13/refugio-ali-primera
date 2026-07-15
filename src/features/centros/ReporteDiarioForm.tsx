@@ -545,7 +545,7 @@ export function ReporteDiarioForm({
    * el estado local (aún stale): el valor explícito gana sobre el useState.
    */
   const MSG_PASADO_BLOQUEADO =
-    "Solo admin y analista SAE pueden editar reportes de fechas pasadas.";
+    "Solo admin y analista pueden editar reportes de fechas pasadas.";
 
   function bloquearSiPasado(): boolean {
     if (!edicionPasadoBloqueada) return false;
@@ -943,7 +943,7 @@ export function ReporteDiarioForm({
         >
           {edicionPasadoBloqueada && (
             <p className="mb-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-              Solo admin y analista SAE pueden editar reportes de fechas pasadas. Este formulario
+              Solo admin y analista pueden editar reportes de fechas pasadas. Este formulario
               queda en solo lectura.
             </p>
           )}

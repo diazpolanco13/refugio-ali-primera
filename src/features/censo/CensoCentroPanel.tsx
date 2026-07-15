@@ -453,7 +453,7 @@ export function CensoCentroPanel({
         <ShieldCheck className="mx-auto mb-3 size-8 text-muted-foreground" />
         <p className="text-sm font-medium text-foreground">Acceso restringido</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Solo el administrador, el analista SAE, la autoridad y el supervisor de
+          Solo el administrador, el analista, la autoridad y el supervisor de
           este campamento pueden consultar el censo.
         </p>
       </div>

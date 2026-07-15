@@ -1436,7 +1436,7 @@ export function ReportesDiariosRedView() {
         cantidadSinAsignar={opcionesRevista.cantidadSinAsignar}
       />
       <FiltroMultiBusqueda
-        placeholder="Analista SAE"
+        placeholder="Analista"
         buscarPlaceholder="Buscar analista…"
         opciones={opcionesAnalista.opciones}
         seleccion={filtroAnalistas}

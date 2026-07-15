@@ -94,7 +94,7 @@ export function CensoInstrucciones({ onContinuar }: Props) {
         </Consejo>
 
         <Consejo icono={ShieldAlert} titulo="Si la cédula ya está en otro campamento">
-          Deténgase. No cree un segundo registro: reporte a analistas SAE o confirme solo
+          Deténgase. No cree un segundo registro: reporte a los analistas o confirme solo
           si le indican que debe continuar.
         </Consejo>
 

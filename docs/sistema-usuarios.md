@@ -29,7 +29,11 @@ Migración de los roles actuales: `coordinador → supervisor`, `campo → opera
 ### `admin` — Administrador
 Control total del sistema. Crea y edita usuarios, ve y edita toda la red de centros, gestionas incidencias y reportes en cualquier centro, y es el único rol que ve los **logs / historial**.
 
-### `analista_sae` — Analista SAE
+### `analista_sae` — Analista
+> La clave interna sigue siendo `analista_sae` (BD, RLS, Edge Functions); solo
+> cambió el nombre visible a **"Analista"** (15-jul-2026) para que el rol sirva
+> a cualquier institución (SEBIN, PNB, …), no solo a la SAE.
+
 **Homólogo operativo del admin.** Puede hacer casi todo en lo operativo: ve y edita toda la red de centros, abre y resuelve incidencias en cualquier centro, gestiona reportes diarios y ocupaciones en toda la red. La diferencia con `admin` es que **no gestiona usuarios** y **no puede ver los logs / historial** (ni los propios ni los de otros). Tiene **centros asignados** que definen su ámbito de monitoreo y responsabilidad de reporte de eventos, pero su acceso operativo es de alcance total, igual que el admin.
 
 ### `autoridad` — Autoridad

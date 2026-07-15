@@ -66,9 +66,9 @@ export const INFO_ROLES: Record<Rol, InfoRol> = {
   },
   analista_sae: {
     rol: "analista_sae",
-    etiqueta: "Analista SAE",
+    etiqueta: "Analista",
     descripcion:
-      "Opera toda la red (campamentos, reportes, incidencias); sin gestión de usuarios ni logs",
+      "Opera toda la red (campamentos, reportes, incidencias) y gestiona los catálogos de cuerpos y unidades; sin gestión de usuarios ni logs",
     alcanceTotal: true,
     puedeEscribir: true,
     escrituraTotal: true,

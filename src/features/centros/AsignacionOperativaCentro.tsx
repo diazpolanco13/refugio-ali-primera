@@ -143,7 +143,7 @@ export function AsignacionOperativaCampos({
       <div className="flex items-baseline justify-between gap-2 border-b border-border/70 px-3 py-1.5">
         <p className="text-xs font-semibold text-foreground">Asignación operativa</p>
         <p className="truncate text-[10px] text-muted-foreground">
-          Cuerpo → unidad → revista → SAE
+          Cuerpo → unidad → revista → analista
         </p>
       </div>
 
@@ -208,7 +208,7 @@ export function AsignacionOperativaCampos({
           />
         </CampoCompacto>
 
-        <CampoCompacto n={4} label="Analista de la SAE">
+        <CampoCompacto n={4} label="Analista">
           <SelectorAsignacionBusqueda
             modo="multiple"
             opciones={opcionesAnalistas}
@@ -216,7 +216,7 @@ export function AsignacionOperativaCampos({
             disabled={disabled}
             placeholder="Analistas"
             buscarPlaceholder="Buscar analista…"
-            vacioMensaje="Sin analistas SAE."
+            vacioMensaje="Sin analistas."
             mostrarChips
             onCambiar={(vals) => onSupervisionChange({ analistas_sae: vals })}
           />

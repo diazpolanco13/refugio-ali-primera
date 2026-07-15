@@ -69,7 +69,7 @@ export const CATEGORIAS_RESPONSABILIDAD_COORDINACION: {
 }[] = [
   { valor: "comunitaria", label: "Ente encargado", color: "#a855f7" },
   { valor: "supervision_rotatoria", label: "Supervisión rotatoria", color: "#ca8a04" },
-  { valor: "analista_sae", label: "Analista de la SAE", color: "#0d9488" },
+  { valor: "analista_sae", label: "Analista", color: "#0d9488" },
   { valor: "politica", label: "Responsabilidad política", color: "#3b82f6" },
   { valor: "seguridad", label: "Seguridad física", color: "#4d7c0f" },
   { valor: "salud", label: "Coordinación de salud", color: "#e11d48" },

@@ -25,11 +25,11 @@ export function ContactoAnalistasTerreno({
 
   return (
     <section
-      aria-label="Contacto analistas SAE"
+      aria-label="Contacto analistas"
       className="w-full max-w-sm space-y-2.5 px-1"
     >
       <p className="text-center text-xs leading-snug text-muted-foreground">
-        Si tiene dudas, contacte a los analistas SAE por Telegram
+        Si tiene dudas, contacte a los analistas por Telegram
       </p>
       <div className="flex flex-wrap items-center justify-center gap-2">
         {conTelegram.map((a) => {

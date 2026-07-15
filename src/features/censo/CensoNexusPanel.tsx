@@ -2537,7 +2537,7 @@ export function CensoNexusPanel({
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    No hay analista SAE con Telegram configurado para este campamento; repórtelo por
+                    No hay analista con Telegram configurado para este campamento; repórtelo por
                     otra vía antes de continuar.
                   </p>
                 )}

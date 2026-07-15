@@ -225,7 +225,7 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
             Acceso restringido
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Solo el administrador, el analista SAE y la autoridad pueden
+            Solo el administrador, el analista y la autoridad pueden
             consultar el censo de la red.
           </p>
         </div>
