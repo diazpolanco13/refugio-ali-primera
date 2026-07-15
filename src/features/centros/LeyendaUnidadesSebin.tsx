@@ -17,9 +17,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useCatalogoCuerpos } from "@/data/useCuerposPoliciales";
 import { useCatalogoUnidadesSebinActivas } from "@/data/useUnidadesSebin";
 import type { ClaveUnidadSebin } from "@/domain/centrosTransitorios";
 import type { MetaUnidadSebin } from "@/domain/unidadesSebin";
+
+interface GrupoCuerpo {
+  clave: string;
+  label: string | null;
+  items: MetaUnidadSebin[];
+}
 
 const TITULO = "Unidades responsables";
 
@@ -44,9 +51,32 @@ export function LeyendaUnidadesSebin({
 }: Props) {
   const [sheetAbierto, setSheetAbierto] = useState(false);
   const catalogo = useCatalogoUnidadesSebinActivas();
+  const catalogoCuerpos = useCatalogoCuerpos();
   const items = catalogo.filter(
     (u) => u.clave !== "sin_asignar" && unidadesPresentes.has(u.clave),
   );
+
+  // Agrupadas por cuerpo policial (orden del catálogo). El encabezado del
+  // cuerpo solo se pinta cuando hay unidades de más de un cuerpo en el mapa.
+  const porCuerpo = new Map<string, MetaUnidadSebin[]>();
+  for (const u of items) {
+    const clave = u.cuerpoClave ?? "";
+    const lista = porCuerpo.get(clave) ?? [];
+    lista.push(u);
+    porCuerpo.set(clave, lista);
+  }
+  const metaCuerpos = new Map(catalogoCuerpos.map((c) => [c.clave, c]));
+  const grupos: GrupoCuerpo[] = Array.from(porCuerpo.entries())
+    .map(([clave, lista]) => ({
+      clave,
+      label: metaCuerpos.get(clave)?.label ?? (clave ? clave : "Otras"),
+      items: lista,
+    }))
+    .sort(
+      (a, b) =>
+        (metaCuerpos.get(a.clave)?.orden ?? 900) - (metaCuerpos.get(b.clave)?.orden ?? 900),
+    );
+  const conEncabezados = grupos.length > 1;
 
   if (items.length === 0) return null;
 
@@ -99,7 +129,8 @@ export function LeyendaUnidadesSebin({
           Puede marcar varias
         </p>
         <ListaUnidades
-          items={items}
+          grupos={grupos}
+          conEncabezados={conEncabezados}
           unidadesFiltro={unidadesFiltro}
           onAlternar={onAlternarUnidad}
           densa
@@ -197,7 +228,8 @@ export function LeyendaUnidadesSebin({
           </SheetHeader>
           <div className="scrollbar-oculto min-h-0 flex-1 overflow-y-auto px-2 py-2">
             <ListaUnidades
-              items={items}
+              grupos={grupos}
+              conEncabezados={conEncabezados}
               unidadesFiltro={unidadesFiltro}
               onAlternar={onAlternarUnidad}
             />
@@ -224,27 +256,41 @@ export function LeyendaUnidadesSebin({
 }
 
 function ListaUnidades({
-  items,
+  grupos,
+  conEncabezados,
   unidadesFiltro,
   onAlternar,
   densa = false,
 }: {
-  items: MetaUnidadSebin[];
+  grupos: GrupoCuerpo[];
+  conEncabezados: boolean;
   unidadesFiltro: ReadonlySet<ClaveUnidadSebin>;
   onAlternar: (clave: ClaveUnidadSebin) => void;
   densa?: boolean;
 }) {
   const hayFiltro = unidadesFiltro.size > 0;
   return (
-    <ul
+    <div
       className={cn(
-        "space-y-0.5",
         densa && "scrollbar-oculto max-h-[min(46vh,20rem)] overflow-y-auto",
       )}
       role="group"
       aria-label={TITULO}
     >
-      {items.map((u) => {
+      {grupos.map((grupo) => (
+        <div key={grupo.clave || "otras"}>
+          {conEncabezados && (
+            <p
+              className={cn(
+                "truncate font-semibold uppercase tracking-wide text-muted-foreground/80",
+                densa ? "px-1.5 pb-0.5 pt-1 text-[9px]" : "px-3 pb-1 pt-2 text-[11px]",
+              )}
+            >
+              {grupo.label}
+            </p>
+          )}
+          <ul className="space-y-0.5">
+            {grupo.items.map((u) => {
         const activa = unidadesFiltro.has(u.clave);
         const atenuada = hayFiltro && !activa;
         const id = `leyenda-unidad-${u.clave}`;
@@ -285,7 +331,10 @@ function ListaUnidades({
             </label>
           </li>
         );
-      })}
-    </ul>
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
   );
 }

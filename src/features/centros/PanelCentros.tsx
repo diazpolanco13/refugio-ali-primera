@@ -22,6 +22,9 @@ import {
   type CentroTransitorio,
   type ClaveUnidadSebin,
 } from "@/domain/centrosTransitorios";
+import type { MetaCuerpo } from "@/domain/cuerposPoliciales";
+import type { MetaUnidadSebin } from "@/domain/unidadesSebin";
+import { useCatalogoCuerpos } from "@/data/useCuerposPoliciales";
 import { useCatalogoUnidadesSebinActivas } from "@/data/useUnidadesSebin";
 import {
   ESTADO_FILA_VACIO,
@@ -67,6 +70,7 @@ export function PanelCentros({
   const [busqueda, setBusqueda] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const catalogoUnidades = useCatalogoUnidadesSebinActivas();
+  const catalogoCuerpos = useCatalogoCuerpos();
 
   const estados = useMemo(() => calcularEstadosFilas(centros), [centros]);
   const centroIds = useMemo(() => centros.map((c) => c.id), [centros]);
@@ -111,6 +115,29 @@ export function PanelCentros({
   );
   const hayFiltro = unidadesFiltro.size > 0;
 
+  /** Unidades presentes agrupadas por cuerpo policial (orden del catálogo). */
+  const gruposPorCuerpo = useMemo(() => {
+    const porCuerpo = new Map<string, MetaUnidadSebin[]>();
+    for (const u of unidadesConCampamentos) {
+      const clave = u.cuerpoClave ?? "";
+      const lista = porCuerpo.get(clave) ?? [];
+      lista.push(u);
+      porCuerpo.set(clave, lista);
+    }
+    const metaDe = new Map(catalogoCuerpos.map((c) => [c.clave, c]));
+    return Array.from(porCuerpo.entries())
+      .map(([clave, unidades]) => ({
+        clave,
+        meta: metaDe.get(clave) ?? null,
+        unidades,
+        total: unidades.reduce(
+          (n, u) => n + (centrosPorUnidad.get(u.clave)?.length ?? 0),
+          0,
+        ),
+      }))
+      .sort((a, b) => (a.meta?.orden ?? 900) - (b.meta?.orden ?? 900));
+  }, [unidadesConCampamentos, catalogoCuerpos, centrosPorUnidad]);
+
   return (
     <div
       className={cn(
@@ -125,7 +152,9 @@ export function PanelCentros({
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Lista de campamentos
             </p>
-            <p className="text-[10px] text-muted-foreground/80">Por unidad responsable</p>
+            <p className="text-[10px] text-muted-foreground/80">
+              Por cuerpo y unidad responsable
+            </p>
           </div>
           <button
             type="button"
@@ -186,98 +215,108 @@ export function PanelCentros({
           </div>
         ) : (
           <div className="space-y-0.5">
-            {unidadesConCampamentos.map((u) => {
-              const activa = unidadesFiltro.has(u.clave);
-              const atenuada = hayFiltro && !activa;
-              const centrosUnidad = centrosPorUnidad.get(u.clave) ?? [];
-              const grupoAbierto = expandidos.has(u.clave);
-              const pendientesGrupo = centrosUnidad.reduce(
-                (n, centro) =>
-                  n + ((estadosReporte.get(centro.id)?.tienePendiente ?? true) ? 1 : 0),
-                0,
-              );
-              return (
-                <Collapsible
-                  key={u.clave}
-                  open={grupoAbierto}
-                  onOpenChange={(o) => onSetExpandido(u.clave, o)}
-                >
-                  <div
-                    className={cn(
-                      "flex items-center gap-0.5 rounded-lg transition-opacity",
-                      activa && "bg-primary/10 ring-1 ring-primary/40",
-                      atenuada && "opacity-35",
-                    )}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => elegirUnidad(u.clave)}
-                      title={
-                        activa
-                          ? "Quitar esta dirección del filtro"
-                          : "Añadir esta dirección al filtro del mapa"
-                      }
-                      aria-pressed={activa}
-                      className={cn(
-                        "flex flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs transition-colors hover:bg-muted/60",
-                        activa && "font-semibold text-primary",
-                      )}
+            {gruposPorCuerpo.map((grupo) => (
+              <div key={grupo.clave || "otros"} className="mb-1">
+                <EncabezadoCuerpo meta={grupo.meta} total={grupo.total} />
+                {grupo.unidades.map((u) => {
+                  const activa = unidadesFiltro.has(u.clave);
+                  const atenuada = hayFiltro && !activa;
+                  const centrosUnidad = centrosPorUnidad.get(u.clave) ?? [];
+                  const grupoAbierto = expandidos.has(u.clave);
+                  const logoUnidad = u.logoUrl ?? grupo.meta?.logo ?? LOGO_SEBIN;
+                  const pendientesGrupo = centrosUnidad.reduce(
+                    (n, centro) =>
+                      n + ((estadosReporte.get(centro.id)?.tienePendiente ?? true) ? 1 : 0),
+                    0,
+                  );
+                  return (
+                    <Collapsible
+                      key={u.clave}
+                      open={grupoAbierto}
+                      onOpenChange={(o) => onSetExpandido(u.clave, o)}
                     >
-                      <span
-                        className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white text-[11px]"
-                        style={{ borderColor: u.color }}
-                        aria-hidden
+                      <div
+                        className={cn(
+                          "flex items-center gap-0.5 rounded-lg transition-opacity",
+                          activa && "bg-primary/10 ring-1 ring-primary/40",
+                          atenuada && "opacity-35",
+                        )}
                       >
-                        <LogoCuerpo src={LOGO_SEBIN} priority="low" />
-                      </span>
-                      <span className="flex-1 truncate text-foreground">{u.label}</span>
-                      {pendientesGrupo > 0 && (
-                        <span
-                          title={`${pendientesGrupo} campamento(s) con reporte diario pendiente`}
-                          className="flex size-4 items-center justify-center rounded-full bg-amber-500/15 text-[9px] font-bold text-amber-500"
-                        >
-                          {pendientesGrupo}
-                        </span>
-                      )}
-                      <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
-                        {centrosUnidad.length}
-                      </Badge>
-                    </button>
-                    <CollapsibleTrigger asChild>
-                      <button
-                        type="button"
-                        title="Ver campamentos asignados"
-                        className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                      >
-                        <ChevronDown
-                          className={cn(
-                            "size-3.5 transition-transform",
-                            grupoAbierto && "rotate-180",
-                          )}
-                        />
-                      </button>
-                    </CollapsibleTrigger>
-                  </div>
-
-                  <CollapsibleContent>
-                    <div className="ml-3 mb-1 mt-0.5 space-y-0.5 border-l border-border pl-2">
-                      {centrosUnidad.map((centro) => (
-                        <FilaCentroLista
-                          key={centro.id}
-                          centro={centro}
-                          estado={estados.get(centro.id) ?? ESTADO_FILA_VACIO}
-                          estadoReporte={
-                            estadosReporte.get(centro.id) ?? ESTADO_ICONOS_VACIO
+                        <button
+                          type="button"
+                          onClick={() => elegirUnidad(u.clave)}
+                          title={
+                            activa
+                              ? "Quitar esta dirección del filtro"
+                              : "Añadir esta dirección al filtro del mapa"
                           }
-                          seleccionado={seleccionado === centro.id}
-                          onSeleccionar={elegirCentro}
-                        />
-                      ))}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              );
-            })}
+                          aria-pressed={activa}
+                          className={cn(
+                            "flex flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs transition-colors hover:bg-muted/60",
+                            activa && "font-semibold text-primary",
+                          )}
+                        >
+                          <span
+                            className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white text-[11px]"
+                            style={{ borderColor: u.color }}
+                            aria-hidden
+                          >
+                            {logoUnidad ? (
+                              <LogoCuerpo src={logoUnidad} priority="low" />
+                            ) : (
+                              <span aria-hidden>{grupo.meta?.icono ?? "🛡️"}</span>
+                            )}
+                          </span>
+                          <span className="flex-1 truncate text-foreground">{u.label}</span>
+                          {pendientesGrupo > 0 && (
+                            <span
+                              title={`${pendientesGrupo} campamento(s) con reporte diario pendiente`}
+                              className="flex size-4 items-center justify-center rounded-full bg-amber-500/15 text-[9px] font-bold text-amber-500"
+                            >
+                              {pendientesGrupo}
+                            </span>
+                          )}
+                          <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+                            {centrosUnidad.length}
+                          </Badge>
+                        </button>
+                        <CollapsibleTrigger asChild>
+                          <button
+                            type="button"
+                            title="Ver campamentos asignados"
+                            className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                          >
+                            <ChevronDown
+                              className={cn(
+                                "size-3.5 transition-transform",
+                                grupoAbierto && "rotate-180",
+                              )}
+                            />
+                          </button>
+                        </CollapsibleTrigger>
+                      </div>
+
+                      <CollapsibleContent>
+                        <div className="ml-3 mb-1 mt-0.5 space-y-0.5 border-l border-border pl-2">
+                          {centrosUnidad.map((centro) => (
+                            <FilaCentroLista
+                              key={centro.id}
+                              centro={centro}
+                              estado={estados.get(centro.id) ?? ESTADO_FILA_VACIO}
+                              estadoReporte={
+                                estadosReporte.get(centro.id) ?? ESTADO_ICONOS_VACIO
+                              }
+                              seleccionado={seleccionado === centro.id}
+                              onSeleccionar={elegirCentro}
+                            />
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  );
+                })}
+              </div>
+            ))}
 
             {(centrosPorUnidad.get("sin_asignar")?.length ?? 0) > 0 && (
               <Collapsible
@@ -368,6 +407,29 @@ export function PanelCentros({
         <span className="font-semibold text-emerald-400">verde</span> = listo,{" "}
         <span className="font-semibold text-rose-400">rosa</span> = casos activos).
       </div>
+    </div>
+  );
+}
+
+/** Encabezado de grupo: cuerpo policial dueño de las unidades listadas debajo. */
+function EncabezadoCuerpo({ meta, total }: { meta: MetaCuerpo | null; total: number }) {
+  return (
+    <div className="mb-0.5 flex items-center gap-1.5 px-1.5 pt-1">
+      <span
+        className="flex size-4.5 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-white text-[9px]"
+        style={{ borderColor: meta?.color ?? "#64748b" }}
+        aria-hidden
+      >
+        {meta?.logo ? (
+          <LogoCuerpo src={meta.logo} priority="low" />
+        ) : (
+          <span aria-hidden>{meta?.icono ?? "🛡️"}</span>
+        )}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {meta?.label ?? "Otras unidades"}
+      </span>
+      <span className="text-[9px] tabular-nums text-muted-foreground/70">{total}</span>
     </div>
   );
 }
