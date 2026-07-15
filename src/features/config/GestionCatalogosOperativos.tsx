@@ -15,7 +15,10 @@ import {
   type UnidadSebinInput,
 } from "@/data/useUnidadesSebin";
 import { subirLogoCatalogo, supabaseDisponible } from "@/data/supabase";
-import { puedeGestionarCatalogosOperativos } from "@/domain/permisos";
+import {
+  puedeEditarCuerposPoliciales,
+  puedeEntrarACatalogos,
+} from "@/domain/permisos";
 import { slugCuerpo, type MetaCuerpo } from "@/domain/cuerposPoliciales";
 import { slugUnidadSebin, type MetaUnidadSebin } from "@/domain/unidadesSebin";
 import { LogoCuerpo } from "@/components/LogoCuerpo";
@@ -218,7 +221,13 @@ function CampoLogo({
 }
 
 export function GestionCatalogosOperativos({ sesion }: Props) {
-  const puede = puedeGestionarCatalogosOperativos(sesion.user.rol);
+  const puede = puedeEntrarACatalogos(sesion.user);
+  /** Edición del catálogo de cuerpos (y de unidades de cualquier cuerpo). */
+  const puedeCuerpos = puedeEditarCuerposPoliciales(sesion.user);
+  /** Analista con cuerpo asignado: gestiona SOLO unidades de este cuerpo. */
+  const cuerpoScope = puedeCuerpos ? null : (sesion.user.cuerpo_asignado ?? null);
+  const puedeUnidad = (u: MetaUnidadSebin): boolean =>
+    puedeCuerpos || (cuerpoScope != null && u.cuerpoClave === cuerpoScope);
   const {
     cuerpos,
     cargando: cargandoCuerpos,
@@ -234,8 +243,12 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
     eliminar: eliminarUnidad,
   } = useGestionUnidadesSebin();
 
-  const [pestana, setPestana] = useState<"cuerpos" | "unidades">("cuerpos");
-  const [filtroCuerpoUnidades, setFiltroCuerpoUnidades] = useState<string>("todos");
+  const [pestana, setPestana] = useState<"cuerpos" | "unidades">(
+    cuerpoScope ? "unidades" : "cuerpos",
+  );
+  const [filtroCuerpoUnidades, setFiltroCuerpoUnidades] = useState<string>(
+    cuerpoScope ?? "todos",
+  );
 
   const [dialogoCuerpo, setDialogoCuerpo] = useState<"nuevo" | "editar" | null>(null);
   const [formCuerpo, setFormCuerpo] = useState<CuerpoPolicialInput>(() => formCuerpoVacio(10));
@@ -354,11 +367,12 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
 
   function abrirNuevoUnidad() {
     const cuerpoDefault =
-      filtroCuerpoUnidades !== "todos" && filtroCuerpoUnidades !== "globales"
+      cuerpoScope ??
+      (filtroCuerpoUnidades !== "todos" && filtroCuerpoUnidades !== "globales"
         ? filtroCuerpoUnidades
         : (cuerposActivosSelect.find((c) => c.clave === "sebin")?.clave ??
           cuerposActivosSelect[0]?.clave ??
-          null);
+          null));
     setFormUnidad(formUnidadVacio(ordenSiguienteUnidad, cuerpoDefault));
     setClaveUnidadOrig(null);
     setErrorForm(null);
@@ -504,10 +518,12 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
         descripcion="Catálogos que alimentan los desplegables de asignación operativa, mapa y filtros"
         acciones={
           pestana === "cuerpos" ? (
-            <Button onClick={abrirNuevoCuerpo} className="gap-1.5">
-              <Plus className="size-4" />
-              <span className="hidden sm:inline">Nuevo cuerpo</span>
-            </Button>
+            puedeCuerpos ? (
+              <Button onClick={abrirNuevoCuerpo} className="gap-1.5">
+                <Plus className="size-4" />
+                <span className="hidden sm:inline">Nuevo cuerpo</span>
+              </Button>
+            ) : undefined
           ) : (
             <Button onClick={abrirNuevoUnidad} className="gap-1.5">
               <Plus className="size-4" />
@@ -585,29 +601,31 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
                     <span className="text-[10px] tabular-nums text-muted-foreground">
                       orden {c.orden ?? "—"}
                     </span>
-                    <div className="flex shrink-0 gap-1">
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        title="Editar"
-                        onClick={() => abrirEditarCuerpo(c)}
-                      >
-                        <Pencil className="size-3.5" />
-                      </Button>
-                      {c.clave !== "sin_asignar" && (
+                    {puedeCuerpos && (
+                      <div className="flex shrink-0 gap-1">
                         <Button
                           type="button"
                           size="icon-sm"
                           variant="ghost"
-                          className="text-destructive hover:text-destructive"
-                          title="Eliminar"
-                          onClick={() => setEliminandoCuerpo(c)}
+                          title="Editar"
+                          onClick={() => abrirEditarCuerpo(c)}
                         >
-                          <Trash2 className="size-3.5" />
+                          <Pencil className="size-3.5" />
                         </Button>
-                      )}
-                    </div>
+                        {c.clave !== "sin_asignar" && (
+                          <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            title="Eliminar"
+                            onClick={() => setEliminandoCuerpo(c)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -685,29 +703,31 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
                     <span className="text-[10px] tabular-nums text-muted-foreground">
                       orden {u.orden ?? "—"}
                     </span>
-                    <div className="flex shrink-0 gap-1">
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        title="Editar"
-                        onClick={() => abrirEditarUnidad(u)}
-                      >
-                        <Pencil className="size-3.5" />
-                      </Button>
-                      {u.clave !== "sin_asignar" && (
+                    {puedeUnidad(u) && (
+                      <div className="flex shrink-0 gap-1">
                         <Button
                           type="button"
                           size="icon-sm"
                           variant="ghost"
-                          className="text-destructive hover:text-destructive"
-                          title="Eliminar"
-                          onClick={() => setEliminandoUnidad(u)}
+                          title="Editar"
+                          onClick={() => abrirEditarUnidad(u)}
                         >
-                          <Trash2 className="size-3.5" />
+                          <Pencil className="size-3.5" />
                         </Button>
-                      )}
-                    </div>
+                        {u.clave !== "sin_asignar" && (
+                          <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            title="Eliminar"
+                            onClick={() => setEliminandoUnidad(u)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -919,7 +939,7 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
                     onValueChange={(v) =>
                       setFormUnidad((prev) => ({ ...prev, cuerpo_clave: v }))
                     }
-                    disabled={guardando}
+                    disabled={guardando || cuerpoScope != null}
                   >
                     <SelectTrigger className={SELECT_TRIGGER_VISIBLE}>
                       <SelectValue placeholder="Elegir cuerpo" />

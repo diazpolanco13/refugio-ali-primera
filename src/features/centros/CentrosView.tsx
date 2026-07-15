@@ -56,7 +56,7 @@ export function CentrosView() {
   const location = useLocation();
   const vista = location.pathname.includes("/tablero") ? "tablero" : "mapa";
   const puedeEditar = puedeEscribir(sesion.user.rol);
-  const puedeEliminar = puedeCrearCentros(sesion.user.rol);
+  const puedeEliminar = puedeCrearCentros(sesion.user);
   const navigate = useNavigate();
   const {
     panelCentrosAbierto,

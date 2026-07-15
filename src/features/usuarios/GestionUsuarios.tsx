@@ -12,8 +12,9 @@ import {
   Users,
   X,
 } from "lucide-react";
-import type { Rol, Sesion } from "@/data/authSupabase";
+import type { AmbitoAnalista, Rol, Sesion } from "@/data/authSupabase";
 import { supabase } from "@/data/supabaseClient";
+import { useCatalogoCuerposActivos } from "@/data/useCuerposPoliciales";
 import { invocarEdgeFunction } from "@/data/edgeFunctions";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
@@ -74,6 +75,8 @@ type Formulario = {
   password: string;
   nombre: string;
   rol: Rol;
+  ambito_analista: AmbitoAnalista;
+  cuerpo_asignado: string | null;
   centros_asignados: string[];
   jerarquia: string;
   cedula: string;
@@ -89,6 +92,8 @@ const formVacio = (): Formulario => ({
   password: "",
   nombre: "",
   rol: "operador",
+  ambito_analista: "red",
+  cuerpo_asignado: null,
   centros_asignados: [],
   jerarquia: "",
   cedula: "",
@@ -283,6 +288,13 @@ function FormUsuario({
   }
 
   const usaCentros = rolUsaCentrosAsignados(form.rol);
+  const esAnalista = form.rol === "analista_sae";
+  const cuerposCatalogo = useCatalogoCuerposActivos();
+  const cuerposElegibles = cuerposCatalogo.filter((c) => c.clave !== "sin_asignar");
+  /** Con rol analista, el multi-select de campamentos solo aplica al ámbito 'centros'. */
+  const muestraSelectorCentros = esAnalista
+    ? form.ambito_analista === "centros"
+    : usaCentros;
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
@@ -412,20 +424,74 @@ function FormUsuario({
                     {INFO_ROLES[form.rol].descripcion}
                   </p>
                 </div>
+                {esAnalista && (
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="usuario-ambito">Alcance del analista</Label>
+                    <Select
+                      value={form.ambito_analista}
+                      disabled={guardando}
+                      onValueChange={(v) => {
+                        const ambito = v as AmbitoAnalista;
+                        setForm((f) => ({
+                          ...f,
+                          ambito_analista: ambito,
+                          cuerpo_asignado: ambito === "cuerpo" ? f.cuerpo_asignado : null,
+                        }));
+                      }}
+                    >
+                      <SelectTrigger id="usuario-ambito" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="red">Toda la red</SelectItem>
+                        <SelectItem value="cuerpo">Solo los campamentos de un cuerpo</SelectItem>
+                        <SelectItem value="centros">Campamentos específicos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs leading-snug text-muted-foreground">
+                      {form.ambito_analista === "red"
+                        ? "Ve y opera toda la red, incluidos los catálogos de cuerpos y unidades."
+                        : form.ambito_analista === "cuerpo"
+                          ? "Ve y opera los campamentos supervisados por unidades de su cuerpo, y gestiona solo las unidades de ese cuerpo."
+                          : "Ve y opera únicamente los campamentos seleccionados; no gestiona catálogos."}
+                    </p>
+                  </div>
+                )}
+                {esAnalista && form.ambito_analista === "cuerpo" && (
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="usuario-cuerpo">Cuerpo policial asignado</Label>
+                    <Select
+                      value={form.cuerpo_asignado ?? ""}
+                      disabled={guardando}
+                      onValueChange={(v) => set("cuerpo_asignado", v || null)}
+                    >
+                      <SelectTrigger id="usuario-cuerpo" className="w-full">
+                        <SelectValue placeholder="Elegí el cuerpo…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cuerposElegibles.map((c) => (
+                          <SelectItem key={c.clave} value={c.clave}>
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label>Campamentos asignados</Label>
                   <SelectorCentros
                     centros={centros}
                     seleccion={form.centros_asignados}
                     onCambiar={(ids) => set("centros_asignados", ids)}
-                    disabled={guardando || !usaCentros}
+                    disabled={guardando || !muestraSelectorCentros}
                   />
                   <p className="text-xs leading-snug text-muted-foreground">
-                    {usaCentros
-                      ? form.rol === "analista_sae"
-                        ? "Referencia opcional en el perfil. El filtro del tablero usa los analistas asignados en cada campamento (Asignación operativa)."
+                    {muestraSelectorCentros
+                      ? esAnalista
+                        ? "El analista solo verá y operará estos campamentos."
                         : "El supervisor y el operador solo ven y editan sus campamentos asignados."
-                      : "Este rol tiene alcance sobre toda la red; no necesita asignación."}
+                      : "Este rol/alcance no usa asignación manual de campamentos."}
                   </p>
                 </div>
               </div>
@@ -662,13 +728,39 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
     usuarios.length > 0 &&
     grupos.length === 0 &&
     (busqueda.trim() !== "" || filtroRol !== "todos");
+  /** Ámbito efectivo a persistir (solo aplica al rol analista). */
+  function camposAmbito(form: Formulario): {
+    ambito_analista: AmbitoAnalista;
+    cuerpo_asignado: string | null;
+  } {
+    if (form.rol !== "analista_sae") {
+      return { ambito_analista: "red", cuerpo_asignado: null };
+    }
+    if (form.ambito_analista === "cuerpo" && !form.cuerpo_asignado) {
+      throw new Error("Elegí el cuerpo policial del analista.");
+    }
+    return {
+      ambito_analista: form.ambito_analista,
+      cuerpo_asignado: form.ambito_analista === "cuerpo" ? form.cuerpo_asignado : null,
+    };
+  }
+
+  function centrosAPersistir(form: Formulario): string[] {
+    if (form.rol === "analista_sae") {
+      return form.ambito_analista === "centros" ? form.centros_asignados : [];
+    }
+    return rolUsaCentrosAsignados(form.rol) ? form.centros_asignados : [];
+  }
+
   async function crear(form: Formulario) {
+    const ambito = camposAmbito(form);
     await invocarEdgeFunction("create-user", {
       username: form.username.trim(),
       password: form.password,
       nombre: form.nombre.trim() || null,
       rol: form.rol,
-      centros_asignados: rolUsaCentrosAsignados(form.rol) ? form.centros_asignados : [],
+      ...ambito,
+      centros_asignados: centrosAPersistir(form),
       jerarquia: form.jerarquia.trim() || null,
       cedula: form.cedula.trim() || null,
       responsabilidad: form.responsabilidad.trim() || null,
@@ -683,10 +775,12 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
 
   async function actualizar(form: Formulario) {
     if (!editando) return;
+    const ambito = camposAmbito(form);
     const patch: Partial<UsuarioPerfil> = {
       nombre: form.nombre.trim() || null,
       rol: form.rol,
-      centros_asignados: rolUsaCentrosAsignados(form.rol) ? form.centros_asignados : [],
+      ...ambito,
+      centros_asignados: centrosAPersistir(form),
       jerarquia: form.jerarquia.trim() || null,
       cedula: form.cedula.trim() || null,
       responsabilidad: form.responsabilidad.trim() || null,
@@ -843,6 +937,11 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
           password: "",
           nombre: editando?.nombre ?? "",
           rol: editando?.rol ?? "operador",
+          ambito_analista:
+            editando?.ambito_analista === "cuerpo" || editando?.ambito_analista === "centros"
+              ? editando.ambito_analista
+              : "red",
+          cuerpo_asignado: editando?.cuerpo_asignado ?? null,
           centros_asignados: editando?.centros_asignados ?? [],
           jerarquia: editando?.jerarquia ?? "",
           cedula: editando?.cedula ?? "",

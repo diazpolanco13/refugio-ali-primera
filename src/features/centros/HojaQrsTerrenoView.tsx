@@ -71,7 +71,7 @@ export function HojaQrsTerrenoView({ sesion }: Props) {
     };
   }, []);
 
-  if (!puedeCrearCentros(sesion.user.rol)) {
+  if (!puedeCrearCentros(sesion.user)) {
     return (
       <p className="p-6 text-sm text-muted-foreground">
         Esta vista es solo para administración y análisis.

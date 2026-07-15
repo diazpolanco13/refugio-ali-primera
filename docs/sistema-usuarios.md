@@ -34,7 +34,23 @@ Control total del sistema. Crea y edita usuarios, ve y edita toda la red de cent
 > cambió el nombre visible a **"Analista"** (15-jul-2026) para que el rol sirva
 > a cualquier institución (SEBIN, PNB, …), no solo a la SAE.
 
-**Homólogo operativo del admin.** Puede hacer casi todo en lo operativo: ve y edita toda la red de centros, abre y resuelve incidencias en cualquier centro, gestiona reportes diarios y ocupaciones en toda la red. La diferencia con `admin` es que **no gestiona usuarios** y **no puede ver los logs / historial** (ni los propios ni los de otros). Tiene **centros asignados** que definen su ámbito de monitoreo y responsabilidad de reporte de eventos, pero su acceso operativo es de alcance total, igual que el admin.
+**Ámbito (15-jul-2026, ver `supabase/ambito_analista.sql`):** al crear o editar
+el usuario se elige su alcance en `perfiles.ambito_analista`:
+
+- **`red`** (default) — toda la red, el comportamiento histórico descrito abajo.
+- **`cuerpo`** — solo los campamentos **supervisados por unidades de su cuerpo
+  policial** (`perfiles.cuerpo_asignado`). Opera esos campamentos como un
+  supervisor (reportes, censo, salud, denuncias de sus centros) y además
+  **gestiona las unidades de supervisión de SU cuerpo** en
+  `/config/catalogos-operativos` (el catálogo de cuerpos le queda en solo
+  lectura). No crea/elimina campamentos ni remapea catálogos ajenos.
+- **`centros`** — solo los campamentos de `centros_asignados` (lista manual,
+  como un supervisor); no gestiona catálogos.
+
+La restricción vive en la RLS (`es_analista_total()` + `mis_centros()`
+redefinida) y en las funciones de censo/traslados/denuncias, no solo en la UI.
+
+**Homólogo operativo del admin (con ámbito `red`).** Puede hacer casi todo en lo operativo: ve y edita toda la red de centros, abre y resuelve incidencias en cualquier centro, gestiona reportes diarios y ocupaciones en toda la red. La diferencia con `admin` es que **no gestiona usuarios** y **no puede ver los logs / historial** (ni los propios ni los de otros). Tiene **centros asignados** que definen su ámbito de monitoreo y responsabilidad de reporte de eventos, pero su acceso operativo es de alcance total, igual que el admin.
 
 ### `autoridad` — Autoridad
 Alto funcionario con **solo lectura total**. Ve todos los centros, incidencias, reportes, ocupaciones y logs, pero no puede crear, modificar ni eliminar nada.

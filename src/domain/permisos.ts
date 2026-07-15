@@ -158,14 +158,41 @@ export function puedeEditarCensoRapidoRed(rol: Rol): boolean {
   return rol === "admin" || rol === "analista_sae";
 }
 
-export function puedeCrearCentros(rol: Rol): boolean {
-  return permisosDeRol(rol).puedeCrearCentros;
+/** Analista con alcance de toda la red (ámbito 'red'). */
+export function esAnalistaDeRed(usuario: Usuario): boolean {
+  return usuario.rol === "analista_sae" && usuario.ambito_analista === "red";
+}
+
+/**
+ * Registrar/eliminar campamentos: admin y analista de red (la RLS exige lo
+ * mismo; un analista con ámbito no crea campamentos).
+ */
+export function puedeCrearCentros(usuario: Usuario): boolean {
+  if (usuario.rol === "analista_sae") return esAnalistaDeRed(usuario);
+  return permisosDeRol(usuario.rol).puedeCrearCentros;
 }
 
 /** Catálogo de unidades internas SEBIN (crear/editar/eliminar). */
 /** Puede administrar catálogos operativos (cuerpos + unidades de supervisión). */
 export function puedeGestionarCatalogosOperativos(rol: Rol): boolean {
   return rol === "admin" || rol === "analista_sae";
+}
+
+/**
+ * Entrar a /config/catalogos-operativos: admin, analista de red y analista
+ * con cuerpo asignado (gestiona solo las unidades de su cuerpo). El analista
+ * con lista manual de campamentos no gestiona catálogos.
+ */
+export function puedeEntrarACatalogos(usuario: Usuario): boolean {
+  if (usuario.rol === "admin") return true;
+  if (usuario.rol !== "analista_sae") return false;
+  if (usuario.ambito_analista === "red") return true;
+  return usuario.ambito_analista === "cuerpo" && Boolean(usuario.cuerpo_asignado);
+}
+
+/** Editar el catálogo de cuerpos policiales (solo alcance de red). */
+export function puedeEditarCuerposPoliciales(usuario: Usuario): boolean {
+  return usuario.rol === "admin" || esAnalistaDeRed(usuario);
 }
 
 /** @deprecated Usar `puedeGestionarCatalogosOperativos`. */

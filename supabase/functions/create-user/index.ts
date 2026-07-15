@@ -1,4 +1,4 @@
-// Edge Function `create-user` (v2 — sistema de 5 roles).
+// Edge Function `create-user` (v3 — ámbito del analista).
 //
 // Crea un usuario completo: `auth.users` (email sintético <username>@refugio.app)
 // + fila en `perfiles`, con rol de los 5 nuevos y centros asignados (array).
@@ -88,6 +88,8 @@ Deno.serve(async (req: Request) => {
     password,
     nombre,
     rol,
+    ambito_analista,
+    cuerpo_asignado,
     centros_asignados,
     jerarquia,
     cedula,
@@ -106,6 +108,31 @@ Deno.serve(async (req: Request) => {
   }
   if (!ROLES_VALIDOS.includes(rol)) {
     return json({ error: "Rol inválido" }, 400);
+  }
+
+  // Ámbito del analista: 'red' | 'cuerpo' (exige cuerpo válido) | 'centros'.
+  // Para el resto de roles se ignora y se guarda 'red'.
+  let ambito = "red";
+  let cuerpo: string | null = null;
+  if (rol === "analista_sae" && ambito_analista != null) {
+    if (!["red", "cuerpo", "centros"].includes(ambito_analista)) {
+      return json({ error: "ambito_analista inválido (red | cuerpo | centros)" }, 400);
+    }
+    ambito = ambito_analista;
+    if (ambito === "cuerpo") {
+      if (typeof cuerpo_asignado !== "string" || !cuerpo_asignado.trim()) {
+        return json({ error: "Falta cuerpo_asignado para el ámbito 'cuerpo'" }, 400);
+      }
+      const { data: filaCuerpo } = await adminClient
+        .from("cuerpos_policiales")
+        .select("clave")
+        .eq("clave", cuerpo_asignado.trim())
+        .maybeSingle();
+      if (!filaCuerpo) {
+        return json({ error: `Cuerpo policial inexistente: ${cuerpo_asignado}` }, 400);
+      }
+      cuerpo = cuerpo_asignado.trim();
+    }
   }
 
   // 4) Centros asignados: deben existir y no estar borrados
@@ -163,6 +190,8 @@ Deno.serve(async (req: Request) => {
     username,
     nombre,
     rol,
+    ambito_analista: ambito,
+    cuerpo_asignado: cuerpo,
     centros_asignados: centros,
     jerarquia,
     cedula,
@@ -185,7 +214,14 @@ Deno.serve(async (req: Request) => {
     accion: "crear_usuario",
     entidad: "usuario",
     entidad_id: newUser.user.id,
-    detalle: { username, nombre, rol, centros_asignados: centros },
+    detalle: {
+      username,
+      nombre,
+      rol,
+      ambito_analista: ambito,
+      cuerpo_asignado: cuerpo,
+      centros_asignados: centros,
+    },
   });
 
   return json(

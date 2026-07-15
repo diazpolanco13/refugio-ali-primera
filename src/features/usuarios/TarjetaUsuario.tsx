@@ -31,6 +31,8 @@ export interface UsuarioPerfil {
   nombre: string | null;
   rol: Rol;
   centros_asignados: string[] | null;
+  ambito_analista?: "red" | "cuerpo" | "centros" | null;
+  cuerpo_asignado?: string | null;
   jerarquia: string | null;
   cedula: string | null;
   responsabilidad: string | null;

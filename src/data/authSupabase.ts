@@ -24,6 +24,9 @@ export type Rol =
   | "operador"
   | "censo_rapido";
 
+/** Alcance de un analista: toda la red, un cuerpo policial o una lista de centros. */
+export type AmbitoAnalista = "red" | "cuerpo" | "centros";
+
 export interface Usuario {
   /** Mantiene compatibilidad con la sesión legacy (sub = auth.uid). */
   sub: string;
@@ -31,8 +34,13 @@ export interface Usuario {
   nombre: string | null;
   rol: Rol;
   /** Centros asignados (supervisor/operador operan solo en ellos; para el
-   *  analista SAE son su ámbito de monitoreo). */
+   *  analista con ámbito 'centros' definen su alcance). */
   centros_asignados: string[];
+  /** Ámbito del analista: 'red' (todo), 'cuerpo' o 'centros'. Solo aplica
+   *  al rol analista_sae; el resto de roles lo ignoran. */
+  ambito_analista: AmbitoAnalista;
+  /** Cuerpo policial asignado cuando `ambito_analista === 'cuerpo'`. */
+  cuerpo_asignado: string | null;
   /** Identificador de sistema para la marca de agua anti-foto. */
   hash_id?: string | null;
   /** Mostrar la marca de agua de seguridad en la pantalla de este usuario. */
@@ -58,6 +66,8 @@ interface Perfil {
   nombre: string | null;
   rol: Rol;
   centros_asignados: string[] | null;
+  ambito_analista: AmbitoAnalista | null;
+  cuerpo_asignado: string | null;
   hash_id: string | null;
   marca_agua: boolean;
   jerarquia: string | null;
@@ -98,6 +108,11 @@ function mapearUsuario(session: Session, perfil: Perfil | null): Usuario {
     // Rol desconocido o perfil ausente → autoridad (solo lectura, seguro).
     rol: perfil?.rol && ROLES_CONOCIDOS.includes(perfil.rol) ? perfil.rol : "autoridad",
     centros_asignados: perfil?.centros_asignados ?? [],
+    ambito_analista:
+      perfil?.ambito_analista === "cuerpo" || perfil?.ambito_analista === "centros"
+        ? perfil.ambito_analista
+        : "red",
+    cuerpo_asignado: perfil?.cuerpo_asignado ?? null,
     hash_id: perfil?.hash_id ?? null,
     marca_agua: perfil?.marca_agua ?? true,
     jerarquia: perfil?.jerarquia ?? null,

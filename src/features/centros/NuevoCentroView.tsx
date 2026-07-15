@@ -18,7 +18,7 @@ interface Props {
 /** Vista dedicada para registrar un centro nuevo en la red. */
 export function NuevoCentroView({ sesion }: Props) {
   const navigate = useNavigate();
-  const puedeCrear = puedeCrearCentros(sesion.user.rol);
+  const puedeCrear = puedeCrearCentros(sesion.user);
   const idRef = useRef(nuevoId());
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
