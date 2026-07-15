@@ -13,6 +13,10 @@ export interface ResumenCensoNominalCentro {
   centroId: string;
   centroNombre: string;
   nro: number | null;
+  /** Complejo operativo (p. ej. gran-colombia); varios edificios = 1 en totales de red. */
+  complejoId?: string | null;
+  /** Etiqueta corta de unidad interna SEBIN (DIR. REG, DAI, …). Vacío si sin asignar. */
+  unidadSebin: string;
   registrados: number;
   familias: number;
   metaRefugiados: number;

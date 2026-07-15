@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils";
 import { CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
 import { TarjetaCensoNominal } from "./TarjetaCensoNominal";
 import { CensoRedTabs } from "./CensoRedTabs";
+import { BotonReporteEstatusCenso } from "./reporte-estatus/BotonReporteEstatusCenso";
 
 type FiltroEstado = FiltroEstadoCensoRed;
 type OrdenCenso = OrdenCensoRed;
@@ -331,6 +332,11 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
                 Limpiar
               </Button>
             ) : null}
+
+            <BotonReporteEstatusCenso
+              resumenes={resumenes}
+              cargando={cargando}
+            />
 
             <Badge variant="outline" className="ml-auto tabular-nums">
               {visibles.length} escuela{visibles.length === 1 ? "" : "s"}

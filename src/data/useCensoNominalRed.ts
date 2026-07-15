@@ -10,7 +10,12 @@ import {
   type ResumenCensoNominalCentro,
 } from "@/domain/censoNominalRed";
 import {
+  COMPLEJO_GRAN_COLOMBIA,
+  IDS_COMPLEJO_GRAN_COLOMBIA,
+} from "@/domain/complejosCentros";
+import {
   esCentroDePrueba,
+  metaUnidadSebinCentro,
   normalizarCentro,
   poblacionCentro,
   type CentroTransitorio,
@@ -108,10 +113,21 @@ export function useCensoNominalRed(): {
         }
       }
 
+      const esGranColombia = (IDS_COMPLEJO_GRAN_COLOMBIA as readonly string[]).includes(
+        centro.id,
+      );
+      const complejoId =
+        centro.complejoId?.trim() ||
+        (esGranColombia ? COMPLEJO_GRAN_COLOMBIA : null);
+      const metaUnidad = metaUnidadSebinCentro(centro);
+
       return {
         centroId: centro.id,
         centroNombre: centro.nombre || centro.id,
         nro: centro.nro ?? null,
+        complejoId,
+        unidadSebin:
+          metaUnidad.clave !== "sin_asignar" ? metaUnidad.label : "",
         registrados: progreso.registradosRefugiados,
         familias: progreso.registradosFamilias,
         metaRefugiados: progreso.metaRefugiados,
