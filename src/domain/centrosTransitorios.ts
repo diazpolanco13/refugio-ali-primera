@@ -51,6 +51,8 @@ export type ClaveCuerpo =
   | "alcaldia_ccs"
   | "milicia"
   | "gbp"
+  | "armada"
+  | "ejercito"
   | "sin_asignar";
 
 export interface MetaCuerpo {
@@ -109,6 +111,20 @@ export const CATALOGO_CUERPOS: MetaCuerpo[] = [
     color: "#b91c1c",
     logo: "/logos-cuerpos/gbp.webp",
   },
+  {
+    clave: "armada",
+    label: "Armada Bolivariana",
+    icono: "⚓",
+    color: "#0369a1",
+    logo: null,
+  },
+  {
+    clave: "ejercito",
+    label: "Ejército",
+    icono: "🎖️",
+    color: "#166534",
+    logo: null,
+  },
   { clave: "sin_asignar", label: "Sin asignar", icono: "❔", color: "#64748b", logo: null },
 ];
 
@@ -152,6 +168,10 @@ export function normalizarCuerpo(raw: string | undefined | null): ClaveCuerpo {
     gbp: "gbp",
     guardiadelpueblo: "gbp",
     guardiabolivarianadelpueblo: "gbp",
+    armada: "armada",
+    armadabolivariana: "armada",
+    ejercito: "ejercito",
+    ejercitobolivariano: "ejercito",
     sinasignar: "sin_asignar",
   };
   return mapa[limpio] ?? "sin_asignar";

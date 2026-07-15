@@ -898,9 +898,9 @@ function MiniDato({ label, value }: { label: string; value: number }) {
 
 const ANCHOS_TABLA = {
   nro: 0.35,
-  campamento: 1.55,
-  ente: 1.15,
-  unidadPolicial: 0.48,
+  campamento: 1.48,
+  ente: 1.12,
+  unidadPolicial: 0.58,
   unidadSupervision: 0.72,
   damnif: 0.68,
   fam: 0.58,
@@ -1298,8 +1298,8 @@ export function ReporteEjecutivoCampamentosPdf({
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.nro }]}>N°</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.campamento }]}>Campamento</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.ente }]}>Ente responsable</Text>
-          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.unidadPolicial }]}>Unidad policial</Text>
-          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.unidadSupervision }]}>Unidad de supervisión</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.unidadPolicial }]}>Seguridad</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.unidadSupervision }]}>Supervision SEBIN</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.damnif, textAlign: "center" }]}>Damnif.</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.fam, textAlign: "center" }]}>Fam.</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.trabajos }]}>Trabajos</Text>
@@ -1423,7 +1423,7 @@ export function ReporteEjecutivoCampamentosPdf({
 
         <View style={styles.footer} fixed>
           <Text>Agrupado por región · N° oficial (complejo = un número) · Ente = organismo encargado.</Text>
-          <Text>Unidad policial = cuerpo asignado · Supervisión = unidad SEBIN + funcionario de revista.</Text>
+          <Text>Seguridad = cuerpo asignado · Supervision SEBIN = unidad + funcionario de revista.</Text>
           <Text>Trabajos y casos de salud = abiertos · Novedades = del día del corte.</Text>
         </View>
       </Page>
