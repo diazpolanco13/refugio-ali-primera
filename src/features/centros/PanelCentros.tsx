@@ -16,7 +16,6 @@ import {
 import { cn } from "@/lib/utils";
 import { LogoCuerpo } from "@/components/LogoCuerpo";
 import {
-  LOGO_SEBIN,
   metaUnidadSebinCentro,
   unidadSebinDe,
   type CentroTransitorio,
@@ -223,7 +222,6 @@ export function PanelCentros({
                   const atenuada = hayFiltro && !activa;
                   const centrosUnidad = centrosPorUnidad.get(u.clave) ?? [];
                   const grupoAbierto = expandidos.has(u.clave);
-                  const logoUnidad = u.logoUrl ?? grupo.meta?.logo ?? LOGO_SEBIN;
                   const pendientesGrupo = centrosUnidad.reduce(
                     (n, centro) =>
                       n + ((estadosReporte.get(centro.id)?.tienePendiente ?? true) ? 1 : 0),
@@ -257,16 +255,10 @@ export function PanelCentros({
                           )}
                         >
                           <span
-                            className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white text-[11px]"
-                            style={{ borderColor: u.color }}
+                            className="ml-1 size-2.5 shrink-0 rounded-full border border-white/70"
+                            style={{ backgroundColor: u.color }}
                             aria-hidden
-                          >
-                            {logoUnidad ? (
-                              <LogoCuerpo src={logoUnidad} priority="low" />
-                            ) : (
-                              <span aria-hidden>{grupo.meta?.icono ?? "🛡️"}</span>
-                            )}
-                          </span>
+                          />
                           <span className="flex-1 truncate text-foreground">{u.label}</span>
                           {pendientesGrupo > 0 && (
                             <span
