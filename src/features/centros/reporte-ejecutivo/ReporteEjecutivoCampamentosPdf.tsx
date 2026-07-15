@@ -898,14 +898,15 @@ function MiniDato({ label, value }: { label: string; value: number }) {
 
 const ANCHOS_TABLA = {
   nro: 0.35,
-  campamento: 1.6,
-  ente: 1.2,
-  cuerpo: 0.95,
-  damnif: 0.72,
-  fam: 0.62,
-  trabajos: 1.6,
-  salud: 1.4,
-  noved: 1.4,
+  campamento: 1.55,
+  ente: 1.15,
+  unidadPolicial: 0.48,
+  unidadSupervision: 0.72,
+  damnif: 0.68,
+  fam: 0.58,
+  trabajos: 1.55,
+  salud: 1.35,
+  noved: 1.35,
 };
 
 function arcoDonut(cx: number, cy: number, r: number, fraccion: number): string {
@@ -1297,7 +1298,8 @@ export function ReporteEjecutivoCampamentosPdf({
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.nro }]}>N°</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.campamento }]}>Campamento</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.ente }]}>Ente responsable</Text>
-          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.cuerpo }]}>Cuerpo · unidad</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.unidadPolicial }]}>Unidad policial</Text>
+          <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.unidadSupervision }]}>Unidad de supervisión</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.damnif, textAlign: "center" }]}>Damnif.</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.fam, textAlign: "center" }]}>Fam.</Text>
           <Text style={[styles.tablaHeaderCelda, { flex: ANCHOS_TABLA.trabajos }]}>Trabajos</Text>
@@ -1338,12 +1340,24 @@ export function ReporteEjecutivoCampamentosPdf({
                     {fila.enteResponsable.trim() || "—"}
                   </Text>
                 </View>
-                <View style={{ flex: ANCHOS_TABLA.cuerpo, paddingRight: 4 }}>
-                  <Text style={styles.celdaTexto}>{fila.cuerpo}</Text>
-                  {fila.unidadSebin ? <Text style={styles.celdaSub}>{fila.unidadSebin}</Text> : null}
-                  {fila.responsableSebin ? (
-                    <Text style={styles.celdaSub}>{fila.responsableSebin}</Text>
-                  ) : null}
+                <View style={{ flex: ANCHOS_TABLA.unidadPolicial, paddingRight: 4 }}>
+                  <Text style={[styles.celdaCentro, { color: teal }]}>
+                    {fila.cuerpo.trim() || "—"}
+                  </Text>
+                </View>
+                <View style={{ flex: ANCHOS_TABLA.unidadSupervision, paddingRight: 4 }}>
+                  {fila.unidadSebin.trim() || fila.responsableSebin.trim() ? (
+                    <>
+                      {fila.unidadSebin.trim() ? (
+                        <Text style={styles.celdaTexto}>{fila.unidadSebin.trim()}</Text>
+                      ) : null}
+                      {fila.responsableSebin.trim() ? (
+                        <Text style={styles.celdaSub}>{fila.responsableSebin.trim()}</Text>
+                      ) : null}
+                    </>
+                  ) : (
+                    <Text style={[styles.celdaTexto, { color: gris }]}>—</Text>
+                  )}
                 </View>
                 <View style={[{ flex: ANCHOS_TABLA.damnif }, styles.celdaNumeroWrap]}>
                   <Text style={styles.celdaNumero}>{n(fila.refugiados)}</Text>
@@ -1409,6 +1423,7 @@ export function ReporteEjecutivoCampamentosPdf({
 
         <View style={styles.footer} fixed>
           <Text>Agrupado por región · N° oficial (complejo = un número) · Ente = organismo encargado.</Text>
+          <Text>Unidad policial = cuerpo asignado · Supervisión = unidad SEBIN + funcionario de revista.</Text>
           <Text>Trabajos y casos de salud = abiertos · Novedades = del día del corte.</Text>
         </View>
       </Page>
