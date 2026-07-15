@@ -4,15 +4,19 @@
 // (incluso cuando no hubo eventos) se guarda en `reportes_centros.eventos_revisados`.
 
 /** Tipo operativo del evento reportado. */
-export type TipoEventoReporte = "positivo" | "negativo";
+export type TipoEventoReporte = "neutro" | "positivo" | "negativo";
+
+/** Valor por defecto al crear una novedad. */
+export const TIPO_EVENTO_REPORTE_DEFAULT: TipoEventoReporte = "neutro";
 
 export const CATALOGO_TIPOS_EVENTO_REPORTE: {
   valor: TipoEventoReporte;
   label: string;
   color: string;
 }[] = [
-  { valor: "positivo", label: "Positivo", color: "#22c55e" },
-  { valor: "negativo", label: "Negativo", color: "#ef4444" },
+  { valor: "neutro", label: "Neutra", color: "#71717a" },
+  { valor: "positivo", label: "Positiva", color: "#22c55e" },
+  { valor: "negativo", label: "Negativa", color: "#ef4444" },
 ];
 
 export const META_TIPO_EVENTO_REPORTE: Record<
@@ -53,7 +57,8 @@ export interface EventoReporte {
 export function normalizarTipoEventoReporte(
   raw: string | undefined | null,
 ): TipoEventoReporte {
-  return raw === "negativo" ? "negativo" : "positivo";
+  if (raw === "positivo" || raw === "negativo" || raw === "neutro") return raw;
+  return TIPO_EVENTO_REPORTE_DEFAULT;
 }
 
 export function normalizarParticipantesEvento(raw: unknown): ParticipanteEventoReporte[] {

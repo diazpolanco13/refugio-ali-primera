@@ -19,7 +19,7 @@ create table if not exists public.eventos_reportes (
   centro_id text not null references public.centros(id) on delete cascade,
   dia date not null,
   ts bigint not null,
-  tipo text not null check (tipo in ('positivo', 'negativo')),
+  tipo text not null check (tipo in ('neutro', 'positivo', 'negativo')),
   titulo text not null,
   descripcion text not null default '',
   participantes jsonb not null default '[]'::jsonb,

@@ -3,7 +3,7 @@
 // (positivos/negativos del reporte diario). Se actualiza solo vía Realtime
 // (los hooks los provee el padre; este componente es presentacional).
 
-import { ArrowDownRight, ArrowUpRight, HeartPulse } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, HeartPulse, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   META_ESTATUS_CASO_SALUD,
@@ -94,7 +94,12 @@ export function NovedadesEnVivo({ casos, eventos, nombresCentros, hoy }: Props) 
 
       {eventosDesc.map((ev) => {
         const meta = META_TIPO_EVENTO_REPORTE[ev.tipo];
-        const Icono = ev.tipo === "positivo" ? ArrowUpRight : ArrowDownRight;
+        const Icono =
+          ev.tipo === "positivo"
+            ? ArrowUpRight
+            : ev.tipo === "negativo"
+              ? ArrowDownRight
+              : Minus;
         return (
           <div
             key={`ev-${ev.id}`}

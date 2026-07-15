@@ -1393,7 +1393,7 @@ export function ReporteEjecutivoCampamentosPdf({
                         key={j}
                         style={[
                           styles.celdaTexto,
-                          { marginBottom: 1, color: nov.tipo === "positivo" ? verde : rojo },
+                          { marginBottom: 1, color: nov.tipo === "positivo" ? verde : nov.tipo === "negativo" ? rojo : gris },
                         ]}
                       >
                         • {textoMayusculas(nov.titulo)}

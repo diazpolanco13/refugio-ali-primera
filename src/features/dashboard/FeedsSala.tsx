@@ -1,7 +1,7 @@
 // Feeds clickeables de la sala: novedades diarias, casos de salud y denuncias.
 
 import { Link } from "react-router-dom";
-import { ArrowDownRight, ArrowUpRight, HeartPulse, MessageSquareWarning } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, HeartPulse, MessageSquareWarning, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   META_ESTATUS_CASO_SALUD,
@@ -49,7 +49,12 @@ export function FeedNovedadesDiarias({
     <div className="space-y-2">
       {eventosDesc.map((ev) => {
         const meta = META_TIPO_EVENTO_REPORTE[ev.tipo];
-        const Icono = ev.tipo === "positivo" ? ArrowUpRight : ArrowDownRight;
+        const Icono =
+          ev.tipo === "positivo"
+            ? ArrowUpRight
+            : ev.tipo === "negativo"
+              ? ArrowDownRight
+              : Minus;
         return (
           <Link
             key={ev.id}

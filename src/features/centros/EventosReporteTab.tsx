@@ -1,10 +1,11 @@
-// Pestaña Eventos del reporte diario: eventos positivos/negativos y
+// Pestaña Eventos del reporte diario: novedades neutras/positivas/negativas y
 // participantes vinculados a fichas nominales o capturados manualmente.
 
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarPlus,
   Check,
+  Circle,
   Pencil,
   Plus,
   ThumbsDown,
@@ -19,6 +20,7 @@ import {
   CATALOGO_TIPOS_EVENTO_REPORTE,
   META_TIPO_EVENTO_REPORTE,
   MIN_PALABRAS_TITULO_EVENTO,
+  TIPO_EVENTO_REPORTE_DEFAULT,
   textoParticipantesEvento,
   tituloEventoValido,
   type EventoReporte,
@@ -77,7 +79,7 @@ interface BorradorEvento {
 }
 
 const BORRADOR_INICIAL: BorradorEvento = {
-  tipo: "positivo",
+  tipo: TIPO_EVENTO_REPORTE_DEFAULT,
   hora: "",
   titulo: "",
   descripcion: "",
@@ -115,11 +117,9 @@ function etiquetaParticipante(p: ParticipanteEventoReporte): string {
 }
 
 function IconoTipoEvento({ tipo }: { tipo: TipoEventoReporte }) {
-  return tipo === "positivo" ? (
-    <ThumbsUp className="size-3.5 text-emerald-400" />
-  ) : (
-    <ThumbsDown className="size-3.5 text-red-400" />
-  );
+  if (tipo === "positivo") return <ThumbsUp className="size-3.5 text-emerald-400" />;
+  if (tipo === "negativo") return <ThumbsDown className="size-3.5 text-red-400" />;
+  return <Circle className="size-3.5 fill-zinc-400 text-zinc-400" />;
 }
 
 export function EventosReporteTab({
@@ -302,7 +302,14 @@ export function EventosReporteTab({
               <SelectContent>
                 {CATALOGO_TIPOS_EVENTO_REPORTE.map((tipo) => (
                   <SelectItem key={tipo.valor} value={tipo.valor}>
-                    {tipo.label}
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: tipo.color }}
+                        aria-hidden
+                      />
+                      {tipo.label}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -480,7 +487,7 @@ export function EventosReporteTab({
       <BloqueConfirmacionReporte
         titulo="Novedades y eventos"
         tituloRevisado="Novedades revisadas hoy"
-        descripcion="Registra actividades, novedades positivas o situaciones negativas relevantes para el cierre diario."
+        descripcion="Registra actividades y novedades (neutras, positivas o negativas) relevantes para el cierre diario."
         icono={CalendarPlus}
         acento="teal"
         revisado={eventosRevisados}

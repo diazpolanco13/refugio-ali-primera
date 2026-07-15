@@ -8,6 +8,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Circle,
   Clock,
   Loader2,
   PanelLeftClose,
@@ -48,6 +49,7 @@ import {
 import {
   CATALOGO_TIPOS_EVENTO_REPORTE,
   MIN_PALABRAS_TITULO_EVENTO,
+  TIPO_EVENTO_REPORTE_DEFAULT,
   textoParticipantesEvento,
   tituloEventoValido,
   type EventoReporte,
@@ -458,8 +460,10 @@ function TarjetaNovedad({
         {!editando &&
           (evento.tipo === "positivo" ? (
             <ThumbsUp className="mt-0.5 size-4 shrink-0 text-emerald-400" />
-          ) : (
+          ) : evento.tipo === "negativo" ? (
             <ThumbsDown className="mt-0.5 size-4 shrink-0 text-red-400" />
+          ) : (
+            <Circle className="mt-0.5 size-4 shrink-0 fill-zinc-400 text-zinc-400" />
           ))}
         <div className="min-w-0 flex-1">
           {!editando && (
@@ -547,7 +551,14 @@ function TarjetaNovedad({
                 <SelectContent>
                   {CATALOGO_TIPOS_EVENTO_REPORTE.map((t) => (
                     <SelectItem key={t.valor} value={t.valor}>
-                      {t.label}
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="size-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: t.color }}
+                          aria-hidden
+                        />
+                        {t.label}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -671,14 +682,14 @@ function SeguimientoExpandido({
 
   const [editandoNovedadId, setEditandoNovedadId] = useState<string | null>(null);
   const [borradorNovedad, setBorradorNovedad] = useState({
-    tipo: "positivo" as TipoEventoReporte,
+    tipo: TIPO_EVENTO_REPORTE_DEFAULT as TipoEventoReporte,
     hora: "",
     titulo: "",
     descripcion: "",
   });
   const [formularioNuevaNovedad, setFormularioNuevaNovedad] = useState(false);
   const [nuevaNovedad, setNuevaNovedad] = useState({
-    tipo: "positivo" as TipoEventoReporte,
+    tipo: TIPO_EVENTO_REPORTE_DEFAULT as TipoEventoReporte,
     hora: "",
     titulo: "",
     descripcion: "",
@@ -835,12 +846,12 @@ function SeguimientoExpandido({
 
   function cancelarEdicionNovedad() {
     setEditandoNovedadId(null);
-    setBorradorNovedad({ tipo: "positivo", hora: "", titulo: "", descripcion: "" });
+    setBorradorNovedad({ tipo: TIPO_EVENTO_REPORTE_DEFAULT, hora: "", titulo: "", descripcion: "" });
   }
 
   function cancelarNuevaNovedad() {
     setFormularioNuevaNovedad(false);
-    setNuevaNovedad({ tipo: "positivo", hora: "", titulo: "", descripcion: "" });
+    setNuevaNovedad({ tipo: TIPO_EVENTO_REPORTE_DEFAULT, hora: "", titulo: "", descripcion: "" });
   }
 
   function abrirNuevaNovedad() {
@@ -1412,7 +1423,14 @@ function SeguimientoExpandido({
                     <SelectContent>
                       {CATALOGO_TIPOS_EVENTO_REPORTE.map((t) => (
                         <SelectItem key={t.valor} value={t.valor}>
-                          {t.label}
+                          <span className="flex items-center gap-2">
+                            <span
+                              className="size-2 shrink-0 rounded-full"
+                              style={{ backgroundColor: t.color }}
+                              aria-hidden
+                            />
+                            {t.label}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>

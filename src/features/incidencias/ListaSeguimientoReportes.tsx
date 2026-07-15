@@ -1,7 +1,7 @@
 // Lista global de casos de salud y novedades del reporte diario.
 
 import { Link } from "react-router-dom";
-import { CalendarPlus, ExternalLink, Loader2, Stethoscope, ThumbsDown, ThumbsUp } from "lucide-react";
+import { CalendarPlus, Circle, ExternalLink, Loader2, Stethoscope, ThumbsDown, ThumbsUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -178,8 +178,10 @@ function FilaNovedad({
       <div className="flex flex-wrap items-start gap-2">
         {evento.tipo === "positivo" ? (
           <ThumbsUp className="mt-0.5 size-4 shrink-0 text-emerald-400" />
-        ) : (
+        ) : evento.tipo === "negativo" ? (
           <ThumbsDown className="mt-0.5 size-4 shrink-0 text-red-400" />
+        ) : (
+          <Circle className="mt-0.5 size-4 shrink-0 fill-zinc-400 text-zinc-400" />
         )}
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-1.5">
