@@ -787,12 +787,15 @@ export function ReportesDiariosRedView() {
   async function descargarPdfEjecutivo() {
     setGenerandoPdf(true);
     try {
-      const [{ pdf }, { ReporteEjecutivoCampamentosPdf }] = await Promise.all([
-        import("@react-pdf/renderer"),
-        import("./reporte-ejecutivo/ReporteEjecutivoCampamentosPdf"),
-      ]);
+      const [{ pdf }, { ReporteEjecutivoCampamentosPdf }, { obtenerMembretePdf }] =
+        await Promise.all([
+          import("@react-pdf/renderer"),
+          import("./reporte-ejecutivo/ReporteEjecutivoCampamentosPdf"),
+          import("@/data/useMembretePdf"),
+        ]);
+      const membrete = await obtenerMembretePdf(sesion.user);
       const blob = await pdf(
-        <ReporteEjecutivoCampamentosPdf reporte={reporteEjecutivo} />,
+        <ReporteEjecutivoCampamentosPdf reporte={reporteEjecutivo} membrete={membrete} />,
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const enlace = document.createElement("a");

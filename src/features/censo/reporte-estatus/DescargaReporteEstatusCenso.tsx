@@ -1,6 +1,7 @@
 import { BlobProvider } from "@react-pdf/renderer";
 import { Download, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useMembretePdf } from "@/data/useMembretePdf";
 import {
   ReporteEstatusCensoRedPdf,
   type DatosReporteEstatusCenso,
@@ -21,8 +22,19 @@ export function DescargaReporteEstatusCenso({
 }: {
   datos: DatosReporteEstatusCenso;
 }) {
+  const membrete = useMembretePdf();
+
+  if (!membrete) {
+    return (
+      <Button type="button" size="sm" variant="default" className="h-8 gap-1.5" disabled>
+        <Loader2 className="size-3.5 animate-spin" />
+        Generando PDF
+      </Button>
+    );
+  }
+
   return (
-    <BlobProvider document={<ReporteEstatusCensoRedPdf datos={datos} />}>
+    <BlobProvider document={<ReporteEstatusCensoRedPdf datos={datos} membrete={membrete} />}>
       {({ url, loading, error }) => {
         if (loading) {
           return (

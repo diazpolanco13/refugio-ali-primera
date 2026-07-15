@@ -96,6 +96,9 @@ function formCuerpoVacio(ordenSiguiente: number): CuerpoPolicialInput {
     logo_url: null,
     orden: ordenSiguiente,
     activo: true,
+    nombre_oficial: null,
+    sala_nombre: null,
+    sala_logo_url: null,
   };
 }
 
@@ -108,6 +111,9 @@ function cuerpoDesdeMeta(c: MetaCuerpo): CuerpoPolicialInput {
     logo_url: c.logo,
     orden: c.orden ?? 100,
     activo: c.activo !== false,
+    nombre_oficial: c.nombreOficial ?? null,
+    sala_nombre: c.salaNombre ?? null,
+    sala_logo_url: c.salaLogo ?? null,
   };
 }
 
@@ -601,7 +607,7 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
                     <span className="text-[10px] tabular-nums text-muted-foreground">
                       orden {c.orden ?? "—"}
                     </span>
-                    {puedeCuerpos && (
+                    {(puedeCuerpos || c.clave === cuerpoScope) && (
                       <div className="flex shrink-0 gap-1">
                         <Button
                           type="button"
@@ -612,7 +618,7 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
                         >
                           <Pencil className="size-3.5" />
                         </Button>
-                        {c.clave !== "sin_asignar" && (
+                        {puedeCuerpos && c.clave !== "sin_asignar" && (
                           <Button
                             type="button"
                             size="icon-sm"
@@ -763,7 +769,7 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
                   id="cuerpo-label"
                   className="h-9"
                   value={formCuerpo.label}
-                  disabled={guardando}
+                  disabled={guardando || !puedeCuerpos}
                   onChange={(e) => {
                     const label = e.target.value;
                     setFormCuerpo((prev) => ({
@@ -815,7 +821,7 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
                     type="number"
                     className="h-9"
                     value={formCuerpo.orden}
-                    disabled={guardando}
+                    disabled={guardando || !puedeCuerpos}
                     onChange={(e) =>
                       setFormCuerpo((prev) => ({
                         ...prev,
@@ -879,6 +885,61 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
                 }}
                 onQuitar={() => setFormCuerpo((prev) => ({ ...prev, logo_url: null }))}
               />
+              <div className="space-y-3 rounded-lg border border-border p-4">
+                <div>
+                  <p className="text-sm font-medium">Membrete de los PDF</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Encabezado de los partes ejecutivos que generan los analistas de este
+                    cuerpo: nombre institucional (izquierda, con el escudo de arriba) y
+                    sala/unidad de análisis (derecha).
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cuerpo-nombre-oficial">Nombre institucional completo</Label>
+                  <Input
+                    id="cuerpo-nombre-oficial"
+                    className="h-9"
+                    value={formCuerpo.nombre_oficial ?? ""}
+                    disabled={guardando}
+                    onChange={(e) =>
+                      setFormCuerpo((prev) => ({
+                        ...prev,
+                        nombre_oficial: e.target.value || null,
+                      }))
+                    }
+                    placeholder="Ej. Policía Nacional Bolivariana"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cuerpo-sala">Sala / unidad de análisis</Label>
+                  <Input
+                    id="cuerpo-sala"
+                    className="h-9"
+                    value={formCuerpo.sala_nombre ?? ""}
+                    disabled={guardando}
+                    onChange={(e) =>
+                      setFormCuerpo((prev) => ({
+                        ...prev,
+                        sala_nombre: e.target.value || null,
+                      }))
+                    }
+                    placeholder="Ej. Sala de Análisis Estratégico"
+                  />
+                </div>
+                <CampoLogo
+                  url={formCuerpo.sala_logo_url}
+                  disabled={guardando}
+                  onSubir={async (file) => {
+                    const clave =
+                      formCuerpo.clave.trim() || slugCuerpo(formCuerpo.label) || "cuerpo";
+                    const url = await subirLogoCatalogo("cuerpo", `${clave}-sala`, file);
+                    setFormCuerpo((prev) => ({ ...prev, sala_logo_url: url }));
+                  }}
+                  onQuitar={() =>
+                    setFormCuerpo((prev) => ({ ...prev, sala_logo_url: null }))
+                  }
+                />
+              </div>
               {formCuerpo.clave !== "sin_asignar" && (
                 <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3">
                   <div className="space-y-0.5">
@@ -889,7 +950,7 @@ export function GestionCatalogosOperativos({ sesion }: Props) {
                   </div>
                   <Switch
                     checked={formCuerpo.activo}
-                    disabled={guardando}
+                    disabled={guardando || !puedeCuerpos}
                     onCheckedChange={(v) =>
                       setFormCuerpo((prev) => ({ ...prev, activo: v }))
                     }

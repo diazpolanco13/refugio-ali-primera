@@ -20,6 +20,13 @@ create table if not exists public.cuerpos_policiales (
   logo_url text,
   orden int not null default 100,
   activo boolean not null default true,
+  -- Membrete de los PDF (migración membrete_pdf_cuerpos, 15-jul-2026):
+  -- nombre institucional (izquierda, con el escudo logo_url) y sala/unidad
+  -- de análisis (derecha). SEBIN se seedea con el membrete histórico
+  -- (SEBIN + SAE '/logos/logo-sae.png'); deja de estar hardcodeado en código.
+  nombre_oficial text,
+  sala_nombre text,
+  sala_logo_url text,
   updated_at bigint not null default ((extract(epoch from now()) * 1000)::bigint),
   updated_by text
 );

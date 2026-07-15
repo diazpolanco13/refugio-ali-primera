@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Document, Image, Page, Path, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/types";
 import type { ReporteEjecutivoCampamentos } from "@/domain/reporteEjecutivoCampamentos";
+import type { MembreteListo } from "@/lib/imagenPdf";
 
 const azul = "#0f2f3f";
 const azulInstitucional = "#0b1c2e";
@@ -17,16 +18,6 @@ const rojoDelta = "#e11d48";
 const gris = "#64748b";
 const borde = "#d8e2ea";
 const fondoSuave = "#f4f8fb";
-
-const LOGO_SEBIN = "/logos/logo-sebin.png";
-const LOGO_SAE = "/logos/logo-sae.png";
-
-function urlPublica(ruta: string): string {
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return `${window.location.origin}${ruta}`;
-  }
-  return ruta;
-}
 
 const MESES_MILITAR = [
   "JAN",
@@ -713,15 +704,26 @@ function GraficoSerieSemanal({
   );
 }
 
-function EncabezadoInstitucional({ generadoTs }: { generadoTs: number }) {
+function EncabezadoInstitucional({
+  generadoTs,
+  membrete,
+}: {
+  generadoTs: number;
+  membrete: MembreteListo;
+}) {
   return (
     <View style={styles.franja} fixed>
       <View style={styles.franjaLado}>
-        <Image src={urlPublica(LOGO_SEBIN)} style={styles.logoSebin} />
+        {membrete.izqLogo ? (
+          <Image src={membrete.izqLogo} style={styles.logoSebin} />
+        ) : null}
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={styles.franjaTextoIzq}>Servicio Bolivariano de</Text>
-          <Text style={styles.franjaTextoIzq}>Inteligencia Nacional</Text>
-          <View style={styles.franjaSubrayado} />
+          {membrete.izqLineas.map((linea) => (
+            <Text key={linea} style={styles.franjaTextoIzq}>
+              {linea}
+            </Text>
+          ))}
+          {membrete.izqLineas.length > 0 && <View style={styles.franjaSubrayado} />}
         </View>
       </View>
 
@@ -733,11 +735,16 @@ function EncabezadoInstitucional({ generadoTs }: { generadoTs: number }) {
 
       <View style={styles.franjaLadoDerecho}>
         <View style={{ flex: 1, minWidth: 0, alignItems: "flex-end" }}>
-          <Text style={styles.franjaTextoDer}>Sala de Análisis</Text>
-          <Text style={styles.franjaTextoDer}>Estratégico</Text>
-          <View style={styles.franjaSubrayado} />
+          {membrete.derLineas.map((linea) => (
+            <Text key={linea} style={styles.franjaTextoDer}>
+              {linea}
+            </Text>
+          ))}
+          {membrete.derLineas.length > 0 && <View style={styles.franjaSubrayado} />}
         </View>
-        <Image src={urlPublica(LOGO_SAE)} style={styles.logoSae} />
+        {membrete.derLogo ? (
+          <Image src={membrete.derLogo} style={styles.logoSae} />
+        ) : null}
       </View>
     </View>
   );
@@ -987,8 +994,10 @@ const META_ESTATUS_CASO_PDF: Record<string, { label: string; color: string }> = 
 
 export function ReporteEjecutivoCampamentosPdf({
   reporte,
+  membrete,
 }: {
   reporte: ReporteEjecutivoCampamentos;
+  membrete: MembreteListo;
 }) {
   const dem = reporte.demografia;
   const totalGenero = Math.max(1, dem.hombres + dem.mujeres);
@@ -1026,7 +1035,7 @@ export function ReporteEjecutivoCampamentosPdf({
       language="es-VE"
     >
       <Page size="LETTER" orientation="landscape" style={styles.page} wrap={false}>
-        <EncabezadoInstitucional generadoTs={reporte.generadoTs} />
+        <EncabezadoInstitucional generadoTs={reporte.generadoTs} membrete={membrete} />
 
         <View style={styles.contenido}>
           <View style={styles.tituloBloque}>
@@ -1277,7 +1286,7 @@ export function ReporteEjecutivoCampamentosPdf({
 
       {/* ===== Tabla de la red, agrupada por estado ===== */}
       <Page size="LETTER" orientation="landscape" style={styles.page}>
-        <EncabezadoInstitucional generadoTs={reporte.generadoTs} />
+        <EncabezadoInstitucional generadoTs={reporte.generadoTs} membrete={membrete} />
 
         <View style={styles.contenido}>
           <View style={[styles.header, { marginBottom: 2 }]} fixed>

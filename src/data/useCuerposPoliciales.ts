@@ -32,7 +32,9 @@ export function useCatalogoCuerposActivos(): MetaCuerpo[] {
 async function cargarDesdeSupabase(): Promise<void> {
   const { data, error } = await supabase
     .from("cuerpos_policiales")
-    .select("clave, label, color, icono, logo_url, orden, activo, updated_at, updated_by")
+    .select(
+      "clave, label, color, icono, logo_url, orden, activo, nombre_oficial, sala_nombre, sala_logo_url, updated_at, updated_by",
+    )
     .order("orden", { ascending: true });
   if (error) {
     console.warn("[useCuerposPoliciales] no se pudo cargar el catálogo:", error.message);
@@ -76,6 +78,9 @@ export interface CuerpoPolicialInput {
   logo_url: string | null;
   orden: number;
   activo: boolean;
+  nombre_oficial: string | null;
+  sala_nombre: string | null;
+  sala_logo_url: string | null;
 }
 
 /** CRUD para la pantalla de administración. */
@@ -113,6 +118,9 @@ export function useGestionCuerposPoliciales() {
       logo_url: input.logo_url?.trim() || null,
       orden: input.orden,
       activo: input.activo,
+      nombre_oficial: input.nombre_oficial?.trim() || null,
+      sala_nombre: input.sala_nombre?.trim() || null,
+      sala_logo_url: input.sala_logo_url?.trim() || null,
       updated_at: Date.now(),
       updated_by: usuario,
     };
@@ -132,6 +140,9 @@ export function useGestionCuerposPoliciales() {
           logo_url: fila.logo_url,
           orden: fila.orden,
           activo: fila.activo,
+          nombre_oficial: fila.nombre_oficial,
+          sala_nombre: fila.sala_nombre,
+          sala_logo_url: fila.sala_logo_url,
           updated_at: fila.updated_at,
           updated_by: fila.updated_by,
         })

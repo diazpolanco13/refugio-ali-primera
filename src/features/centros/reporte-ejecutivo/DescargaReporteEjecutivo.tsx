@@ -1,6 +1,7 @@
 import { BlobProvider } from "@react-pdf/renderer";
 import { Download, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useMembretePdf } from "@/data/useMembretePdf";
 import type { ReporteEjecutivoCampamentos } from "@/domain/reporteEjecutivoCampamentos";
 import { ReporteEjecutivoCampamentosPdf } from "./ReporteEjecutivoCampamentosPdf";
 
@@ -13,8 +14,21 @@ export function DescargaReporteEjecutivo({
 }: {
   reporte: ReporteEjecutivoCampamentos;
 }) {
+  const membrete = useMembretePdf();
+
+  if (!membrete) {
+    return (
+      <Button type="button" size="sm" variant="default" className="h-8 gap-1.5" disabled>
+        <Loader2 className="size-3.5 animate-spin" />
+        Generando PDF
+      </Button>
+    );
+  }
+
   return (
-    <BlobProvider document={<ReporteEjecutivoCampamentosPdf reporte={reporte} />}>
+    <BlobProvider
+      document={<ReporteEjecutivoCampamentosPdf reporte={reporte} membrete={membrete} />}
+    >
       {({ url, loading, error }) => {
         if (loading) {
           return (

@@ -16,6 +16,11 @@ export interface MetaCuerpo {
   logo: string | null;
   orden?: number;
   activo?: boolean;
+  /** Nombre completo institucional (membrete de los PDF). */
+  nombreOficial?: string | null;
+  /** Sala/unidad de análisis del cuerpo (lado derecho del membrete). */
+  salaNombre?: string | null;
+  salaLogo?: string | null;
 }
 
 /** Fila tipada de la tabla `cuerpos_policiales`. */
@@ -27,6 +32,9 @@ export interface CuerpoPolicialFila {
   logo_url: string | null;
   orden: number;
   activo: boolean;
+  nombre_oficial?: string | null;
+  sala_nombre?: string | null;
+  sala_logo_url?: string | null;
   updated_at?: number;
   updated_by?: string | null;
 }
@@ -34,7 +42,17 @@ export interface CuerpoPolicialFila {
 /** Seed / fallback si aún no cargó Supabase. */
 export const CATALOGO_CUERPOS_FALLBACK: MetaCuerpo[] = [
   { clave: "gnb", label: "GNB", icono: "🪖", color: "#4d7c0f", logo: "/logos-cuerpos/gnb.webp", orden: 10 },
-  { clave: "sebin", label: "SEBIN", icono: "🛡️", color: "#1e3a8a", logo: "/logos-cuerpos/sebin.webp", orden: 20 },
+  {
+    clave: "sebin",
+    label: "SEBIN",
+    icono: "🛡️",
+    color: "#1e3a8a",
+    logo: "/logos-cuerpos/sebin.webp",
+    orden: 20,
+    nombreOficial: "Servicio Bolivariano de Inteligencia Nacional",
+    salaNombre: "Sala de Análisis Estratégico",
+    salaLogo: "/logos/logo-sae.png",
+  },
   { clave: "dgcim", label: "DGCIM", icono: "🎖️", color: "#334155", logo: "/logos-cuerpos/dgcim.webp", orden: 30 },
   { clave: "cicpc", label: "CICPC", icono: "🔍", color: "#7c3aed", logo: "/logos-cuerpos/cicpc.webp", orden: 40 },
   { clave: "pnb", label: "PNB", icono: "👮", color: "#1d4ed8", logo: "/logos-cuerpos/pnb.webp", orden: 50 },
@@ -262,6 +280,9 @@ export function filaAMetaCuerpo(f: CuerpoPolicialFila): MetaCuerpo {
     logo: f.logo_url?.trim() ? f.logo_url.trim() : null,
     orden: f.orden ?? 100,
     activo: f.activo !== false,
+    nombreOficial: f.nombre_oficial?.trim() || null,
+    salaNombre: f.sala_nombre?.trim() || null,
+    salaLogo: f.sala_logo_url?.trim() || null,
   };
 }
 

@@ -8,6 +8,7 @@ import {
   type ResumenCensoNominalCentro,
 } from "@/domain/censoNominalRed";
 import { totalUnidadesConteo } from "@/domain/complejosCentros";
+import type { MembreteListo } from "@/lib/imagenPdf";
 
 const azul = "#0f2f3f";
 const azulInstitucional = "#0b1c2e";
@@ -19,9 +20,6 @@ const rojo = "#b91c1c";
 const gris = "#64748b";
 const borde = "#d8e2ea";
 const fondoSuave = "#f4f8fb";
-
-const LOGO_SEBIN = "/logos/logo-sebin.png";
-const LOGO_SAE = "/logos/logo-sae.png";
 
 const MESES_MILITAR = [
   "JAN",
@@ -37,13 +35,6 @@ const MESES_MILITAR = [
   "NOV",
   "DEC",
 ] as const;
-
-function urlPublica(ruta: string): string {
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return `${window.location.origin}${ruta}`;
-  }
-  return ruta;
-}
 
 function n(valor: number): string {
   return valor.toLocaleString("es-VE");
@@ -308,15 +299,26 @@ const styles = StyleSheet.create({
   },
 });
 
-function EncabezadoInstitucional({ generadoTs }: { generadoTs: number }) {
+function EncabezadoInstitucional({
+  generadoTs,
+  membrete,
+}: {
+  generadoTs: number;
+  membrete: MembreteListo;
+}) {
   return (
     <View style={styles.franja} fixed>
       <View style={styles.franjaLado}>
-        <Image src={urlPublica(LOGO_SEBIN)} style={styles.logoSebin} />
+        {membrete.izqLogo ? (
+          <Image src={membrete.izqLogo} style={styles.logoSebin} />
+        ) : null}
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={styles.franjaTextoIzq}>Servicio Bolivariano de</Text>
-          <Text style={styles.franjaTextoIzq}>Inteligencia Nacional</Text>
-          <View style={styles.franjaSubrayado} />
+          {membrete.izqLineas.map((linea) => (
+            <Text key={linea} style={styles.franjaTextoIzq}>
+              {linea}
+            </Text>
+          ))}
+          {membrete.izqLineas.length > 0 && <View style={styles.franjaSubrayado} />}
         </View>
       </View>
 
@@ -328,11 +330,16 @@ function EncabezadoInstitucional({ generadoTs }: { generadoTs: number }) {
 
       <View style={styles.franjaLadoDerecho}>
         <View style={{ flex: 1, minWidth: 0, alignItems: "flex-end" }}>
-          <Text style={styles.franjaTextoDer}>Sala de Análisis</Text>
-          <Text style={styles.franjaTextoDer}>Estratégico</Text>
-          <View style={styles.franjaSubrayado} />
+          {membrete.derLineas.map((linea) => (
+            <Text key={linea} style={styles.franjaTextoDer}>
+              {linea}
+            </Text>
+          ))}
+          {membrete.derLineas.length > 0 && <View style={styles.franjaSubrayado} />}
         </View>
-        <Image src={urlPublica(LOGO_SAE)} style={styles.logoSae} />
+        {membrete.derLogo ? (
+          <Image src={membrete.derLogo} style={styles.logoSae} />
+        ) : null}
       </View>
     </View>
   );
@@ -499,8 +506,10 @@ export interface DatosReporteEstatusCenso {
 
 export function ReporteEstatusCensoRedPdf({
   datos,
+  membrete,
 }: {
   datos: DatosReporteEstatusCenso;
+  membrete: MembreteListo;
 }) {
   const { resumenes, generadoTs, generadoPor } = datos;
 
@@ -533,7 +542,7 @@ export function ReporteEstatusCensoRedPdf({
       language="es-VE"
     >
       <Page size="LETTER" style={styles.page}>
-        <EncabezadoInstitucional generadoTs={generadoTs} />
+        <EncabezadoInstitucional generadoTs={generadoTs} membrete={membrete} />
 
         <View style={styles.contenido}>
           <View style={styles.tituloBloque}>
