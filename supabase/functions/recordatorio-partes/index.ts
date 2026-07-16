@@ -63,8 +63,9 @@ function areasPendientes(r: ResumenCentro): string[] {
 }
 
 function bloqueCentroBuenosDias(r: ResumenCentro): string {
+  // ❌ y no ⬜: el cuadrado blanco se camufla con el fondo de Telegram.
   const lineas = AREAS.map(
-    (a) => `  ${r[a.campo] === true ? "✅" : "⬜"} ${a.etiqueta}`,
+    (a) => `  ${r[a.campo] === true ? "✅" : "❌"} ${a.etiqueta}`,
   ).join("\n");
   const faltanCenso = Math.max(0, r.parte_personas - r.censados);
   const censo =
