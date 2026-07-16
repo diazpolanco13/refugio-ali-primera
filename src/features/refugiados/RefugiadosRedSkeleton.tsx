@@ -1,4 +1,4 @@
-import { Baby, Gift, HeartPulse, ShieldAlert, Users } from "lucide-react";
+import { Baby, FileWarning, Gift, HeartPulse, Home, ShieldAlert, UserRound, Users } from "lucide-react";
 import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
 import { VistaEncabezado } from "@/components/VistaEncabezado";
 import { Button } from "@/components/ui/button";
@@ -52,13 +52,16 @@ export function RefugiadosRedSkeleton() {
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="space-y-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:p-6">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9">
             <KpiShell titulo="Total visible" icono={Users} />
+            <KpiShell titulo="Familias" icono={Home} />
+            <KpiShell titulo="Adultos" icono={UserRound} />
+            <KpiShell titulo="Niños" icono={Baby} />
             <KpiShell titulo="Adolescentes" icono={ShieldAlert} />
-            <KpiShell titulo="Embarazadas" icono={HeartPulse} />
             <KpiShell titulo="Adultos mayores" icono={Users} />
+            <KpiShell titulo="Embarazadas" icono={HeartPulse} />
             <KpiShell titulo="Discapacidad" icono={HeartPulse} />
-            <KpiShell titulo="Doc. pendiente" icono={Baby} />
+            <KpiShell titulo="Doc. pendiente" icono={FileWarning} />
           </div>
 
           <Card>

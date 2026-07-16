@@ -7,11 +7,14 @@ import {
   ArrowUp,
   ArrowUpDown,
   Baby,
+  FileWarning,
   FilterX,
   Gift,
   HeartPulse,
+  Home,
   Search,
   ShieldAlert,
+  UserRound,
   Users,
 } from "lucide-react";
 import { useRefugiadosRed } from "@/data/useRefugiadosRed";
@@ -303,17 +306,39 @@ export function RefugiadosRedView() {
     nombresCentros,
   ]);
 
-  const kpis = useMemo(
-    () => ({
+  const kpis = useMemo(() => {
+    const familias = new Set<string>();
+    let sinHogar = 0;
+    let adultos = 0;
+    let ninos = 0;
+    let adolescentes = 0;
+    let embarazadas = 0;
+    let adultosMayores = 0;
+    let discapacidad = 0;
+    let documentoPendiente = 0;
+    for (const p of visibles) {
+      if (p.alojamiento.familia_id) familias.add(p.alojamiento.familia_id);
+      else sinHogar++;
+      if (p.grupo === "adulto") adultos++;
+      else if (p.grupo === "menor5" || p.grupo === "ninez") ninos++;
+      else if (p.grupo === "adolescente") adolescentes++;
+      else if (p.grupo === "adulto_mayor") adultosMayores++;
+      if (p.embarazada) embarazadas++;
+      if (p.discapacidad) discapacidad++;
+      if (p.documentoPendiente) documentoPendiente++;
+    }
+    return {
       total: visibles.length,
-      adolescentes: visibles.filter((p) => p.grupo === "adolescente").length,
-      embarazadas: visibles.filter((p) => p.embarazada).length,
-      adultosMayores: visibles.filter((p) => p.grupo === "adulto_mayor").length,
-      discapacidad: visibles.filter((p) => p.discapacidad).length,
-      documentoPendiente: visibles.filter((p) => p.documentoPendiente).length,
-    }),
-    [visibles],
-  );
+      familias: familias.size + sinHogar,
+      adultos,
+      ninos,
+      adolescentes,
+      embarazadas,
+      adultosMayores,
+      discapacidad,
+      documentoPendiente,
+    };
+  }, [visibles]);
 
   const totalPaginas = Math.max(1, Math.ceil(visibles.length / FILAS_POR_PAGINA));
   const paginaSegura = Math.min(pagina, totalPaginas - 1);
@@ -389,13 +414,16 @@ export function RefugiadosRedView() {
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="space-y-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:p-6">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9">
             <KpiPerfil titulo="Total visible" valor={kpis.total} icono={Users} />
+            <KpiPerfil titulo="Familias" valor={kpis.familias} icono={Home} />
+            <KpiPerfil titulo="Adultos" valor={kpis.adultos} icono={UserRound} />
+            <KpiPerfil titulo="Niños" valor={kpis.ninos} icono={Baby} />
             <KpiPerfil titulo="Adolescentes" valor={kpis.adolescentes} icono={ShieldAlert} />
-            <KpiPerfil titulo="Embarazadas" valor={kpis.embarazadas} icono={HeartPulse} />
             <KpiPerfil titulo="Adultos mayores" valor={kpis.adultosMayores} icono={Users} />
+            <KpiPerfil titulo="Embarazadas" valor={kpis.embarazadas} icono={HeartPulse} />
             <KpiPerfil titulo="Discapacidad" valor={kpis.discapacidad} icono={HeartPulse} />
-            <KpiPerfil titulo="Doc. pendiente" valor={kpis.documentoPendiente} icono={Baby} />
+            <KpiPerfil titulo="Doc. pendiente" valor={kpis.documentoPendiente} icono={FileWarning} />
           </div>
 
           <Card>
