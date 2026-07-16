@@ -247,6 +247,23 @@ export function puedeVerTraslados(rol: Rol): boolean {
 }
 
 /** ¿Puede este usuario editar los datos de un centro concreto? */
+/**
+ * Alcance dinámico por cuerpo policial (analista, supervisor u operador con
+ * ámbito 'cuerpo'): sus campamentos son los supervisados por unidades de su
+ * cuerpo. La RLS los resuelve con `mis_centros()`; en el cliente,
+ * `authSupabase` hidrata `centros_asignados` con esa misma RPC al cargar la
+ * sesión, así los chequeos por lista (abajo) siguen valiendo.
+ */
+export function tieneAlcancePorCuerpo(usuario: Usuario): boolean {
+  return (
+    (usuario.rol === "analista_sae" ||
+      usuario.rol === "supervisor" ||
+      usuario.rol === "operador") &&
+    usuario.ambito_analista === "cuerpo" &&
+    Boolean(usuario.cuerpo_asignado)
+  );
+}
+
 export function puedeEditarCentro(usuario: Usuario, centroId: string): boolean {
   const info = permisosDeRol(usuario.rol);
   if (!info.puedeEscribir) return false;

@@ -18,7 +18,10 @@ import { useCatalogoCuerposActivos } from "@/data/useCuerposPoliciales";
 import { invocarEdgeFunction } from "@/data/edgeFunctions";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
-import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import {
+  normalizarCuerpo,
+  type CentroTransitorio,
+} from "@/domain/centrosTransitorios";
 import {
   INFO_ROLES,
   puedeGestionarUsuarios,
@@ -120,9 +123,33 @@ function SelectorCentros({
   disabled?: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
+  const cuerposCatalogo = useCatalogoCuerposActivos();
   const porId = useMemo(() => new Map(centros.map((c) => [c.id, c])), [centros]);
   const todosSeleccionados =
     centros.length > 0 && centros.every((c) => seleccion.includes(c.id));
+
+  // Campamentos agrupados por cuerpo policial (orden del catálogo; los sin
+  // cuerpo asignado al final) para segmentar la asignación de un vistazo.
+  const grupos = useMemo(() => {
+    const porCuerpo = new Map<string, CentroTransitorio[]>();
+    for (const c of centros) {
+      const clave = normalizarCuerpo(c.cuerpo);
+      const lista = porCuerpo.get(clave);
+      if (lista) lista.push(c);
+      else porCuerpo.set(clave, [c]);
+    }
+    const resultado: { clave: string; label: string; centros: CentroTransitorio[] }[] = [];
+    for (const meta of cuerposCatalogo) {
+      const lista = porCuerpo.get(meta.clave);
+      if (!lista || meta.clave === "sin_asignar") continue;
+      resultado.push({ clave: meta.clave, label: meta.label, centros: lista });
+    }
+    const sinCuerpo = porCuerpo.get("sin_asignar");
+    if (sinCuerpo?.length) {
+      resultado.push({ clave: "sin_asignar", label: "Sin cuerpo asignado", centros: sinCuerpo });
+    }
+    return resultado;
+  }, [centros, cuerposCatalogo]);
 
   function toggle(id: string) {
     onCambiar(
@@ -173,22 +200,47 @@ function SelectorCentros({
                   <Building2 className="size-3.5 text-muted-foreground" />
                   <span>Todos los campamentos ({centros.length})</span>
                 </CommandItem>
-                {centros.map((c) => {
-                  const marcado = seleccion.includes(c.id);
-                  return (
+              </CommandGroup>
+              {grupos.map((g) => {
+                const grupoCompleto = g.centros.every((c) => seleccion.includes(c.id));
+                return (
+                  <CommandGroup key={g.clave} heading={`${g.label} (${g.centros.length})`}>
                     <CommandItem
-                      key={c.id}
-                      value={`${c.nro ?? ""} ${c.nombre} ${c.parroquia ?? ""}`}
-                      onSelect={() => toggle(c.id)}
+                      value={`__cuerpo__ ${g.label} todos los campamentos del cuerpo`}
+                      onSelect={() => {
+                        const ids = g.centros.map((c) => c.id);
+                        onCambiar(
+                          grupoCompleto
+                            ? seleccion.filter((s) => !ids.includes(s))
+                            : [...new Set([...seleccion, ...ids])],
+                        );
+                      }}
+                      className="font-medium"
                     >
                       <Check
-                        className={cn("size-4", marcado ? "opacity-100" : "opacity-0")}
+                        className={cn("size-4", grupoCompleto ? "opacity-100" : "opacity-0")}
                       />
-                      <span className="truncate">{etiquetaCentro(c, c.id)}</span>
+                      <Building2 className="size-3.5 text-muted-foreground" />
+                      <span>Todos los de {g.label}</span>
                     </CommandItem>
-                  );
-                })}
-              </CommandGroup>
+                    {g.centros.map((c) => {
+                      const marcado = seleccion.includes(c.id);
+                      return (
+                        <CommandItem
+                          key={c.id}
+                          value={`${g.label} ${c.nro ?? ""} ${c.nombre} ${c.parroquia ?? ""}`}
+                          onSelect={() => toggle(c.id)}
+                        >
+                          <Check
+                            className={cn("size-4", marcado ? "opacity-100" : "opacity-0")}
+                          />
+                          <span className="truncate">{etiquetaCentro(c, c.id)}</span>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                );
+              })}
             </CommandList>
           </Command>
         </PopoverContent>
@@ -291,10 +343,13 @@ function FormUsuario({
   const esAnalista = form.rol === "analista_sae";
   const cuerposCatalogo = useCatalogoCuerposActivos();
   const cuerposElegibles = cuerposCatalogo.filter((c) => c.clave !== "sin_asignar");
-  /** Con rol analista, el multi-select de campamentos solo aplica al ámbito 'centros'. */
-  const muestraSelectorCentros = esAnalista
-    ? form.ambito_analista === "centros"
-    : usaCentros;
+  // Los 3 roles de alcance limitado eligen alcance: el analista además puede
+  // ser de toda la red; supervisor/operador solo por cuerpo o lista manual.
+  const usaAmbito = usaCentros;
+  const ambitoEfectivo: AmbitoAnalista =
+    !esAnalista && form.ambito_analista === "red" ? "centros" : form.ambito_analista;
+  /** El multi-select de campamentos solo aplica al ámbito 'centros'. */
+  const muestraSelectorCentros = usaCentros && ambitoEfectivo === "centros";
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
@@ -424,11 +479,13 @@ function FormUsuario({
                     {INFO_ROLES[form.rol].descripcion}
                   </p>
                 </div>
-                {esAnalista && (
+                {usaAmbito && (
                   <div className="space-y-1.5 sm:col-span-2">
-                    <Label htmlFor="usuario-ambito">Alcance del analista</Label>
+                    <Label htmlFor="usuario-ambito">
+                      {`Alcance del ${INFO_ROLES[form.rol].etiqueta.toLowerCase()}`}
+                    </Label>
                     <Select
-                      value={form.ambito_analista}
+                      value={ambitoEfectivo}
                       disabled={guardando}
                       onValueChange={(v) => {
                         const ambito = v as AmbitoAnalista;
@@ -443,21 +500,23 @@ function FormUsuario({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="red">Toda la red</SelectItem>
-                        <SelectItem value="cuerpo">Solo los campamentos de un cuerpo</SelectItem>
+                        {esAnalista && <SelectItem value="red">Toda la red</SelectItem>}
+                        <SelectItem value="cuerpo">Todos los campamentos de un cuerpo</SelectItem>
                         <SelectItem value="centros">Campamentos específicos</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs leading-snug text-muted-foreground">
-                      {form.ambito_analista === "red"
+                      {ambitoEfectivo === "red"
                         ? "Ve y opera toda la red, incluidos los catálogos de cuerpos y unidades."
-                        : form.ambito_analista === "cuerpo"
-                          ? "Ve y opera los campamentos supervisados por unidades de su cuerpo, y gestiona solo las unidades de ese cuerpo."
-                          : "Ve y opera únicamente los campamentos seleccionados; no gestiona catálogos."}
+                        : ambitoEfectivo === "cuerpo"
+                          ? esAnalista
+                            ? "Ve y opera los campamentos supervisados por unidades de su cuerpo, y gestiona solo las unidades de ese cuerpo."
+                            : "Ve y opera todos los campamentos supervisados por unidades de su cuerpo; los nuevos entran solos, sin editar el usuario."
+                          : "Ve y opera únicamente los campamentos seleccionados de la lista."}
                     </p>
                   </div>
                 )}
-                {esAnalista && form.ambito_analista === "cuerpo" && (
+                {usaAmbito && ambitoEfectivo === "cuerpo" && (
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label htmlFor="usuario-cuerpo">Cuerpo policial asignado</Label>
                     <Select
@@ -478,22 +537,20 @@ function FormUsuario({
                     </Select>
                   </div>
                 )}
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label>Campamentos asignados</Label>
-                  <SelectorCentros
-                    centros={centros}
-                    seleccion={form.centros_asignados}
-                    onCambiar={(ids) => set("centros_asignados", ids)}
-                    disabled={guardando || !muestraSelectorCentros}
-                  />
-                  <p className="text-xs leading-snug text-muted-foreground">
-                    {muestraSelectorCentros
-                      ? esAnalista
-                        ? "El analista solo verá y operará estos campamentos."
-                        : "El supervisor y el operador solo ven y editan sus campamentos asignados."
-                      : "Este rol/alcance no usa asignación manual de campamentos."}
-                  </p>
-                </div>
+                {muestraSelectorCentros && (
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label>Campamentos asignados</Label>
+                    <SelectorCentros
+                      centros={centros}
+                      seleccion={form.centros_asignados}
+                      onCambiar={(ids) => set("centros_asignados", ids)}
+                      disabled={guardando}
+                    />
+                    <p className="text-xs leading-snug text-muted-foreground">
+                      Solo verá y operará estos campamentos.
+                    </p>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -643,7 +700,9 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
   const [eliminandoEnCurso, setEliminandoEnCurso] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState("");
   const [filtroRol, setFiltroRol] = useState<Rol | "todos">("todos");
+  const [filtroCuerpo, setFiltroCuerpo] = useState<string | "todos">("todos");
   const [busqueda, setBusqueda] = useState("");
+  const cuerposCatalogo = useCatalogoCuerposActivos();
 
   // Los centros se leen de Supabase para el multi-select de centros asignados.
   // `nro` vive dentro de `data` jsonb (no es columna top-level), así que el
@@ -664,6 +723,13 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
   const mapaCentrosEtiqueta = useMemo(() => {
     const m = new Map<string, string>();
     for (const c of centros) m.set(c.id, etiquetaCentro(c, c.id));
+    return m;
+  }, [centros]);
+
+  /** Centro → clave de cuerpo policial, para clasificar usuarios por cuerpo. */
+  const mapaCentroCuerpo = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of centros) m.set(c.id, normalizarCuerpo(c.cuerpo));
     return m;
   }, [centros]);
 
@@ -712,44 +778,69 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
     [centros, usuarios],
   );
 
-  /** Usuarios visibles según rol + búsqueda, agrupados por rol. */
+  /** Cuerpos con al menos un usuario vinculado (por asignación o campamentos). */
+  const cuerposConUsuarios = useMemo(() => {
+    const vinculados = new Set<string>();
+    for (const u of usuarios) {
+      if (u.cuerpo_asignado) vinculados.add(u.cuerpo_asignado);
+      for (const id of u.centros_asignados ?? []) {
+        const clave = mapaCentroCuerpo.get(id);
+        if (clave && clave !== "sin_asignar") vinculados.add(clave);
+      }
+    }
+    return cuerposCatalogo
+      .filter((c) => vinculados.has(c.clave))
+      .map((c) => ({ clave: c.clave, label: c.label }));
+  }, [usuarios, mapaCentroCuerpo, cuerposCatalogo]);
+
+  /** Usuarios visibles según rol + cuerpo + búsqueda, agrupados por rol. */
   const grupos = useMemo(() => {
     const visibles = filtrarUsuariosGestion({
       usuarios,
       mapaCentrosEtiqueta,
       filtroRol,
       busqueda,
+      filtroCuerpo,
+      mapaCentroCuerpo,
     });
     return agruparUsuariosPorRol(visibles);
-  }, [usuarios, mapaCentrosEtiqueta, filtroRol, busqueda]);
+  }, [usuarios, mapaCentrosEtiqueta, filtroRol, busqueda, filtroCuerpo, mapaCentroCuerpo]);
 
   const sinResultadosFiltro =
     !cargando &&
     usuarios.length > 0 &&
     grupos.length === 0 &&
-    (busqueda.trim() !== "" || filtroRol !== "todos");
-  /** Ámbito efectivo a persistir (solo aplica al rol analista). */
+    (busqueda.trim() !== "" || filtroRol !== "todos" || filtroCuerpo !== "todos");
+  /**
+   * Ámbito efectivo a persistir. Aplica a los 3 roles de alcance limitado
+   * (analista, supervisor, operador); 'red' solo tiene sentido en el analista
+   * (para el resto se corrige a 'centros').
+   */
   function camposAmbito(form: Formulario): {
     ambito_analista: AmbitoAnalista;
     cuerpo_asignado: string | null;
   } {
-    if (form.rol !== "analista_sae") {
+    if (!rolUsaCentrosAsignados(form.rol)) {
       return { ambito_analista: "red", cuerpo_asignado: null };
     }
-    if (form.ambito_analista === "cuerpo" && !form.cuerpo_asignado) {
-      throw new Error("Elegí el cuerpo policial del analista.");
+    const ambito: AmbitoAnalista =
+      form.rol !== "analista_sae" && form.ambito_analista === "red"
+        ? "centros"
+        : form.ambito_analista;
+    if (ambito === "cuerpo" && !form.cuerpo_asignado) {
+      throw new Error("Elegí el cuerpo policial asignado.");
     }
     return {
-      ambito_analista: form.ambito_analista,
-      cuerpo_asignado: form.ambito_analista === "cuerpo" ? form.cuerpo_asignado : null,
+      ambito_analista: ambito,
+      cuerpo_asignado: ambito === "cuerpo" ? form.cuerpo_asignado : null,
     };
   }
 
   function centrosAPersistir(form: Formulario): string[] {
-    if (form.rol === "analista_sae") {
-      return form.ambito_analista === "centros" ? form.centros_asignados : [];
-    }
-    return rolUsaCentrosAsignados(form.rol) ? form.centros_asignados : [];
+    if (!rolUsaCentrosAsignados(form.rol)) return [];
+    return camposAmbito(form).ambito_analista === "centros"
+      ? form.centros_asignados
+      : [];
   }
 
   async function crear(form: Formulario) {
@@ -868,6 +959,9 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
                 onFiltroRol={setFiltroRol}
                 conteos={conteos}
                 total={usuarios.length}
+                cuerpos={cuerposConUsuarios}
+                filtroCuerpo={filtroCuerpo}
+                onFiltroCuerpo={setFiltroCuerpo}
                 disabled={cargando || usuarios.length === 0}
               />
             )}
@@ -940,7 +1034,9 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
           ambito_analista:
             editando?.ambito_analista === "cuerpo" || editando?.ambito_analista === "centros"
               ? editando.ambito_analista
-              : "red",
+              : editando?.rol === "supervisor" || editando?.rol === "operador"
+                ? "centros"
+                : "red",
           cuerpo_asignado: editando?.cuerpo_asignado ?? null,
           centros_asignados: editando?.centros_asignados ?? [],
           jerarquia: editando?.jerarquia ?? "",

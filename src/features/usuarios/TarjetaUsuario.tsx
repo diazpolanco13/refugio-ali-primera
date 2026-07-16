@@ -8,10 +8,12 @@ import {
   Pencil,
   Phone,
   Send,
+  Shield,
   ShieldAlert,
   Trash2,
 } from "lucide-react";
 import type { Rol } from "@/data/authSupabase";
+import { useCatalogoCuerposActivos } from "@/data/useCuerposPoliciales";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { BadgeRol } from "@/components/BadgeRol";
 import { Badge } from "@/components/ui/badge";
@@ -103,6 +105,12 @@ export function TarjetaUsuario({
   onEliminar,
 }: Props) {
   const [centrosAbiertos, setCentrosAbiertos] = useState(false);
+  const cuerposCatalogo = useCatalogoCuerposActivos();
+  const alcancePorCuerpo =
+    usuario.ambito_analista === "cuerpo" && usuario.cuerpo_asignado
+      ? (cuerposCatalogo.find((c) => c.clave === usuario.cuerpo_asignado)?.label ??
+        usuario.cuerpo_asignado)
+      : null;
   const porId = useMemo(() => new Map(centros.map((c) => [c.id, c])), [centros]);
   const asignados = usuario.centros_asignados ?? [];
   const tieneTodaLaRed =
@@ -153,6 +161,16 @@ export function TarjetaUsuario({
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <BadgeRol rol={usuario.rol} />
+          {alcancePorCuerpo && (
+            <Badge
+              variant="outline"
+              className="gap-1 border-sky-500/40 text-[10px] text-sky-400"
+              title="Alcance dinámico: todos los campamentos supervisados por unidades de este cuerpo"
+            >
+              <Shield className="size-3" />
+              {alcancePorCuerpo} — todo el cuerpo
+            </Badge>
+          )}
           {usuario.hash_id && (
             <Badge
               variant="outline"

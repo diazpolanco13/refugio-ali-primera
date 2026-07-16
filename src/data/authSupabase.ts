@@ -155,9 +155,34 @@ async function aplicarSesion(session: Session | null): Promise<void> {
     emitir();
     return;
   }
-  const perfil = await cargarPerfil(session.user.id);
+  const perfil = await resolverCentrosPorCuerpo(await cargarPerfil(session.user.id));
   estado = { token: session.access_token, user: mapearUsuario(session, perfil) };
   emitir();
+}
+
+/**
+ * Alcance dinámico por cuerpo policial: resuelve los campamentos reales vía
+ * la RPC `mis_centros()` (el MISMO cálculo que usa la RLS) y los vuelca en
+ * `centros_asignados`, para que todos los chequeos de UI por lista
+ * (`puedeEditarCentro`, etc.) sigan valiendo sin tocar sus call sites.
+ * Snapshot al cargar sesión: un campamento agregado al cuerpo durante la
+ * sesión aparece al recargar (la RLS lo permite desde el primer momento).
+ */
+async function resolverCentrosPorCuerpo(perfil: Perfil | null): Promise<Perfil | null> {
+  if (!perfil) return perfil;
+  const rolConAmbito =
+    perfil.rol === "analista_sae" ||
+    perfil.rol === "supervisor" ||
+    perfil.rol === "operador";
+  if (!rolConAmbito || perfil.ambito_analista !== "cuerpo" || !perfil.cuerpo_asignado) {
+    return perfil;
+  }
+  const { data, error } = await supabase.rpc("mis_centros");
+  if (error || !Array.isArray(data)) {
+    console.warn("[authSupabase] no se pudo resolver el alcance por cuerpo:", error?.message);
+    return perfil;
+  }
+  return { ...perfil, centros_asignados: data as string[] };
 }
 
 /** Recarga el estado de la app desde la sesión actual de Supabase Auth. */

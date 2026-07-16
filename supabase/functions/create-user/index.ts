@@ -1,4 +1,5 @@
-// Edge Function `create-user` (v3 — ámbito del analista).
+// Edge Function `create-user` (v4 — alcance por cuerpo también para
+// supervisor/operador).
 //
 // Crea un usuario completo: `auth.users` (email sintético <username>@refugio.app)
 // + fila en `perfiles`, con rol de los 5 nuevos y centros asignados (array).
@@ -110,15 +111,22 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Rol inválido" }, 400);
   }
 
-  // Ámbito del analista: 'red' | 'cuerpo' (exige cuerpo válido) | 'centros'.
+  // Alcance de los roles limitados: el analista acepta 'red' | 'cuerpo' |
+  // 'centros'; supervisor y operador solo 'cuerpo' | 'centros' ('red' se
+  // corrige a 'centros'). 'cuerpo' exige un cuerpo policial existente.
   // Para el resto de roles se ignora y se guarda 'red'.
+  const ROLES_CON_AMBITO = ["analista_sae", "supervisor", "operador"];
   let ambito = "red";
   let cuerpo: string | null = null;
-  if (rol === "analista_sae" && ambito_analista != null) {
-    if (!["red", "cuerpo", "centros"].includes(ambito_analista)) {
-      return json({ error: "ambito_analista inválido (red | cuerpo | centros)" }, 400);
+  if (ROLES_CON_AMBITO.includes(rol)) {
+    if (rol !== "analista_sae") ambito = "centros";
+    if (ambito_analista != null) {
+      if (!["red", "cuerpo", "centros"].includes(ambito_analista)) {
+        return json({ error: "ambito_analista inválido (red | cuerpo | centros)" }, 400);
+      }
+      ambito =
+        rol !== "analista_sae" && ambito_analista === "red" ? "centros" : ambito_analista;
     }
-    ambito = ambito_analista;
     if (ambito === "cuerpo") {
       if (typeof cuerpo_asignado !== "string" || !cuerpo_asignado.trim()) {
         return json({ error: "Falta cuerpo_asignado para el ámbito 'cuerpo'" }, 400);
