@@ -245,7 +245,8 @@ async function notificarLoginTelegram(
         text: texto,
         parse_mode: "Markdown",
         reply_markup: {
-          inline_keyboard: [[{ text: "⚠️ No fui yo", callback_data: "nofui" }]],
+          // user_id en el callback: un mismo chat puede tener varios usuarios.
+          inline_keyboard: [[{ text: "⚠️ No fui yo", callback_data: `nofui:${userId}` }]],
         },
       }),
       signal: ctrl.signal,

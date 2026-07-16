@@ -20,14 +20,21 @@
 -- ⚠️ Recordar el gotcha: CREATE OR REPLACE resetea EXECUTE a PUBLIC.
 -- ============================================================================
 
+-- chat_id SIN unique desde la migración `telegram_chat_multiusuario`
+-- (16-jul): la misma persona suele tener cuenta permanente (admin/analista/
+-- supervisor) + identidad de terreno op-<cedula>, y un solo Telegram. La
+-- protección anti-suplantación se mantiene: cada USUARIO tiene un único chat
+-- (user_id PK) y re-vincular un usuario a otro chat sigue bloqueado. Los
+-- callbacks "No fui yo" llevan el user_id (`nofui:<uuid>`) por esto mismo.
 create table if not exists public.telegram_operadores (
   user_id uuid primary key references auth.users(id) on delete cascade,
   cedula_norm text,
-  chat_id bigint not null unique,
+  chat_id bigint not null,
   telegram_username text,
   telegram_nombre text,
   verificado_ts bigint not null
 );
+create index if not exists telegram_operadores_chat_idx on public.telegram_operadores (chat_id);
 
 alter table public.telegram_operadores enable row level security;
 

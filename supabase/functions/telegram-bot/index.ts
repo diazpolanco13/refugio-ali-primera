@@ -94,9 +94,11 @@ async function responderCallback(botToken: string, callbackId: string, texto?: s
 }
 
 /**
- * Botón "⚠️ No fui yo" de la alerta de login. Dos toques para evitar
- * bloqueos por dedo accidental: `nofui` pide confirmación; `nofui_confirmar`
- * bloquea (aprobacion = 'rechazada') y registra la alerta.
+ * Botón "⚠️ No fui yo" de la alerta de login. El callback_data lleva el
+ * user_id (`nofui:<uuid>` / `nofui2:<uuid>`) porque un mismo chat puede
+ * tener varios usuarios vinculados. Dos toques para evitar bloqueos por
+ * dedo accidental: `nofui:` pide confirmación; `nofui2:` bloquea
+ * (aprobacion = 'rechazada') y registra la alerta.
  */
 async function manejarNoFuiYo(
   admin: SupabaseClient,
@@ -104,22 +106,25 @@ async function manejarNoFuiYo(
   cb: NonNullable<TelegramUpdate["callback_query"]>,
 ): Promise<void> {
   const chatId = cb.message?.chat.id;
-  if (!chatId) {
+  const [accion, userId] = (cb.data ?? "").split(":");
+  if (!chatId || !userId) {
     await responderCallback(botToken, cb.id);
     return;
   }
 
+  // El usuario del botón debe estar vinculado a ESTE chat (no aceptar
+  // callbacks reenviados a otros chats).
   const { data: vinculo } = await admin
     .from("telegram_operadores")
-    .select("user_id")
-    .eq("chat_id", chatId)
+    .select("user_id, chat_id")
+    .eq("user_id", userId)
     .maybeSingle();
-  if (!vinculo) {
-    await responderCallback(botToken, cb.id, "Este chat no tiene vínculo activo.");
+  if (!vinculo || Number(vinculo.chat_id) !== chatId) {
+    await responderCallback(botToken, cb.id, "Este aviso no corresponde a este chat.");
     return;
   }
 
-  if (cb.data === "nofui") {
+  if (accion === "nofui") {
     await responderCallback(botToken, cb.id);
     await enviar(
       botToken,
@@ -127,12 +132,12 @@ async function manejarNoFuiYo(
       "¿Confirma que *usted NO inició esa sesión*?\n\n" +
         "Al confirmar, su acceso queda bloqueado (nadie más podrá entrar con su " +
         "cédula) y los analistas SAE revisarán el caso para reactivarlo.",
-      { inline_keyboard: [[{ text: "🚫 Confirmar: no fui yo", callback_data: "nofui_confirmar" }]] },
+      { inline_keyboard: [[{ text: "🚫 Confirmar: no fui yo", callback_data: `nofui2:${userId}` }]] },
     );
     return;
   }
 
-  // nofui_confirmar
+  // nofui2 (confirmado)
   const ahora = Date.now();
   const { data: perfil } = await admin
     .from("perfiles")
@@ -205,7 +210,7 @@ Deno.serve(async (req: Request) => {
   // Botones de la alerta de login ("No fui yo").
   if (update.callback_query) {
     const data = update.callback_query.data ?? "";
-    if (data === "nofui" || data === "nofui_confirmar") {
+    if (data.startsWith("nofui:") || data.startsWith("nofui2:")) {
       await manejarNoFuiYo(admin, botToken, update.callback_query);
     } else {
       await responderCallback(botToken, update.callback_query.id);
@@ -262,21 +267,9 @@ Deno.serve(async (req: Request) => {
     return ok();
   }
 
-  // ¿Este chat ya está casado con otro operador? (primer casamiento gana)
-  const { data: chatPrevio } = await admin
-    .from("telegram_operadores")
-    .select("user_id")
-    .eq("chat_id", chatId)
-    .maybeSingle();
-  if (chatPrevio && chatPrevio.user_id !== perfil.user_id) {
-    await enviar(
-      botToken,
-      chatId,
-      "⚠️ Este Telegram ya está vinculado a otro operador. " +
-        "Si es un error, repórtelo a los analistas SAE de su campamento.",
-    );
-    return ok();
-  }
+  // Nota: un mismo chat SÍ puede tener varios usuarios (cuenta permanente +
+  // identidad de terreno de la misma persona). Lo que no se permite es
+  // re-vincular un USUARIO a otro chat (abajo).
 
   // ¿Este usuario ya tiene otro chat? (no se re-vincula solo; analista deshace)
   const { data: usuarioPrevio } = await admin
