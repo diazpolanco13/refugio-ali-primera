@@ -26,7 +26,12 @@
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
-create or replace function public.resumen_terreno_centros(p_centros text[], p_dia date)
+-- v2 (migración `resumen_terreno_v2_parte_trabajos`): agrega el último parte
+-- ANTERIOR a hoy (damnificados/familias, base para verificar variación) y
+-- los trabajos abiertos con días transcurridos.
+drop function if exists public.resumen_terreno_centros(text[], date);
+
+create function public.resumen_terreno_centros(p_centros text[], p_dia date)
 returns table (
   centro_id text,
   nombre text,
@@ -38,7 +43,10 @@ returns table (
   novedades_ok boolean,
   censados int,
   parte_personas int,
-  censo_ts bigint
+  censo_ts bigint,
+  parte_dia date,
+  parte_familias int,
+  trabajos_abiertos jsonb
 )
 language sql stable
 set search_path = ''
@@ -53,19 +61,40 @@ as $$
     coalesce(r.requerimientos_revisados, false),
     coalesce(r.eventos_revisados, false),
     coalesce(a.censados, 0)::int,
-    coalesce((
-      select o2.total_afectados from public.ocupaciones_centros o2
-      where o2.centro_id = c.id order by o2.dia desc limit 1
-    ), 0),
-    a.censo_ts
+    coalesce(u.total_afectados, 0),
+    a.censo_ts,
+    u.dia,
+    coalesce(u.familias, 0),
+    coalesce(t.trabajos, '[]'::jsonb)
   from public.centros c
   left join public.reportes_centros r on r.centro_id = c.id and r.dia = p_dia
+  left join lateral (
+    select o.dia, o.total_afectados, o.familias
+    from public.ocupaciones_centros o
+    where o.centro_id = c.id and o.dia < p_dia
+    order by o.dia desc limit 1
+  ) u on true
   left join lateral (
     select count(*) as censados,
            max(greatest(coalesce(al.updated_at, 0), coalesce(al.creada_ts, 0))) as censo_ts
     from public.alojamientos_refugiados al
     where al.centro_id = c.id and al.estado = 'activo'
   ) a on true
+  left join lateral (
+    select jsonb_agg(jsonb_build_object(
+             'titulo', x.titulo,
+             'estatus', x.estatus,
+             'dias', x.dias
+           ) order by x.dias desc) as trabajos
+    from (
+      select rp.titulo, rp.estatus,
+             (p_dia - coalesce(rp.reportada_dia, (to_timestamp(rp.creada_ts / 1000))::date))::int as dias
+      from public.reparaciones_centros rp
+      where rp.centro_id = c.id and rp.estatus in ('pendiente', 'en_progreso')
+      order by 3 desc
+      limit 10
+    ) x
+  ) t on true
   where c.id = any(p_centros) and c.deleted = false
 $$;
 

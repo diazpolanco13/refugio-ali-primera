@@ -20,6 +20,12 @@
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+interface TrabajoAbierto {
+  titulo: string;
+  estatus: string;
+  dias: number;
+}
+
 interface ResumenCentro {
   centro_id: string;
   nombre: string;
@@ -32,6 +38,10 @@ interface ResumenCentro {
   censados: number;
   parte_personas: number;
   censo_ts: number | null;
+  /** Último parte ANTERIOR a hoy (carry-forward). */
+  parte_dia: string | null;
+  parte_familias: number;
+  trabajos_abiertos: TrabajoAbierto[] | null;
 }
 
 const AREAS: Array<{ campo: keyof ResumenCentro; etiqueta: string }> = [
@@ -62,21 +72,55 @@ function areasPendientes(r: ResumenCentro): string[] {
   return AREAS.filter((a) => r[a.campo] !== true).map((a) => a.etiqueta);
 }
 
+/** Telegram parsea Markdown: limpiar caracteres que rompen el mensaje. */
+function limpiarMd(s: string): string {
+  return s.replace(/[*_`[\]]/g, "").trim();
+}
+
+function etiquetaDias(dias: number): string {
+  if (dias <= 0) return "hoy";
+  return dias === 1 ? "1 día" : `${dias} días`;
+}
+
+function fechaDia(iso: string | null): string {
+  if (!iso) return "";
+  const [, m, d] = iso.split("-");
+  return `${d}/${m}`;
+}
+
 function bloqueCentroBuenosDias(r: ResumenCentro): string {
-  // ❌ y no ⬜: el cuadrado blanco se camufla con el fondo de Telegram.
-  const lineas = AREAS.map(
-    (a) => `  ${r[a.campo] === true ? "✅" : "❌"} ${a.etiqueta}`,
-  ).join("\n");
+  // Último parte conocido: la base contra la que verificar si hoy varió.
+  const parte =
+    r.parte_dia && r.parte_personas > 0
+      ? `👥 Último parte (${fechaDia(r.parte_dia)}): *${r.parte_personas}* damnificados · *${r.parte_familias}* familias\n` +
+        `   Verifique si hoy varió y envíe el parte del día desde la app.`
+      : `👥 Aún sin parte registrado — envíe el primero desde la app.`;
+
+  const trabajos = r.trabajos_abiertos ?? [];
+  const bloqueTrabajos =
+    trabajos.length === 0
+      ? `🔧 Trabajos abiertos: ninguno`
+      : `🔧 Trabajos abiertos (${trabajos.length}):\n` +
+        trabajos
+          .map(
+            (t) =>
+              `   • ${limpiarMd(t.titulo)} — ${t.estatus === "en_progreso" ? "en progreso" : "pendiente"}, ${etiquetaDias(t.dias)}`,
+          )
+          .join("\n") +
+        `\n   Si alguno terminó, márquelo como *completado* en la app.`;
+
   const faltanCenso = Math.max(0, r.parte_personas - r.censados);
   const censo =
     r.parte_personas > 0
       ? `${r.censados} de ${r.parte_personas} personas` +
         (faltanCenso > 0 ? ` (faltan ${faltanCenso})` : " · al día")
       : `${r.censados} personas censadas (aún sin parte que contrastar)`;
+
   return (
     `⛺ *${r.nombre}*\n` +
-    `📋 Reporte de hoy:\n${lineas}\n` +
-    `👥 Censo: ${censo}\n` +
+    `${parte}\n` +
+    `${bloqueTrabajos}\n` +
+    `🗂 Censo: ${censo}\n` +
     `   Última actualización: ${fechaCorta(r.censo_ts)}`
   );
 }
