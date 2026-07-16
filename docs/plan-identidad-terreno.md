@@ -116,7 +116,8 @@ Telegram = segundo factor real).
   (TerrenoView: cédula → confirmación, unidad/cuerpo automáticos, jerarquía
   select). ⚠️ Recordar el gotcha de `CREATE OR REPLACE FUNCTION` → re-otorga
   EXECUTE a PUBLIC (ver CLAUDE.md, pasó 2 veces).
-- **Fase B — Bot Telegram + vínculo** (1 día): token de BotFather,
+- **Fase B — Bot Telegram + vínculo** (1 día): bot **`@campamento_inteligente_bot`**
+  (nombre decidido el 16-jul); token de BotFather,
   contenedor bot en Dokploy (proyecto independiente o junto a hermes-agent),
   tabla `telegram_operadores`, deep-link + captura de chat_id, comando
   /start. El bot también absorbe el "bot emisor" pendiente del roadmap
