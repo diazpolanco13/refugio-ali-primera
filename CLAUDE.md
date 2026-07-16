@@ -214,6 +214,12 @@ datos viven en Postgres.
  registro por cédula (Nexus)" para el detalle completo — es la pieza menos
  documentada del proyecto antes de este traspaso, léela con cuidado.
 
+- ✅ **IA local disponible (16-jul):** Hermes Agent gateway en Dokploy
+  (proyecto independiente `hermes-agent`) consumiendo Gemma 4 12B en una DGX
+  Spark vía Tailscale. API OpenAI-compatible en `127.0.0.1:8642` (solo VPS).
+  **Ver `docs/hermes-gateway.md`** antes de integrar IA en la app (key en
+  Dokploy, gotchas de context_length/max_tokens, qué no tocar).
+
 ### Qué falta / próximos pasos
 - 📸 **Foto SAIME en el censo por cédula:** Nexus da el *nombre* del archivo
   (`foto_nombre` en el slim), no la imagen; la imagen vive en un MinIO

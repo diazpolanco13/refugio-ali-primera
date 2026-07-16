@@ -52,3 +52,11 @@ Stop: "stop caveman" or "normal mode"
 Auto-Clarity: drop caveman for security warnings, irreversible actions, user confused. Resume after.
 
 Boundaries: code/commits/PRs written normal.
+
+## IA local disponible (Hermes gateway)
+
+El VPS tiene un gateway de IA local OpenAI-compatible (Hermes Agent + Gemma 4
+12B en DGX vía Tailscale) en `http://127.0.0.1:8642/v1`. **Antes de integrar
+IA en la app, lee `docs/hermes-gateway.md`** — ahí están la arquitectura, la
+ubicación de la API key (Dokploy, nunca en el repo) y los gotchas de
+configuración que no se deben tocar.
