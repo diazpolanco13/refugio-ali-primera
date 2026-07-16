@@ -1,5 +1,6 @@
-// Resuelve usernames de terreno (`operador-…`) a «jerarquía · nombre» vía `perfiles`.
-// Cache + batch en el módulo para que varios MetaActualizacionBloque compartan un solo SELECT.
+// Resuelve usernames a «jerarquía · nombre» vía `perfiles` (terreno y resto).
+// Cache + batch en el módulo para que varios consumidores compartan un solo SELECT.
+// La RLS de `perfiles` limita qué filas ve cada rol; si no hay fila, queda el username.
 
 import { useEffect, useSyncExternalStore } from "react";
 import { esUsuarioTemporalTerreno } from "@/domain/permisos";
@@ -96,7 +97,7 @@ async function flushCola(): Promise<void> {
 
 function solicitar(username: string): void {
   const u = username.trim();
-  if (!u || !esUsernameOperadorTerreno(u)) return;
+  if (!u) return;
   if (atribuciones.has(u) || enVuelo.has(u) || cola.has(u)) return;
   cola.add(u);
   if (timerFlush != null) return;
@@ -113,7 +114,7 @@ function leerAtribucion(quien: string): AtribucionPerfil {
 
 /**
  * Etiqueta legible para atribución en UI.
- * Usuarios de terreno → «JERARQUÍA · NOMBRE»; resto → el username tal cual.
+ * Con perfil visible → «JERARQUÍA · NOMBRE» (o solo nombre); si no, el username.
  */
 export function useEtiquetaPerfil(username: string | null | undefined): string {
   const quien = (username ?? "").trim();
