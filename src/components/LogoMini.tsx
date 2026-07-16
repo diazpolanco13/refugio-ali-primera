@@ -47,7 +47,7 @@ export function LogoMini({
 
   return (
     <div
-      className={cn("absolute z-20 flex items-center gap-2 select-none", className)}
+      className={cn("absolute z-[5] flex items-center gap-2 select-none", className)}
       style={{
         ...POS[position],
         pointerEvents: onClick ? "auto" : "none",
