@@ -111,10 +111,14 @@ export function VincularTelegramTerreno() {
         )}
         {esperando ? "Abrir Telegram de nuevo" : "Vincular Telegram"}
       </button>
-      {esperando && (
+      {esperando ? (
         <p className="text-center text-[11px] leading-snug text-muted-foreground">
           En Telegram toque <span className="font-medium">INICIAR</span>; esta pantalla se
           actualizará sola.
+        </p>
+      ) : (
+        <p className="text-center text-[11px] leading-snug text-muted-foreground">
+          Recibirá una alerta si alguien usa su cédula para entrar.
         </p>
       )}
       {error && <p className="text-center text-[11px] text-destructive">{error}</p>}

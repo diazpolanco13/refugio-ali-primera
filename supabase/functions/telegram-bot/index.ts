@@ -12,8 +12,16 @@
 //                     la RPC `telegram_generar_vinculo` desde /terreno) y
 //                     casa el chat_id con el usuario en `telegram_operadores`.
 //                     Primer casamiento gana (unique en user_id y chat_id).
+//                     Si la cédula ya está vinculada a OTRO chat, avisa al
+//                     dueño legítimo (posible intento de suplantación).
 //   /start          → explica cómo vincular.
 //   otro texto      → mensaje genérico.
+//
+// Callbacks (botón "⚠️ No fui yo" de la alerta de login que envía
+// `login-terreno`): confirmación en 2 toques → bloquea la cuenta
+// (perfiles.aprobacion = 'rechazada', que corta los próximos logins) y
+// registra `alerta_suplantacion` en historial; los analistas la reactivan
+// desde la bandeja /usuarios/terreno.
 //
 // Siempre responde 200 a Telegram (si no, reintenta el mismo update en loop).
 
@@ -32,6 +40,12 @@ interface TelegramUpdate {
       last_name?: string;
     };
   };
+  callback_query?: {
+    id: string;
+    data?: string;
+    from?: { id: number; username?: string };
+    message?: { message_id: number; chat: { id: number; type: string } };
+  };
 }
 
 function ok(): Response {
@@ -43,17 +57,123 @@ async function leerSecret(admin: SupabaseClient, clave: string): Promise<string 
   return data?.valor ?? null;
 }
 
-async function enviar(botToken: string, chatId: number, texto: string): Promise<void> {
+async function enviar(
+  botToken: string,
+  chatId: number,
+  texto: string,
+  replyMarkup?: unknown,
+): Promise<void> {
   try {
     await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: texto, parse_mode: "Markdown" }),
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: texto,
+        parse_mode: "Markdown",
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+      }),
     });
   } catch {
     // No reintentar: Telegram reenvía el update si respondemos != 200,
     // pero un sendMessage fallido no debe tumbar el webhook.
   }
+}
+
+/** Cierra el spinner del botón tocado (obligatorio tras un callback). */
+async function responderCallback(botToken: string, callbackId: string, texto?: string): Promise<void> {
+  try {
+    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackId, ...(texto ? { text: texto } : {}) }),
+    });
+  } catch {
+    /* best-effort */
+  }
+}
+
+/**
+ * Botón "⚠️ No fui yo" de la alerta de login. Dos toques para evitar
+ * bloqueos por dedo accidental: `nofui` pide confirmación; `nofui_confirmar`
+ * bloquea (aprobacion = 'rechazada') y registra la alerta.
+ */
+async function manejarNoFuiYo(
+  admin: SupabaseClient,
+  botToken: string,
+  cb: NonNullable<TelegramUpdate["callback_query"]>,
+): Promise<void> {
+  const chatId = cb.message?.chat.id;
+  if (!chatId) {
+    await responderCallback(botToken, cb.id);
+    return;
+  }
+
+  const { data: vinculo } = await admin
+    .from("telegram_operadores")
+    .select("user_id")
+    .eq("chat_id", chatId)
+    .maybeSingle();
+  if (!vinculo) {
+    await responderCallback(botToken, cb.id, "Este chat no tiene vínculo activo.");
+    return;
+  }
+
+  if (cb.data === "nofui") {
+    await responderCallback(botToken, cb.id);
+    await enviar(
+      botToken,
+      chatId,
+      "¿Confirma que *usted NO inició esa sesión*?\n\n" +
+        "Al confirmar, su acceso queda bloqueado (nadie más podrá entrar con su " +
+        "cédula) y los analistas SAE revisarán el caso para reactivarlo.",
+      { inline_keyboard: [[{ text: "🚫 Confirmar: no fui yo", callback_data: "nofui_confirmar" }]] },
+    );
+    return;
+  }
+
+  // nofui_confirmar
+  const ahora = Date.now();
+  const { data: perfil } = await admin
+    .from("perfiles")
+    .select("user_id, username, nombre, cedula")
+    .eq("user_id", vinculo.user_id)
+    .maybeSingle();
+
+  await admin
+    .from("perfiles")
+    .update({
+      aprobacion: "rechazada",
+      aprobacion_por: "telegram-no-fui-yo",
+      aprobacion_ts: ahora,
+    })
+    .eq("user_id", vinculo.user_id);
+
+  await admin.from("historial").insert({
+    ts: ahora,
+    usuario: perfil?.username ?? null,
+    accion: "alerta_suplantacion",
+    entidad: "usuario",
+    entidad_id: vinculo.user_id,
+    detalle: {
+      origen: "telegram_no_fui_yo",
+      username: perfil?.username,
+      nombre: perfil?.nombre,
+      cedula: perfil?.cedula,
+      telegram_username: cb.from?.username ?? null,
+    },
+  });
+
+  await responderCallback(botToken, cb.id, "Acceso bloqueado.");
+  await enviar(
+    botToken,
+    chatId,
+    "🚫 *Acceso bloqueado.*\n\n" +
+      "Nadie podrá iniciar sesión con su cédula hasta que los analistas SAE " +
+      "revisen el caso. Repórtelo también a su supervisor. Para reactivar el " +
+      "acceso, los analistas lo aprueban de nuevo desde la bandeja de " +
+      "identificaciones.",
+  );
 }
 
 Deno.serve(async (req: Request) => {
@@ -79,13 +199,24 @@ Deno.serve(async (req: Request) => {
     return ok();
   }
 
+  const botToken = await leerSecret(admin, "telegram_bot_token");
+  if (!botToken) return ok();
+
+  // Botones de la alerta de login ("No fui yo").
+  if (update.callback_query) {
+    const data = update.callback_query.data ?? "";
+    if (data === "nofui" || data === "nofui_confirmar") {
+      await manejarNoFuiYo(admin, botToken, update.callback_query);
+    } else {
+      await responderCallback(botToken, update.callback_query.id);
+    }
+    return ok();
+  }
+
   const msg = update.message;
   const texto = msg?.text?.trim() ?? "";
   const chatId = msg?.chat?.id;
   if (!msg || !chatId || msg.chat.type !== "private") return ok();
-
-  const botToken = await leerSecret(admin, "telegram_bot_token");
-  if (!botToken) return ok();
 
   const AYUDA =
     "Este es el bot de la red de Campamentos Transitorios.\n\n" +
@@ -160,6 +291,27 @@ Deno.serve(async (req: Request) => {
       "⚠️ Su usuario ya está vinculado a otro Telegram. " +
         "Para cambiar de teléfono, pida a los analistas SAE que deshagan el vínculo anterior.",
     );
+    // Posible suplantación: avisar al dueño legítimo del vínculo.
+    await enviar(
+      botToken,
+      Number(usuarioPrevio.chat_id),
+      "⚠️ *Aviso de seguridad*\n\n" +
+        `Alguien intentó vincular OTRO Telegram a su cédula (${perfil.cedula ?? "—"}). ` +
+        "Si no fue usted, repórtelo a los analistas SAE de su campamento.",
+    );
+    await admin.from("historial").insert({
+      ts: ahora,
+      usuario: perfil.username,
+      accion: "alerta_suplantacion",
+      entidad: "usuario",
+      entidad_id: perfil.user_id,
+      detalle: {
+        origen: "intento_vinculo_ajeno",
+        username: perfil.username,
+        cedula: perfil.cedula,
+        telegram_username_intruso: msg.from?.username ?? null,
+      },
+    });
     return ok();
   }
 

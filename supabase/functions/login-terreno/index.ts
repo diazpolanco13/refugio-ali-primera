@@ -194,6 +194,68 @@ async function fichaNexus(
   }
 }
 
+/**
+ * Alerta de seguridad: si la persona tiene Telegram vinculado, le avisa que
+ * se inició sesión con su cédula (con botón "No fui yo" que atiende el
+ * webhook `telegram-bot`). Fire-and-forget con timeout corto: NUNCA puede
+ * demorar ni tumbar el login.
+ */
+async function notificarLoginTelegram(
+  admin: SupabaseClient,
+  userId: string,
+  detalle: { cedula: string; nombreCentro: string; jerarquia: string },
+): Promise<void> {
+  try {
+    const { data: vinculo } = await admin
+      .from("telegram_operadores")
+      .select("chat_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!vinculo?.chat_id) return;
+    const { data: fila } = await admin
+      .from("app_secrets")
+      .select("valor")
+      .eq("clave", "telegram_bot_token")
+      .maybeSingle();
+    const botToken = fila?.valor;
+    if (!botToken) return;
+
+    const hora = new Date().toLocaleString("es-VE", {
+      timeZone: "America/Caracas",
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const texto =
+      `🔐 *Inicio de sesión con su cédula*\n\n` +
+      `Cédula: ${detalle.cedula}\n` +
+      `Campamento: *${detalle.nombreCentro}*\n` +
+      `Jerarquía declarada: ${detalle.jerarquia}\n` +
+      `Hora: ${hora}\n\n` +
+      `Si fue usted, ignore este mensaje.`;
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3000);
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: vinculo.chat_id,
+        text: texto,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [[{ text: "⚠️ No fui yo", callback_data: "nofui" }]],
+        },
+      }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+  } catch {
+    // La alerta es best-effort; el login sigue.
+  }
+}
+
 async function magiclink(admin: SupabaseClient, email: string): Promise<string | null> {
   const { data: enlace, error } = await admin.auth.admin.generateLink({
     type: "magiclink",
@@ -351,6 +413,11 @@ Deno.serve(async (req: Request) => {
           nombre: perfil.nombre,
           centro_agregado: !centros.includes(centroId),
         },
+      });
+      await notificarLoginTelegram(adminClient, perfil.user_id as string, {
+        cedula: `${letra}-${digits}`,
+        nombreCentro,
+        jerarquia,
       });
       return json(
         {
