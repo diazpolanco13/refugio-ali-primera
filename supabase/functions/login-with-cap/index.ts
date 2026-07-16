@@ -4,10 +4,16 @@
 // Supabase Auth. El secret de Cap nunca sale del servidor; el frontend solo
 // envía el token generado por el widget.
 //
+// Desde el 16-jul (Fase B/C de identidad): tras autenticar, (1) rechaza la
+// entrega de la sesión si `perfiles.aprobacion = 'rechazada'` (bloqueo del
+// botón "No fui yo" — antes solo cortaba el login de terreno) y (2) si el
+// usuario tiene Telegram vinculado le envía la alerta de inicio de sesión
+// con el botón "No fui yo" (la atiende el webhook `telegram-bot`).
+//
 // Secrets requeridos en Supabase (Edge Functions → Secrets):
 //   CAP_SECRET, CAP_SITE_KEY, CAP_BASE_URL (opcional)
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -82,6 +88,66 @@ async function verificarCap(
   };
 }
 
+/**
+ * Alerta de seguridad post-login (best-effort, timeout 3s: nunca demora ni
+ * tumba el login). Mismo circuito que login-terreno; el botón lleva el
+ * user_id porque un chat puede tener varios usuarios vinculados.
+ */
+async function notificarLoginTelegram(
+  admin: SupabaseClient,
+  userId: string,
+  detalle: { username: string; nombre: string; rol: string },
+): Promise<void> {
+  try {
+    const { data: vinculo } = await admin
+      .from("telegram_operadores")
+      .select("chat_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!vinculo?.chat_id) return;
+    const { data: fila } = await admin
+      .from("app_secrets")
+      .select("valor")
+      .eq("clave", "telegram_bot_token")
+      .maybeSingle();
+    const botToken = fila?.valor;
+    if (!botToken) return;
+
+    const hora = new Date().toLocaleString("es-VE", {
+      timeZone: "America/Caracas",
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const texto =
+      `🔐 *Inicio de sesión en la aplicación*\n\n` +
+      `Usuario: ${detalle.username} (${detalle.rol})\n` +
+      `Nombre: ${detalle.nombre}\n` +
+      `Hora: ${hora}\n\n` +
+      `Si fue usted, ignore este mensaje.`;
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3000);
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: vinculo.chat_id,
+        text: texto,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [[{ text: "⚠️ No fui yo", callback_data: `nofui:${userId}` }]],
+        },
+      }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+  } catch {
+    // best-effort
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -133,6 +199,38 @@ Deno.serve(async (req: Request) => {
 
   if (error) return json({ error: error.message }, 200);
   if (!data.session) return json({ error: "Login sin sesión devuelta" }, 200);
+
+  // Perfil: bloqueo de rechazados + alerta Telegram. Con service role para
+  // no depender de la RLS del propio usuario.
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (serviceKey) {
+    const admin = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const userId = data.session.user.id;
+    const { data: perfil } = await admin
+      .from("perfiles")
+      .select("username, nombre, rol, aprobacion")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (perfil?.aprobacion === "rechazada") {
+      // "No fui yo" o rechazo en bandeja: no se entrega la sesión.
+      return json(
+        {
+          error:
+            "Su acceso está bloqueado por seguridad. Contacte a los analistas SAE para reactivarlo.",
+        },
+        200,
+      );
+    }
+
+    await notificarLoginTelegram(admin, userId, {
+      username: perfil?.username ?? username,
+      nombre: perfil?.nombre ?? "",
+      rol: perfil?.rol ?? "",
+    });
+  }
 
   return json(
     {
