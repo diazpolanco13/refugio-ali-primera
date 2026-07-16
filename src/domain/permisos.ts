@@ -163,13 +163,35 @@ export function esAnalistaDeRed(usuario: Usuario): boolean {
   return usuario.rol === "analista_sae" && usuario.ambito_analista === "red";
 }
 
+/** Analista con alcance de un cuerpo policial (ámbito 'cuerpo'). */
+export function esAnalistaDeCuerpo(usuario: Usuario): boolean {
+  return (
+    usuario.rol === "analista_sae" &&
+    usuario.ambito_analista === "cuerpo" &&
+    Boolean(usuario.cuerpo_asignado)
+  );
+}
+
 /**
- * Registrar/eliminar campamentos: admin y analista de red (la RLS exige lo
- * mismo; un analista con ámbito no crea campamentos).
+ * Registrar/eliminar campamentos: admin, analista de red y analista de cuerpo
+ * (este último solo campamentos supervisados por unidades de su cuerpo; la
+ * RLS `centros_insert` exige que la unidad asignada pertenezca al cuerpo).
+ * El analista con lista manual de campamentos no crea.
  */
 export function puedeCrearCentros(usuario: Usuario): boolean {
-  if (usuario.rol === "analista_sae") return esAnalistaDeRed(usuario);
+  if (usuario.rol === "analista_sae") {
+    return esAnalistaDeRed(usuario) || esAnalistaDeCuerpo(usuario);
+  }
   return permisosDeRol(usuario.rol).puedeCrearCentros;
+}
+
+/**
+ * Hoja imprimible de QRs de terreno (/qrs-terreno): solo admin y analista de
+ * red — la RLS de `tokens_centros` no deja leer el token `personal` a los
+ * analistas con ámbito, así que la hoja saldría incompleta.
+ */
+export function puedeImprimirQrsTerreno(usuario: Usuario): boolean {
+  return usuario.rol === "admin" || esAnalistaDeRed(usuario);
 }
 
 /** Catálogo de unidades internas SEBIN (crear/editar/eliminar). */

@@ -3,6 +3,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useSesion } from "@/data/authSupabase";
+import { esAnalistaDeCuerpo } from "@/domain/permisos";
 import { guardarCentro } from "@/data/reposSupabase";
 import {
   etiquetaAnalistaSae,
@@ -71,6 +73,13 @@ export function AsignacionOperativaCampos({
   disabled?: boolean;
 }) {
   const catalogoCuerpos = useCatalogoCuerposActivos();
+  const sesion = useSesion();
+  // El analista con ámbito de cuerpo solo asigna campamentos a su propio
+  // cuerpo (la RLS `centros_insert` rechaza unidades de otros cuerpos).
+  const cuerpoFijo =
+    sesion && esAnalistaDeCuerpo(sesion.user)
+      ? (sesion.user.cuerpo_asignado ?? null)
+      : null;
   const claveCuerpo = normalizarCuerpo(cuerpo);
   const catalogoUnidades = useCatalogoUnidadesPorCuerpo(
     claveCuerpo === "sin_asignar" ? null : claveCuerpo,
@@ -83,12 +92,25 @@ export function AsignacionOperativaCampos({
     () =>
       catalogoCuerpos
         .filter((c) => c.clave !== "sin_asignar")
+        .filter((c) => !cuerpoFijo || c.clave === cuerpoFijo)
         .map((c) => ({
           valor: c.clave,
           etiqueta: c.label,
         })),
-    [catalogoCuerpos],
+    [catalogoCuerpos, cuerpoFijo],
   );
+
+  // Autoasigna el cuerpo del analista en el alta (y corrige derivas: un
+  // campamento suyo nunca puede quedar apuntando a otro cuerpo desde su
+  // sesión). `onCuerpoChange` del form ya limpia la unidad al cambiar.
+  const labelCuerpoFijo = cuerpoFijo
+    ? (catalogoCuerpos.find((c) => c.clave === cuerpoFijo)?.label ?? null)
+    : null;
+  useEffect(() => {
+    if (disabled || !cuerpoFijo || !labelCuerpoFijo) return;
+    if (claveCuerpo !== cuerpoFijo) onCuerpoChange(labelCuerpoFijo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disabled, cuerpoFijo, labelCuerpoFijo, claveCuerpo]);
 
   const opcionesUnidad: OpcionAsignacion[] = useMemo(
     () =>
@@ -153,7 +175,7 @@ export function AsignacionOperativaCampos({
             modo="unico"
             opciones={opcionesCuerpo}
             seleccion={claveCuerpo === "sin_asignar" ? [] : [claveCuerpo]}
-            disabled={disabled}
+            disabled={disabled || Boolean(cuerpoFijo)}
             placeholder="Cuerpo"
             buscarPlaceholder="Buscar cuerpo…"
             onCambiar={(vals) => {

@@ -20,9 +20,9 @@ import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { CATEGORIAS_DENUNCIA, type Denuncia } from "@/domain/denuncias";
 import {
-  puedeCrearCentros,
   puedeEditarCentro,
   puedeGestionarDenuncias,
+  puedeImprimirQrsTerreno,
 } from "@/domain/permisos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -156,7 +156,7 @@ export function IncidenciasRefugiadosView({ sesion }: Props) {
         <span className="text-xs text-muted-foreground">
           Reportes anónimos de los damnificados vía el QR público de cada campamento.
         </span>
-        {puedeCrearCentros(sesion.user) && (
+        {puedeImprimirQrsTerreno(sesion.user) && (
           <Button asChild variant="outline" size="sm" className="ml-auto h-8 gap-1.5 text-xs">
             <Link to="/qrs-terreno">
               <Printer className="size-3.5" />

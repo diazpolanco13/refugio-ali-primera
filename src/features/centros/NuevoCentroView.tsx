@@ -1,9 +1,10 @@
 // Alta de un centro nuevo a pantalla completa (`/centro/nuevo`).
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
+import { supabase } from "@/data/supabaseClient";
 import { nuevoId } from "@/data/reposSupabase";
 import type { Sesion } from "@/data/authSupabase";
 import { puedeCrearCentros } from "@/domain/permisos";
@@ -35,8 +36,24 @@ export function NuevoCentroView({ sesion }: Props) {
     [filasCentros],
   );
 
+  // El analista de cuerpo no ve toda la red: el máximo local duplicaría N°.
+  // La RPC devuelve el siguiente libre red-wide; el cálculo local es respaldo.
+  const [nroRed, setNroRed] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelado = false;
+    supabase
+      .rpc("siguiente_nro_centro")
+      .then(({ data }) => {
+        if (!cancelado && typeof data === "number") setNroRed(data);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
   const centroNuevo = useMemo((): CentroTransitorio => {
-    const nro = centros.reduce((max, c) => Math.max(max, c.nro ?? 0), 0) + 1;
+    const nro =
+      nroRed ?? centros.reduce((max, c) => Math.max(max, c.nro ?? 0), 0) + 1;
     return {
       id: idRef.current,
       nro,
@@ -51,7 +68,7 @@ export function NuevoCentroView({ sesion }: Props) {
       estado: "preparacion",
       supervision: { unidad_sebin: "", supervisor_sebin: "", analistas_sae: [] },
     };
-  }, [centros]);
+  }, [centros, nroRed]);
 
   if (!puedeCrear) {
     return <Navigate to="/centros/mapa" replace />;

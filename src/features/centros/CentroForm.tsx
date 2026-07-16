@@ -16,6 +16,8 @@ import {
   Users,
 } from "lucide-react";
 import { nuevoId, guardarCentro, eliminarCentro } from "@/data/reposSupabase";
+import { useSesion } from "@/data/authSupabase";
+import { esAnalistaDeCuerpo } from "@/domain/permisos";
 import { subirFotoCentro, supabaseDisponible } from "@/data/supabase";
 import {
   ESTADOS_CENTRO,
@@ -169,6 +171,8 @@ export function CentroForm({
   onGuardado,
 }: Props) {
   const base = normalizarCentro(centro);
+  const sesion = useSesion();
+  const analistaDeCuerpo = Boolean(sesion && esAnalistaDeCuerpo(sesion.user));
 
   const [pestana, setPestana] = useState<Pestana>("identificacion");
   const [estado, setEstado] = useState<EstadoCentro>(base.estado);
@@ -312,6 +316,16 @@ export function CentroForm({
       setPestana("identificacion");
       setErrorGuardado(
         "Coordenadas inválidas: revisa latitud y longitud (ej. 10.48061 y -66.90360).",
+      );
+      return;
+    }
+    // El analista de cuerpo solo alcanza campamentos supervisados por
+    // unidades de su cuerpo: sin unidad, el campamento nacería fuera de su
+    // propio alcance (y la RLS rechaza el alta).
+    if (analistaDeCuerpo && !supervision.unidad_sebin.trim()) {
+      setPestana("identificacion");
+      setErrorGuardado(
+        "Asigna la unidad de supervisión de tu cuerpo: sin ella el campamento quedaría fuera de tu alcance.",
       );
       return;
     }

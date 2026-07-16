@@ -14,7 +14,7 @@ import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { centrosDeProduccion } from "@/domain/centrosTransitorios";
-import { puedeCrearCentros } from "@/domain/permisos";
+import { puedeImprimirQrsTerreno } from "@/domain/permisos";
 import { Button } from "@/components/ui/button";
 import { enlaceDenuncia, enlaceTerreno } from "@/lib/tokenTerreno";
 
@@ -71,7 +71,7 @@ export function HojaQrsTerrenoView({ sesion }: Props) {
     };
   }, []);
 
-  if (!puedeCrearCentros(sesion.user)) {
+  if (!puedeImprimirQrsTerreno(sesion.user)) {
     return (
       <p className="p-6 text-sm text-muted-foreground">
         Esta vista es solo para administración y análisis.
