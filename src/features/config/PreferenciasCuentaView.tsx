@@ -25,6 +25,7 @@ import {
   rutaInicialDeRol,
 } from "@/domain/permisos";
 import { BadgeRol } from "@/components/BadgeRol";
+import { VincularTelegramCuenta } from "@/features/config/VincularTelegramCuenta";
 import { VistaPagina } from "@/components/VistaPagina";
 import { Button } from "@/components/ui/button";
 import {
@@ -312,6 +313,8 @@ export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
             </CardFooter>
           </form>
         </Card>
+
+        <VincularTelegramCuenta />
 
         <Card>
           <CardHeader className="border-b">
