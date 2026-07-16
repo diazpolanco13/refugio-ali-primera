@@ -43,6 +43,7 @@ import { VistaPagina } from "@/components/VistaPagina";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
+import { GraficoCensoRed } from "./GraficoCensoRed";
 import { TarjetaCensoNominal } from "./TarjetaCensoNominal";
 import { CensoRedTabs } from "./CensoRedTabs";
 import { BotonReporteEstatusCenso } from "./reporte-estatus/BotonReporteEstatusCenso";
@@ -119,16 +120,57 @@ function ordenarResumenes(
   }
 }
 
+/** Variación día: `invertir` = bajar es bueno (sin iniciar / discrepancias). */
+function TextoVariacionDia({
+  delta,
+  invertir = false,
+}: {
+  delta: number | null | undefined;
+  invertir?: boolean;
+}) {
+  if (delta == null) {
+    return (
+      <p className="mt-0.5 text-[10px] text-muted-foreground">vs. día previo</p>
+    );
+  }
+  if (delta === 0) {
+    return (
+      <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground">
+        sin cambio hoy
+      </p>
+    );
+  }
+  const bueno = invertir ? delta < 0 : delta > 0;
+  return (
+    <p
+      className={cn(
+        "mt-0.5 text-[10px] font-medium tabular-nums",
+        bueno
+          ? "text-emerald-600 dark:text-emerald-400"
+          : "text-amber-600 dark:text-amber-400",
+      )}
+    >
+      {delta > 0 ? "+" : ""}
+      {delta.toLocaleString("es")} hoy
+    </p>
+  );
+}
+
 function KpiRed({
   valor,
   etiqueta,
   icono: Icono,
   clase,
+  delta,
+  invertirDelta = false,
 }: {
   valor: number;
   etiqueta: string;
   icono: typeof Users;
   clase?: string;
+  delta?: number | null;
+  /** true cuando bajar el KPI es progreso (sin iniciar, discrepancias). */
+  invertirDelta?: boolean;
 }) {
   return (
     <Card size="sm" className="border-teal-500/15 py-2">
@@ -146,6 +188,7 @@ function KpiRed({
             {valor.toLocaleString("es")}
           </p>
           <p className="mt-0.5 text-[11px] text-muted-foreground">{etiqueta}</p>
+          <TextoVariacionDia delta={delta} invertir={invertirDelta} />
         </div>
       </CardContent>
     </Card>
@@ -154,7 +197,7 @@ function KpiRed({
 
 export function CensoRedView({ sesion }: { sesion: Sesion }) {
   const tieneAcceso = puedeVerCensoRapidoRed(sesion.user.rol);
-  const { resumenes, cargando } = useCensoNominalRed();
+  const { resumenes, serieDiaria, variacion, cargando } = useCensoNominalRed();
   const filtrosIniciales = useMemo(() => cargarFiltrosCensoRed(), []);
   const [busqueda, setBusqueda] = useState(filtrosIniciales.busqueda);
   const [estado, setEstado] = useState<FiltroEstado>(filtrosIniciales.estado);
@@ -189,8 +232,13 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
       totalParte,
       metaAlcanzada,
       discrepancias,
+      deltaSinIniciar: variacion?.sinIniciar ?? null,
+      deltaEnCurso: variacion?.enCurso ?? null,
+      deltaTotalPersonas: variacion?.totalPersonas ?? null,
+      deltaMetaAlcanzada: variacion?.metaAlcanzada ?? null,
+      deltaDiscrepancias: variacion?.discrepancias ?? null,
     };
-  }, [resumenes]);
+  }, [resumenes, variacion]);
 
   const visibles = useMemo(() => {
     const q = normalizarBusqueda(busqueda);
@@ -233,17 +281,22 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
         <div className="space-y-4">
           <CensoRedTabs />
 
+          <GraficoCensoRed serie={serieDiaria} cargando={cargando} />
+
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
             <KpiRed
               valor={kpis.sinIniciar}
               etiqueta="Sin iniciar censo"
               icono={CircleDashed}
               clase="bg-muted text-muted-foreground"
+              delta={kpis.deltaSinIniciar}
+              invertirDelta
             />
             <KpiRed
               valor={kpis.enCurso}
               etiqueta="Censo en progreso"
               icono={ClipboardList}
+              delta={kpis.deltaEnCurso}
             />
             <KpiRed
               valor={kpis.totalPersonas}
@@ -253,18 +306,22 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
                   : "Personas censadas (red)"
               }
               icono={Users}
+              delta={kpis.deltaTotalPersonas}
             />
             <KpiRed
               valor={kpis.metaAlcanzada}
               etiqueta="Cuadran con el parte"
               icono={CheckCircle2}
               clase="bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+              delta={kpis.deltaMetaAlcanzada}
             />
             <KpiRed
               valor={kpis.discrepancias}
               etiqueta="Con discrepancia"
               icono={AlertTriangle}
               clase="bg-red-500/10 text-red-600 dark:text-red-300"
+              delta={kpis.deltaDiscrepancias}
+              invertirDelta
             />
           </div>
 

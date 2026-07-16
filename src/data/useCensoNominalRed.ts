@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
+import { claveDia } from "@/data/reposSupabase";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { useRefugiadosRed } from "@/data/useRefugiadosRed";
 import { useSupabaseQueryConEstado } from "@/data/useSupabaseQuery";
@@ -27,10 +28,18 @@ import {
   grupoEtarioRefugiado,
   progresoCensoNominal,
 } from "@/domain/refugiados";
+import {
+  serieDiariaCensoNominal,
+  variacionKpisCenso,
+  type PuntoSerieCensoNominal,
+  type VariacionKpisCenso,
+} from "@/domain/serieCensoNominal";
 import { tieneEnfermedadNominal } from "@/features/censo/metricasDemograficasNominal";
 
 export function useCensoNominalRed(): {
   resumenes: ResumenCensoNominalCentro[];
+  serieDiaria: PuntoSerieCensoNominal[];
+  variacion: VariacionKpisCenso | null;
   cargando: boolean;
 } {
   const { alojamientos, cargando: cargandoAloj } = useRefugiadosRed();
@@ -148,8 +157,27 @@ export function useCensoNominalRed(): {
     });
   }, [alojamientos, centros, snapshots]);
 
+  const { serieDiaria, variacion } = useMemo(() => {
+    const activos = alojamientosActivos(alojamientos);
+    const hoyClave = claveDia(Date.now());
+    const serie = serieDiariaCensoNominal(
+      activos.map((a) => ({
+        centro_id: a.centro_id,
+        creada_ts: a.creada_ts || 0,
+      })),
+      resumenes.map((r) => ({
+        centroId: r.centroId,
+        metaRefugiados: r.metaRefugiados,
+      })),
+      hoyClave,
+    );
+    return { serieDiaria: serie, variacion: variacionKpisCenso(serie) };
+  }, [alojamientos, resumenes]);
+
   return {
     resumenes,
+    serieDiaria,
+    variacion,
     cargando: cargandoAloj || cargandoCentros,
   };
 }
