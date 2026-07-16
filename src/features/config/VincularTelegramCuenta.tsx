@@ -85,12 +85,33 @@ export function VincularTelegramCuenta() {
     }
   }
 
+  const pendiente = !cargando && !vinculo;
+
   return (
-    <Card>
+    <Card
+      className={
+        pendiente
+          ? "border-2 border-sky-500/60 bg-sky-500/5 shadow-[0_0_0_4px_rgba(14,165,233,0.08)]"
+          : undefined
+      }
+    >
       <CardHeader className="border-b">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Send className="size-4 text-primary" />
+        <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+          <span
+            className={
+              pendiente
+                ? "flex size-7 items-center justify-center rounded-lg bg-sky-500/15 text-sky-600 dark:text-sky-400"
+                : "text-primary"
+            }
+          >
+            <Send className="size-4" />
+          </span>
           Telegram
+          {pendiente && (
+            <span className="rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">
+              Pendiente
+            </span>
+          )}
         </CardTitle>
         <CardDescription>
           Vincule su Telegram para recibir alertas de seguridad y avisos de la
@@ -115,22 +136,25 @@ export function VincularTelegramCuenta() {
           <div className="space-y-2">
             <Button
               type="button"
-              variant="outline"
               onClick={() => void vincular()}
               disabled={generando}
-              className="gap-2"
+              className="h-11 w-full gap-2 bg-sky-600 text-base font-semibold text-white hover:bg-sky-700 sm:w-auto sm:min-w-64"
             >
               {generando ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 className="size-5 animate-spin" />
               ) : (
-                <Send className="size-4" />
+                <Send className="size-5" />
               )}
-              {esperando ? "Abrir Telegram de nuevo" : "Vincular Telegram"}
+              {esperando ? "Abrir Telegram de nuevo" : "Vincular Telegram ahora"}
             </Button>
-            {esperando && (
+            {esperando ? (
               <p className="text-xs leading-snug text-muted-foreground">
                 En Telegram toque <span className="font-medium">INICIAR</span>; esta
                 pantalla se actualizará sola.
+              </p>
+            ) : (
+              <p className="text-xs leading-snug text-muted-foreground">
+                Un toque: se abre el chat del bot y usted solo confirma con INICIAR.
               </p>
             )}
             {error && <p className="text-xs text-destructive">{error}</p>}
