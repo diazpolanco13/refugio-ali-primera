@@ -324,8 +324,11 @@ export function IdentificacionCedula({ token, centroNombre, onIdentificado }: Pr
               <div className="space-y-1.5">
                 <Label htmlFor="id-jerarquia">Jerarquía / cargo</Label>
                 <Select value={jerarquia} onValueChange={setJerarquia} disabled={cargando}>
-                  <SelectTrigger id="id-jerarquia" className="h-11 w-full">
-                    <SelectValue placeholder="Seleccione su jerarquía" />
+                  <SelectTrigger
+                    id="id-jerarquia"
+                    className="!h-11 w-full border-2 border-primary/40 bg-muted/40 px-3 text-sm font-medium shadow-sm data-[placeholder]:text-muted-foreground [&_svg]:size-5 [&_svg]:text-primary"
+                  >
+                    <SelectValue placeholder="Toque para elegir su jerarquía" />
                   </SelectTrigger>
                   <SelectContent>
                     {CATALOGO_JERARQUIAS.map((g) => (

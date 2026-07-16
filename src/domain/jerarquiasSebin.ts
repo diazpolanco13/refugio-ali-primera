@@ -10,22 +10,21 @@ export interface GrupoJerarquias {
 
 export const CATALOGO_JERARQUIAS: GrupoJerarquias[] = [
   {
-    grupo: "SEBIN",
+    grupo: "SEBIN / Policías",
     jerarquias: [
+      "Comisario Mayor",
       "Comisario General",
       "Comisario Jefe",
+      "Primer Comisario",
       "Comisario",
       "Inspector Jefe",
-      "Inspector Agregado",
+      "Primer Inspector",
       "Inspector",
-      "Sub Inspector",
-      "Detective Jefe",
-      "Detective Agregado",
       "Detective",
     ],
   },
   {
-    grupo: "Militar (GNB / FANB)",
+    grupo: "Militar (FANB)",
     jerarquias: [
       "General",
       "Coronel",
@@ -34,20 +33,7 @@ export const CATALOGO_JERARQUIAS: GrupoJerarquias[] = [
       "Capitán",
       "Primer Teniente",
       "Teniente",
-      "Sargento Mayor",
       "Sargento",
-    ],
-  },
-  {
-    grupo: "Policial (PNB / policías)",
-    jerarquias: [
-      "Comisario Mayor",
-      "Supervisor Jefe",
-      "Supervisor Agregado",
-      "Supervisor",
-      "Oficial Jefe",
-      "Oficial Agregado",
-      "Oficial",
     ],
   },
   {
