@@ -7,6 +7,7 @@ import {
   type EventoReporte,
 } from "../domain/eventosReportes";
 import { supabase } from "./supabaseClient";
+import { selectPaginado } from "./selectPaginado";
 import { suscribirMutacionLive } from "./liveInvalidation";
 
 interface Opciones {
@@ -42,11 +43,14 @@ export function useEventosReportes(opts: Opciones = {}): {
     const channelName = `useEventosReportes:${centroId ?? "all"}:${dia ?? "all"}:${desde ?? "all"}:${Math.random().toString(36).slice(2)}`;
 
     async function cargar() {
-      let q = supabase.from("eventos_reportes").select("*");
-      if (centroId) q = q.eq("centro_id", centroId);
-      if (dia) q = q.eq("dia", dia);
-      if (desde) q = q.gte("dia", desde);
-      const { data, error } = await q;
+      // Paginado: PostgREST corta en 1000 filas sin avisar (ver selectPaginado).
+      const { data, error } = await selectPaginado(() => {
+        let q = supabase.from("eventos_reportes").select("*").order("dia").order("id");
+        if (centroId) q = q.eq("centro_id", centroId);
+        if (dia) q = q.eq("dia", dia);
+        if (desde) q = q.gte("dia", desde);
+        return q;
+      });
       if (cancelado) return;
       if (error) {
         console.warn("[useEventosReportes] error en select:", error.message);

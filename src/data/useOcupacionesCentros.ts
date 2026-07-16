@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
+import { selectPaginado } from "./selectPaginado";
 import type { SnapshotOcupacion } from "../domain/serieOcupacionCentros";
 import { suscribirMutacionLive } from "./liveInvalidation";
 
@@ -33,10 +34,14 @@ export function useOcupacionesCentros(opts: Opciones = {}): SnapshotOcupacion[] 
     let cancelado = false;
 
     async function cargar() {
-      let q = supabase.from("ocupaciones_centros").select("*");
-      if (centroId) q = q.eq("centro_id", centroId);
-      if (desde) q = q.gte("dia", desde);
-      const { data, error } = await q;
+      // Paginado: la ventana de 30 días de la red ya supera las 1000 filas
+      // (límite silencioso de PostgREST) y cortaba los partes de hoy.
+      const { data, error } = await selectPaginado(() => {
+        let q = supabase.from("ocupaciones_centros").select("*").order("dia").order("centro_id");
+        if (centroId) q = q.eq("centro_id", centroId);
+        if (desde) q = q.gte("dia", desde);
+        return q;
+      });
       if (cancelado) return;
       if (error) {
         console.warn("[useOcupacionesCentros] error en select:", error.message);

@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
+import { selectPaginado } from "./selectPaginado";
 import { normalizarReporte, type ReporteDiario } from "../domain/reporteDiario";
 import { suscribirMutacionLive } from "./liveInvalidation";
 
@@ -35,11 +36,14 @@ export function useReportesCentros(opts: Opciones = {}): ReporteDiario[] {
     let cancelado = false;
 
     async function cargar() {
-      let q = supabase.from("reportes_centros").select("*");
-      if (centroId) q = q.eq("centro_id", centroId);
-      if (dia) q = q.eq("dia", dia);
-      if (desde) q = q.gte("dia", desde);
-      const { data, error } = await q;
+      // Paginado: PostgREST corta en 1000 filas sin avisar (ver selectPaginado).
+      const { data, error } = await selectPaginado(() => {
+        let q = supabase.from("reportes_centros").select("*").order("dia").order("centro_id");
+        if (centroId) q = q.eq("centro_id", centroId);
+        if (dia) q = q.eq("dia", dia);
+        if (desde) q = q.gte("dia", desde);
+        return q;
+      });
       if (cancelado) return;
       if (error) {
         console.warn("[useReportesCentros] error en select:", error.message);
