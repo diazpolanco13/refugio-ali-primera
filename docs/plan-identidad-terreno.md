@@ -141,6 +141,23 @@ Telegram = segundo factor real).
   coherencia numérica, redacción — LLM propone, humano aprueba, NUNCA
   reescritura silenciosa), resumen diario a analistas con lo flaggeado.
   Regla: validaciones deterministas en código; LLM solo para texto.
+  - **Recordatorios HECHOS (16-jul, deterministas, sin Hermes a propósito):**
+    Edge Function **`recordatorio-partes`** + pg_cron/pg_net (migración
+    `recordatorios_terreno_cron`, referencia
+    `supabase/recordatorios_terreno.sql`). Horarios de Carlos (hora VE):
+    **7:00** buenos días con estado por área del reporte + censo con última
+    actualización + aviso del recordatorio; **11:00, 12:00, 13:00 y cada 30
+    min hasta las 18:00** recordatorio SOLO a quien tenga áreas pendientes
+    (sin estado propio: cada disparo consulta la BD → al completar dejan de
+    llegar). Función SQL `resumen_terreno_centros` (estado por campamento en
+    una consulta, solo service_role). Secret `cron_secret` en `app_secrets`.
+    También hechas las **alertas de seguridad** (misma tarde): DM en cada
+    `entrar` con botón "No fui yo" (2 toques → aprobacion 'rechazada' +
+    `alerta_suplantacion` en historial) y aviso al dueño legítimo si alguien
+    intenta vincular otro Telegram a su cédula.
+  - Pendiente de Fase C: revisión IA de reportes + resumen diario a
+    analistas (ahí sí Hermes, con worker en el VPS que alcanza
+    127.0.0.1:8642) y bot emisor de partes al grupo de enlaces.
 
 ## Decisiones pendientes (Fases B/C)
 

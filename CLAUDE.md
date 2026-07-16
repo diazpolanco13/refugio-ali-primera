@@ -239,8 +239,15 @@ datos viven en Postgres.
   `telegram_vinculos` + RPC `telegram_generar_vinculo` (referencia
   `supabase/telegram_operadores.sql`), botón "Vincular Telegram" en /terreno
   y badge en la bandeja; token del bot en `app_secrets` y
-  `/etc/dokploy/campamento-bot.env`. Pendientes: bot emisor de partes y
-  **Fase C** (recordatorios/revisión IA de reportes); el flujo legacy
+  `/etc/dokploy/campamento-bot.env`. **Alertas de seguridad y recordatorios
+  también HECHOS (16-jul):** alerta de login con botón "No fui yo" (bloquea
+  la cuenta, `alerta_suplantacion` en historial) y mensajería programada vía
+  pg_cron → Edge Function `recordatorio-partes` (buenos días 7:00 VE con
+  estado por área + censo; recordatorios 11/12/13 y cada 30 min hasta 18:00
+  VE a quien no complete; referencia `supabase/recordatorios_terreno.sql`).
+  Pendientes: bot emisor de partes y el resto de
+  **Fase C** (revisión IA de reportes vía Hermes, resumen a analistas — worker
+  en el VPS, no Edge Function: Hermes solo escucha en 127.0.0.1); el flujo legacy
   `funcionario` (v2) sigue vivo para /censo hasta que se decida apagarlo, y
   la fusión de duplicados `operador-*` viejos ocurre gradualmente cuando cada
   persona se identifica con su cédula.
