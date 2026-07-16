@@ -233,7 +233,13 @@ datos viven en Postgres.
   server-side del gateway) y limpieza de 49 usuarios de prueba/basura
   (303→254 operadores). **Detalle y decisiones en
   `docs/plan-identidad-terreno.md`** — leerlo antes de tocar `/terreno` o
-  `login-terreno`. Pendientes: **Fase B** (bot Telegram + vínculo chat_id) y
+  `login-terreno`. **Fase B también HECHA (16-jul):** vínculo Telegram real
+  vía bot **`@camp_inteligent_bot`** — webhook serverless a la Edge Function
+  `telegram-bot` (sin contenedor), tablas `telegram_operadores`/
+  `telegram_vinculos` + RPC `telegram_generar_vinculo` (referencia
+  `supabase/telegram_operadores.sql`), botón "Vincular Telegram" en /terreno
+  y badge en la bandeja; token del bot en `app_secrets` y
+  `/etc/dokploy/campamento-bot.env`. Pendientes: bot emisor de partes y
   **Fase C** (recordatorios/revisión IA de reportes); el flujo legacy
   `funcionario` (v2) sigue vivo para /censo hasta que se decida apagarlo, y
   la fusión de duplicados `operador-*` viejos ocurre gradualmente cuando cada

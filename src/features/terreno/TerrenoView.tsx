@@ -72,6 +72,7 @@ import {
   type SesionOperadorTerreno,
 } from "@/lib/terrenoFuncionario";
 import { IdentificacionCedula } from "@/features/terreno/IdentificacionCedula";
+import { VincularTelegramTerreno } from "@/features/terreno/VincularTelegramTerreno";
 import { claveDia } from "@/data/reposSupabase";
 import { supabase } from "@/data/supabaseClient";
 import { controlReportado, normalizarReporteControlDia } from "@/domain/controlReporte";
@@ -919,6 +920,7 @@ export function TerrenoView() {
                 {" · "}
                 {operadorSesion.funcionario.institucion}
               </p>
+              {operadorSesion.cedula && <VincularTelegramTerreno />}
               <button
                 type="button"
                 onClick={() => void cambiarOperador()}

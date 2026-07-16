@@ -116,12 +116,26 @@ Telegram = segundo factor real).
   (TerrenoView: cédula → confirmación, unidad/cuerpo automáticos, jerarquía
   select). ⚠️ Recordar el gotcha de `CREATE OR REPLACE FUNCTION` → re-otorga
   EXECUTE a PUBLIC (ver CLAUDE.md, pasó 2 veces).
-- **Fase B — Bot Telegram + vínculo** (1 día): bot **`@campamento_inteligente_bot`**
-  (nombre decidido el 16-jul); token de BotFather,
-  contenedor bot en Dokploy (proyecto independiente o junto a hermes-agent),
-  tabla `telegram_operadores`, deep-link + captura de chat_id, comando
-  /start. El bot también absorbe el "bot emisor" pendiente del roadmap
-  (publicar partes con `reporteTelegram*.ts`, pie `REF:` parseable).
+- **Fase B — Bot Telegram + vínculo — HECHA (16-jul, misma tarde):** bot
+  **`@camp_inteligent_bot`** (BotFather no dio el username largo; nombre
+  visible "campamento_verify_bot"). Implementación **serverless, sin
+  contenedor**: webhook de Telegram directo a la Edge Function
+  **`telegram-bot`** (verify_jwt false; autentica con
+  `X-Telegram-Bot-Api-Secret-Token` contra
+  `app_secrets.telegram_webhook_secret`). Migración
+  `telegram_operadores_fase_b` (referencia `supabase/telegram_operadores.sql`):
+  `telegram_operadores` (user_id ↔ chat_id, únicos ambos — primer casamiento
+  gana; deshacer = delete por admin/analista) + `telegram_vinculos` (tokens
+  de un solo uso, 1h) + RPC `telegram_generar_vinculo()`. Frontend:
+  `src/data/telegramOperador.ts`, botón "Vincular Telegram" en /terreno
+  (`VincularTelegramTerreno.tsx`, re-chequea al recuperar foco) y badge
+  "Telegram / Telegram pendiente" en la bandeja `/usuarios/terreno`.
+  Bitácora: `vincular_telegram`. Token del bot en `app_secrets` y
+  `/etc/dokploy/campamento-bot.env`. Verificado E2E simulando el webhook
+  (vínculo consumado + fila + historial; datos de prueba limpiados).
+  **Pendiente de Fase B:** el "bot emisor" de partes (publicar
+  `reporteTelegram*.ts` al grupo de enlaces) — encaja mejor como cron que
+  llama a sendMessage; decidir en Fase C.
 - **Fase C — IA sobre reportes**: cron de recordatorios (quién no reportó a
   hora de corte → DM), revisión de reportes al llegar (completitud,
   coherencia numérica, redacción — LLM propone, humano aprueba, NUNCA

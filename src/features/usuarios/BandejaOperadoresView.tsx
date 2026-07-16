@@ -10,12 +10,17 @@ import {
   Check,
   IdCard,
   Loader2,
+  Send,
   ShieldAlert,
   X,
 } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
 import { supabase } from "@/data/supabaseClient";
 import { registrarHistorial } from "@/data/historial";
+import {
+  vinculosTelegramDeUsuarios,
+  type VinculoTelegram,
+} from "@/data/telegramOperador";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
@@ -61,6 +66,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
   const [error, setError] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("pendientes");
   const [accionando, setAccionando] = useState<string | null>(null);
+  const [vinculos, setVinculos] = useState<Map<string, VinculoTelegram>>(new Map());
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
   const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(
@@ -88,7 +94,9 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
         .not("cedula_norm", "is", null)
         .order("created_at", { ascending: false });
       if (err) throw new Error(err.message);
-      setOperadores((data ?? []) as OperadorFila[]);
+      const filas = (data ?? []) as OperadorFila[];
+      setOperadores(filas);
+      setVinculos(await vinculosTelegramDeUsuarios(filas.map((f) => f.user_id)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo cargar la bandeja");
     } finally {
@@ -242,6 +250,18 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                         )}
                         {o.aprobacion === "rechazada" && (
                           <Badge variant="destructive">Rechazado</Badge>
+                        )}
+                        {vinculos.has(o.user_id) ? (
+                          <Badge variant="outline" className="gap-1 border-sky-500/50 text-sky-600 dark:text-sky-400">
+                            <Send className="size-3" />
+                            {vinculos.get(o.user_id)?.telegram_username
+                              ? `@${vinculos.get(o.user_id)?.telegram_username}`
+                              : "Telegram"}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="gap-1 text-muted-foreground">
+                            <Send className="size-3" /> Telegram pendiente
+                          </Badge>
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
