@@ -176,6 +176,20 @@ export function migasPanDeRuta(
     return migas;
   }
 
+  if (pathname === "/usuarios/nuevo") {
+    return [
+      INICIO,
+      { label: "Gestión de usuarios", to: "/usuarios" },
+      { label: "Nuevo usuario" },
+    ];
+  }
+  if (matchPath("/usuarios/:userId/editar", pathname)) {
+    return [
+      INICIO,
+      { label: "Gestión de usuarios", to: "/usuarios" },
+      { label: "Editar usuario" },
+    ];
+  }
   if (pathname === "/usuarios") {
     return [INICIO, { label: "Gestión de usuarios" }];
   }

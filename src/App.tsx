@@ -42,6 +42,7 @@ const importIncidenciasRefugiadosView = () =>
 const importDenunciasEliminadasView = () =>
   import("./features/incidencias/DenunciasEliminadasView");
 const importGestionUsuarios = () => import("./features/usuarios/GestionUsuarios");
+const importFormUsuarioView = () => import("./features/usuarios/FormUsuarioView");
 const importGestionCatalogosOperativos = () =>
   import("./features/config/GestionCatalogosOperativos");
 const importPreferenciasCuentaView = () =>
@@ -91,6 +92,9 @@ const HojaQrsTerrenoView = lazy(() =>
 );
 const GestionUsuarios = lazy(() =>
   importGestionUsuarios().then((m) => ({ default: m.GestionUsuarios })),
+);
+const FormUsuarioView = lazy(() =>
+  importFormUsuarioView().then((m) => ({ default: m.FormUsuarioView })),
 );
 const GestionCatalogosOperativos = lazy(() =>
   importGestionCatalogosOperativos().then((m) => ({
@@ -173,6 +177,8 @@ function precargarRutaInicial(pathname: string): Promise<unknown> {
   if (pathname.startsWith("/incidencias/eliminadas")) return importDenunciasEliminadasView();
   if (pathname.startsWith("/incidencias"))
     return Promise.all([importIncidenciasLayout(), importIncidenciasRedirect()]);
+  if (pathname === "/usuarios/nuevo" || /^\/usuarios\/[^/]+\/editar/.test(pathname))
+    return importFormUsuarioView();
   if (pathname.startsWith("/usuarios")) return importGestionUsuarios();
   if (pathname.startsWith("/config/catalogos-operativos"))
     return importGestionCatalogosOperativos();
@@ -455,6 +461,22 @@ export function App() {
             element={
               <RutaConSkeleton fallback={<GestionSkeleton variante="usuarios" />}>
                 <GestionUsuarios sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/usuarios/nuevo"
+            element={
+              <RutaConSkeleton fallback={<GestionSkeleton variante="usuarios" />}>
+                <FormUsuarioView sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/usuarios/:userId/editar"
+            element={
+              <RutaConSkeleton fallback={<GestionSkeleton variante="usuarios" />}>
+                <FormUsuarioView sesion={sesion} />
               </RutaConSkeleton>
             }
           />
