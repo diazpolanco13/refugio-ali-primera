@@ -5,6 +5,7 @@ import { useBootstrapUnidadesSebin } from "@/data/useUnidadesSebin";
 import { MapaCentrosProvider } from "@/contexts/MapaCentrosContext";
 import { PathnameNavegacionProvider } from "@/contexts/PathnameNavegacionContext";
 import { AppSidebar } from "@/components/AppSidebar";
+import { BannerVincularTelegram } from "@/components/BannerVincularTelegram";
 import { TopBar } from "@/components/TopBar";
 import {
   Sidebar,
@@ -33,6 +34,7 @@ function AppShellInner({ sesion }: Props) {
 
           <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <TopBar sesion={sesion} />
+            <BannerVincularTelegram sesion={sesion} />
             <div className="relative min-h-0 flex-1 overflow-hidden">
               <Outlet context={{ sesion }} />
             </div>
