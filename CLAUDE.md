@@ -221,6 +221,23 @@ datos viven en Postgres.
   Dokploy, gotchas de context_length/max_tokens, qué no tocar).
 
 ### Qué falta / próximos pasos
+- 🪪 **Identidad de operadores de terreno — Fase A HECHA (16-jul):** login
+  por cédula vía Nexus en producción: usuario único `op-<cedula_norm>` por
+  persona (Edge Function `login-terreno` v3 con pasos consultar/entrar,
+  `IdentificacionCedula.tsx` en `/terreno`, catálogo
+  `src/domain/jerarquiasSebin.ts`), bandeja de aprobación
+  **`/usuarios/terreno`** (admin + analista; rechazo = bloqueo de login),
+  columnas `perfiles.cedula_norm/verificado_nexus/aprobacion*` (migración
+  `identidad_operadores_fase_a`, referencia `supabase/identidad_operadores.sql`),
+  tabla `app_secrets` (RLS deny-all; `nexus_gateway_secret` para consulta
+  server-side del gateway) y limpieza de 49 usuarios de prueba/basura
+  (303→254 operadores). **Detalle y decisiones en
+  `docs/plan-identidad-terreno.md`** — leerlo antes de tocar `/terreno` o
+  `login-terreno`. Pendientes: **Fase B** (bot Telegram + vínculo chat_id) y
+  **Fase C** (recordatorios/revisión IA de reportes); el flujo legacy
+  `funcionario` (v2) sigue vivo para /censo hasta que se decida apagarlo, y
+  la fusión de duplicados `operador-*` viejos ocurre gradualmente cuando cada
+  persona se identifica con su cédula.
 - 📸 **Foto SAIME en el censo por cédula:** Nexus da el *nombre* del archivo
   (`foto_nombre` en el slim), no la imagen; la imagen vive en un MinIO
   (`alfa-images`, `10.51.12.85:9000`) al que la institución expone

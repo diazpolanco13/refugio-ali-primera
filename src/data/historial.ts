@@ -28,6 +28,8 @@ export type AccionHistorial =
   | "actualizar_trabajo"
   | "archivar_trabajo"
   | "eliminar_trabajo"
+  | "aprobar_identificacion"
+  | "rechazar_identificacion"
   | "crear_requerimiento"
   | "actualizar_requerimiento"
   | "archivar_requerimiento"

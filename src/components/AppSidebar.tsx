@@ -6,6 +6,7 @@ import {
   ClipboardList,
   ContactRound,
   Home,
+  IdCard,
   Landmark,
   LayoutGrid,
   MapPinned,
@@ -345,6 +346,8 @@ function NavContenido({ sesion }: Props) {
   const esCensoRapido = esRolCensoRapido(sesion.user.rol);
   const esTerreno = esRolTerreno(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
+  // Bandeja de identificaciones de terreno (Fase A identidad): admin y analista.
+  const veBandejaTerreno = esAdmin || sesion.user.rol === "analista_sae";
   const gestionaCatalogos = puedeGestionarCatalogosOperativos(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
   const vePreferencias = puedeEditarCuentaPropia(sesion.user);
@@ -507,7 +510,7 @@ function NavContenido({ sesion }: Props) {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      {(esAdmin || gestionaCatalogos || veLogs || vePreferencias) && (
+      {(esAdmin || veBandejaTerreno || gestionaCatalogos || veLogs || vePreferencias) && (
         <SidebarGroup>
           <SidebarGroupLabel>Configuración</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -517,7 +520,15 @@ function NavContenido({ sesion }: Props) {
                   to="/usuarios"
                   icono={Users}
                   label="Gestión de usuarios"
-                  activo={rutaActiva(pathname, "/usuarios")}
+                  activo={rutaActiva(pathname, "/usuarios") && pathname !== "/usuarios/terreno"}
+                />
+              )}
+              {veBandejaTerreno && (
+                <ItemMenu
+                  to="/usuarios/terreno"
+                  icono={IdCard}
+                  label="Identificaciones terreno"
+                  activo={pathname === "/usuarios/terreno"}
                 />
               )}
               {gestionaCatalogos && (

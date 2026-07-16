@@ -411,11 +411,12 @@ export function esRolTerreno(rol: Rol): boolean {
 }
 
 /**
- * Usuario temporal de terreno (`operador-<centro>` o `operador-<centro>-<huella>`):
- * entra por QR, sin contraseña propia. No edita perfil ni cambia password.
+ * Usuario de terreno sin contraseña propia (entra por QR):
+ * `op-<cedula>` (identidad por cédula, v3), `operador-<centro>` o
+ * `operador-<centro>-<huella>` (legacy). No edita perfil ni cambia password.
  */
 export function esUsuarioTemporalTerreno(username: string): boolean {
-  return /^operador-/.test(username.trim());
+  return /^(operador-|op-)/.test(username.trim());
 }
 
 /** Cuenta permanente: puede ver/editar su ficha y cambiar su contraseña. */

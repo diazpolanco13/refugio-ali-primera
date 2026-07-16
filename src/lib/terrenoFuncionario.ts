@@ -10,6 +10,10 @@ export interface SesionOperadorTerreno {
   centroId: string;
   username: string;
   funcionario: FuncionarioCenso;
+  /** Identidad por cédula (v3). Presente cuando se identificó con cédula. */
+  cedula?: string;
+  letra?: "V" | "E";
+  verificadoNexus?: boolean;
 }
 
 export function funcionarioTerrenoVacio(): FuncionarioCenso {

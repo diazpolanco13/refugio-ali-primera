@@ -34,8 +34,11 @@ import { ContactoAnalistasTerreno } from "@/features/terreno/ContactoAnalistasTe
 import { InstalarAppTerreno } from "@/features/terreno/InstalarAppTerreno";
 import { TerrenoBienvenida } from "@/features/terreno/TerrenoBienvenida";
 import { listarCentrosCenso, obtenerCentroTerreno, type CentroCenso } from "@/data/reposCenso";
-import type { FuncionarioCenso } from "@/data/reposCenso";
-import { asegurarSesionTerreno, cerrarSesionTerreno } from "@/data/loginTerreno";
+import {
+  asegurarSesionTerreno,
+  asegurarSesionTerrenoCedula,
+  cerrarSesionTerreno,
+} from "@/data/loginTerreno";
 import {
   tareaTerrenoDeUrl,
   tokenTerrenoActual,
@@ -64,12 +67,11 @@ import {
 } from "@/lib/actualizarAppCampo";
 import {
   cargarSesionOperadorTerreno,
-  funcionarioTerrenoVacio,
   guardarSesionOperadorTerreno,
   olvidarSesionOperadorTerreno,
   type SesionOperadorTerreno,
 } from "@/lib/terrenoFuncionario";
-import { FormularioIdentificacionFuncionario } from "@/features/censo/FormularioIdentificacionFuncionario";
+import { IdentificacionCedula } from "@/features/terreno/IdentificacionCedula";
 import { claveDia } from "@/data/reposSupabase";
 import { supabase } from "@/data/supabaseClient";
 import { controlReportado, normalizarReporteControlDia } from "@/domain/controlReporte";
@@ -204,10 +206,6 @@ export function TerrenoView() {
   const [capacidadTs, setCapacidadTs] = useState<number | null>(null);
   const [operadorSesion, setOperadorSesion] = useState<SesionOperadorTerreno | null>(null);
   const [gateListo, setGateListo] = useState(false);
-  const [funcionarioDraft, setFuncionarioDraft] = useState<FuncionarioCenso>(funcionarioTerrenoVacio);
-  const [resaltarId, setResaltarId] = useState(false);
-  const [identificando, setIdentificando] = useState(false);
-  const [errorIdentificacion, setErrorIdentificacion] = useState("");
   const [actualizandoApp, setActualizandoApp] = useState(false);
   const [progresoApp, setProgresoApp] = useState<ProgresoActualizacionApp | null>(
     null,
@@ -424,8 +422,16 @@ export function TerrenoView() {
       setPantalla("bienvenida");
       return;
     }
-    setFuncionarioDraft(guardada.funcionario);
-    void asegurarSesionTerreno(token, centroValido, guardada.funcionario)
+    // v3: identidad por cédula; legacy: funcionario self-declarado (sesiones
+    // guardadas antes del cambio siguen funcionando hasta que expiren).
+    const asegurar = guardada.cedula
+      ? asegurarSesionTerrenoCedula(token, centroValido, {
+          cedula: guardada.cedula,
+          letra: guardada.letra ?? "V",
+          jerarquia: guardada.funcionario.jerarquia || "Otro",
+        })
+      : asegurarSesionTerreno(token, centroValido, guardada.funcionario);
+    void asegurar
       .then(() => {
         if (cancelado) return;
         setOperadorSesion(guardada);
@@ -449,35 +455,37 @@ export function TerrenoView() {
   // Evita reabrir la misma ?tarea= si el usuario vuelve al menú en esta carga.
   const [tareaDeepLinkConsumida, setTareaDeepLinkConsumida] = useState(false);
 
-  async function confirmarIdentificacion() {
-    if (!token || !centroValido) return;
-    setIdentificando(true);
-    setErrorIdentificacion("");
-    try {
-      const resp = await asegurarSesionTerreno(token, centroValido, funcionarioDraft);
-      const sesion: SesionOperadorTerreno = {
-        centroId: centroValido,
-        username: resp.username,
-        funcionario: { ...funcionarioDraft },
-      };
-      guardarSesionOperadorTerreno(sesion);
-      setOperadorSesion(sesion);
-      setPantalla("menu");
-    } catch (err) {
-      setErrorIdentificacion(
-        err instanceof Error ? err.message : "No se pudo registrar su acceso. Intente de nuevo.",
-      );
-    } finally {
-      setIdentificando(false);
-    }
+  /** El operador terminó la identificación por cédula (sesión ya emitida). */
+  function alIdentificarse(resultado: {
+    username: string;
+    nombre: string;
+    cedula: string;
+    letra: "V" | "E";
+    jerarquia: string;
+    institucion: string;
+    verificado_nexus: boolean;
+  }) {
+    const sesion: SesionOperadorTerreno = {
+      centroId: centroValido,
+      username: resultado.username,
+      funcionario: {
+        jerarquia: resultado.jerarquia,
+        nombre: resultado.nombre,
+        institucion: resultado.institucion,
+        telefono: "",
+      },
+      cedula: resultado.cedula,
+      letra: resultado.letra,
+      verificadoNexus: resultado.verificado_nexus,
+    };
+    guardarSesionOperadorTerreno(sesion);
+    setOperadorSesion(sesion);
+    setPantalla("menu");
   }
 
   async function cambiarOperador() {
     olvidarSesionOperadorTerreno();
     setOperadorSesion(null);
-    setFuncionarioDraft(funcionarioTerrenoVacio());
-    setResaltarId(false);
-    setErrorIdentificacion("");
     try {
       await cerrarSesionTerreno();
     } catch {
@@ -505,11 +513,15 @@ export function TerrenoView() {
     setEntrando(true);
     setErrorEntrar("");
     try {
-      await asegurarSesionTerreno(
-        token,
-        centroValido,
-        operadorSesion?.funcionario,
-      );
+      if (operadorSesion?.cedula) {
+        await asegurarSesionTerrenoCedula(token, centroValido, {
+          cedula: operadorSesion.cedula,
+          letra: operadorSesion.letra ?? "V",
+          jerarquia: operadorSesion.funcionario.jerarquia || "Otro",
+        });
+      } else {
+        await asegurarSesionTerreno(token, centroValido, operadorSesion?.funcionario);
+      }
       window.location.href = destino;
     } catch (err) {
       setErrorEntrar(
@@ -711,20 +723,14 @@ export function TerrenoView() {
         <header className="mx-auto flex w-full max-w-xl shrink-0 flex-col gap-1 px-4 pb-3 pt-[max(1.25rem,env(safe-area-inset-top))]">
           <h1 className="text-base font-semibold leading-tight">Identificación</h1>
           <p className="text-xs text-muted-foreground">
-            Registre quién opera en este dispositivo antes de continuar
+            Identifíquese con su cédula antes de continuar
           </p>
         </header>
         <main className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col overflow-hidden px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <FormularioIdentificacionFuncionario
-            funcionario={funcionarioDraft}
-            onChange={setFuncionarioDraft}
-            onConfirmar={confirmarIdentificacion}
+          <IdentificacionCedula
+            token={token}
             centroNombre={centro?.nombre ?? "campamento"}
-            etiquetaContinuar="Confirmar e ingresar"
-            cargando={identificando}
-            error={errorIdentificacion}
-            resaltarFaltantes={resaltarId}
-            onResaltarFaltantes={() => setResaltarId(true)}
+            onIdentificado={alIdentificarse}
           />
         </main>
       </div>

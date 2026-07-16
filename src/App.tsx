@@ -43,6 +43,8 @@ const importDenunciasEliminadasView = () =>
   import("./features/incidencias/DenunciasEliminadasView");
 const importGestionUsuarios = () => import("./features/usuarios/GestionUsuarios");
 const importFormUsuarioView = () => import("./features/usuarios/FormUsuarioView");
+const importBandejaOperadoresView = () =>
+  import("./features/usuarios/BandejaOperadoresView");
 const importGestionCatalogosOperativos = () =>
   import("./features/config/GestionCatalogosOperativos");
 const importPreferenciasCuentaView = () =>
@@ -95,6 +97,9 @@ const GestionUsuarios = lazy(() =>
 );
 const FormUsuarioView = lazy(() =>
   importFormUsuarioView().then((m) => ({ default: m.FormUsuarioView })),
+);
+const BandejaOperadoresView = lazy(() =>
+  importBandejaOperadoresView().then((m) => ({ default: m.BandejaOperadoresView })),
 );
 const GestionCatalogosOperativos = lazy(() =>
   importGestionCatalogosOperativos().then((m) => ({
@@ -179,6 +184,7 @@ function precargarRutaInicial(pathname: string): Promise<unknown> {
     return Promise.all([importIncidenciasLayout(), importIncidenciasRedirect()]);
   if (pathname === "/usuarios/nuevo" || /^\/usuarios\/[^/]+\/editar/.test(pathname))
     return importFormUsuarioView();
+  if (pathname === "/usuarios/terreno") return importBandejaOperadoresView();
   if (pathname.startsWith("/usuarios")) return importGestionUsuarios();
   if (pathname.startsWith("/config/catalogos-operativos"))
     return importGestionCatalogosOperativos();
@@ -461,6 +467,14 @@ export function App() {
             element={
               <RutaConSkeleton fallback={<GestionSkeleton variante="usuarios" />}>
                 <GestionUsuarios sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/usuarios/terreno"
+            element={
+              <RutaConSkeleton fallback={<GestionSkeleton variante="usuarios" />}>
+                <BandejaOperadoresView sesion={sesion} />
               </RutaConSkeleton>
             }
           />
