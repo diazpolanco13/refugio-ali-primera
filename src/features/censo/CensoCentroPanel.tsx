@@ -1,5 +1,5 @@
 // Panel Censo de la ficha del campamento: avance nominal vs parte + listado
-// amplio por rol. El staging (censo_registros) queda en pestaña «Censo anterior».
+// amplio por rol. Importaciones Excel (censo_registros) en pestaña homónima.
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
@@ -7,7 +7,7 @@ import {
   CheckCircle2,
   ClipboardList,
   ExternalLink,
-  History,
+  FileSpreadsheet,
   Loader2,
   RefreshCw,
   Search,
@@ -95,7 +95,7 @@ import {
   CENSO_SELECT_TRIGGER,
 } from "@/features/censo/censoFormularioShared";
 
-type TabCensoCentro = "actual" | "anterior";
+type TabCensoCentro = "actual" | "importaciones";
 
 /** Estados que el usuario puede elegir en el selector (sin_ocupantes → Completado). */
 type EstadoEditable = "sin_iniciar" | "en_curso" | "completado";
@@ -216,7 +216,7 @@ export function CensoCentroPanel({
       sexo: "todos",
       orden: "reciente",
     },
-    { enabled: tab === "anterior" },
+    { enabled: tab === "importaciones" },
   );
 
   const {
@@ -303,7 +303,7 @@ export function CensoCentroPanel({
         );
       })
       .catch((err) => {
-        console.warn("[CensoCentroPanel] censo anterior:", err);
+        console.warn("[CensoCentroPanel] importaciones Excel:", err);
       });
     return () => {
       cancelado = true;
@@ -470,7 +470,7 @@ export function CensoCentroPanel({
   const cargandoAlgo =
     cargandoResumen ||
     cargandoNominal ||
-    (tab === "anterior" && cargandoListado);
+    (tab === "importaciones" && cargandoListado);
   const numeroInicial = total - pagina * filasPorPagina;
 
   function solicitarCambioEstado(nuevo: EstadoEditable) {
@@ -504,7 +504,7 @@ export function CensoCentroPanel({
 
     if (estadoEditable === "en_curso" && nuevo === "sin_iniciar") {
       setErrorEstado(
-        "Para volver a «Sin iniciar» elimine todos los registros en la pestaña Censo anterior.",
+        "Para volver a «Sin iniciar» elimine todos los registros en la pestaña Importaciones Excel.",
       );
       return;
     }
@@ -590,9 +590,9 @@ export function CensoCentroPanel({
                 </Badge>
               ) : null}
             </TabsTrigger>
-            <TabsTrigger value="anterior" className={tabTriggerClass}>
-              <History className="size-3.5 shrink-0" />
-              <span className="truncate">Censo anterior</span>
+            <TabsTrigger value="importaciones" className={tabTriggerClass}>
+              <FileSpreadsheet className="size-3.5 shrink-0" />
+              <span className="truncate">Importaciones Excel</span>
               {censoViejoCount > 0 ? (
                 <Badge
                   variant="secondary"
@@ -641,7 +641,7 @@ export function CensoCentroPanel({
           />
         </TabsContent>
 
-        <TabsContent value="anterior" className="mt-4 space-y-4">
+        <TabsContent value="importaciones" className="mt-4 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
               {puedeEditar ? (
@@ -734,12 +734,12 @@ export function CensoCentroPanel({
           {cargandoResumen && !resumen ? (
             <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              Cargando resumen del censo anterior…
+              Cargando resumen de importaciones Excel…
             </div>
           ) : resumen ? (
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground">
-                Parte (revista) vs censo anterior (staging)
+                Parte (revista) vs importaciones Excel
               </p>
               <ComparacionParteCenso
                 resumen={resumen}
@@ -749,8 +749,7 @@ export function CensoCentroPanel({
             </div>
           ) : (
             <div className="rounded-lg border border-border bg-muted/30 px-3 py-4 text-center text-sm text-muted-foreground">
-              Aún no hay datos del censo anterior (planilla rápida) para este
-              campamento.
+              Aún no hay importaciones Excel para este campamento.
             </div>
           )}
 
@@ -766,12 +765,12 @@ export function CensoCentroPanel({
                 <div className="min-w-0 space-y-1">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Users className="size-4 text-muted-foreground" />
-                    Personas del censo anterior
+                    Personas importadas (Excel)
                   </CardTitle>
                   <CardDescription>
                     {cargandoListado && registros.length === 0
                       ? "Cargando…"
-                      : `${total.toLocaleString("es")} registro${total === 1 ? "" : "s"} de la planilla rápida`}
+                      : `${total.toLocaleString("es")} registro${total === 1 ? "" : "s"} externos · no verificados`}
                   </CardDescription>
                 </div>
                 <BotonExportarCensoCentro
@@ -803,7 +802,7 @@ export function CensoCentroPanel({
                 <p className="py-6 text-center text-sm text-muted-foreground">
                   {busquedaStaging.trim()
                     ? `Ninguna persona coincide con «${busquedaStaging.trim()}».`
-                    : "Aún no hay personas en el censo anterior de este campamento."}
+                    : "Aún no hay personas importadas por Excel en este campamento."}
                 </p>
               ) : (
                 <>

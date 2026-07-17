@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Precarga `nexus_consultas` con las cédulas de `censo_registros` (censo viejo).
+"""Precarga `nexus_consultas` con cédulas de Importaciones Excel (`censo_registros`).
 
-No mezcla datos: solo consulta el gateway Nexus por cada cédula del censo
-manual y guarda la respuesta en la MISMA caché que ya usa el flujo "Por
-cédula" del frontend (`nexus_consultas`, ver src/data/reposNexus.ts). Así,
-cuando el censador re-verifique a esas personas en la app nueva, la búsqueda
-sale instantánea en vez de esperar al gateway.
+No mezcla datos: solo consulta el gateway Nexus por cada cédula de las
+relaciones externas importadas y guarda la respuesta en la MISMA caché que
+usa el flujo "Por cédula" (`nexus_consultas`, ver src/data/reposNexus.ts).
+Así, al re-verificar en el censo nominal, la búsqueda sale instantánea.
 
 Autenticación: inicia sesión como un usuario real (grant_type=password) y usa
 ese mismo JWT para leer censo_registros, escribir nexus_consultas y llamar al

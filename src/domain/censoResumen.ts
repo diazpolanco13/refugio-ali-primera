@@ -44,7 +44,7 @@ export interface ResumenCensoCentro {
   parteDia: string | null;
   /** Registros sin cédula/documento. */
   sinCedula: number;
-  /** Cargados vía importación de planilla (no formulario en terreno). */
+  /** Origen import_excel / legacy «Importación planilla» (no verificados). */
   importadosPlanilla: number;
   /** Sin edad consignada. */
   sinEdad: number;

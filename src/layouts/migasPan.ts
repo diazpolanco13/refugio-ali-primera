@@ -136,7 +136,7 @@ export function migasPanDeRuta(
       INICIO,
       CAMPAMENTOS,
       { label: "Censo (red)", to: "/centros/censo" },
-      { label: "Listado general" },
+      { label: "Importaciones Excel" },
     ];
   }
 

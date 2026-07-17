@@ -168,8 +168,8 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
     <VistaPagina
       icono={Users}
       acento="teal"
-      titulo="Censo (red)"
-      descripcion="Listado general del censo rápido — registros de la planilla en toda la red"
+      titulo="Importaciones Excel"
+      descripcion="Personas de planillas externas (MCP). No verificadas por el censo nominal."
       cuerpoClassName="p-4 lg:p-6"
       acciones={
         tieneAcceso ? (

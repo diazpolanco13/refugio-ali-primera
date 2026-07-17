@@ -200,19 +200,22 @@ datos viven en Postgres.
  campamentos (partes, controles, trabajos, requerimientos, casos, novedades)
  con `updated_by = 'simulacion'` / `creada_por = 'simulacion'`. Limpieza:
  `delete from <tabla> where updated_by = 'simulacion'` en las 7 tablas.
-- ✅ **Censo nominal + registro por cédula vía Nexus (11–12-jul).** Además del
- "censo rápido" de staging (`censo_registros`, contrasta contra el parte),
- existe una **base nominal verificada** (`refugiados` / `familias_centro` /
- `alojamientos_refugiados` / `residencias_afectadas`, `/centros/refugiados`)
- alimentada por un flujo **por cédula** contra el API institucional **Nexus**
- (`/censo` → pestaña "Por cédula" → `CensoNexusPanel`): verifica identidad
- (foto SAIME pendiente, ver más abajo), crea el hogar, captura **damnificación
- por el terremoto** (severidad de vivienda, pérdidas familiares con
- fallecidos/desaparecidos, **nivel de afectación calculado** 🔴🟡🟢) y **bloquea
- con aviso accionable** (fecha/hora + botón WhatsApp a analistas SAE) si la
- cédula ya está activa en otro campamento. Ver sección "Censo nominal y
- registro por cédula (Nexus)" para el detalle completo — es la pieza menos
- documentada del proyecto antes de este traspaso, léela con cuidado.
+- ✅ **Censo nominal + registro por cédula vía Nexus (11–12-jul).** Además de
+ **Importaciones Excel** (`censo_registros`, relaciones externas no
+ verificadas importadas vía MCP), existe una **base nominal verificada**
+ (`refugiados` / `familias_centro` / `alojamientos_refugiados` /
+ `residencias_afectadas`, `/centros/refugiados`) alimentada por un flujo
+ **por cédula** contra el API institucional **Nexus** (`/censo` → pestaña
+ "Por cédula" → `CensoNexusPanel`): verifica identidad (foto SAIME pendiente,
+ ver más abajo), crea el hogar, captura **damnificación por el terremoto**
+ (severidad de vivienda, pérdidas familiares con fallecidos/desaparecidos,
+ **nivel de afectación calculado** 🔴🟡🟢) y **bloquea con aviso accionable**
+ (fecha/hora + botón WhatsApp a analistas SAE) si la cédula ya está activa en
+ otro campamento. Ver sección "Censo nominal y registro por cédula (Nexus)".
+- ✅ **Importaciones Excel redefinidas (16-jul):** la pestaña antes llamada
+ «Censo anterior» es el repositorio de planillas externas; metadata
+ `origen`/`fuente_archivo`/`centro_match` + RPC `censo_importar_lote`
+ (upsert por cédula) + script `importar_relaciones_excel.py`.
 
 - ✅ **IA local disponible (16-jul):** Hermes Agent gateway en Dokploy
   (proyecto independiente `hermes-agent`) consumiendo Gemma 4 12B en una DGX
@@ -750,10 +753,15 @@ queda desactivado.
 
 Coexisten **dos sistemas de censo** distintos — no los confundas:
 
-1. **Censo rápido / staging** (`censo_registros`, tablas ya documentadas antes
-   de este traspaso): planilla de contacto rápido para contrastar contra el
-   parte numérico. Vistas internas `/centros/censo-rapido` (`CensoRedView`,
-   `CensoCentroPanel`, `CensoCentroDetalleView`).
+1. **Importaciones Excel** (`censo_registros`, UI «Importaciones Excel» en
+   `/centros/censo/personas` y pestaña homónima del campamento): BD de
+   **relaciones externas no verificadas** importadas a mano vía MCP/scripts
+   (`scripts/importar_relaciones_excel.py` → RPC `censo_importar_lote`).
+   Prioriza cédulas (`documento_norm`), matching de centros y metadatos
+   (`origen=import_excel`, `fuente_archivo`, `nombre_centro_raw`,
+   `centro_match`, `historial_centros`). Sirve para búsquedas/verificación
+   de solicitados; **no** es fuente de verdad operativa. Precarga Nexus:
+   `scripts/precargar_nexus_censo.py`.
 2. **Base nominal verificada** (esta sección): identidad real de cada
    damnificado, con foto SAIME (pendiente), familia, residencia afectada y
    trazabilidad completa. Vista interna `/centros/refugiados`

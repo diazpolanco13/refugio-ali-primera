@@ -16,8 +16,8 @@ Levantar un censo nominal en un campamento de cientos de personas es lento y
 desgastante. Los damnificados ya fueron censados muchas veces (Excel, Word,
 otras instituciones); no quieren dictar otra vez nombre, cédula, dirección y
 familia. Los funcionarios también están agotados. Gran parte de lo que hoy
-está en `censo_registros` vino de importar esas planillas ajenas, no de un
-flujo cómodo en la app.
+está en `censo_registros` (UI: **Importaciones Excel**) vino de importar esas
+planillas ajenas vía MCP/scripts, no de un flujo cómodo en la app.
 
 ### Qué queremos lograr con este endpoint
 

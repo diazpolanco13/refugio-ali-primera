@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Pencil, Trash2 } from "lucide-react";
+import { FileSpreadsheet, Pencil, Trash2 } from "lucide-react";
 import { CONDICIONES_VIVIENDA, type RegistroCensoGuardado } from "@/data/reposCenso";
 import { CEDULA_JEFE_NO_SE } from "@/domain/catalogosHumanitarios";
 import { Badge } from "@/components/ui/badge";
@@ -60,8 +60,25 @@ function FilaRegistro({
             {fila.jefe_documento === CEDULA_JEFE_NO_SE ? " · cédula no conocida" : null}
           </span>
         )}
-        {(fila.embarazada || fila.discapacidad || fila.enfermedad) && (
-          <span className="mt-0.5 flex gap-1">
+        {(fila.embarazada ||
+          fila.discapacidad ||
+          fila.enfermedad ||
+          fila.origen === "import_excel") && (
+          <span className="mt-0.5 flex flex-wrap gap-1">
+            {fila.origen === "import_excel" && (
+              <Badge
+                variant="outline"
+                className="h-4 gap-0.5 border-violet-500/50 px-1 text-[9px] text-violet-700 dark:text-violet-300"
+                title={
+                  [fila.fuente_archivo, fila.nombre_centro_raw, fila.centro_match]
+                    .filter(Boolean)
+                    .join(" · ") || "Importación Excel"
+                }
+              >
+                <FileSpreadsheet className="size-2.5" />
+                XLS
+              </Badge>
+            )}
             {fila.embarazada && (
               <Badge variant="outline" className="h-4 border-pink-500/50 px-1 text-[9px] text-pink-600 dark:text-pink-400">
                 EMB

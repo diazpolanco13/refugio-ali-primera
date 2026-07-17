@@ -111,7 +111,7 @@ export type FiltroKpiDemografico =
 interface Props {
   centroNombre: string;
   progreso: ProgresoCenso;
-  /** Barra extra cuando hay registros del staging (censo anterior). */
+  /** Barra extra: importaciones Excel ya verificadas en nominal. */
   censoAnterior?: { verificados: number; total: number } | null;
   /** KPIs demográficos del nominal (solo reportes / panel amplio). */
   demografia?: MetricasDemograficasNominal | null;
@@ -225,7 +225,7 @@ export function AvanceCensoNominal({
         )}
         {censoAnterior && censoAnterior.total > 0 ? (
           <BarraAvanceCenso
-            etiqueta="Censo anterior verificado"
+            etiqueta="Import Excel verificadas en nominal"
             actual={censoAnterior.verificados}
             meta={censoAnterior.total}
             pct={Math.round(

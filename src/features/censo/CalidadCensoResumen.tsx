@@ -47,7 +47,7 @@ export function CalidadCensoResumen({ resumen }: { resumen: ResumenCensoCentro }
             className="gap-1 border-violet-500/40 px-1.5 text-[10px] text-violet-700 dark:text-violet-300"
           >
             <FileSpreadsheet className="size-3" />
-            {resumen.importadosPlanilla.toLocaleString("es")} import. planilla
+            {resumen.importadosPlanilla.toLocaleString("es")} import. Excel
             <span className="tabular-nums">({pctImportados}%)</span>
           </Badge>
         )}
@@ -75,8 +75,8 @@ export function CalidadCensoResumen({ resumen }: { resumen: ResumenCensoCentro }
       </div>
       {alertaCalidad && resumen.importadosPlanilla > 0 && (
         <p className="text-[10px] leading-snug text-violet-700 dark:text-violet-300">
-          Hay registros cargados por planilla: conviene completar el formulario en terreno (cédula,
-          condición de vivienda, etc.).
+          Relaciones externas no verificadas: útiles para búsqueda por cédula; el nominal se
+          confirma vía Nexus en terreno.
         </p>
       )}
     </div>

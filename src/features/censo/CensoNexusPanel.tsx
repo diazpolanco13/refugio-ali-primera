@@ -2574,7 +2574,7 @@ export function CensoNexusPanel({
                 </p>
                 {registroViejo.jefeDocumento && registroViejo.jefeDocumento !== CEDULA_JEFE_NO_SE ? (
                   <p className="text-xs leading-snug text-muted-foreground">
-                    Según el censo anterior, el jefe de este hogar sería la cédula{" "}
+                    Según importaciones Excel, el jefe de este hogar sería la cédula{" "}
                     <span className="font-mono font-medium text-foreground">
                       {formatearCedula(registroViejo.jefeDocumento, registroViejo.jefeTipoDoc === "E" ? "E" : "V")}
                     </span>{" "}

@@ -143,7 +143,7 @@ export interface RegistroCenso {
   casa_edificio: string;
 }
 
-/** Fila devuelta por censo_listado (registros de un refugio). */
+/** Fila devuelta por censo_listado / listado red (registros staging / import). */
 export interface RegistroCensoGuardado {
   id: string;
   creado_en: string;
@@ -173,6 +173,12 @@ export interface RegistroCensoGuardado {
   parroquia: string;
   calle: string;
   casa_edificio: string;
+  /** terreno | import_excel (listado red). */
+  origen?: string;
+  fuente_archivo?: string;
+  importado_en?: string | null;
+  nombre_centro_raw?: string;
+  centro_match?: string;
 }
 
 /** Fila devuelta por censo_listado_red (registro + campamento). */
@@ -283,7 +289,7 @@ export interface RegistroCensoViejoResumen {
   parentescoJefe: string;
 }
 
-/** Busca en `censo_registros` (planilla vieja) una fila con esa cédula
+/** Busca en `censo_registros` (importaciones Excel / staging) por cédula
  * normalizada — la más reciente si hubiera más de una. Solo lectura: la RLS
  * de `censo_registros` permite `select` a cualquier sesión autenticada. */
 export async function buscarCensoRegistroPorDocumento(
@@ -397,8 +403,37 @@ export async function listarIdsCensoProcesados(centroId: string): Promise<Set<st
   return new Set(data.map((f) => f.id as string));
 }
 
-/** Marca una fila del censo manual viejo como ya verificada en el censo
- * nominal (alta exitosa vía "Por cédula"). Fire-and-forget: nunca debe
+export interface ResultadoImportacionExcel {
+  insertados: number;
+  actualizados: number;
+  omitidos: number;
+  fuente_archivo: string;
+  errores: { fila?: number; error?: string; documento?: string; centro_id?: string }[];
+}
+
+/** Importa lote de relaciones externas (Excel/MCP) con upsert por cédula.
+ *  Requiere rol admin o analista_sae (RPC SECURITY DEFINER). */
+export async function importarLoteCensoExcel(
+  filas: Record<string, unknown>[],
+  meta: { fuente_archivo: string },
+): Promise<ResultadoImportacionExcel> {
+  const { data, error } = await supabase.rpc("censo_importar_lote", {
+    p_filas: filas,
+    p_meta: meta,
+  });
+  if (error) throw new Error(error.message);
+  const r = (data ?? {}) as ResultadoImportacionExcel;
+  return {
+    insertados: Number(r.insertados ?? 0),
+    actualizados: Number(r.actualizados ?? 0),
+    omitidos: Number(r.omitidos ?? 0),
+    fuente_archivo: String(r.fuente_archivo ?? meta.fuente_archivo),
+    errores: Array.isArray(r.errores) ? r.errores : [],
+  };
+}
+
+/** Marca fila de importación Excel como verificada en censo nominal
+ * (alta exitosa vía "Por cédula"). Fire-and-forget: nunca debe
  * interrumpir el flujo de alta si falla. */
 export function marcarCensoProcesado(documentoNorm: string, centroId: string): void {
   if (!documentoNorm || !centroId) return;

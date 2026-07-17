@@ -362,7 +362,7 @@ export function CensoListaCensadosPanel({
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
   const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
-  const [pestana, setPestana] = useState<"damnificados" | "familias" | "anterior">(
+  const [pestana, setPestana] = useState<"damnificados" | "familias" | "importaciones">(
     "damnificados",
   );
   const [censoViejo, setCensoViejo] = useState<RegistroCensoGuardado[]>([]);
@@ -380,7 +380,7 @@ export function CensoListaCensadosPanel({
         setCargandoViejo(false);
       })
       .catch((err) => {
-        console.warn("[CensoListaCensados] censo anterior:", err);
+        console.warn("[CensoListaCensados] importaciones Excel:", err);
         if (!cancelado) setCargandoViejo(false);
       });
     return () => {
@@ -599,8 +599,8 @@ export function CensoListaCensadosPanel({
                 ...(censoViejo.length > 0
                   ? [
                       {
-                        id: "anterior" as const,
-                        label: "Censo anterior",
+                        id: "importaciones" as const,
+                        label: "Importaciones Excel",
                         conteo: censoViejoFiltrado.length,
                       },
                     ]
@@ -642,21 +642,20 @@ export function CensoListaCensadosPanel({
           </div>
         </CardHeader>
         <CardContent className="pt-0">
-          {pestana === "anterior" ? (
+          {pestana === "importaciones" ? (
             cargandoViejo ? (
               <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
             ) : censoViejoFiltrado.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
                 {busqueda.trim()
                   ? "Ningún resultado para esa búsqueda."
-                  : "No hay registros del censo manual anterior para este campamento."}
+                  : "No hay importaciones Excel para este campamento."}
               </p>
             ) : (
               <>
                 <p className="mb-1 text-[11px] leading-snug text-muted-foreground">
-                  Personas censadas antes de este flujo por cédula. "Verificado" =
-                  ya se confirmó su identidad con Nexus/SAIME y quedó agrupada en
-                  una familia del censo nominal.
+                  Relaciones externas no verificadas (Excel/MCP). "Verificado" =
+                  identidad confirmada con Nexus y alta en censo nominal.
                 </p>
                 <ul className="-mx-1">
                   {censoViejoFiltrado.map((f, i) => (
@@ -723,7 +722,7 @@ export function CensoListaCensadosPanel({
           )}
 
           {!cargando &&
-          pestana !== "anterior" &&
+          pestana !== "importaciones" &&
           ((pestana === "damnificados" && filtrados.length > 0) ||
             (pestana === "familias" && familiasFilas.length > 0)) ? (
             <p className="mt-2 text-center text-[11px] text-muted-foreground">
@@ -732,7 +731,7 @@ export function CensoListaCensadosPanel({
                 : `${familiasFilas.length.toLocaleString("es")} familia${familiasFilas.length === 1 ? "" : "s"}`}
             </p>
           ) : null}
-          {pestana === "anterior" && !cargandoViejo && censoViejoFiltrado.length > 0 ? (
+          {pestana === "importaciones" && !cargandoViejo && censoViejoFiltrado.length > 0 ? (
             <p className="mt-2 text-center text-[11px] text-muted-foreground">
               {verificadosViejo.toLocaleString("es")} de {censoViejo.length.toLocaleString("es")} verificados
             </p>
