@@ -8,7 +8,7 @@ import {
 } from "@/domain/importacionesExcel";
 
 const TABS = [
-  { to: "/centros/censo", label: "Por campamento", icono: LayoutGrid, exact: true },
+  { to: "/centros/censo", label: "Censo nominal", icono: LayoutGrid, exact: true },
   // censo_registros origen=import_excel: relaciones externas no verificadas.
   {
     to: "/centros/censo/personas",
