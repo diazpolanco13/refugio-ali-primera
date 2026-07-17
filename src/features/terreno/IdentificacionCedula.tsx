@@ -3,14 +3,21 @@
 // campos self-declarados: la cédula se verifica contra Nexus (o contra
 // nuestros perfiles si ya se identificó antes) y la unidad e institución
 // salen solas del campamento; el único campo manual es la jerarquía.
+//
+// Orden de la UI (contexto del centro primero, identidad después):
+//   1. Campamento + institución responsable + revista SEBIN (solo lectura)
+//   2. Buscador de cédula
+//   3. Tras verificar: nombre + jerarquía / cargo
 
 import { useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
+  Building2,
   IdCard,
   Loader2,
   MapPin,
+  Shield,
   ShieldAlert,
   UserRound,
 } from "lucide-react";
@@ -33,7 +40,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import {
   RequiereNombreManualError,
   consultarIdentidadTerreno,
@@ -48,6 +54,10 @@ import { cn } from "@/lib/utils";
 interface Props {
   token: string;
   centroNombre: string;
+  /** Cuerpo asignado al campamento (institución responsable del centro). */
+  centroCuerpo: string;
+  /** Unidad SEBIN de revista diaria del campamento. */
+  centroUnidad: string;
   onIdentificado: (
     resultado: SesionCedulaResultado & {
       cedula: string;
@@ -60,8 +70,66 @@ interface Props {
 
 type Paso = "cedula" | "confirmar";
 
+/** Bloque de contexto del campamento (no es dato del operador). */
+function ContextoCampamento({
+  nombre,
+  cuerpo,
+  unidad,
+}: {
+  nombre: string;
+  cuerpo: string;
+  unidad: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2.5">
+        <MapPin className="size-4 shrink-0 text-primary" />
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            Campamento
+          </p>
+          <p className="truncate text-sm font-medium">{nombre}</p>
+        </div>
+      </div>
+
+      <div className="flex items-start gap-3 rounded-lg border bg-muted/40 px-3 py-2.5">
+        <Building2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            Institución responsable del centro
+          </p>
+          <p className="truncate text-sm font-medium">{cuerpo || "—"}</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+            Organismo a cargo de este campamento. No indica a qué institución
+            pertenece usted.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-start gap-3 rounded-lg border bg-muted/40 px-3 py-2.5">
+        <Shield className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            Revista diaria del SEBIN
+          </p>
+          <p className="truncate text-sm font-medium">{unidad || "—"}</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+            Unidad interna SEBIN que pasa revista a este campamento.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Identificación por cédula: verificar → confirmar → entrar. */
-export function IdentificacionCedula({ token, centroNombre, onIdentificado }: Props) {
+export function IdentificacionCedula({
+  token,
+  centroNombre,
+  centroCuerpo,
+  centroUnidad,
+  onIdentificado,
+}: Props) {
   const [paso, setPaso] = useState<Paso>("cedula");
   const [letra, setLetra] = useState<LetraCedulaTerreno>("V");
   const [cedula, setCedula] = useState("");
@@ -74,6 +142,8 @@ export function IdentificacionCedula({ token, centroNombre, onIdentificado }: Pr
 
   const digits = cedula.replace(/\D/g, "");
   const cedulaValida = digits.length >= 5 && digits.length <= 12;
+  const cuerpoEfectivo =
+    (consulta?.centro.cuerpo || centroCuerpo || "").trim() || "terreno";
 
   async function verificarCedula() {
     if (!cedulaValida || cargando) return;
@@ -123,7 +193,7 @@ export function IdentificacionCedula({ token, centroNombre, onIdentificado }: Pr
         cedula: digits,
         letra,
         jerarquia,
-        institucion: consulta.centro.cuerpo || "terreno",
+        institucion: cuerpoEfectivo,
       });
     } catch (err) {
       if (err instanceof RequiereNombreManualError) {
@@ -165,15 +235,11 @@ export function IdentificacionCedula({ token, centroNombre, onIdentificado }: Pr
       </CardHeader>
       <CardContent className="min-h-0 flex-1 overflow-y-auto">
         <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2.5">
-            <MapPin className="size-4 shrink-0 text-primary" />
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Campamento
-              </p>
-              <p className="truncate text-sm font-medium">{centroNombre}</p>
-            </div>
-          </div>
+          <ContextoCampamento
+            nombre={centroNombre}
+            cuerpo={centroCuerpo || consulta?.centro.cuerpo || ""}
+            unidad={centroUnidad || consulta?.centro.unidad || ""}
+          />
 
           {paso === "cedula" && (
             <form
@@ -300,27 +366,6 @@ export function IdentificacionCedula({ token, centroNombre, onIdentificado }: Pr
                 </div>
               )}
 
-              <Separator />
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg border bg-muted/40 px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    Institución
-                  </p>
-                  <p className="truncate text-sm font-medium">
-                    {consulta.centro.cuerpo || "—"}
-                  </p>
-                </div>
-                <div className="rounded-lg border bg-muted/40 px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    Unidad de revista
-                  </p>
-                  <p className="truncate text-sm font-medium">
-                    {consulta.centro.unidad || "—"}
-                  </p>
-                </div>
-              </div>
-
               <div className="space-y-1.5">
                 <Label htmlFor="id-jerarquia">Jerarquía / cargo</Label>
                 <Select value={jerarquia} onValueChange={setJerarquia} disabled={cargando}>
@@ -367,8 +412,8 @@ export function IdentificacionCedula({ token, centroNombre, onIdentificado }: Pr
                 </Button>
                 <Button
                   type="button"
-                  variant="ghost"
-                  className={cn("h-10 w-full text-muted-foreground")}
+                  variant="outline"
+                  className={cn("h-10 w-full")}
                   disabled={cargando}
                   onClick={corregirCedula}
                 >

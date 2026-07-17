@@ -731,6 +731,8 @@ export function TerrenoView() {
           <IdentificacionCedula
             token={token}
             centroNombre={centro?.nombre ?? "campamento"}
+            centroCuerpo={centro?.cuerpo ?? ""}
+            centroUnidad={centro?.unidad ?? ""}
             onIdentificado={alIdentificarse}
           />
         </main>

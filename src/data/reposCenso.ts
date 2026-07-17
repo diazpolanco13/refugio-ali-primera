@@ -50,6 +50,10 @@ export interface AnalistaContactoTerreno {
 export interface CentroCenso {
   id: string;
   nombre: string;
+  /** Cuerpo/institución responsable del campamento (no del operador). */
+  cuerpo?: string;
+  /** Unidad SEBIN de revista diaria del campamento. */
+  unidad?: string;
   /** True si el campamento ya tiene coordenada en BD. */
   geolocalizado?: boolean;
   /** True si hay responsables o ámbitos «sin autoridades» en el directorio. */
