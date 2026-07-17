@@ -267,15 +267,15 @@ export function IdentificacionCedula({
                   </Select>
                   <Input
                     id="id-cedula"
-                    type="text"
+                    type="tel"
                     inputMode="numeric"
-                    pattern="[0-9.]*"
+                    pattern="[0-9]*"
                     autoComplete="off"
                     enterKeyHint="go"
-                    placeholder="12.345.678"
+                    placeholder="12345678"
                     value={cedula}
                     disabled={cargando}
-                    onChange={(e) => setCedula(e.target.value)}
+                    onChange={(e) => setCedula(e.target.value.replace(/\D/g, ""))}
                     className="h-11 flex-1 text-base tracking-wide"
                   />
                 </div>
