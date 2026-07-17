@@ -64,7 +64,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { buscarPersonaNexusConCache, esNexusNoDisponible } from "@/data/reposNexus";
+import {
+  buscarPersonaNexusConCache,
+  esNexusNoDisponible,
+  reportarFallaNexus,
+} from "@/data/reposNexus";
 import {
   estadoNominalPorCedula,
   miembrosHogarActual,
@@ -536,6 +540,10 @@ export function CensoNexusPanel({
   const [cedula, setCedula] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [errorBusqueda, setErrorBusqueda] = useState("");
+  // El último error de búsqueda fue caída de Nexus/SAIME (no "cédula no existe"):
+  // habilita el botón "Reportar falla" que avisa por Telegram al vigilante.
+  const [errorEsCaida, setErrorEsCaida] = useState(false);
+  const [reporteFalla, setReporteFalla] = useState<"" | "enviando" | "enviado" | "error">("");
   const [persona, setPersona] = useState<PersonaNexusCenso | null>(null);
   const [estadoNominal, setEstadoNominal] = useState<EstadoNominalCedula | null>(null);
   // Contexto de solo lectura del censo manual viejo (censo_registros), si esa
@@ -919,6 +927,8 @@ export function CensoNexusPanel({
     const cedulaBuscar = opts?.cedulaBuscar ?? cedula;
     const letraBuscar = opts?.letraBuscar ?? letra;
     setErrorBusqueda("");
+    setErrorEsCaida(false);
+    setReporteFalla("");
     setMensaje("");
     setPersona(null);
     setEstadoNominal(null);
@@ -988,10 +998,24 @@ export function CensoNexusPanel({
       setErrorBusqueda(mensajeErrorParaUsuario(err, "Error al consultar"));
       // Fallo de infraestructura ⇒ el banner pasa a fuera de línea.
       if (esNexusNoDisponible(err)) {
+        setErrorEsCaida(true);
         setSenalConsulta({ ts: Date.now(), resultado: "caida" });
       }
     } finally {
       setBuscando(false);
+    }
+  }
+
+  async function onReportarFalla() {
+    setReporteFalla("enviando");
+    try {
+      await reportarFallaNexus({
+        cedula: `${letra}-${soloDigitos(cedula)}`,
+        centro: centroId,
+      });
+      setReporteFalla("enviado");
+    } catch {
+      setReporteFalla("error");
     }
   }
 
@@ -1761,10 +1785,29 @@ export function CensoNexusPanel({
             onSubmit={onBuscar}
           />
           {errorBusqueda ? (
-            <p className="text-sm text-destructive flex items-start gap-2">
-              <AlertTriangle className="size-4 mt-0.5 shrink-0" />
-              {errorBusqueda}
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-destructive flex items-start gap-2">
+                <AlertTriangle className="size-4 mt-0.5 shrink-0" />
+                {errorBusqueda}
+              </p>
+              {errorEsCaida ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={reporteFalla === "enviando" || reporteFalla === "enviado"}
+                  onClick={onReportarFalla}
+                >
+                  {reporteFalla === "enviado"
+                    ? "Reporte enviado al vigilante ✓"
+                    : reporteFalla === "enviando"
+                      ? "Enviando reporte…"
+                      : reporteFalla === "error"
+                        ? "No se pudo enviar — reintentar"
+                        : "Reportar falla a los analistas"}
+                </Button>
+              ) : null}
+            </div>
           ) : null}
           {mensaje ? (
             <p className="text-sm text-emerald-700 dark:text-emerald-400 flex items-start gap-2">
@@ -1854,10 +1897,29 @@ export function CensoNexusPanel({
                   labelCedula="Cédula del familiar"
                 />
                 {errorBusqueda ? (
-                  <p className="text-sm text-destructive flex items-start gap-2">
-                    <AlertTriangle className="size-4 mt-0.5 shrink-0" />
-                    {errorBusqueda}
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-destructive flex items-start gap-2">
+                      <AlertTriangle className="size-4 mt-0.5 shrink-0" />
+                      {errorBusqueda}
+                    </p>
+                    {errorEsCaida ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={reporteFalla === "enviando" || reporteFalla === "enviado"}
+                        onClick={onReportarFalla}
+                      >
+                        {reporteFalla === "enviado"
+                          ? "Reporte enviado al vigilante ✓"
+                          : reporteFalla === "enviando"
+                            ? "Enviando reporte…"
+                            : reporteFalla === "error"
+                              ? "No se pudo enviar — reintentar"
+                              : "Reportar falla a los analistas"}
+                      </Button>
+                    ) : null}
+                  </div>
                 ) : null}
                 {avisoOtros.length > 0 ? (
                   <p className="text-sm text-amber-700 dark:text-amber-400">

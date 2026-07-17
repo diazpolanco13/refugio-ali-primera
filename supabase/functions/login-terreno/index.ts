@@ -11,7 +11,9 @@
 //      = un usuario para siempre), agrega el campamento a centros_asignados
 //      y emite el magiclink. Usuarios nuevos quedan `aprobacion: 'pendiente'`
 //      (bandeja de analistas, decisión (b) del 16-jul) y `verificado_nexus`
-//      según la fuente del nombre (Nexus o manual).
+//      según la fuente del nombre (Nexus o manual). Si la persona tiene
+//      Telegram vinculado (Fase B), cada `entrar` le manda una alerta de
+//      seguridad con botón "No fui yo" (la atiende el webhook telegram-bot).
 //   2. **Legacy `funcionario` (v2)** — usuario temporal por persona
 //      `operador-<centro_id>-<huella>`. Se mantiene durante la transición
 //      (lo usa /censo).
@@ -32,8 +34,13 @@ const corsHeaders = {
 };
 
 const NEXUS_GATEWAY_URL = "https://nexus.m0n1t0r-d3-3v3nt0s.net";
-/** Timeout de la consulta al gateway (VPN institucional; puede colgarse). */
-const NEXUS_TIMEOUT_MS = 8000;
+/**
+ * Timeout de la consulta al gateway (VPN institucional; puede colgarse).
+ * Nexus tarda 15–20s en responder cédulas que NO existen (medido
+ * 17-jul-2026); con 8s el corte convertía esos casos —y hits lentos— en
+ * "registro no disponible" intermitente.
+ */
+const NEXUS_TIMEOUT_MS = 30000;
 
 interface FuncionarioBody {
   jerarquia?: string;
@@ -133,6 +140,26 @@ function normalizarCedula(cedula: string, letra: string): { letra: "V" | "E"; di
   return { letra: l, digits };
 }
 
+/**
+ * ¿La búsqueda por cédula está degradada? (falla del 17-jul-2026: el health
+ * del API institucional responde 200 pero la búsqueda devuelve vacío para
+ * casi toda cédula; el gateway lo detecta con su detector pasivo y reporta
+ * `nexus: "degraded"`). Con Nexus degradado, un 404 NO prueba que la cédula
+ * no exista.
+ */
+async function busquedaDegradada(): Promise<boolean> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    const resp = await fetch(`${NEXUS_GATEWAY_URL}/health/nexus`, { signal: ctrl.signal });
+    clearTimeout(timer);
+    const j = (await resp.json()) as { nexus?: string };
+    return j.nexus === "degraded" || j.nexus === "offline";
+  } catch {
+    return false;
+  }
+}
+
 /** Ficha Nexus: primero nuestra caché `nexus_consultas`, luego el gateway. */
 async function fichaNexus(
   admin: SupabaseClient,
@@ -172,6 +199,11 @@ async function fichaNexus(
     clearTimeout(timer);
     const persona = (await resp.json()) as PersonaNexusSlim;
     if (resp.status === 404 || persona.ok === false) {
+      // Con la búsqueda degradada el vacío es mentira: tratar como caída
+      // para que el operador pueda entrar con el fallback manual.
+      if (await busquedaDegradada()) {
+        return { persona: null, origen: "no_disponible" };
+      }
       return { persona: null, origen: "no_encontrada" };
     }
     if (!resp.ok || !persona.nombre_completo) {

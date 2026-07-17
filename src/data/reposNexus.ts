@@ -91,10 +91,50 @@ export function esNexusNoDisponible(err: unknown): err is NexusNoDisponibleError
     err instanceof NexusNoDisponibleError ||
     (err instanceof Error &&
       (err.name === "NexusNoDisponibleError" ||
-        /Nexus no está disponible|Respuesta inválida del gateway \(50[234]\)|bad_gateway/i.test(
+        /Nexus no está disponible|NEXUS\/SAIME|Respuesta inválida del gateway \(50[234]\)|bad_gateway/i.test(
           err.message,
         )))
   );
+}
+
+/**
+ * ¿La búsqueda por cédula está degradada aunque el health "responda"?
+ * Modo de falla visto el 17-jul-2026: /v1/health del API institucional da 200
+ * pero la búsqueda devuelve vacío para casi toda cédula. El gateway lo
+ * detecta observando el tráfico real (campo `busqueda` de /health/nexus) y
+ * degrada `nexus` a "degraded". Un 404 con Nexus degradado NO significa que
+ * la cédula no exista.
+ */
+async function busquedaNexusDegradada(): Promise<boolean> {
+  const informe = await consultarEstadoNexusApi().catch(() => null);
+  return informe?.estado === "degraded" || informe?.estado === "offline";
+}
+
+/**
+ * Botón "Reportar falla": manda el aviso por Telegram al vigilante de la red
+ * (endpoint del gateway; throttle de 60s del lado del servidor).
+ */
+export async function reportarFallaNexus(contexto: {
+  cedula?: string;
+  centro?: string;
+}): Promise<void> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("Sin sesión para reportar.");
+  const resp = await fetch(`${GATEWAY_URL}/v1/reportar-falla`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
+      usuario: usuarioActual(),
+      centro: contexto.centro ?? "?",
+      cedula: contexto.cedula ?? "?",
+    }),
+  });
+  if (!resp.ok) throw new Error(`No se pudo enviar el reporte (${resp.status})`);
 }
 
 /** Busca una persona por cédula (modo slim para censo). Requiere sesión. */
@@ -148,6 +188,13 @@ export async function buscarPersonaNexus(
   if (resp.status === 404 || (json as PersonaNexusCenso).ok === false) {
     const err = (json as PersonaNexusCenso).error || "no_encontrado";
     if (err === "no_encontrado") {
+      // Antes de decir "no existe": si Nexus está degradado, el vacío es
+      // mentira (falla del 17-jul: health 200 pero búsqueda vacía).
+      if (await busquedaNexusDegradada()) {
+        throw new NexusNoDisponibleError(
+          "Los servicios NEXUS/SAIME están caídos en este momento. La cédula NO se pudo verificar (no significa que no exista). Pause el censo por cédula e intente más tarde.",
+        );
+      }
       throw new Error("No se encontró esa cédula en el registro.");
     }
     throw new Error(`No se pudo obtener la ficha (${err})`);

@@ -84,9 +84,9 @@ function mensajeDe(informe: InformeEstadoNexus | null, cargando: boolean): {
   if (estado === "degraded") {
     return {
       tono: "degraded",
-      titulo: "Nexus inestable",
+      titulo: "Servicios NEXUS/SAIME con fallas",
       cuerpo:
-        "El servicio responde con errores. Prefiera consultas ya guardadas; la planilla manual sigue disponible.",
+        "El registro de identidad está fallando: las búsquedas nuevas salen vacías aunque la cédula exista. Pause el censo por cédula e intente más tarde. Las cédulas ya consultadas (caché) sí funcionan.",
     };
   }
   if (estado === "offline") {
