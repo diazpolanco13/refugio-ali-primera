@@ -12,6 +12,7 @@ import {
   Check,
   CheckCircle2,
   Flag,
+  AlertTriangle,
   LayoutGrid,
   Loader2,
   LocateFixed,
@@ -975,6 +976,17 @@ export function CensoView() {
 
         {!mostrarInstrucciones && modoCenso === "manual" && paso === 2 && (
           <div className="-mt-3 space-y-4">
+            {/* Nexus caído: la cédula es el dato que permite re-verificar todo
+                automáticamente cuando el servicio vuelva. */}
+            <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <p>
+                <strong>Registre la cédula con especial cuidado.</strong> Los
+                servicios NEXUS/SAIME están caídos: cuando vuelvan, cada cédula
+                registrada aquí se verificará automáticamente contra el registro
+                de identidad.
+              </p>
+            </div>
             {/* Resumen del paso 1 */}
             <Card className="shadow-lg">
               <CardContent className="flex items-center justify-between gap-3 py-3">
