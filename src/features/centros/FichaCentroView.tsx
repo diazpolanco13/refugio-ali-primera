@@ -1,6 +1,7 @@
 // Vista completa de un campamento (`/centro/:id`): segmentada por pestañas
 // (Resumen, Coordinación, Población, Censo, Reporte, Seguimiento, Infraestructura, Buzón).
-// Las mismas secciones también aparecen en el submenú del sidebar bajo Reportes diarios.
+// La navegación entre secciones es solo por tabs; el sidebar queda a nivel red
+// (Campamentos / Partes del día / …).
 // El reporte diario se abre integrado en el mismo marco.
 // Vive dentro del AppShell global, con sidebar y TopBar compartidos.
 

@@ -1,9 +1,7 @@
-import { Link, useSearchParams } from "react-router-dom";
-import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Activity,
   BedDouble,
-  ChevronRight,
   ClipboardList,
   ContactRound,
   Home,
@@ -26,8 +24,6 @@ import {
   puedeEditarCuentaPropia,
   puedeGestionarCatalogosOperativos,
   puedeGestionarUsuarios,
-  puedeVerBuzonCentro,
-  puedeVerCensoCentro,
   puedeVerCensoRapidoRed,
   puedeVerEstadoSistema,
   puedeVerLogs,
@@ -42,11 +38,6 @@ import { useIncidentesAbiertos } from "@/data/useIncidentesServicios";
 import { totalCasosSaludActivosRed } from "@/domain/seguimientoReportes";
 import { usePathnameNavegacion } from "@/contexts/PathnameNavegacionContext";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
@@ -57,21 +48,9 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import {
-  SECCIONES_FICHA_CENTRO,
-  centroIdDePathname,
-  esFichaCentroPathname,
-  esReportesCentroPathname,
-  esRutaReportesRed,
-  normalizarSeccionFichaCentro,
-  rutaSeccionFichaCentro,
-  rutaSeccionReportesCentro,
-} from "@/features/centros/seccionesFichaCentro";
+import { centroIdDePathname } from "@/features/centros/seccionesFichaCentro";
 import { irAlPortalTerreno, tokenTerrenoActual, type TareaTerreno } from "@/lib/tokenTerreno";
 import { cn } from "@/lib/utils";
 
@@ -145,114 +124,6 @@ function ItemMenuPortal({
         <TextoMenu>{label}</TextoMenu>
       </SidebarMenuButton>
     </SidebarMenuItem>
-  );
-}
-
-function ItemMenuReportesDiarios({
-  pathname,
-  search,
-  veCensoRapido,
-  veCensoFicha,
-  veBuzonFicha,
-}: {
-  pathname: string;
-  search: string;
-  veCensoRapido: boolean;
-  veCensoFicha: boolean;
-  veBuzonFicha: boolean;
-}) {
-  const { marcarNavegacion } = usePathnameNavegacion();
-  const [searchParamsLive] = useSearchParams();
-  const enReportesRed = esRutaReportesRed(pathname);
-  const esFichaCentro = esFichaCentroPathname(pathname);
-  const esReportesCentro = esReportesCentroPathname(pathname);
-  const centroId = centroIdDePathname(pathname);
-  const [submenuAbierto, setSubmenuAbierto] = useState(true);
-
-  const seccionParam =
-    new URLSearchParams(search.startsWith("?") ? search.slice(1) : search).get(
-      "vista",
-    ) ?? searchParamsLive.get("vista");
-  const seccionActiva = normalizarSeccionFichaCentro(seccionParam);
-  const enListadoReportes = pathname === "/centros/reportes";
-  const activo = enReportesRed || esFichaCentro;
-  const enCampamento = centroId != null && (esReportesCentro || esFichaCentro);
-  const seccionesSubmenu = SECCIONES_FICHA_CENTRO.filter((s) => {
-    if (s.id === "censo_rapido") return veCensoFicha || veCensoRapido;
-    if (s.id === "buzon") return veBuzonFicha;
-    return true;
-  });
-
-  if (!enReportesRed && !esFichaCentro) {
-    return (
-      <ItemMenu
-        to="/centros/reportes"
-        icono={ClipboardList}
-        label="Reportes diarios (red)"
-        activo={false}
-      />
-    );
-  }
-
-  function rutaSeccion(seccion: (typeof SECCIONES_FICHA_CENTRO)[number]["id"]): string {
-    if (!centroId) return "/centros/reportes";
-    if (esReportesCentro || pathname.startsWith("/centros/reportes/")) {
-      return rutaSeccionReportesCentro(centroId, seccion);
-    }
-    return rutaSeccionFichaCentro(pathname, centroId, seccion);
-  }
-
-  return (
-    <Collapsible
-      open={submenuAbierto}
-      onOpenChange={setSubmenuAbierto}
-      className="group/collapsible"
-    >
-      <SidebarMenuItem>
-        <CollapsibleTrigger asChild>
-          <SidebarMenuButton isActive={activo} tooltip="Reportes diarios (red)">
-            <ClipboardList />
-            <TextoMenu>Reportes diarios (red)</TextoMenu>
-            <ChevronRight
-              className={cn(
-                "ml-auto size-4 shrink-0 transition-transform duration-200",
-                submenuAbierto && "rotate-90",
-              )}
-            />
-          </SidebarMenuButton>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <SidebarMenuSub>
-            <SidebarMenuSubItem>
-              <SidebarMenuSubButton asChild isActive={enListadoReportes}>
-                <Link
-                  to="/centros/reportes"
-                  onClick={() => marcarNavegacion("/centros/reportes")}
-                >
-                  Por campamento
-                </Link>
-              </SidebarMenuSubButton>
-            </SidebarMenuSubItem>
-            {enCampamento &&
-              seccionesSubmenu.map((seccion) => {
-                const to = rutaSeccion(seccion.id);
-                return (
-                  <SidebarMenuSubItem key={seccion.id}>
-                    <SidebarMenuSubButton
-                      asChild
-                      isActive={enCampamento && seccionActiva === seccion.id}
-                    >
-                      <Link to={to} onClick={() => marcarNavegacion(to)}>
-                        {seccion.label}
-                      </Link>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                );
-              })}
-          </SidebarMenuSub>
-        </CollapsibleContent>
-      </SidebarMenuItem>
-    </Collapsible>
   );
 }
 
@@ -345,7 +216,7 @@ function NavTerreno({ sesion }: Props) {
 }
 
 function NavContenido({ sesion }: Props) {
-  const { pathname, search } = usePathnameNavegacion();
+  const { pathname } = usePathnameNavegacion();
   const esCensoRapido = esRolCensoRapido(sesion.user.rol);
   const esTerreno = esRolTerreno(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
@@ -359,11 +230,6 @@ function NavContenido({ sesion }: Props) {
   const veCensoRed = puedeVerCensoRapidoRed(sesion.user.rol);
   const vePoblacionRed = puedeVerPoblacionRed(sesion.user.rol);
   const veTraslados = puedeVerTraslados(sesion.user.rol);
-  const centroIdRuta = centroIdDePathname(pathname);
-  const veCensoFicha =
-    centroIdRuta != null && puedeVerCensoCentro(sesion.user, centroIdRuta);
-  const veBuzonFicha =
-    centroIdRuta != null && puedeVerBuzonCentro(sesion.user, centroIdRuta);
   const { casos: casosSalud } = useCasosSaludCentros({ soloActivos: true });
   const abiertas = esCensoRapido ? 0 : totalCasosSaludActivosRed(casosSalud);
   const urgentes = esCensoRapido
@@ -449,12 +315,11 @@ function NavContenido({ sesion }: Props) {
               label="Campamentos"
               activo={esSeccionCampamentos}
             />
-            <ItemMenuReportesDiarios
-              pathname={pathname}
-              search={search}
-              veCensoRapido={veCensoRed}
-              veCensoFicha={veCensoFicha}
-              veBuzonFicha={veBuzonFicha}
+            <ItemMenu
+              to="/centros/reportes"
+              icono={ClipboardList}
+              label="Partes del día"
+              activo={rutaActiva(pathname, "/centros/reportes")}
             />
             {veCensoRed && (
               <ItemMenu

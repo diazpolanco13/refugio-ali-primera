@@ -131,7 +131,7 @@ export function MigasPanNav() {
     return base.filter(
       (m) =>
         m.label !== "Campamentos" &&
-        !(m.label === "Reportes diarios" && Boolean(m.to)),
+        !(m.label === "Partes del día" && Boolean(m.to)),
     );
   }, [pathname, searchParams, centro, inicioEsPortal]);
 

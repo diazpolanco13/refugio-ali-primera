@@ -84,7 +84,7 @@ function migasReportesCentro(
     `/centros/reportes/${match.params.centroId}`,
     searchParams,
     centro,
-    [INICIO, CAMPAMENTOS, { label: "Reportes diarios", to: "/centros/reportes" }],
+    [INICIO, CAMPAMENTOS, { label: "Partes del día", to: "/centros/reportes" }],
   );
 }
 
@@ -103,7 +103,7 @@ export function migasPanDeRuta(
   }
 
   if (pathname === "/centros/reportes") {
-    return [INICIO, CAMPAMENTOS, { label: "Reportes diarios" }];
+    return [INICIO, CAMPAMENTOS, { label: "Partes del día" }];
   }
 
   if (pathname === "/centros/refugiados") {
