@@ -7,14 +7,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck,
+  Bell,
+  BellOff,
   Check,
   IdCard,
   Loader2,
+  Search,
   Send,
   ShieldAlert,
+  Trash2,
   X,
 } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
+import { desuscribirCampamentoTerreno } from "@/data/desuscribirTerreno";
 import { supabase } from "@/data/supabaseClient";
 import { registrarHistorial } from "@/data/historial";
 import {
@@ -24,13 +29,39 @@ import {
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
 import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import { metaUnidadSebinCentro } from "@/domain/centrosTransitorios";
+import { metaCuerpoDe } from "@/domain/cuerposPoliciales";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { PaginadorTabla } from "@/components/ui/pagination";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { VistaPagina } from "@/components/VistaPagina";
 import { EstadoVacio, LoadingTable } from "@/components/skeletons";
+import { cn } from "@/lib/utils";
 import { etiquetaCentro } from "./TarjetaUsuario";
+
+const FILAS_POR_PAGINA = 50;
+
+type ConfirmDesuscribir =
+  | { userId: string; nombre: string; centroId: string | null; etiqueta: string }
+  | null;
 
 interface OperadorFila {
   user_id: string;
@@ -45,6 +76,8 @@ interface OperadorFila {
   aprobacion_por: string | null;
   aprobacion_ts: number | null;
   centros_asignados: string[] | null;
+  /** Campamentos con alertas Telegram silenciadas (sigue asignado). */
+  alertas_silenciadas: string[] | null;
   created_at?: string;
 }
 
@@ -58,14 +91,42 @@ function fechaCorta(iso?: string): string {
     : d.toLocaleDateString("es-VE", { day: "2-digit", month: "short" });
 }
 
+function coincideBusqueda(
+  o: OperadorFila,
+  q: string,
+  etiquetasCentros: Map<string, string>,
+): boolean {
+  if (!q) return true;
+  const haystack = [
+    o.nombre,
+    o.username,
+    o.cedula,
+    o.cedula_norm,
+    o.jerarquia,
+    ...(o.centros_asignados ?? []).flatMap((id) => [id, etiquetasCentros.get(id)]),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+  return haystack.includes(q);
+}
+
 export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
   const rol = sesion.user.rol;
   const autorizado = rol === "admin" || rol === "analista_sae";
   const [operadores, setOperadores] = useState<OperadorFila[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
-  const [filtro, setFiltro] = useState<Filtro>("pendientes");
+  const [filtro, setFiltro] = useState<Filtro>("todos");
+  const [busqueda, setBusqueda] = useState("");
+  const [pagina, setPagina] = useState(0);
   const [accionando, setAccionando] = useState<string | null>(null);
+  const [confirmDesuscribir, setConfirmDesuscribir] = useState<ConfirmDesuscribir>(null);
+  const [desuscribiendo, setDesuscribiendo] = useState(false);
+  const [avisoSinTelegram, setAvisoSinTelegram] = useState<string | null>(null);
+  const [togglingAlertas, setTogglingAlertas] = useState<string | null>(null);
   const [vinculos, setVinculos] = useState<Map<string, VinculoTelegram>>(new Map());
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
@@ -76,9 +137,9 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
       clientFilter: (c) => !c.deleted,
     },
   );
-  const etiquetasCentros = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const c of filasCentros) m.set(c.id, etiquetaCentro(c, c.id));
+  const centrosPorId = useMemo(() => {
+    const m = new Map<string, CentroFila>();
+    for (const c of filasCentros) m.set(c.id, c);
     return m;
   }, [filasCentros]);
 
@@ -88,7 +149,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
       const { data, error: err } = await supabase
         .from("perfiles")
         .select(
-          "user_id, username, nombre, jerarquia, responsabilidad, cedula, cedula_norm, verificado_nexus, aprobacion, aprobacion_por, aprobacion_ts, centros_asignados, created_at",
+          "user_id, username, nombre, jerarquia, responsabilidad, cedula, cedula_norm, verificado_nexus, aprobacion, aprobacion_por, aprobacion_ts, centros_asignados, alertas_silenciadas, created_at",
         )
         .eq("rol", "operador")
         .not("cedula_norm", "is", null)
@@ -120,22 +181,61 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
     };
   }, [autorizado, recargar]);
 
+  const etiquetasCentros = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const [id, c] of centrosPorId) m.set(id, etiquetaCentro(c, id));
+    return m;
+  }, [centrosPorId]);
+
+  const qNorm = useMemo(
+    () =>
+      busqueda
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/\p{M}/gu, ""),
+    [busqueda],
+  );
+
   const conteos = useMemo(() => {
-    const c = { pendientes: 0, aprobados: 0, rechazados: 0 };
+    const c = { todos: 0, pendientes: 0, aprobados: 0, rechazados: 0 };
     for (const o of operadores) {
+      if (!coincideBusqueda(o, qNorm, etiquetasCentros)) continue;
+      c.todos++;
       if (o.aprobacion === "pendiente") c.pendientes++;
       else if (o.aprobacion === "aprobada") c.aprobados++;
       else if (o.aprobacion === "rechazada") c.rechazados++;
     }
     return c;
-  }, [operadores]);
+  }, [operadores, qNorm, etiquetasCentros]);
 
+  const filtrados = useMemo(() => {
+    const porEstado =
+      filtro === "todos"
+        ? operadores
+        : operadores.filter((o) => {
+            const estado =
+              filtro === "pendientes"
+                ? "pendiente"
+                : filtro === "aprobados"
+                  ? "aprobada"
+                  : "rechazada";
+            return o.aprobacion === estado;
+          });
+    if (!qNorm) return porEstado;
+    return porEstado.filter((o) => coincideBusqueda(o, qNorm, etiquetasCentros));
+  }, [operadores, filtro, qNorm, etiquetasCentros]);
+
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / FILAS_POR_PAGINA));
+  const paginaSegura = Math.min(pagina, totalPaginas - 1);
   const visibles = useMemo(() => {
-    if (filtro === "todos") return operadores;
-    const estado =
-      filtro === "pendientes" ? "pendiente" : filtro === "aprobados" ? "aprobada" : "rechazada";
-    return operadores.filter((o) => o.aprobacion === estado);
-  }, [operadores, filtro]);
+    const inicio = paginaSegura * FILAS_POR_PAGINA;
+    return filtrados.slice(inicio, inicio + FILAS_POR_PAGINA);
+  }, [filtrados, paginaSegura]);
+
+  useEffect(() => {
+    setPagina(0);
+  }, [filtro, busqueda]);
 
   async function resolver(operador: OperadorFila, decision: "aprobada" | "rechazada") {
     setAccionando(operador.user_id);
@@ -169,6 +269,55 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
     }
   }
 
+  async function confirmarDesuscribir() {
+    if (!confirmDesuscribir) return;
+    setDesuscribiendo(true);
+    setError("");
+    try {
+      await desuscribirCampamentoTerreno({
+        centroId: confirmDesuscribir.centroId,
+        userId: confirmDesuscribir.userId,
+      });
+      setConfirmDesuscribir(null);
+      await recargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo desuscribir");
+    } finally {
+      setDesuscribiendo(false);
+    }
+  }
+
+  /** Activa/silencia alertas Telegram de un campamento (requiere vínculo). */
+  async function toggleAlertasCampamento(operador: OperadorFila, centroId: string) {
+    if (!vinculos.has(operador.user_id)) {
+      setAvisoSinTelegram(operador.nombre || operador.username || "Este operador");
+      return;
+    }
+    const clave = `${operador.user_id}:${centroId}`;
+    setTogglingAlertas(clave);
+    setError("");
+    try {
+      const actuales = new Set(operador.alertas_silenciadas ?? []);
+      if (actuales.has(centroId)) actuales.delete(centroId);
+      else actuales.add(centroId);
+      const { error: err } = await supabase
+        .from("perfiles")
+        .update({ alertas_silenciadas: [...actuales] })
+        .eq("user_id", operador.user_id);
+      if (err) throw new Error(err.message);
+      registrarHistorial("toggle_alertas_campamento", "usuario", operador.user_id, {
+        centro_id: centroId,
+        silenciado: actuales.has(centroId),
+        username: operador.username,
+      });
+      await recargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo cambiar las alertas");
+    } finally {
+      setTogglingAlertas(null);
+    }
+  }
+
   if (!autorizado) {
     return (
       <VistaPagina
@@ -185,22 +334,42 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
     <VistaPagina
       icono={IdCard}
       titulo="Identificaciones de terreno"
-      descripcion="Operadores que se identificaron con su cédula desde el QR del campamento. Revise que la persona corresponda y apruebe o rechace; el rechazo bloquea su próximo ingreso."
+      descripcion="Operadores que se identificaron con su cédula desde el QR del campamento. Apruebe o rechace la identidad; desuscriba de un campamento si no debe seguir recibiendo alertas de ese centro."
     >
-      <Tabs value={filtro} onValueChange={(v) => setFiltro(v as Filtro)}>
-        <TabsList>
-          <TabsTrigger value="pendientes">
-            Pendientes{conteos.pendientes > 0 ? ` (${conteos.pendientes})` : ""}
-          </TabsTrigger>
-          <TabsTrigger value="aprobados">
-            Aprobados{conteos.aprobados > 0 ? ` (${conteos.aprobados})` : ""}
-          </TabsTrigger>
-          <TabsTrigger value="rechazados">
-            Rechazados{conteos.rechazados > 0 ? ` (${conteos.rechazados})` : ""}
-          </TabsTrigger>
-          <TabsTrigger value="todos">Todos</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="space-y-3">
+        <div className="relative max-w-md">
+          <Search
+            className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar por nombre, cédula, cargo o campamento…"
+            className="h-9 pl-9"
+            aria-label="Buscar operadores"
+          />
+        </div>
+        <Tabs
+          value={filtro}
+          onValueChange={(v) => setFiltro(v as Filtro)}
+        >
+          <TabsList className="h-auto w-full max-w-full flex-nowrap justify-start overflow-x-auto">
+            <TabsTrigger value="todos" className="shrink-0">
+              Todos{conteos.todos > 0 ? ` (${conteos.todos})` : ""}
+            </TabsTrigger>
+            <TabsTrigger value="pendientes" className="shrink-0">
+              Pendientes{conteos.pendientes > 0 ? ` (${conteos.pendientes})` : ""}
+            </TabsTrigger>
+            <TabsTrigger value="aprobados" className="shrink-0">
+              Aprobados{conteos.aprobados > 0 ? ` (${conteos.aprobados})` : ""}
+            </TabsTrigger>
+            <TabsTrigger value="rechazados" className="shrink-0">
+              Rechazados{conteos.rechazados > 0 ? ` (${conteos.rechazados})` : ""}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
       {error && <p className="mt-3 text-xs text-destructive">{error}</p>}
 
@@ -208,22 +377,27 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
         <div className="mt-4">
           <LoadingTable rows={5} cols={3} />
         </div>
-      ) : visibles.length === 0 ? (
+      ) : filtrados.length === 0 ? (
         <div className="mt-4">
           <EstadoVacio
             titulo={
-              filtro === "pendientes"
-                ? "Sin identificaciones pendientes"
-                : "Nada que mostrar"
+              qNorm
+                ? "Sin coincidencias"
+                : filtro === "pendientes"
+                  ? "Sin identificaciones pendientes"
+                  : "Nada que mostrar"
             }
             descripcion={
-              filtro === "pendientes"
-                ? "Cuando un operador nuevo se identifique con su cédula aparecerá aquí."
-                : "No hay operadores en este estado."
+              qNorm
+                ? `Ningún operador coincide con «${busqueda.trim()}».`
+                : filtro === "pendientes"
+                  ? "Cuando un operador nuevo se identifique con su cédula aparecerá aquí."
+                  : "No hay operadores en este estado."
             }
           />
         </div>
       ) : (
+        <>
         <ul className="mt-4 space-y-2">
           {visibles.map((o) => {
             const pendiente = o.aprobacion === "pendiente";
@@ -266,16 +440,134 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                       </div>
                       <p className="text-xs text-muted-foreground">
                         <span className="font-mono">{o.cedula || o.cedula_norm}</span>
-                        {o.responsabilidad ? ` · ${o.responsabilidad}` : o.jerarquia ? ` · ${o.jerarquia}` : ""}
+                        {o.jerarquia ? ` · ${o.jerarquia}` : ""}
                         {o.created_at ? ` · identificado el ${fechaCorta(o.created_at)}` : ""}
                       </p>
                       {(o.centros_asignados?.length ?? 0) > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {(o.centros_asignados ?? []).map((id) => (
-                            <Badge key={id} variant="outline" className="text-[11px]">
-                              {etiquetasCentros.get(id) ?? id}
-                            </Badge>
-                          ))}
+                        <div className="space-y-1.5 pt-0.5">
+                          <ul className="space-y-1.5">
+                            {(o.centros_asignados ?? []).map((id) => {
+                              const centro = centrosPorId.get(id);
+                              const etiqueta = centro ? etiquetaCentro(centro, id) : id;
+                              const cuerpo = metaCuerpoDe(centro?.cuerpo).label;
+                              const unidad = centro
+                                ? metaUnidadSebinCentro(centro).label
+                                : "—";
+                              const telegramOk = vinculos.has(o.user_id);
+                              const tgUser = vinculos.get(o.user_id)?.telegram_username;
+                              const silenciado = (o.alertas_silenciadas ?? []).includes(id);
+                              const alertasOn = telegramOk && !silenciado;
+                              const togglingKey = `${o.user_id}:${id}`;
+                              return (
+                                <li
+                                  key={id}
+                                  className="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[11px] font-medium leading-tight">
+                                      {etiqueta}
+                                    </p>
+                                    <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
+                                      Cuerpo responsable del centro:{" "}
+                                      <span className="text-foreground/80">{cuerpo || "—"}</span>
+                                      {" · "}
+                                      Revista SEBIN:{" "}
+                                      <span className="text-foreground/80">{unidad || "—"}</span>
+                                    </p>
+                                  </div>
+                                  <div className="flex shrink-0 gap-1">
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          type="button"
+                                          size="icon"
+                                          variant="outline"
+                                          className={cn(
+                                            "size-8",
+                                            alertasOn
+                                              ? "border-sky-500/50 text-sky-600 dark:text-sky-400"
+                                              : "text-muted-foreground",
+                                          )}
+                                          disabled={
+                                            togglingAlertas === togglingKey || desuscribiendo
+                                          }
+                                          aria-label={
+                                            alertasOn
+                                              ? "Alertas activas — clic para silenciar"
+                                              : telegramOk
+                                                ? "Alertas silenciadas — clic para activar"
+                                                : "Sin Telegram — no recibe alertas"
+                                          }
+                                          aria-pressed={alertasOn}
+                                          onClick={() => void toggleAlertasCampamento(o, id)}
+                                        >
+                                          {togglingAlertas === togglingKey ? (
+                                            <Loader2 className="size-3.5 animate-spin" />
+                                          ) : alertasOn ? (
+                                            <Bell className="size-3.5" />
+                                          ) : (
+                                            <BellOff className="size-3.5" />
+                                          )}
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="max-w-56">
+                                        {!telegramOk
+                                          ? "Sin Telegram vinculado: no recibe alertas. Clic para más info."
+                                          : alertasOn
+                                            ? `Alertas activas${tgUser ? ` (@${tgUser})` : ""}. Clic para silenciar este campamento.`
+                                            : "Alertas silenciadas. Clic para volver a activarlas."}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          type="button"
+                                          size="icon"
+                                          variant="outline"
+                                          className="size-8 text-destructive"
+                                          disabled={accionando === o.user_id || desuscribiendo}
+                                          aria-label={`Quitar ${etiqueta}`}
+                                          onClick={() =>
+                                            setConfirmDesuscribir({
+                                              userId: o.user_id,
+                                              nombre: o.nombre || o.username || "operador",
+                                              centroId: id,
+                                              etiqueta,
+                                            })
+                                          }
+                                        >
+                                          <Trash2 className="size-3.5" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top">
+                                        Quitar este campamento del operador
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                          {(o.centros_asignados?.length ?? 0) > 1 && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive"
+                              disabled={accionando === o.user_id || desuscribiendo}
+                              onClick={() =>
+                                setConfirmDesuscribir({
+                                  userId: o.user_id,
+                                  nombre: o.nombre || o.username || "operador",
+                                  centroId: null,
+                                  etiqueta: "todos los campamentos",
+                                })
+                              }
+                            >
+                              <Trash2 className="size-3.5" />
+                              Quitar de todos
+                            </Button>
+                          )}
                         </div>
                       )}
                       {!pendiente && o.aprobacion_por && (
@@ -329,7 +621,74 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
             );
           })}
         </ul>
+        <PaginadorTabla
+          pagina={paginaSegura}
+          totalPaginas={totalPaginas}
+          totalFilas={filtrados.length}
+          filasPorPagina={FILAS_POR_PAGINA}
+          cargando={cargando}
+          onPagina={setPagina}
+          className="mt-4"
+        />
+        </>
       )}
+
+      <AlertDialog
+        open={avisoSinTelegram != null}
+        onOpenChange={(abierto) => !abierto && setAvisoSinTelegram(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sin Telegram vinculado</AlertDialogTitle>
+            <AlertDialogDescription>
+              {avisoSinTelegram} no tiene Telegram vinculado, así que no puede
+              recibir alertas ni recordatorios. Debe vincularlo desde el portal
+              /terreno (botón «Vincular Telegram»). Luego podrá activar o
+              silenciar alertas por campamento con la campanita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setAvisoSinTelegram(null)}>
+              Entendido
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmDesuscribir != null}
+        onOpenChange={(abierto) =>
+          !abierto && !desuscribiendo && setConfirmDesuscribir(null)
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              ¿Quitar a {confirmDesuscribir?.nombre} de{" "}
+              {confirmDesuscribir?.etiqueta}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              El operador pierde ese campamento: deja de poder reportarlo y deja
+              de recibir alertas de ese centro. Su identidad no se borra; puede
+              volver a entrar con el QR e identificarse.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={desuscribiendo}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={desuscribiendo}
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmarDesuscribir();
+              }}
+            >
+              {desuscribiendo ? <Loader2 className="size-4 animate-spin" /> : null}
+              Quitar campamento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </VistaPagina>
   );
 }

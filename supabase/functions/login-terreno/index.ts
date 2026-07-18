@@ -420,7 +420,9 @@ Deno.serve(async (req: Request) => {
     // paso === "entrar"
     const jerarquia = typeof body.jerarquia === "string" ? body.jerarquia.trim() : "";
     if (!jerarquia) return json({ error: "Falta la jerarquía" }, 400);
-    const responsabilidad = [jerarquia, cuerpoCentro || "terreno"].join(" · ");
+    // Solo el cargo del funcionario. El cuerpo del campamento y la unidad
+    // SEBIN son atributos del centro (revista / responsable), no de la persona.
+    const responsabilidad = "Operador de terreno";
 
     if (perfil) {
       // Persona ya registrada: actualizar jerarquía y sumar el campamento.

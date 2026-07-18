@@ -176,7 +176,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: perfiles } = await admin
     .from("perfiles")
-    .select("user_id, nombre, rol, aprobacion, centros_asignados")
+    .select("user_id, nombre, rol, aprobacion, centros_asignados, alertas_silenciadas")
     .in("user_id", vinculos.map((v) => v.user_id))
     .eq("rol", "operador")
     .neq("aprobacion", "rechazada");
@@ -202,7 +202,11 @@ Deno.serve(async (req: Request) => {
   for (const perfil of perfiles) {
     const chatId = chatDe.get(perfil.user_id);
     if (!chatId) continue;
+    const silenciados = new Set(
+      ((perfil.alertas_silenciadas as string[] | null) ?? []).filter(Boolean),
+    );
     const centros = ((perfil.centros_asignados as string[] | null) ?? [])
+      .filter((id) => !silenciados.has(id))
       .map((id) => porCentro.get(id))
       .filter((r): r is ResumenCentro => Boolean(r));
     if (!centros.length) continue;

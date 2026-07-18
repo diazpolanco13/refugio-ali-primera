@@ -142,8 +142,6 @@ export function IdentificacionCedula({
 
   const digits = cedula.replace(/\D/g, "");
   const cedulaValida = digits.length >= 5 && digits.length <= 12;
-  const cuerpoEfectivo =
-    (consulta?.centro.cuerpo || centroCuerpo || "").trim() || "terreno";
 
   async function verificarCedula() {
     if (!cedulaValida || cargando) return;
@@ -193,7 +191,10 @@ export function IdentificacionCedula({
         cedula: digits,
         letra,
         jerarquia,
-        institucion: cuerpoEfectivo,
+        // No es la institución del funcionario: el cuerpo del campamento
+        // vive en el contexto del centro (ContextoCampamento). Vacío a
+        // propósito para no confundirlo con afiliación personal.
+        institucion: "",
       });
     } catch (err) {
       if (err instanceof RequiereNombreManualError) {

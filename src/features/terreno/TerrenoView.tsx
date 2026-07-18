@@ -72,6 +72,7 @@ import {
   type SesionOperadorTerreno,
 } from "@/lib/terrenoFuncionario";
 import { IdentificacionCedula } from "@/features/terreno/IdentificacionCedula";
+import { SuscripcionesTerreno } from "@/features/terreno/SuscripcionesTerreno";
 import { VincularTelegramTerreno } from "@/features/terreno/VincularTelegramTerreno";
 import { claveDia } from "@/data/reposSupabase";
 import { supabase } from "@/data/supabaseClient";
@@ -919,8 +920,9 @@ export function TerrenoView() {
                 <span className="font-medium text-foreground">
                   {operadorSesion.funcionario.nombre}
                 </span>
-                {" · "}
-                {operadorSesion.funcionario.institucion}
+                {operadorSesion.funcionario.jerarquia
+                  ? ` · ${operadorSesion.funcionario.jerarquia}`
+                  : ""}
               </p>
               {operadorSesion.cedula && <VincularTelegramTerreno />}
               <button
@@ -930,6 +932,19 @@ export function TerrenoView() {
               >
                 Otra persona / cambiar operador
               </button>
+            </div>
+          )}
+          {operadorSesion?.cedula && (
+            <div className="w-full max-w-sm rounded-xl border border-border bg-card/60 px-3 py-3">
+              <SuscripcionesTerreno
+                centroActualId={centroValido || undefined}
+                onDesuscrito={(restantes, quitado) => {
+                  const perdioActual =
+                    quitado === null ||
+                    (Boolean(centroValido) && !restantes.includes(centroValido));
+                  if (perdioActual) void cambiarOperador();
+                }}
+              />
             </div>
           )}
         </header>

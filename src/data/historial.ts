@@ -30,6 +30,8 @@ export type AccionHistorial =
   | "eliminar_trabajo"
   | "aprobar_identificacion"
   | "rechazar_identificacion"
+  | "desuscribir_campamento"
+  | "toggle_alertas_campamento"
   | "crear_requerimiento"
   | "actualizar_requerimiento"
   | "archivar_requerimiento"
