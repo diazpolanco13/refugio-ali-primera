@@ -43,7 +43,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PaginadorTabla } from "@/components/ui/pagination";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -111,6 +110,30 @@ function coincideBusqueda(
     .normalize("NFD")
     .replace(/\p{M}/gu, "");
   return haystack.includes(q);
+}
+
+/** Contador dentro de una pestaña; `acento` lo resalta (pendientes > 0). */
+function ConteoTab({ n, acento = false }: { n: number; acento?: boolean }) {
+  return (
+    <span
+      className={cn(
+        "rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums",
+        acento
+          ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+          : "bg-muted-foreground/15 text-muted-foreground",
+      )}
+    >
+      {n}
+    </span>
+  );
+}
+
+function iniciales(nombre: string): string {
+  const partes = nombre.trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return "?";
+  const primera = partes[0][0] ?? "";
+  const segunda = partes.length > 2 ? partes[2][0] : partes[1]?.[0];
+  return `${primera}${segunda ?? ""}`.toUpperCase();
 }
 
 export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
@@ -335,50 +358,59 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
       icono={IdCard}
       titulo="Identificaciones de terreno"
       descripcion="Operadores que se identificaron con su cédula desde el QR del campamento. Apruebe o rechace la identidad; desuscriba de un campamento si no debe seguir recibiendo alertas de ese centro."
-    >
-      <div className="space-y-3">
-        <div className="relative max-w-md">
-          <Search
-            className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por nombre, cédula, cargo o campamento…"
-            className="h-9 pl-9"
-            aria-label="Buscar operadores"
-          />
+      encabezadoDebajo={
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <Tabs
+            value={filtro}
+            onValueChange={(v) => setFiltro(v as Filtro)}
+            className="min-w-0"
+          >
+            <TabsList
+              variant="line"
+              className="h-9 max-w-full flex-nowrap justify-start overflow-x-auto p-0"
+            >
+              <TabsTrigger value="todos" className="shrink-0 gap-1.5 px-3">
+                Todos
+                <ConteoTab n={conteos.todos} />
+              </TabsTrigger>
+              <TabsTrigger value="pendientes" className="shrink-0 gap-1.5 px-3">
+                Pendientes
+                <ConteoTab n={conteos.pendientes} acento={conteos.pendientes > 0} />
+              </TabsTrigger>
+              <TabsTrigger value="aprobados" className="shrink-0 gap-1.5 px-3">
+                Aprobados
+                <ConteoTab n={conteos.aprobados} />
+              </TabsTrigger>
+              <TabsTrigger value="rechazados" className="shrink-0 gap-1.5 px-3">
+                Rechazados
+                <ConteoTab n={conteos.rechazados} />
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <div className="relative w-full shrink-0 lg:w-72">
+            <Search
+              className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar nombre, cédula o campamento…"
+              className="h-9 pl-9"
+              aria-label="Buscar operadores"
+            />
+          </div>
         </div>
-        <Tabs
-          value={filtro}
-          onValueChange={(v) => setFiltro(v as Filtro)}
-        >
-          <TabsList className="h-auto w-full max-w-full flex-nowrap justify-start overflow-x-auto">
-            <TabsTrigger value="todos" className="shrink-0">
-              Todos{conteos.todos > 0 ? ` (${conteos.todos})` : ""}
-            </TabsTrigger>
-            <TabsTrigger value="pendientes" className="shrink-0">
-              Pendientes{conteos.pendientes > 0 ? ` (${conteos.pendientes})` : ""}
-            </TabsTrigger>
-            <TabsTrigger value="aprobados" className="shrink-0">
-              Aprobados{conteos.aprobados > 0 ? ` (${conteos.aprobados})` : ""}
-            </TabsTrigger>
-            <TabsTrigger value="rechazados" className="shrink-0">
-              Rechazados{conteos.rechazados > 0 ? ` (${conteos.rechazados})` : ""}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
-      {error && <p className="mt-3 text-xs text-destructive">{error}</p>}
+      }
+    >
+      {error && <p className="px-4 pt-3 text-xs text-destructive lg:px-6">{error}</p>}
 
       {cargando ? (
-        <div className="mt-4">
+        <div className="p-4 lg:p-6">
           <LoadingTable rows={5} cols={3} />
         </div>
       ) : filtrados.length === 0 ? (
-        <div className="mt-4">
+        <div className="p-4 lg:p-6">
           <EstadoVacio
             titulo={
               qNorm
@@ -398,54 +430,144 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
         </div>
       ) : (
         <>
-        <ul className="mt-4 space-y-2">
+        <ul className="divide-y divide-border/70">
           {visibles.map((o) => {
             const pendiente = o.aprobacion === "pendiente";
             return (
-              <li key={o.user_id}>
-                <Card>
-                  <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 space-y-1.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold leading-tight">
-                          {o.nombre || o.username}
-                        </p>
-                        {o.verificado_nexus ? (
-                          <Badge variant="outline" className="gap-1 border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
-                            <BadgeCheck className="size-3" /> Verificado
-                          </Badge>
+              <li
+                key={o.user_id}
+                className={cn(
+                  "space-y-3 border-l-2 border-l-transparent px-4 py-4 lg:px-6",
+                  pendiente && "border-l-amber-500/60",
+                )}
+              >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <div
+                          className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold text-muted-foreground"
+                          aria-hidden
+                        >
+                          {iniciales(o.nombre || o.username || "?")}
+                        </div>
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold leading-tight">
+                              {o.nombre || o.username}
+                            </p>
+                            {pendiente ? (
+                              <Badge variant="outline" className="border-amber-500/50 text-amber-600 dark:text-amber-400">
+                                Pendiente
+                              </Badge>
+                            ) : o.aprobacion === "aprobada" ? (
+                              <Badge variant="outline" className="gap-1 border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
+                                <Check className="size-3" /> Aprobado
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive">Rechazado</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-mono">{o.cedula || o.cedula_norm}</span>
+                            {o.jerarquia ? ` · ${o.jerarquia}` : ""}
+                            {o.created_at ? ` · identificado el ${fechaCorta(o.created_at)}` : ""}
+                            {!pendiente && o.aprobacion_por ? ` · revisado por ${o.aprobacion_por}` : ""}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                            {o.verificado_nexus ? (
+                              <Badge variant="outline" className="gap-1 border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
+                                <BadgeCheck className="size-3" /> Identidad verificada
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="gap-1 border-amber-500/50 text-amber-600 dark:text-amber-400">
+                                <ShieldAlert className="size-3" /> Sin verificar
+                              </Badge>
+                            )}
+                            {vinculos.has(o.user_id) ? (
+                              <Badge variant="outline" className="gap-1 border-sky-500/50 text-sky-600 dark:text-sky-400">
+                                <Send className="size-3" />
+                                {vinculos.get(o.user_id)?.telegram_username
+                                  ? `@${vinculos.get(o.user_id)?.telegram_username}`
+                                  : "Telegram"}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="gap-1 text-muted-foreground">
+                                <Send className="size-3" /> Telegram pendiente
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 gap-2 sm:pl-4">
+                        {pendiente ? (
+                          <>
+                            <Button
+                              size="sm"
+                              disabled={accionando === o.user_id}
+                              onClick={() => void resolver(o, "aprobada")}
+                            >
+                              {accionando === o.user_id ? (
+                                <Loader2 className="size-4 animate-spin" />
+                              ) : (
+                                <Check className="size-4" />
+                              )}
+                              Aprobar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive"
+                              disabled={accionando === o.user_id}
+                              onClick={() => void resolver(o, "rechazada")}
+                            >
+                              <X className="size-4" />
+                              Rechazar
+                            </Button>
+                          </>
                         ) : (
-                          <Badge variant="outline" className="gap-1 border-amber-500/50 text-amber-600 dark:text-amber-400">
-                            <ShieldAlert className="size-3" /> Sin verificar
-                          </Badge>
-                        )}
-                        {o.aprobacion === "aprobada" && (
-                          <Badge variant="secondary">Aprobado</Badge>
-                        )}
-                        {o.aprobacion === "rechazada" && (
-                          <Badge variant="destructive">Rechazado</Badge>
-                        )}
-                        {vinculos.has(o.user_id) ? (
-                          <Badge variant="outline" className="gap-1 border-sky-500/50 text-sky-600 dark:text-sky-400">
-                            <Send className="size-3" />
-                            {vinculos.get(o.user_id)?.telegram_username
-                              ? `@${vinculos.get(o.user_id)?.telegram_username}`
-                              : "Telegram"}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="gap-1 text-muted-foreground">
-                            <Send className="size-3" /> Telegram pendiente
-                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={accionando === o.user_id}
+                            onClick={() =>
+                              void resolver(o, o.aprobacion === "aprobada" ? "rechazada" : "aprobada")
+                            }
+                          >
+                            {accionando === o.user_id ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : null}
+                            {o.aprobacion === "aprobada" ? "Rechazar" : "Aprobar"}
+                          </Button>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        <span className="font-mono">{o.cedula || o.cedula_norm}</span>
-                        {o.jerarquia ? ` · ${o.jerarquia}` : ""}
-                        {o.created_at ? ` · identificado el ${fechaCorta(o.created_at)}` : ""}
-                      </p>
-                      {(o.centros_asignados?.length ?? 0) > 0 && (
-                        <div className="space-y-1.5 pt-0.5">
-                          <ul className="space-y-1.5">
+                    </div>
+                    {(o.centros_asignados?.length ?? 0) > 0 && (
+                      <div className="border-t border-border pt-3">
+                        <div className="mb-1.5 flex items-center justify-between gap-2">
+                          <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                            Campamentos asignados ({o.centros_asignados?.length})
+                          </p>
+                          {(o.centros_asignados?.length ?? 0) > 1 && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs text-destructive"
+                              disabled={accionando === o.user_id || desuscribiendo}
+                              onClick={() =>
+                                setConfirmDesuscribir({
+                                  userId: o.user_id,
+                                  nombre: o.nombre || o.username || "operador",
+                                  centroId: null,
+                                  etiqueta: "todos los campamentos",
+                                })
+                              }
+                            >
+                              <Trash2 className="size-3.5" />
+                              Quitar de todos
+                            </Button>
+                          )}
+                        </div>
+                        <ul className="grid gap-1.5 xl:grid-cols-2">
                             {(o.centros_asignados ?? []).map((id) => {
                               const centro = centrosPorId.get(id);
                               const etiqueta = centro ? etiquetaCentro(centro, id) : id;
@@ -461,7 +583,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                               return (
                                 <li
                                   key={id}
-                                  className="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5"
+                                  className="flex items-start gap-2 rounded-md bg-muted/40 px-2.5 py-1.5"
                                 >
                                   <div className="min-w-0 flex-1">
                                     <p className="text-[11px] font-medium leading-tight">
@@ -547,76 +669,9 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                                 </li>
                               );
                             })}
-                          </ul>
-                          {(o.centros_asignados?.length ?? 0) > 1 && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="text-destructive"
-                              disabled={accionando === o.user_id || desuscribiendo}
-                              onClick={() =>
-                                setConfirmDesuscribir({
-                                  userId: o.user_id,
-                                  nombre: o.nombre || o.username || "operador",
-                                  centroId: null,
-                                  etiqueta: "todos los campamentos",
-                                })
-                              }
-                            >
-                              <Trash2 className="size-3.5" />
-                              Quitar de todos
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                      {!pendiente && o.aprobacion_por && (
-                        <p className="text-[11px] text-muted-foreground">
-                          Revisado por {o.aprobacion_por}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex shrink-0 gap-2">
-                      {pendiente ? (
-                        <>
-                          <Button
-                            size="sm"
-                            disabled={accionando === o.user_id}
-                            onClick={() => void resolver(o, "aprobada")}
-                          >
-                            {accionando === o.user_id ? (
-                              <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                              <Check className="size-4" />
-                            )}
-                            Aprobar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive"
-                            disabled={accionando === o.user_id}
-                            onClick={() => void resolver(o, "rechazada")}
-                          >
-                            <X className="size-4" />
-                            Rechazar
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={accionando === o.user_id}
-                          onClick={() =>
-                            void resolver(o, o.aprobacion === "aprobada" ? "rechazada" : "aprobada")
-                          }
-                        >
-                          {o.aprobacion === "aprobada" ? "Rechazar" : "Aprobar"}
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                        </ul>
+                      </div>
+                    )}
               </li>
             );
           })}
@@ -628,7 +683,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
           filasPorPagina={FILAS_POR_PAGINA}
           cargando={cargando}
           onPagina={setPagina}
-          className="mt-4"
+          className="border-t border-border/70 px-4 py-3 lg:px-6"
         />
         </>
       )}
