@@ -37,8 +37,13 @@ python3 scripts/importar_excel_censo.py \
   --centro-id centro-XX \
   --con-nexus \
   --concurrency 5 \
+  --omitir-firmo-presidente \
   --aplicar
 ```
+
+Por defecto el script mapea firmas de referéndum a `firmo_contra_presidente`.
+Usar **`--omitir-firmo-presidente`** salvo que el usuario pida explícitamente
+importar ese flag (dato político sensible, distinto a SIIPOL operativo).
 
 Si Excel trae columna de campamento por fila:
 
