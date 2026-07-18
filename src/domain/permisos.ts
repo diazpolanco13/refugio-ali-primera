@@ -143,6 +143,15 @@ export function puedeVerLogs(rol: Rol): boolean {
   return permisosDeRol(rol).puedeVerLogs;
 }
 
+/**
+ * Vista /estado (estado del sistema): salud de la plataforma vs servicios
+ * externos (Nexus) con histórico de incidentes. Sala + autoridad; la RLS de
+ * `incidentes_servicios` aplica lo mismo en el servidor.
+ */
+export function puedeVerEstadoSistema(rol: Rol): boolean {
+  return rol === "admin" || rol === "analista_sae" || rol === "autoridad";
+}
+
 /** Vista interna /centros/censo (resumen agregado del censo nominal en red). */
 export function puedeVerCensoRapidoRed(rol: Rol): boolean {
   return (

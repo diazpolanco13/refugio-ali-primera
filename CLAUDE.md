@@ -217,6 +217,28 @@ datos viven en Postgres.
  `origen`/`fuente_archivo`/`centro_match` + RPC `censo_importar_lote`
  (upsert por cédula) + script `importar_relaciones_excel.py`.
 
+- ✅ **Estado del sistema `/estado` + incidentes de servicios (18-jul):**
+  tabla `incidentes_servicios` (RLS lectura admin/analista_sae/autoridad,
+  Realtime, índice único parcial = un incidente abierto por servicio) escrita
+  SOLO por la Edge Function **`registrar-incidente`** (verify_jwt false +
+  header `X-Vigilante-Secret` contra `app_secrets.vigilante_incidentes_secret`;
+  referencia `supabase/functions/registrar-incidente/`). El **vigilante del
+  VPS** (`/opt/vigilante-nexus/vigilante-nexus.sh` +
+  `config-incidentes.env`, fuera del repo) abre/cierra el incidente de Nexus
+  en cada transición (causas distintas: degraded / offline / gateway sin
+  respuesta) y registra `incidente_abierto`/`incidente_resuelto` en
+  `historial`. Vista **`/estado`** (`features/estado/EstadoSistemaView`,
+  permiso `puedeVerEstadoSistema` = admin/analista/autoridad): grupos
+  "Nuestra plataforma" vs "Servicios externos (institución)", uptime 30 días,
+  historial 90 días con duración en minutos y botón "Copiar parte" (formato
+  Telegram; lógica pura en `domain/estadoServicios.ts`). **Banner público**
+  vía RPC anon `estado_servicios_publico()` (solo incidentes ABIERTOS, sin
+  PII — ⚠️ mismo gotcha de EXECUTE si se recrea): `AvisoIncidenteNexus` en
+  `/terreno` y detalle "falla registrada desde las HH:MM" en `EstadoNexusApi`
+  (`/censo`) — corta el bombardeo de reportes cuando cae el API institucional.
+  SQL de referencia: `supabase/incidentes_servicios.sql`. Fase 2 opcional
+  pendiente: Uptime Kuma en Dokploy monitoreando PWA/Supabase/bot/Cap y
+  notificando por webhook a la misma Edge Function (tipo `plataforma`).
 - ✅ **IA local disponible (16-jul):** Hermes Agent gateway en Dokploy
   (proyecto independiente `hermes-agent`) consumiendo Gemma 4 12B en una DGX
   Spark vía Tailscale. API OpenAI-compatible en `127.0.0.1:8642` (solo VPS).

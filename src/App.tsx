@@ -50,6 +50,7 @@ const importGestionCatalogosOperativos = () =>
 const importPreferenciasCuentaView = () =>
   import("./features/config/PreferenciasCuentaView");
 const importLogsView = () => import("./features/logs/LogsView");
+const importEstadoSistemaView = () => import("./features/estado/EstadoSistemaView");
 const importReportesDiariosRedView = () => import("./features/centros/ReportesDiariosRedView");
 const importRefugiadosRedView = () => import("./features/refugiados/RefugiadosRedView");
 const importRefugiadoDetalleRedView = () =>
@@ -110,6 +111,9 @@ const PreferenciasCuentaView = lazy(() =>
   importPreferenciasCuentaView().then((m) => ({ default: m.PreferenciasCuentaView })),
 );
 const LogsView = lazy(() => importLogsView().then((m) => ({ default: m.LogsView })));
+const EstadoSistemaView = lazy(() =>
+  importEstadoSistemaView().then((m) => ({ default: m.EstadoSistemaView })),
+);
 const ReportesDiariosRedView = lazy(() =>
   importReportesDiariosRedView().then((m) => ({ default: m.ReportesDiariosRedView })),
 );
@@ -192,6 +196,7 @@ function precargarRutaInicial(pathname: string): Promise<unknown> {
     return importGestionCatalogosOperativos();
   if (pathname.startsWith("/config/perfil")) return importPreferenciasCuentaView();
   if (pathname.startsWith("/logs")) return importLogsView();
+  if (pathname.startsWith("/estado")) return importEstadoSistemaView();
   return importCentrosView();
 }
 
@@ -511,6 +516,14 @@ export function App() {
             element={
               <RutaConSkeleton fallback={<LogsSkeleton />}>
                 <LogsView sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/estado"
+            element={
+              <RutaConSkeleton fallback={<LogsSkeleton />}>
+                <EstadoSistemaView sesion={sesion} />
               </RutaConSkeleton>
             }
           />

@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import {
+  Activity,
   BedDouble,
   ChevronRight,
   ClipboardList,
@@ -28,6 +29,7 @@ import {
   puedeVerBuzonCentro,
   puedeVerCensoCentro,
   puedeVerCensoRapidoRed,
+  puedeVerEstadoSistema,
   puedeVerLogs,
   puedeVerPapeleraDenuncias,
   puedeVerPoblacionRed,
@@ -36,6 +38,7 @@ import {
   esRolTerreno,
 } from "@/domain/permisos";
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
+import { useIncidentesAbiertos } from "@/data/useIncidentesServicios";
 import { totalCasosSaludActivosRed } from "@/domain/seguimientoReportes";
 import { usePathnameNavegacion } from "@/contexts/PathnameNavegacionContext";
 import {
@@ -350,6 +353,7 @@ function NavContenido({ sesion }: Props) {
   const veBandejaTerreno = esAdmin || sesion.user.rol === "analista_sae";
   const gestionaCatalogos = puedeGestionarCatalogosOperativos(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
+  const veEstadoSistema = puedeVerEstadoSistema(sesion.user.rol);
   const vePreferencias = puedeEditarCuentaPropia(sesion.user);
   const vePapeleraDenuncias = puedeVerPapeleraDenuncias(sesion.user.rol);
   const veCensoRed = puedeVerCensoRapidoRed(sesion.user.rol);
@@ -510,7 +514,7 @@ function NavContenido({ sesion }: Props) {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      {(esAdmin || veBandejaTerreno || gestionaCatalogos || veLogs || vePreferencias) && (
+      {(esAdmin || veBandejaTerreno || gestionaCatalogos || veLogs || veEstadoSistema || vePreferencias) && (
         <SidebarGroup>
           <SidebarGroupLabel>Configuración</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -539,6 +543,14 @@ function NavContenido({ sesion }: Props) {
                   activo={rutaActiva(pathname, "/config/catalogos-operativos")}
                 />
               )}
+              {veEstadoSistema && (
+                <ItemMenu
+                  to="/estado"
+                  icono={Activity}
+                  label="Estado del sistema"
+                  activo={rutaActiva(pathname, "/estado")}
+                />
+              )}
               {veLogs && (
                 <ItemMenu
                   to="/logs"
@@ -553,6 +565,54 @@ function NavContenido({ sesion }: Props) {
         </SidebarGroup>
       )}
     </>
+  );
+}
+
+/**
+ * Luz de salud del sistema en el pie del sidebar: verde latiendo = todo
+ * operativo; roja = hay incidentes abiertos (Realtime). Clic → /estado.
+ * Solo la ven los roles con acceso a esa vista (admin/analista/autoridad).
+ */
+function LuzEstadoSistema() {
+  const { marcarNavegacion } = usePathnameNavegacion();
+  const abiertos = useIncidentesAbiertos();
+  const hayFalla = abiertos.length > 0;
+  const etiqueta = hayFalla
+    ? `${abiertos.length} ${abiertos.length === 1 ? "falla activa" : "fallas activas"}`
+    : "Sistemas operativos";
+
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          asChild
+          tooltip={`${etiqueta} — ver estado del sistema`}
+          className="group-data-[collapsible=icon]:justify-center"
+        >
+          <Link to="/estado" onClick={() => marcarNavegacion("/estado")}>
+            <span
+              className={cn(
+                "inline-block size-2.5 shrink-0 animate-pulse rounded-full",
+                hayFalla
+                  ? "bg-destructive shadow-[0_0_0_3px] shadow-destructive/30"
+                  : "bg-emerald-500 shadow-[0_0_0_3px] shadow-emerald-500/25",
+              )}
+              aria-hidden
+            />
+            <span
+              className={cn(
+                "truncate text-xs group-data-[collapsible=icon]:hidden",
+                hayFalla
+                  ? "font-medium text-destructive"
+                  : "text-sidebar-foreground/70",
+              )}
+            >
+              {etiqueta}
+            </span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }
 
@@ -618,6 +678,7 @@ export function AppSidebar({ sesion }: Props) {
         <NavContenido sesion={sesion} />
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border p-2">
+        {puedeVerEstadoSistema(sesion.user.rol) && <LuzEstadoSistema />}
         <p className="truncate px-2 text-[10px] text-sidebar-foreground/60 group-data-[collapsible=icon]:sr-only">
           @{sesion.user.username}
         </p>

@@ -11,6 +11,12 @@ import {
   type EstadoNexusApi,
   type InformeEstadoNexus,
 } from "@/data/reposNexus";
+import { incidentesAbiertosPublico } from "@/data/reposEstadoServicios";
+import {
+  formatoDuracion,
+  formatoHora,
+  type IncidenteAbiertoPublico,
+} from "@/domain/estadoServicios";
 import { cn } from "@/lib/utils";
 
 export type NexusEnLinea = boolean | null;
@@ -158,6 +164,25 @@ export function EstadoNexusApi({ onEstado, senalConsulta, className }: Props) {
     setAbierto(requiereAtencion);
   }, [requiereAtencion]);
 
+  // Con falla a la vista, buscar el incidente registrado por el vigilante:
+  // "desde cuándo y cuánto lleva" deja claro que la caída es institucional,
+  // ya está registrada y no hace falta reportarla.
+  const [incidente, setIncidente] = useState<IncidenteAbiertoPublico | null>(null);
+  useEffect(() => {
+    if (!requiereAtencion) {
+      setIncidente(null);
+      return;
+    }
+    let cancel = false;
+    void incidentesAbiertosPublico().then((lista) => {
+      if (cancel) return;
+      setIncidente(lista.find((i) => i.servicio === "nexus") ?? null);
+    });
+    return () => {
+      cancel = true;
+    };
+  }, [requiereAtencion]);
+
   return (
     <div
       className={cn(
@@ -235,6 +260,17 @@ export function EstadoNexusApi({ onEstado, senalConsulta, className }: Props) {
           )}
         >
           {msg.cuerpo}
+          {incidente ? (
+            <>
+              {" "}
+              <span className="font-medium">
+                Falla registrada desde las {formatoHora(incidente.inicio_ts)} (
+                {formatoDuracion(Date.now() - incidente.inicio_ts)}).
+              </span>{" "}
+              Es una falla del sistema institucional, no de la plataforma; los
+              analistas ya fueron notificados.
+            </>
+          ) : null}
         </p>
       ) : null}
     </div>

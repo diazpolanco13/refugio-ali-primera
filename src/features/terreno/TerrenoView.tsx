@@ -31,6 +31,7 @@ import { AutoridadesTerrenoPanel } from "@/features/terreno/AutoridadesTerrenoPa
 import { CapacidadInstrucciones } from "@/features/terreno/CapacidadInstrucciones";
 import { CapacidadTerrenoPanel } from "@/features/terreno/CapacidadTerrenoPanel";
 import { ContactoAnalistasTerreno } from "@/features/terreno/ContactoAnalistasTerreno";
+import { AvisoIncidenteNexus } from "@/components/AvisoIncidenteNexus";
 import { InstalarAppTerreno } from "@/features/terreno/InstalarAppTerreno";
 import { TerrenoBienvenida } from "@/features/terreno/TerrenoBienvenida";
 import { listarCentrosCenso, obtenerCentroTerreno, type CentroCenso } from "@/data/reposCenso";
@@ -969,6 +970,7 @@ export function TerrenoView() {
           </section>
         ) : (
           <nav aria-label="Tareas de terreno" className="flex w-full flex-col gap-2">
+            <AvisoIncidenteNexus className="w-full" />
             <BotonTareaTerreno
               onClick={abrirReporte}
               disabled={entrando || cargandoCentros}
