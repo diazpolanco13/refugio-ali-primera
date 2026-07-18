@@ -29,6 +29,7 @@ import type { Sesion } from "@/data/authSupabase";
 import {
   SECCIONES_FICHA_TERRENO,
   esRolTerreno,
+  puedeCrearCentros,
   puedeEditarCentro,
   puedeEditarReportesPasados,
   puedeVerBuzonCentro,
@@ -232,6 +233,7 @@ export function FichaCentroView({ sesion }: Props) {
 
   const puedeEditar = centro != null && puedeEditarCentro(sesion.user, centro.id);
   const puedeEditarPasado = puedeEditarReportesPasados(sesion.user);
+  const puedeEliminar = puedeCrearCentros(sesion.user);
 
   const reportesHoy = useReportesCentros({
     centroId: centro?.id,
@@ -858,6 +860,7 @@ export function FichaCentroView({ sesion }: Props) {
               <ResumenCentroPanel
                 centro={centroMostrado}
                 puedeEditar={puedeEditar}
+                puedeEliminar={puedeEliminar}
                 onIrAPestana={(vista) => cambiarSeccion(vista)}
                 onEditarUbicacion={
                   puedeEditar
@@ -867,6 +870,7 @@ export function FichaCentroView({ sesion }: Props) {
                       }
                     : undefined
                 }
+                onEliminado={() => navigate("/centros/mapa")}
               />
             </TabsContent>
 

@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Camera, ImagePlus, Loader2, Trash2 } from "lucide-react";
-import { claveDia, guardarCentro } from "@/data/reposSupabase";
+import { claveDia, eliminarCentro, guardarCentro } from "@/data/reposSupabase";
 import { subirFotoCentro, supabaseDisponible } from "@/data/supabase";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import {
@@ -15,6 +15,17 @@ import {
   type ServiciosCentro,
 } from "@/domain/centrosTransitorios";
 import { analisisCentro, COLOR_SEMAFORO } from "@/domain/capacidadCentros";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -30,8 +41,12 @@ import { ultimoSnapshotAntes } from "./ParteNumericoResumen";
 interface Props {
   centro: CentroTransitorio;
   puedeEditar?: boolean;
+  /** Solo admin / analista: borrado suave del campamento de la red. */
+  puedeEliminar?: boolean;
   onIrAPestana: (vista: VistaFichaCentro) => void;
   onEditarUbicacion?: () => void;
+  /** Tras eliminar con éxito (p. ej. volver al mapa). */
+  onEliminado?: () => void;
 }
 
 /** Variación vs día anterior: verde +N, rojo -N. */
@@ -371,12 +386,94 @@ function FotoCentroEditable({
   );
 }
 
+/** Borrado suave del campamento (admin / analista). Confirmación obligatoria. */
+function ZonaEliminarCampamento({
+  centro,
+  onEliminado,
+}: {
+  centro: CentroTransitorio;
+  onEliminado?: () => void;
+}) {
+  const [eliminando, setEliminando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function eliminar() {
+    setError(null);
+    setEliminando(true);
+    try {
+      await eliminarCentro(centro.id);
+      onEliminado?.();
+    } catch (err) {
+      console.error("[ResumenCentroPanel] error eliminando centro:", err);
+      setError(
+        err instanceof Error ? err.message : "No se pudo eliminar el campamento.",
+      );
+    } finally {
+      setEliminando(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 sm:p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 space-y-0.5">
+          <p className="text-sm font-semibold text-foreground">Eliminar campamento</p>
+          <p className="text-xs text-muted-foreground">
+            Desaparece del mapa, el tablero y el dashboard. El histórico queda en
+            la base; un administrador puede restaurarlo.
+          </p>
+        </div>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              variant="destructive"
+              className="shrink-0"
+              disabled={eliminando}
+            >
+              {eliminando ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+              Eliminar campamento
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar este campamento de la red?</AlertDialogTitle>
+              <AlertDialogDescription>
+                N.° {centro.nro} · {centro.nombre}. Desaparecerá del mapa, el tablero y
+                el dashboard en todos los dispositivos. El histórico queda guardado y un
+                administrador puede restaurarlo desde la base de datos.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={eliminando}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={eliminando}
+                onClick={() => void eliminar()}
+              >
+                Eliminar campamento
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+      {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
 /** Composición de la pestaña Resumen. */
 export function ResumenCentroPanel({
   centro,
   puedeEditar = false,
+  puedeEliminar = false,
   onIrAPestana,
   onEditarUbicacion,
+  onEliminado,
 }: Props) {
   return (
     <div className="space-y-4">
@@ -411,6 +508,10 @@ export function ResumenCentroPanel({
 
       <AccesoTerrenoCentro centro={centro} />
       <ChipAlertaServicios centro={centro} onIrAPestana={onIrAPestana} />
+
+      {puedeEliminar && (
+        <ZonaEliminarCampamento centro={centro} onEliminado={onEliminado} />
+      )}
     </div>
   );
 }
