@@ -16,7 +16,14 @@ alter table public.censo_registros
   add column if not exists nombre_centro_raw text not null default '',
   add column if not exists centro_match text not null default ''
     check (centro_match in ('', 'exacto', 'alias', 'fuzzy', 'manual', 'forzado')),
-  add column if not exists historial_centros jsonb not null default '[]'::jsonb;
+  add column if not exists historial_centros jsonb not null default '[]'::jsonb,
+  add column if not exists registro_policial boolean not null default false,
+  add column if not exists solicitado boolean not null default false,
+  add column if not exists firmo_contra_presidente boolean not null default false,
+  add column if not exists deportado boolean not null default false,
+  add column if not exists tipo_registro_policial text not null default '',
+  add column if not exists observaciones_seguridad text not null default '',
+  add column if not exists verificacion_seguridad_en timestamptz;
 
 comment on column public.censo_registros.origen is
   'terreno = planilla/app; import_excel = relación externa no verificada';
@@ -28,6 +35,16 @@ comment on column public.censo_registros.centro_match is
   'Cómo se resolvió centro_id: exacto|alias|fuzzy|manual|forzado';
 comment on column public.censo_registros.historial_centros is
   'Centros previos reportados para la misma cédula (jsonb array)';
+comment on column public.censo_registros.registro_policial is
+  'Verificación SIIPOL/planilla externa: tiene registro policial';
+comment on column public.censo_registros.solicitado is
+  'Verificación SIIPOL/planilla externa: persona solicitada';
+comment on column public.censo_registros.tipo_registro_policial is
+  'Tipo/resumen de registro policial reportado por la planilla externa';
+comment on column public.censo_registros.observaciones_seguridad is
+  'Observaciones de seguridad reportadas por SIIPOL/planilla externa';
+comment on column public.censo_registros.verificacion_seguridad_en is
+  'Fecha en que se cargó o actualizó la verificación de seguridad';
 
 create index if not exists censo_registros_origen_idx
   on public.censo_registros (origen)
@@ -36,6 +53,10 @@ create index if not exists censo_registros_origen_idx
 create index if not exists censo_registros_fuente_idx
   on public.censo_registros (fuente_archivo)
   where fuente_archivo <> '';
+
+create index if not exists censo_registros_seguridad_idx
+  on public.censo_registros (solicitado, registro_policial)
+  where solicitado or registro_policial;
 
 -- Backfill: imports legacy marcados como «Importación planilla»
 update public.censo_registros
@@ -86,6 +107,12 @@ declare
   v_hist jsonb;
   v_nombre_raw text;
   v_match text;
+  v_registro_policial boolean;
+  v_solicitado boolean;
+  v_firmo_contra_presidente boolean;
+  v_deportado boolean;
+  v_tipo_registro_policial text;
+  v_observaciones_seguridad text;
 begin
   if v_rol not in ('admin', 'analista_sae') then
     raise exception 'Acceso denegado: solo admin o analista_sae pueden importar Excel';
@@ -141,6 +168,17 @@ begin
         v_match := 'manual';
       end if;
 
+      v_registro_policial := lower(trim(coalesce(v_fila->>'registro_policial', 'false')))
+        in ('true', 't', '1', 'si', 'sí', 'yes', 'y');
+      v_solicitado := lower(trim(coalesce(v_fila->>'solicitado', 'false')))
+        in ('true', 't', '1', 'si', 'sí', 'yes', 'y');
+      v_firmo_contra_presidente := lower(trim(coalesce(v_fila->>'firmo_contra_presidente', 'false')))
+        in ('true', 't', '1', 'si', 'sí', 'yes', 'y');
+      v_deportado := lower(trim(coalesce(v_fila->>'deportado', 'false')))
+        in ('true', 't', '1', 'si', 'sí', 'yes', 'y');
+      v_tipo_registro_policial := left(coalesce(trim(v_fila->>'tipo_registro_policial'), ''), 160);
+      v_observaciones_seguridad := left(coalesce(trim(v_fila->>'observaciones_seguridad'), ''), 500);
+
       v_hay_existente := false;
       if v_norm is not null then
         select r.id, r.centro_id, r.procesado, r.historial_centros, r.nombre_centro_raw,
@@ -174,7 +212,14 @@ begin
             importado_en = now(),
             nombre_centro_raw = v_nombre_raw,
             centro_match = v_match,
-            historial_centros = v_hist
+            historial_centros = v_hist,
+            registro_policial = v_registro_policial,
+            solicitado = v_solicitado,
+            firmo_contra_presidente = v_firmo_contra_presidente,
+            deportado = v_deportado,
+            tipo_registro_policial = v_tipo_registro_policial,
+            observaciones_seguridad = v_observaciones_seguridad,
+            verificacion_seguridad_en = now()
           where r.id = v_existente.id;
         else
           update public.censo_registros r set
@@ -208,7 +253,14 @@ begin
             importado_en = now(),
             nombre_centro_raw = v_nombre_raw,
             centro_match = v_match,
-            historial_centros = v_hist
+            historial_centros = v_hist,
+            registro_policial = v_registro_policial,
+            solicitado = v_solicitado,
+            firmo_contra_presidente = v_firmo_contra_presidente,
+            deportado = v_deportado,
+            tipo_registro_policial = v_tipo_registro_policial,
+            observaciones_seguridad = v_observaciones_seguridad,
+            verificacion_seguridad_en = now()
           where r.id = v_existente.id;
         end if;
         v_actualizados := v_actualizados + 1;
@@ -221,7 +273,9 @@ begin
           telefono, embarazada, discapacidad, discapacidad_detalle,
           enfermedad, enfermedad_detalle,
           pais, estado_federativo, municipio, parroquia, calle, casa_edificio,
-          origen, fuente_archivo, importado_en, nombre_centro_raw, centro_match
+          origen, fuente_archivo, importado_en, nombre_centro_raw, centro_match,
+          registro_policial, solicitado, firmo_contra_presidente, deportado,
+          tipo_registro_policial, observaciones_seguridad, verificacion_seguridad_en
         ) values (
           v_centro_id,
           'Sistema', 'Importación planilla', 'Refugios Transitorios', '',
@@ -242,7 +296,9 @@ begin
           left(coalesce(trim(v_fila->>'parroquia'), ''), 120),
           left(coalesce(trim(v_fila->>'calle'), ''), 200),
           left(coalesce(trim(v_fila->>'casa_edificio'), ''), 120),
-          'import_excel', v_fuente, now(), v_nombre_raw, v_match
+          'import_excel', v_fuente, now(), v_nombre_raw, v_match,
+          v_registro_policial, v_solicitado, v_firmo_contra_presidente, v_deportado,
+          v_tipo_registro_policial, v_observaciones_seguridad, now()
         )
         returning id into v_id;
         v_insertados := v_insertados + 1;
@@ -267,12 +323,14 @@ begin
 end;
 $$;
 
-revoke all on function public.censo_importar_lote(jsonb, jsonb) from public;
+revoke all on function public.censo_importar_lote(jsonb, jsonb) from public, anon;
 grant execute on function public.censo_importar_lote(jsonb, jsonb) to authenticated;
 
 -- ============================================================================
 -- 3) Resumen: contar import_excel (y legacy)
 -- ============================================================================
+drop function if exists public.censo_resumen_red();
+
 create or replace function public.censo_resumen_red()
 returns table (
   centro_id text,
@@ -309,7 +367,10 @@ returns table (
   parte_dia date,
   sin_cedula bigint,
   importados_planilla bigint,
-  sin_edad bigint
+  sin_edad bigint,
+  solicitados bigint,
+  con_registro_policial bigint,
+  firmo_contra_presidente bigint
 )
 language plpgsql
 stable
@@ -360,7 +421,10 @@ begin
     parte.dia,
     coalesce(agg.sin_cedula, 0::bigint),
     coalesce(agg.importados_planilla, 0::bigint),
-    coalesce(agg.sin_edad, 0::bigint)
+    coalesce(agg.sin_edad, 0::bigint),
+    coalesce(agg.solicitados, 0::bigint),
+    coalesce(agg.con_registro_policial, 0::bigint),
+    coalesce(agg.firmo_contra_presidente, 0::bigint)
   from public.centros c
   left join lateral (
     select
@@ -393,7 +457,10 @@ begin
         where r.origen = 'import_excel'
            or r.funcionario_nombre = 'Importación planilla'
       )::bigint as importados_planilla,
-      count(*) filter (where r.edad is null)::bigint as sin_edad
+      count(*) filter (where r.edad is null)::bigint as sin_edad,
+      count(*) filter (where r.solicitado)::bigint as solicitados,
+      count(*) filter (where r.registro_policial)::bigint as con_registro_policial,
+      count(*) filter (where r.firmo_contra_presidente)::bigint as firmo_contra_presidente
     from public.censo_registros r
     where r.centro_id = c.id
   ) agg on true
@@ -420,14 +487,83 @@ begin
 end;
 $$;
 
-revoke all on function public.censo_resumen_red() from public;
+revoke all on function public.censo_resumen_red() from public, anon;
 grant execute on function public.censo_resumen_red() to authenticated;
 
 -- ============================================================================
 -- 4) Listados: exponer metadatos de import
 -- ============================================================================
+drop function if exists public.censo_listado_red_conteo(text, text, text);
+drop function if exists public.censo_listado_red_conteo(text, text, text, boolean, boolean);
+drop function if exists public.censo_listado_red_conteo(text, text, text, boolean, boolean, boolean);
 drop function if exists public.censo_listado_red_paginado(int, int, text, text, text, text);
+drop function if exists public.censo_listado_red_paginado(int, int, text, text, text, text, boolean, boolean);
+drop function if exists public.censo_listado_red_paginado(int, int, text, text, text, text, boolean, boolean, boolean);
 drop function if exists public.censo_listado_red();
+
+create function public.censo_listado_red_conteo(
+  p_centro_id text default null,
+  p_sexo text default null,
+  p_busqueda text default null,
+  p_solicitado boolean default null,
+  p_registro_policial boolean default null,
+  p_firmo boolean default null
+)
+returns bigint
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_busqueda text := nullif(trim(coalesce(p_busqueda, '')), '');
+  v_rol text := (select public.mi_rol());
+  v_centros text[] := (select public.mis_centros());
+begin
+  if v_rol not in ('admin', 'analista_sae', 'autoridad', 'censo_rapido', 'supervisor') then
+    raise exception 'Acceso denegado';
+  end if;
+
+  if v_rol = 'supervisor' then
+    if p_centro_id is null or p_centro_id = '' or p_centro_id = 'todos' then
+      null;
+    elsif not (p_centro_id = any (v_centros)) then
+      raise exception 'Acceso denegado';
+    end if;
+  end if;
+
+  return (
+    select count(*)::bigint
+    from public.censo_registros r
+    inner join public.centros c on c.id = r.centro_id and not c.deleted
+    where
+      (p_centro_id is null or p_centro_id = '' or p_centro_id = 'todos' or r.centro_id = p_centro_id)
+      and (v_rol <> 'supervisor' or r.centro_id = any (v_centros))
+      and (p_sexo is null or p_sexo = '' or p_sexo = 'todos' or r.sexo = p_sexo)
+      and (p_solicitado is null or r.solicitado = p_solicitado)
+      and (p_registro_policial is null or r.registro_policial = p_registro_policial)
+      and (p_firmo is null or r.firmo_contra_presidente = p_firmo)
+      and (
+        v_busqueda is null
+        or concat_ws(
+          ' ',
+          r.primer_nombre,
+          r.segundo_nombre,
+          r.primer_apellido,
+          r.segundo_apellido,
+          r.tipo_doc,
+          r.documento,
+          r.telefono,
+          r.fuente_archivo,
+          r.nombre_centro_raw,
+          r.tipo_registro_policial,
+          r.observaciones_seguridad,
+          coalesce(nullif(trim(c.data->>'nombre'), ''), c.id)
+        ) ilike '%' || v_busqueda || '%'
+      )
+  );
+end;
+$$;
 
 create function public.censo_listado_red_paginado(
   p_limit int default 50,
@@ -435,7 +571,10 @@ create function public.censo_listado_red_paginado(
   p_centro_id text default null,
   p_sexo text default null,
   p_busqueda text default null,
-  p_orden text default 'reciente'
+  p_orden text default 'reciente',
+  p_solicitado boolean default null,
+  p_registro_policial boolean default null,
+  p_firmo boolean default null
 )
 returns table (
   id uuid,
@@ -472,7 +611,14 @@ returns table (
   fuente_archivo text,
   importado_en timestamptz,
   nombre_centro_raw text,
-  centro_match text
+  centro_match text,
+  registro_policial boolean,
+  solicitado boolean,
+  firmo_contra_presidente boolean,
+  deportado boolean,
+  tipo_registro_policial text,
+  observaciones_seguridad text,
+  verificacion_seguridad_en timestamptz
 )
 language plpgsql
 stable
@@ -535,13 +681,23 @@ begin
     r.fuente_archivo,
     r.importado_en,
     r.nombre_centro_raw,
-    r.centro_match
+    r.centro_match,
+    r.registro_policial,
+    r.solicitado,
+    r.firmo_contra_presidente,
+    r.deportado,
+    r.tipo_registro_policial,
+    r.observaciones_seguridad,
+    r.verificacion_seguridad_en
   from public.censo_registros r
   inner join public.centros c on c.id = r.centro_id and not c.deleted
   where
     (p_centro_id is null or p_centro_id = '' or p_centro_id = 'todos' or r.centro_id = p_centro_id)
     and (v_rol <> 'supervisor' or r.centro_id = any (v_centros))
     and (p_sexo is null or p_sexo = '' or p_sexo = 'todos' or r.sexo = p_sexo)
+    and (p_solicitado is null or r.solicitado = p_solicitado)
+    and (p_registro_policial is null or r.registro_policial = p_registro_policial)
+    and (p_firmo is null or r.firmo_contra_presidente = p_firmo)
     and (
       v_busqueda is null
       or concat_ws(
@@ -555,10 +711,17 @@ begin
         r.telefono,
         r.fuente_archivo,
         r.nombre_centro_raw,
+        r.tipo_registro_policial,
+        r.observaciones_seguridad,
         coalesce(nullif(trim(c.data->>'nombre'), ''), c.id)
       ) ilike '%' || v_busqueda || '%'
     )
   order by
+    case when v_orden = 'solicitado' then r.solicitado end desc nulls last,
+    case when v_orden = 'reg_policial' then r.registro_policial end desc nulls last,
+    case when v_orden = 'referendum' then r.firmo_contra_presidente end desc nulls last,
+    case when v_orden = 'con_cedula' then (nullif(trim(coalesce(r.documento, '')), '') is not null) end desc nulls last,
+    case when v_orden = 'sin_cedula' then (nullif(trim(coalesce(r.documento, '')), '') is null) end desc nulls last,
     case when v_orden = 'campamento' then lower(coalesce(nullif(trim(c.data->>'nombre'), ''), c.id)) end asc nulls last,
     case when v_orden = 'nombre' then lower(concat_ws(' ', r.primer_apellido, r.primer_nombre, r.segundo_apellido)) end asc nulls last,
     case when v_orden = 'edad' then r.edad end desc nulls last,
@@ -604,7 +767,14 @@ returns table (
   fuente_archivo text,
   importado_en timestamptz,
   nombre_centro_raw text,
-  centro_match text
+  centro_match text,
+  registro_policial boolean,
+  solicitado boolean,
+  firmo_contra_presidente boolean,
+  deportado boolean,
+  tipo_registro_policial text,
+  observaciones_seguridad text,
+  verificacion_seguridad_en timestamptz
 )
 language plpgsql
 stable
@@ -655,7 +825,14 @@ begin
     r.fuente_archivo,
     r.importado_en,
     r.nombre_centro_raw,
-    r.centro_match
+    r.centro_match,
+    r.registro_policial,
+    r.solicitado,
+    r.firmo_contra_presidente,
+    r.deportado,
+    r.tipo_registro_policial,
+    r.observaciones_seguridad,
+    r.verificacion_seguridad_en
   from public.censo_registros r
   inner join public.centros c on c.id = r.centro_id and not c.deleted
   where v_rol <> 'supervisor' or r.centro_id = any (v_centros)
@@ -663,11 +840,11 @@ begin
 end;
 $$;
 
-revoke all on function public.censo_listado_red_paginado(int, int, text, text, text, text) from public;
-grant execute on function public.censo_listado_red_paginado(int, int, text, text, text, text) to authenticated;
+revoke all on function public.censo_listado_red_paginado(int, int, text, text, text, text, boolean, boolean, boolean) from public, anon;
+grant execute on function public.censo_listado_red_paginado(int, int, text, text, text, text, boolean, boolean, boolean) to authenticated;
 
-revoke all on function public.censo_listado_red() from public;
+revoke all on function public.censo_listado_red() from public, anon;
 grant execute on function public.censo_listado_red() to authenticated;
 
-revoke all on function public.censo_listado_red_conteo(text, text, text) from public;
-grant execute on function public.censo_listado_red_conteo(text, text, text) to authenticated;
+revoke all on function public.censo_listado_red_conteo(text, text, text, boolean, boolean, boolean) from public, anon;
+grant execute on function public.censo_listado_red_conteo(text, text, text, boolean, boolean, boolean) to authenticated;
