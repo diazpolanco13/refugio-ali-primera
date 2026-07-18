@@ -13,6 +13,9 @@ export interface FiltrosCensoRedListado {
   centroId: string;
   sexo: string;
   orden: OrdenRegistrosCenso;
+  solicitado: string;
+  registroPolicial: string;
+  firmo: string;
 }
 
 export function useCensoRedListado(
@@ -32,8 +35,19 @@ export function useCensoRedListado(
       centroId: filtros.centroId,
       sexo: filtros.sexo,
       orden: filtros.orden,
+      solicitado: filtros.solicitado,
+      registroPolicial: filtros.registroPolicial,
+      firmo: filtros.firmo,
     }),
-    [busquedaDebounced, filtros.centroId, filtros.sexo, filtros.orden],
+    [
+      busquedaDebounced,
+      filtros.centroId,
+      filtros.sexo,
+      filtros.orden,
+      filtros.solicitado,
+      filtros.registroPolicial,
+      filtros.firmo,
+    ],
   );
   const filtrosKey = useMemo(() => JSON.stringify(filtrosApi), [filtrosApi]);
   const paginaRef = useRef(pagina);

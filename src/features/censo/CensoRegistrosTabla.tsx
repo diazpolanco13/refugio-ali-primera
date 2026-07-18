@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { FileSpreadsheet, Pencil, Trash2 } from "lucide-react";
-import { CONDICIONES_VIVIENDA, type RegistroCensoGuardado } from "@/data/reposCenso";
+import { type RegistroCensoGuardado } from "@/data/reposCenso";
 import { CEDULA_JEFE_NO_SE } from "@/domain/catalogosHumanitarios";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,11 +14,15 @@ import {
 } from "@/components/ui/table";
 import { nombreCompletoRegistro } from "./censoRegistrosUtil";
 
-const ABREV_VIVIENDA: Record<string, string> = {
-  destruida: "D",
-  inhabitable: "I",
-  no_posee: "NP",
-};
+function tituloSeguridad(fila: RegistroCensoGuardado): string | undefined {
+  const partes = [
+    fila.tipo_registro_policial,
+    fila.observaciones_seguridad,
+    fila.firmo_contra_presidente ? "Firmó contra Presidente" : "",
+    fila.deportado ? "Deportado" : "",
+  ].filter(Boolean);
+  return partes.length > 0 ? partes.join(" · ") : undefined;
+}
 
 function FilaRegistro({
   fila,
@@ -39,7 +43,6 @@ function FilaRegistro({
   const doc = fila.documento
     ? `${fila.tipo_doc === "P" ? "PP " : (fila.tipo_doc ?? "V") + "-"}${fila.documento}`
     : "—";
-  const vivienda = CONDICIONES_VIVIENDA.find((c) => c.valor === fila.condicion_vivienda);
   const fecha = new Date(fila.creado_en).toLocaleString("es-VE", {
     day: "2-digit",
     month: "short",
@@ -115,17 +118,38 @@ function FilaRegistro({
           )}
         </TableCell>
       )}
-      <TableCell className="max-w-28 truncate px-2 py-1.5" title={fila.telefono || undefined}>
-        {fila.telefono || "—"}
+      <TableCell className="px-2 py-1.5 text-center" title={tituloSeguridad(fila)}>
+        {fila.solicitado ? (
+          <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">
+            Sí
+          </Badge>
+        ) : (
+          "—"
+        )}
       </TableCell>
-      <TableCell
-        className="max-w-28 truncate px-2 py-1.5"
-        title={[fila.parroquia, fila.municipio].filter(Boolean).join(", ")}
-      >
-        {fila.parroquia || fila.municipio || "—"}
+      <TableCell className="px-2 py-1.5 text-center" title={tituloSeguridad(fila)}>
+        {fila.registro_policial ? (
+          <Badge
+            variant="outline"
+            className="h-5 border-amber-500/60 px-1.5 text-[10px] text-amber-700 dark:text-amber-300"
+          >
+            Sí
+          </Badge>
+        ) : (
+          "—"
+        )}
       </TableCell>
-      <TableCell className="px-2 py-1.5 text-center" title={vivienda?.label ?? ""}>
-        {ABREV_VIVIENDA[fila.condicion_vivienda] ?? "—"}
+      <TableCell className="px-2 py-1.5 text-center" title={tituloSeguridad(fila)}>
+        {fila.firmo_contra_presidente ? (
+          <Badge
+            variant="outline"
+            className="h-5 border-orange-500/60 px-1.5 text-[10px] text-orange-700 dark:text-orange-300"
+          >
+            Sí
+          </Badge>
+        ) : (
+          "—"
+        )}
       </TableCell>
       <TableCell className="px-2 py-1.5 text-right text-muted-foreground">{fecha}</TableCell>
       {puedeEditar && (
@@ -190,9 +214,9 @@ export function CensoRegistrosTabla({
             <TableHead className="h-8 px-2 text-center">Edad</TableHead>
             <TableHead className="h-8 px-2 text-center">Sexo</TableHead>
             {mostrarCentro && <TableHead className="h-8 px-2">Campamento</TableHead>}
-            <TableHead className="h-8 px-2">Teléfono</TableHead>
-            <TableHead className="h-8 px-2">Parroquia</TableHead>
-            <TableHead className="h-8 px-2 text-center">Viv.</TableHead>
+            <TableHead className="h-8 px-2 text-center">Solicitado</TableHead>
+            <TableHead className="h-8 px-2 text-center">Reg. policial</TableHead>
+            <TableHead className="h-8 px-2 text-center">Referéndum</TableHead>
             <TableHead className="h-8 px-2 text-right">Registro</TableHead>
             {puedeEditar && <TableHead className="h-8 w-16 px-1 text-center">Acc.</TableHead>}
           </TableRow>

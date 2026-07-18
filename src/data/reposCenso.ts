@@ -183,6 +183,13 @@ export interface RegistroCensoGuardado {
   importado_en?: string | null;
   nombre_centro_raw?: string;
   centro_match?: string;
+  registro_policial?: boolean;
+  solicitado?: boolean;
+  firmo_contra_presidente?: boolean;
+  deportado?: boolean;
+  tipo_registro_policial?: string;
+  observaciones_seguridad?: string;
+  verificacion_seguridad_en?: string | null;
 }
 
 /** Fila devuelta por censo_listado_red (registro + campamento). */
@@ -523,6 +530,9 @@ interface FilaResumenCensoRed {
   sin_cedula: number;
   importados_planilla: number;
   sin_edad: number;
+  solicitados: number;
+  con_registro_policial: number;
+  firmo_contra_presidente: number;
 }
 
 function mapearResumenCensoCentro(fila: FilaResumenCensoRed): ResumenCensoCentro {
@@ -562,6 +572,9 @@ function mapearResumenCensoCentro(fila: FilaResumenCensoRed): ResumenCensoCentro
     sinCedula: Number(fila.sin_cedula ?? 0),
     importadosPlanilla: Number(fila.importados_planilla ?? 0),
     sinEdad: Number(fila.sin_edad ?? 0),
+    solicitados: Number(fila.solicitados ?? 0),
+    conRegistroPolicial: Number(fila.con_registro_policial ?? 0),
+    firmoContraPresidente: Number(fila.firmo_contra_presidente ?? 0),
   };
 }
 
@@ -581,24 +594,39 @@ export interface FiltrosListadoCensoRed {
   sexo?: string;
   busqueda?: string;
   orden?: string;
+  solicitado?: string;
+  registroPolicial?: string;
+  firmo?: string;
 }
 
 function paramsFiltrosListadoCensoRed(filtros: FiltrosListadoCensoRed) {
+  const boolFiltro = (valor: string | undefined): boolean | null => {
+    if (valor === "si") return true;
+    if (valor === "no") return false;
+    return null;
+  };
   return {
     p_centro_id: filtros.centroId && filtros.centroId !== "todos" ? filtros.centroId : null,
     p_sexo: filtros.sexo && filtros.sexo !== "todos" ? filtros.sexo : null,
     p_busqueda: filtros.busqueda?.trim() || null,
     p_orden: filtros.orden ?? "reciente",
+    p_solicitado: boolFiltro(filtros.solicitado),
+    p_registro_policial: boolFiltro(filtros.registroPolicial),
+    p_firmo: boolFiltro(filtros.firmo),
   };
 }
 
 /** Total de registros del listado general con filtros (sin paginar). */
 export async function contarListadoCensoRed(filtros: FiltrosListadoCensoRed = {}): Promise<number> {
-  const { p_centro_id, p_sexo, p_busqueda } = paramsFiltrosListadoCensoRed(filtros);
+  const { p_centro_id, p_sexo, p_busqueda, p_solicitado, p_registro_policial, p_firmo } =
+    paramsFiltrosListadoCensoRed(filtros);
   const { data, error } = await supabase.rpc("censo_listado_red_conteo", {
     p_centro_id,
     p_sexo,
     p_busqueda,
+    p_solicitado,
+    p_registro_policial,
+    p_firmo,
   });
   if (error) throw new Error(error.message);
   return Number(data ?? 0);
@@ -610,7 +638,15 @@ export async function obtenerListadoCensoRedPaginado(
   pagina: number,
   filasPorPagina = FILAS_POR_PAGINA_CENSO_RED,
 ): Promise<RegistroCensoRed[]> {
-  const { p_centro_id, p_sexo, p_busqueda, p_orden } = paramsFiltrosListadoCensoRed(filtros);
+  const {
+    p_centro_id,
+    p_sexo,
+    p_busqueda,
+    p_orden,
+    p_solicitado,
+    p_registro_policial,
+    p_firmo,
+  } = paramsFiltrosListadoCensoRed(filtros);
   const { data, error } = await supabase.rpc("censo_listado_red_paginado", {
     p_limit: filasPorPagina,
     p_offset: pagina * filasPorPagina,
@@ -618,6 +654,9 @@ export async function obtenerListadoCensoRedPaginado(
     p_sexo,
     p_busqueda,
     p_orden,
+    p_solicitado,
+    p_registro_policial,
+    p_firmo,
   });
   if (error) throw new Error(error.message);
   return (data ?? []) as FilaListadoCensoRed[];

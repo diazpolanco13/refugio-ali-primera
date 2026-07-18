@@ -36,7 +36,20 @@ export function filtrarRegistrosCenso<T extends RegistroCensoGuardado>(
   });
 }
 
-export type OrdenRegistrosCenso = "reciente" | "nombre" | "campamento" | "edad";
+export type OrdenRegistrosCenso =
+  | "reciente"
+  | "nombre"
+  | "campamento"
+  | "edad"
+  | "solicitado"
+  | "reg_policial"
+  | "referendum"
+  | "con_cedula"
+  | "sin_cedula";
+
+function tieneCedula(fila: RegistroCensoGuardado): boolean {
+  return Boolean((fila.documento ?? "").trim());
+}
 
 export function ordenarRegistrosCenso<T extends RegistroCensoGuardado>(
   filas: T[],
@@ -44,6 +57,8 @@ export function ordenarRegistrosCenso<T extends RegistroCensoGuardado>(
   centroNombre?: (fila: T) => string,
 ): T[] {
   const copia = [...filas];
+  const porReciente = (a: T, b: T) =>
+    new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime();
   switch (orden) {
     case "nombre":
       return copia.sort((a, b) =>
@@ -57,11 +72,33 @@ export function ordenarRegistrosCenso<T extends RegistroCensoGuardado>(
       });
     case "edad":
       return copia.sort((a, b) => (b.edad ?? -1) - (a.edad ?? -1));
+    case "solicitado":
+      return copia.sort(
+        (a, b) => Number(Boolean(b.solicitado)) - Number(Boolean(a.solicitado)) || porReciente(a, b),
+      );
+    case "reg_policial":
+      return copia.sort(
+        (a, b) =>
+          Number(Boolean(b.registro_policial)) - Number(Boolean(a.registro_policial)) ||
+          porReciente(a, b),
+      );
+    case "referendum":
+      return copia.sort(
+        (a, b) =>
+          Number(Boolean(b.firmo_contra_presidente)) -
+            Number(Boolean(a.firmo_contra_presidente)) || porReciente(a, b),
+      );
+    case "con_cedula":
+      return copia.sort(
+        (a, b) => Number(tieneCedula(b)) - Number(tieneCedula(a)) || porReciente(a, b),
+      );
+    case "sin_cedula":
+      return copia.sort(
+        (a, b) => Number(!tieneCedula(b)) - Number(!tieneCedula(a)) || porReciente(a, b),
+      );
     case "reciente":
     default:
-      return copia.sort(
-        (a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime(),
-      );
+      return copia.sort(porReciente);
   }
 }
 

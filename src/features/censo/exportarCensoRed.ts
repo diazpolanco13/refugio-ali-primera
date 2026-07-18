@@ -45,6 +45,9 @@ function filaPdf(fila: RegistroCensoRed, numero: number): string[] {
     fila.telefono,
     fila.parroquia || fila.municipio,
     etiquetaVivienda(fila.condicion_vivienda),
+    fila.solicitado ? "Sí" : "",
+    fila.registro_policial ? "Sí" : "",
+    fila.firmo_contra_presidente ? "Sí" : "",
     formatearFechaRegistro(fila.creado_en),
   ];
 }
@@ -59,10 +62,13 @@ const ENCABEZADOS_PDF = [
   "Teléfono",
   "Parroquia",
   "Vivienda",
+  "Solic.",
+  "Reg. pol.",
+  "Referéndum",
   "Registro",
 ];
 
-const ANCHOS_PDF_MM = [8, 42, 24, 10, 10, 38, 22, 24, 18, 28];
+const ANCHOS_PDF_MM = [8, 40, 22, 9, 9, 34, 20, 22, 16, 12, 14, 18, 26];
 
 function truncar(texto: string, max = 42): string {
   const t = texto.trim();
@@ -156,6 +162,15 @@ function filaExcel(fila: RegistroCensoRed, numero: number): Record<string, strin
     "Condición vivienda": etiquetaVivienda(fila.condicion_vivienda),
     Calle: fila.calle,
     "Casa / edificio": fila.casa_edificio,
+    Solicitado: fila.solicitado ? "Sí" : "No",
+    "Registro policial": fila.registro_policial ? "Sí" : "No",
+    "Firmó contra Presidente": fila.firmo_contra_presidente ? "Sí" : "No",
+    Deportado: fila.deportado ? "Sí" : "No",
+    "Tipo registro policial": fila.tipo_registro_policial ?? "",
+    "Observaciones seguridad": fila.observaciones_seguridad ?? "",
+    "Verificación seguridad": fila.verificacion_seguridad_en
+      ? formatearFechaRegistro(fila.verificacion_seguridad_en)
+      : "",
     "Fecha registro": formatearFechaRegistro(fila.creado_en),
   };
 }

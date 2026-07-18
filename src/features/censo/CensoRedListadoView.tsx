@@ -3,12 +3,16 @@
 import { useCallback, useMemo, useState } from "react";
 import {
   Baby,
+  Check,
+  ChevronsUpDown,
   Heart,
   Loader2,
   RefreshCw,
   Search,
+  ShieldAlert,
   ShieldCheck,
   Users,
+  Vote,
   FilterX,
 } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
@@ -30,8 +34,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { PaginadorTabla } from "@/components/ui/pagination";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -43,36 +60,69 @@ import { VistaPagina } from "@/components/VistaPagina";
 import { cn } from "@/lib/utils";
 
 type FiltroSexo = "todos" | "M" | "F";
+type FiltroBinario = "todos" | "si" | "no";
 
 function KpiPersona({
   valor,
   etiqueta,
   icono: Icono,
   clase,
+  onClick,
+  activo,
 }: {
   valor: number;
   etiqueta: string;
   icono: typeof Users;
   clase?: string;
+  onClick?: () => void;
+  activo?: boolean;
 }) {
+  const contenido = (
+    <CardContent className="flex items-center gap-3 px-3">
+      <div
+        className={cn(
+          "flex size-8 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-300",
+          clase,
+        )}
+      >
+        <Icono className="size-4" />
+      </div>
+      <div className="min-w-0 text-left">
+        <p className="text-lg font-bold tabular-nums leading-none">
+          {valor.toLocaleString("es")}
+        </p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{etiqueta}</p>
+      </div>
+    </CardContent>
+  );
+
+  if (!onClick) {
+    return (
+      <Card size="sm" className="border-teal-500/15 py-2">
+        {contenido}
+      </Card>
+    );
+  }
+
   return (
-    <Card size="sm" className="border-teal-500/15 py-2">
-      <CardContent className="flex items-center gap-3 px-3">
-        <div
-          className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-300",
-            clase,
-          )}
-        >
-          <Icono className="size-4" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-lg font-bold tabular-nums leading-none">
-            {valor.toLocaleString("es")}
-          </p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">{etiqueta}</p>
-        </div>
-      </CardContent>
+    <Card
+      size="sm"
+      role="button"
+      tabIndex={0}
+      aria-pressed={activo}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className={cn(
+        "cursor-pointer border-teal-500/15 py-2 transition-colors hover:border-teal-500/40 hover:bg-teal-500/5",
+        activo && "border-teal-500/70 bg-teal-500/10 ring-1 ring-teal-500/40",
+      )}
+    >
+      {contenido}
     </Card>
   );
 }
@@ -88,7 +138,11 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
 
   const [busqueda, setBusqueda] = useState("");
   const [centroId, setCentroId] = useState("todos");
+  const [campamentoAbierto, setCampamentoAbierto] = useState(false);
   const [sexo, setSexo] = useState<FiltroSexo>("todos");
+  const [solicitado, setSolicitado] = useState<FiltroBinario>("todos");
+  const [registroPolicial, setRegistroPolicial] = useState<FiltroBinario>("todos");
+  const [firmo, setFirmo] = useState<FiltroBinario>("todos");
   const [orden, setOrden] = useState<OrdenRegistrosCenso>("reciente");
 
   const {
@@ -103,7 +157,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
     refrescar,
     filtrosApi,
   } = useCensoRedListado(
-    { busqueda, centroId, sexo, orden },
+    { busqueda, centroId, sexo, orden, solicitado, registroPolicial, firmo },
     { enabled: tieneAcceso },
   );
 
@@ -122,6 +176,9 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
     let mujeres = 0;
     let menores = 0;
     let especiales = 0;
+    let solicitados = 0;
+    let conRegistroPolicial = 0;
+    let firmoContraPresidente = 0;
     let campamentosConDatos = 0;
     for (const r of resumenes) {
       if (r.totalRegistrados <= 0) continue;
@@ -137,6 +194,9 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
         r.adolescentesH +
         r.adolescentesM;
       especiales += r.embarazadas + r.discapacidad;
+      solicitados += r.solicitados;
+      conRegistroPolicial += r.conRegistroPolicial;
+      firmoContraPresidente += r.firmoContraPresidente;
     }
     return {
       total: totalPersonas,
@@ -145,6 +205,9 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
       mujeres,
       menores,
       especiales,
+      solicitados,
+      conRegistroPolicial,
+      firmoContraPresidente,
     };
   }, [resumenes]);
 
@@ -152,6 +215,9 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
     busqueda.trim() !== "" ||
     centroId !== "todos" ||
     sexo !== "todos" ||
+    solicitado !== "todos" ||
+    registroPolicial !== "todos" ||
+    firmo !== "todos" ||
     orden !== "reciente";
 
   const obtenerFilasExportacion = useCallback(
@@ -219,26 +285,81 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
             </div>
           ) : null}
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            <KpiPersona valor={kpis.total} etiqueta="Total censados" icono={Users} />
-            <KpiPersona
-              valor={kpis.campamentos}
-              etiqueta="Campamentos"
-              icono={Users}
-            />
-            <KpiPersona valor={kpis.hombres} etiqueta="Hombres" icono={Users} />
-            <KpiPersona valor={kpis.mujeres} etiqueta="Mujeres" icono={Users} />
-            <KpiPersona
-              valor={kpis.menores}
-              etiqueta="Menores de 18"
-              icono={Baby}
-            />
-            <KpiPersona
-              valor={kpis.especiales}
-              etiqueta="Emb. + discapacidad"
-              icono={Heart}
-              clase="bg-amber-500/10 text-amber-600 dark:text-amber-300"
-            />
+          <div className="space-y-2">
+            <div>
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Demografía
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+                <KpiPersona valor={kpis.total} etiqueta="Total censados" icono={Users} />
+                <KpiPersona
+                  valor={kpis.campamentos}
+                  etiqueta="Campamentos"
+                  icono={Users}
+                />
+                <KpiPersona
+                  valor={kpis.hombres}
+                  etiqueta="Hombres"
+                  icono={Users}
+                  activo={sexo === "M"}
+                  onClick={() => setSexo((v) => (v === "M" ? "todos" : "M"))}
+                />
+                <KpiPersona
+                  valor={kpis.mujeres}
+                  etiqueta="Mujeres"
+                  icono={Users}
+                  activo={sexo === "F"}
+                  onClick={() => setSexo((v) => (v === "F" ? "todos" : "F"))}
+                />
+                <KpiPersona
+                  valor={kpis.menores}
+                  etiqueta="Menores de 18"
+                  icono={Baby}
+                />
+                <KpiPersona
+                  valor={kpis.especiales}
+                  etiqueta="Emb. + discapacidad"
+                  icono={Heart}
+                  clase="bg-amber-500/10 text-amber-600 dark:text-amber-300"
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Registros de interés · clic para filtrar
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <KpiPersona
+                  valor={kpis.solicitados}
+                  etiqueta="Solicitados"
+                  icono={ShieldAlert}
+                  clase="bg-red-500/10 text-red-600 dark:text-red-300"
+                  activo={solicitado === "si"}
+                  onClick={() =>
+                    setSolicitado((v) => (v === "si" ? "todos" : "si"))
+                  }
+                />
+                <KpiPersona
+                  valor={kpis.conRegistroPolicial}
+                  etiqueta="Reg. policial"
+                  icono={ShieldCheck}
+                  clase="bg-amber-500/10 text-amber-600 dark:text-amber-300"
+                  activo={registroPolicial === "si"}
+                  onClick={() =>
+                    setRegistroPolicial((v) => (v === "si" ? "todos" : "si"))
+                  }
+                />
+                <KpiPersona
+                  valor={kpis.firmoContraPresidente}
+                  etiqueta="Referéndum"
+                  icono={Vote}
+                  clase="bg-orange-500/10 text-orange-600 dark:text-orange-300"
+                  activo={firmo === "si"}
+                  onClick={() => setFirmo((v) => (v === "si" ? "todos" : "si"))}
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -252,22 +373,66 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
               />
             </div>
 
-            <Select value={centroId} onValueChange={setCentroId}>
-              <SelectTrigger
-                size="sm"
-                className={cn(CENSO_SELECT_TRIGGER, "h-8 w-48 max-w-full")}
-              >
-                <SelectValue placeholder="Campamento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los campamentos</SelectItem>
-                {campamentos.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={campamentoAbierto} onOpenChange={setCampamentoAbierto}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={campamentoAbierto}
+                  className="h-8 w-52 max-w-full justify-between border border-input px-2.5 text-sm font-normal"
+                >
+                  <span className="truncate">
+                    {centroId === "todos"
+                      ? "Todos los campamentos"
+                      : (campamentos.find((c) => c.id === centroId)?.nombre ?? centroId)}
+                  </span>
+                  <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-64 p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar campamento…" className="h-9" />
+                  <CommandList>
+                    <CommandEmpty>Sin campamentos.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="Todos los campamentos"
+                        onSelect={() => {
+                          setCentroId("todos");
+                          setCampamentoAbierto(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 size-3.5",
+                            centroId === "todos" ? "opacity-100" : "opacity-0",
+                          )}
+                        />
+                        Todos los campamentos
+                      </CommandItem>
+                      {campamentos.map((c) => (
+                        <CommandItem
+                          key={c.id}
+                          value={c.nombre}
+                          onSelect={() => {
+                            setCentroId(c.id);
+                            setCampamentoAbierto(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 size-3.5",
+                              centroId === c.id ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                          <span className="truncate">{c.nombre}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
 
             <Select
               value={sexo}
@@ -287,8 +452,25 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
             </Select>
 
             <Select
-              value={orden}
-              onValueChange={(v) => setOrden(v as OrdenRegistrosCenso)}
+              value={solicitado}
+              onValueChange={(v) => setSolicitado(v as FiltroBinario)}
+            >
+              <SelectTrigger
+                size="sm"
+                className={cn(CENSO_SELECT_TRIGGER, "h-8 w-36")}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Solicitados</SelectItem>
+                <SelectItem value="si">Solo sí</SelectItem>
+                <SelectItem value="no">Solo no</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={registroPolicial}
+              onValueChange={(v) => setRegistroPolicial(v as FiltroBinario)}
             >
               <SelectTrigger
                 size="sm"
@@ -297,10 +479,46 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="todos">Reg. policial</SelectItem>
+                <SelectItem value="si">Solo sí</SelectItem>
+                <SelectItem value="no">Solo no</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={firmo} onValueChange={(v) => setFirmo(v as FiltroBinario)}>
+              <SelectTrigger
+                size="sm"
+                className={cn(CENSO_SELECT_TRIGGER, "h-8 w-36")}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Referéndum</SelectItem>
+                <SelectItem value="si">Solo sí</SelectItem>
+                <SelectItem value="no">Solo no</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={orden}
+              onValueChange={(v) => setOrden(v as OrdenRegistrosCenso)}
+            >
+              <SelectTrigger
+                size="sm"
+                className={cn(CENSO_SELECT_TRIGGER, "h-8 w-48")}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
                 <SelectItem value="reciente">Más recientes</SelectItem>
                 <SelectItem value="nombre">Nombre A → Z</SelectItem>
                 <SelectItem value="campamento">Campamento</SelectItem>
                 <SelectItem value="edad">Mayor edad</SelectItem>
+                <SelectItem value="solicitado">Solicitados primero</SelectItem>
+                <SelectItem value="reg_policial">Reg. policial primero</SelectItem>
+                <SelectItem value="referendum">Referéndum primero</SelectItem>
+                <SelectItem value="con_cedula">Con cédula primero</SelectItem>
+                <SelectItem value="sin_cedula">Sin cédula primero</SelectItem>
               </SelectContent>
             </Select>
 
@@ -313,6 +531,9 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
                   setBusqueda("");
                   setCentroId("todos");
                   setSexo("todos");
+                  setSolicitado("todos");
+                  setRegistroPolicial("todos");
+                  setFirmo("todos");
                   setOrden("reciente");
                 }}
               >

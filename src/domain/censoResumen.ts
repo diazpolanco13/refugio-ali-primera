@@ -48,6 +48,12 @@ export interface ResumenCensoCentro {
   importadosPlanilla: number;
   /** Sin edad consignada. */
   sinEdad: number;
+  /** Personas marcadas como solicitadas en verificación SIIPOL/planilla. */
+  solicitados: number;
+  /** Personas con registro policial reportado en verificación SIIPOL/planilla. */
+  conRegistroPolicial: number;
+  /** Personas que firmaron contra el Presidente (referéndum) según SIIPOL/planilla. */
+  firmoContraPresidente: number;
 }
 
 export type EstadoContrasteCenso =

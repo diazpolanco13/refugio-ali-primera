@@ -215,6 +215,9 @@ export function CensoCentroPanel({
       centroId,
       sexo: "todos",
       orden: "reciente",
+      solicitado: "todos",
+      registroPolicial: "todos",
+      firmo: "todos",
     },
     { enabled: tab === "importaciones" },
   );
