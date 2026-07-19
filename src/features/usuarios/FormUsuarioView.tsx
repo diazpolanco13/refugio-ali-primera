@@ -625,7 +625,7 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
                       {esEdicion && (
                         <p className="text-[11px] leading-snug text-muted-foreground">
                           {esPropio
-                            ? "No puede renombrar su propio usuario; pídalo a otro admin."
+                            ? "Su propio login se cambia desde Preferencias de cuenta."
                             : "Si lo cambia, el usuario entrará con el nuevo login (minúsculas, números y . _ -). Su sesión abierta sigue válida."}
                         </p>
                       )}

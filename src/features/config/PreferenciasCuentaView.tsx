@@ -1,9 +1,12 @@
 // Preferencias de cuenta propia (`/config/perfil`).
-// Usuarios permanentes editan ficha + contraseña. Temporales de terreno (QR) no.
+// Usuarios permanentes editan ficha + usuario de login + contraseña.
+// Temporales de terreno (QR) no. El login se renombra vía Edge Function
+// `update-username` (renombrarMiUsuario: la sesión sigue viva tras el cambio).
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import {
+  AtSign,
   Fingerprint,
   KeyRound,
   Loader2,
@@ -14,6 +17,7 @@ import {
 import {
   actualizarMiPerfil,
   cambiarMiPassword,
+  renombrarMiUsuario,
   type DatosPerfilEditable,
   type Sesion,
   useSesion,
@@ -44,6 +48,8 @@ interface Props {
   sesion: Sesion;
 }
 
+const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{2,31}$/;
+
 function perfilDesdeSesion(sesion: Sesion): DatosPerfilEditable {
   const u = sesion.user;
   return {
@@ -58,6 +64,33 @@ function perfilDesdeSesion(sesion: Sesion): DatosPerfilEditable {
   };
 }
 
+/** Encabezado de grupo dentro de la tarjeta de datos. */
+function TituloSeccion({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      {children}
+    </p>
+  );
+}
+
+function BannerResultado({ ok, error }: { ok: string; error: string }) {
+  if (error) {
+    return (
+      <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+        {error}
+      </div>
+    );
+  }
+  if (ok) {
+    return (
+      <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
+        {ok}
+      </div>
+    );
+  }
+  return null;
+}
+
 export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
   const sesionViva = useSesion() ?? sesionInicial;
   const puede = puedeEditarCuentaPropia(sesionViva.user);
@@ -65,6 +98,7 @@ export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
   const [perfil, setPerfil] = useState<DatosPerfilEditable>(() =>
     perfilDesdeSesion(sesionViva),
   );
+  const [username, setUsername] = useState(() => sesionViva.user.username);
   const [guardandoPerfil, setGuardandoPerfil] = useState(false);
   const [okPerfil, setOkPerfil] = useState("");
   const [errorPerfil, setErrorPerfil] = useState("");
@@ -76,6 +110,18 @@ export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
   const [okPassword, setOkPassword] = useState("");
   const [errorPassword, setErrorPassword] = useState("");
 
+  const base = useMemo(
+    () => ({ ...perfilDesdeSesion(sesionViva), username: sesionViva.user.username }),
+    [sesionViva],
+  );
+  const usernameNormalizado = username.trim().toLowerCase();
+  const cambiaUsername = usernameNormalizado !== base.username;
+  const hayCambios =
+    cambiaUsername ||
+    (Object.keys(perfilDesdeSesion(sesionViva)) as (keyof DatosPerfilEditable)[]).some(
+      (k) => perfil[k] !== base[k],
+    );
+
   if (!puede) {
     return <Navigate to={rutaInicialDeRol(sesionViva.user.rol)} replace />;
   }
@@ -84,14 +130,30 @@ export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
     e.preventDefault();
     setErrorPerfil("");
     setOkPerfil("");
+    if (cambiaUsername && !USERNAME_RE.test(usernameNormalizado)) {
+      setErrorPerfil(
+        "Usuario de login inválido: 3-32 caracteres, minúsculas, números y . _ - (empieza con letra o número).",
+      );
+      return;
+    }
     setGuardandoPerfil(true);
     try {
+      // Primero el login (Edge Function con validaciones propias); si falla,
+      // no se toca el resto de la ficha.
+      if (cambiaUsername) {
+        await renombrarMiUsuario(usernameNormalizado);
+        setUsername(usernameNormalizado);
+      }
       const actualizada = await actualizarMiPerfil(perfil);
       setPerfil(perfilDesdeSesion(actualizada));
       registrarHistorial("editar_perfil_propio", "usuario", actualizada.user.sub, {
         username: actualizada.user.username,
       });
-      setOkPerfil("Datos guardados.");
+      setOkPerfil(
+        cambiaUsername
+          ? `Datos guardados. Su nuevo usuario de login es «${usernameNormalizado}»; esta sesión sigue activa.`
+          : "Datos guardados.",
+      );
     } catch (err) {
       setErrorPerfil(err instanceof Error ? err.message : "No se pudo guardar");
     } finally {
@@ -136,21 +198,27 @@ export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
     setErrorPerfil("");
   }
 
+  function setCampoPassword(setter: (v: string) => void, v: string) {
+    setter(v);
+    setOkPassword("");
+    setErrorPassword("");
+  }
+
   return (
     <VistaPagina
       icono={Settings}
       acento="primary"
       titulo="Preferencias de cuenta"
-      descripcion="Tu ficha personal y el cambio de contraseña"
+      descripcion="Tu ficha personal, usuario de login y contraseña"
     >
       <div className="space-y-6 p-4 lg:p-6">
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
           <BadgeRol rol={sesionViva.user.rol} />
-          <span className="text-sm text-muted-foreground">
-            @{sesionViva.user.username}
+          <span className="text-sm font-medium text-foreground">
+            {sesionViva.user.nombre || `@${sesionViva.user.username}`}
           </span>
           <span className="text-xs text-muted-foreground">
-            · {INFO_ROLES[sesionViva.user.rol].etiqueta}
+            @{sesionViva.user.username} · {INFO_ROLES[sesionViva.user.rol].etiqueta}
           </span>
           {sesionViva.user.hash_id && (
             <span className="ml-auto flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
@@ -167,16 +235,49 @@ export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
               Datos personales
             </CardTitle>
             <CardDescription>
-              Rol, usuario de login y campamentos asignados solo los cambia un
+              El rol y los campamentos asignados solo los cambia un
               administrador.
             </CardDescription>
           </CardHeader>
           <form onSubmit={guardarPerfil}>
-            <CardContent className="space-y-5 pt-(--card-spacing)">
+            <CardContent className="space-y-5 py-(--card-spacing)">
               <section className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Identidad
-                </p>
+                <TituloSeccion>Cuenta</TituloSeccion>
+                <div className="space-y-1.5 sm:max-w-sm">
+                  <Label htmlFor="perfil-username">Usuario (login)</Label>
+                  <div className="relative">
+                    <AtSign
+                      className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <Input
+                      id="perfil-username"
+                      className="pl-8 font-mono lowercase"
+                      value={username}
+                      onChange={(e) => {
+                        setUsername(e.target.value.toLowerCase());
+                        setOkPerfil("");
+                        setErrorPerfil("");
+                      }}
+                      required
+                      minLength={3}
+                      maxLength={32}
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      disabled={guardandoPerfil}
+                    />
+                  </div>
+                  <p className="text-[11px] leading-snug text-muted-foreground">
+                    {cambiaUsername
+                      ? `Entrará como «${usernameNormalizado || "…"}» en su próximo inicio de sesión; esta sesión sigue activa.`
+                      : "Es el nombre con el que inicia sesión. Minúsculas, números y . _ -"}
+                  </p>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <TituloSeccion>Identidad</TituloSeccion>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label htmlFor="perfil-nombre">Nombre y apellido</Label>
@@ -185,6 +286,7 @@ export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
                       value={perfil.nombre}
                       onChange={(e) => setCampo("nombre", e.target.value)}
                       required
+                      autoComplete="name"
                       disabled={guardandoPerfil}
                     />
                   </div>
@@ -212,9 +314,7 @@ export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
               </section>
 
               <section className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Cargo
-                </p>
+                <TituloSeccion>Cargo</TituloSeccion>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="perfil-jerarquia">Jerarquía / cargo</Label>
@@ -242,29 +342,34 @@ export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
               </section>
 
               <section className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Contacto
-                </p>
+                <TituloSeccion>Contacto</TituloSeccion>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="perfil-whatsapp">WhatsApp</Label>
+                    <Label htmlFor="perfil-whatsapp">Teléfono de WhatsApp</Label>
                     <Input
                       id="perfil-whatsapp"
+                      type="tel"
                       value={perfil.whatsapp}
                       onChange={(e) => setCampo("whatsapp", e.target.value)}
-                      placeholder="0412…"
+                      placeholder="+58 412 000 0000"
+                      autoComplete="tel"
                       disabled={guardandoPerfil}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="perfil-telegram">Telegram</Label>
+                    <Label htmlFor="perfil-telegram">Teléfono de Telegram</Label>
                     <Input
                       id="perfil-telegram"
+                      type="tel"
                       value={perfil.telegram}
                       onChange={(e) => setCampo("telegram", e.target.value)}
-                      placeholder="@usuario"
+                      placeholder="+58 412 000 0000"
                       disabled={guardandoPerfil}
                     />
+                    <p className="text-[11px] leading-snug text-muted-foreground">
+                      Solo informativo. Las alertas usan el vínculo con el bot
+                      (tarjeta Telegram, abajo).
+                    </p>
                   </div>
                 </div>
               </section>
@@ -288,19 +393,10 @@ export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
                 </span>
               </label>
 
-              {errorPerfil && (
-                <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                  {errorPerfil}
-                </div>
-              )}
-              {okPerfil && (
-                <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
-                  {okPerfil}
-                </div>
-              )}
+              <BannerResultado ok={okPerfil} error={errorPerfil} />
             </CardContent>
             <CardFooter className="justify-end gap-2 border-t">
-              <Button type="submit" disabled={guardandoPerfil}>
+              <Button type="submit" disabled={guardandoPerfil || !hayCambios}>
                 {guardandoPerfil ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
@@ -327,20 +423,24 @@ export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
             </CardDescription>
           </CardHeader>
           <form onSubmit={guardarPassword}>
-            <CardContent className="space-y-3 pt-(--card-spacing)">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5 sm:col-span-2">
+            <CardContent className="space-y-4 py-(--card-spacing)">
+              {/* Ayuda a los gestores de contraseñas a asociar el login. */}
+              <input
+                type="text"
+                autoComplete="username"
+                value={sesionViva.user.username}
+                readOnly
+                hidden
+              />
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="space-y-1.5">
                   <Label htmlFor="perfil-password-actual">Contraseña actual</Label>
                   <Input
                     id="perfil-password-actual"
                     type="password"
                     autoComplete="current-password"
                     value={passwordActual}
-                    onChange={(e) => {
-                      setPasswordActual(e.target.value);
-                      setOkPassword("");
-                      setErrorPassword("");
-                    }}
+                    onChange={(e) => setCampoPassword(setPasswordActual, e.target.value)}
                     required
                     disabled={guardandoPassword}
                   />
@@ -352,11 +452,7 @@ export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
                     type="password"
                     autoComplete="new-password"
                     value={passwordNueva}
-                    onChange={(e) => {
-                      setPasswordNueva(e.target.value);
-                      setOkPassword("");
-                      setErrorPassword("");
-                    }}
+                    onChange={(e) => setCampoPassword(setPasswordNueva, e.target.value)}
                     required
                     minLength={6}
                     disabled={guardandoPassword}
@@ -369,11 +465,9 @@ export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
                     type="password"
                     autoComplete="new-password"
                     value={passwordConfirmacion}
-                    onChange={(e) => {
-                      setPasswordConfirmacion(e.target.value);
-                      setOkPassword("");
-                      setErrorPassword("");
-                    }}
+                    onChange={(e) =>
+                      setCampoPassword(setPasswordConfirmacion, e.target.value)
+                    }
                     required
                     minLength={6}
                     disabled={guardandoPassword}
@@ -381,22 +475,17 @@ export function PreferenciasCuentaView({ sesion: sesionInicial }: Props) {
                 </div>
               </div>
 
-              {errorPassword && (
-                <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                  {errorPassword}
-                </div>
-              )}
-              {okPassword && (
-                <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
-                  {okPassword}
-                </div>
-              )}
+              <BannerResultado ok={okPassword} error={errorPassword} />
             </CardContent>
             <CardFooter className="justify-end gap-2 border-t">
               <Button
                 type="submit"
-                variant="secondary"
-                disabled={guardandoPassword}
+                disabled={
+                  guardandoPassword ||
+                  !passwordActual ||
+                  !passwordNueva ||
+                  !passwordConfirmacion
+                }
               >
                 {guardandoPassword ? (
                   <>

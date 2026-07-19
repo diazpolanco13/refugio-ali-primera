@@ -14,6 +14,7 @@ import type { Session } from "@supabase/supabase-js";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { puedeEditarCuentaPropia } from "@/domain/permisos";
 import { capHabilitado } from "./capConfig";
+import { invocarEdgeFunction } from "./edgeFunctions";
 import { supabase } from "./supabaseClient";
 
 export type Rol =
@@ -300,6 +301,34 @@ export async function actualizarMiPerfil(
 
   const sincronizada = await sincronizarSesion();
   if (!sincronizada) throw new Error("Sesión perdida tras guardar el perfil");
+  return sincronizada;
+}
+
+/**
+ * Renombra el login del usuario autenticado vía Edge Function
+ * `update-username` (el email sintético vive en auth.users y solo se toca con
+ * service_role). Tras el cambio refresca el token (el JWT lleva el email) y
+ * re-sincroniza el estado: la sesión sigue viva y `updated_by` usa el nombre
+ * nuevo de inmediato.
+ */
+export async function renombrarMiUsuario(nuevoUsername: string): Promise<Sesion> {
+  await initAuth();
+  const sesion = getSesion();
+  if (!sesion) throw new Error("No autenticado");
+  if (!puedeEditarCuentaPropia(sesion.user)) {
+    throw new Error("Las cuentas temporales de terreno no cambian su usuario");
+  }
+  const nuevo = nuevoUsername.trim().toLowerCase();
+  if (!nuevo) throw new Error("El usuario de login es obligatorio");
+  if (nuevo === sesion.user.username) return sesion;
+
+  await invocarEdgeFunction("update-username", {
+    user_id: sesion.user.sub,
+    username: nuevo,
+  });
+  await supabase.auth.refreshSession();
+  const sincronizada = await sincronizarSesion();
+  if (!sincronizada) throw new Error("Sesión perdida tras renombrar el usuario");
   return sincronizada;
 }
 

@@ -6,7 +6,7 @@
 //    acciones sobre usuarios se registran desde las Edge Functions con
 //    service_role (el frontend no las duplica).
 //  · `useHistorial()` — lectura con Realtime para la vista /logs. La RLS solo
-//    deja LEER a admin y autoridad; los roles operativos insertan sin leer.
+//    deja LEER a admin y analista_sae; los demás insertan sin leer.
 
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
@@ -103,7 +103,7 @@ export function registrarHistorial(
 
 /**
  * Entradas de la bitácora (más recientes primero) con Realtime. Pensado para
- * la vista /logs (solo admin y autoridad pueden leer; para el resto la RLS
+ * la vista /logs (solo admin y analista_sae pueden leer; para el resto la RLS
  * devuelve vacío). Filtros server-side por rango de fechas; los filtros por
  * entidad/usuario se aplican en el cliente (el volumen es moderado).
  */

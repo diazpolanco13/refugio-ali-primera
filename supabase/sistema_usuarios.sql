@@ -362,8 +362,8 @@ create policy perfiles_delete on public.perfiles
   using ((select public.mi_rol()) = 'admin');
 
 -- ---- historial ---------------------------------------------------------------
--- Solo admin y autoridad leen la bitácora. Los roles operativos insertan sus
--- acciones pero no las leen. Sin update (bitácora append-only).
+-- Solo admin y analista_sae leen la bitácora. Los roles operativos insertan
+-- sus acciones pero no las leen. Sin update (bitácora append-only).
 
 drop policy if exists historial_select on public.historial;
 drop policy if exists historial_insert on public.historial;
@@ -372,7 +372,7 @@ drop policy if exists historial_delete on public.historial;
 
 create policy historial_select on public.historial
   for select to authenticated
-  using ((select public.mi_rol()) in ('admin', 'autoridad'));
+  using ((select public.mi_rol()) in ('admin', 'analista_sae'));
 
 create policy historial_insert on public.historial
   for insert to authenticated

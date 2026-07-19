@@ -1,15 +1,21 @@
-// Edge Function `update-username` (19-jul-2026).
+// Edge Function `update-username` (v2 — 19-jul-2026).
 //
 // Renombra el usuario (login): actualiza el email sintético
 // `<username>@refugio.app` en `auth.users` Y `perfiles.username` en una sola
 // operación con rollback. Existe porque el username no se puede cambiar desde
-// el cliente (el email vive en auth.users y requiere service_role); hasta hoy
-// los usuarios creados por scripts/IA con logins equivocados quedaban así
-// para siempre.
+// el cliente (el email vive en auth.users y requiere service_role).
 //
-// Permisos: admin renombra a cualquiera; analista_sae solo a operadores
-// (misma matriz que la RLS de `perfiles`). Nadie se renombra a sí mismo (la
-// sesión activa guarda el username y quedaría inconsistente hasta relogin).
+// Permisos (v2 permite el auto-renombrado desde Preferencias de cuenta):
+//   · admin → renombra a cualquiera.
+//   · analista_sae → a sí mismo o a operadores.
+//   · resto de roles → solo a sí mismo.
+//   · Identidades de terreno generadas por el sistema (`op-<cedula>`,
+//     `operador-<centro>`) NO se renombran: login-terreno las busca por ese
+//     patrón. Tampoco se acepta un nombre nuevo con esos prefijos.
+//
+// Tras un auto-renombrado el frontend refresca la sesión
+// (supabase.auth.refreshSession + sincronizarSesion); ver
+// `renombrarMiUsuario()` en src/data/authSupabase.ts.
 //
 // Desplegada vía MCP `deploy_edge_function` (verify_jwt: true). Este archivo
 // es la referencia versionada del código que corre en producción.
@@ -25,6 +31,8 @@ const corsHeaders = {
 // Debe formar un email válido en `<username>@refugio.app` y calzar con el
 // login de la app (que lo usa tal cual, en minúsculas).
 const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{2,31}$/;
+// Identidades creadas por login-terreno; el patrón es contrato del sistema.
+const MAQUINA_RE = /^(op-|operador-)/;
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -60,9 +68,7 @@ Deno.serve(async (req: Request) => {
     .select("rol, username")
     .eq("user_id", caller.id)
     .single();
-  if (!perfilCaller || !["admin", "analista_sae"].includes(perfilCaller.rol)) {
-    return json({ error: "Solo admin o analista SAE pueden renombrar usuarios" }, 403);
-  }
+  if (!perfilCaller) return json({ error: "Perfil del solicitante no encontrado" }, 403);
 
   let body;
   try {
@@ -85,8 +91,11 @@ Deno.serve(async (req: Request) => {
       400,
     );
   }
-  if (userId === caller.id) {
-    return json({ error: "No puede renombrar su propio usuario" }, 400);
+  if (MAQUINA_RE.test(nuevo)) {
+    return json(
+      { error: "Los prefijos op- y operador- están reservados para el sistema" },
+      400,
+    );
   }
 
   const { data: perfilTarget } = await adminClient
@@ -95,10 +104,27 @@ Deno.serve(async (req: Request) => {
     .eq("user_id", userId)
     .maybeSingle();
   if (!perfilTarget) return json({ error: "Usuario no encontrado" }, 404);
-  if (perfilCaller.rol === "analista_sae" && perfilTarget.rol !== "operador") {
-    return json({ error: "El analista SAE solo puede renombrar operadores" }, 403);
-  }
+
   const anterior = perfilTarget.username as string | null;
+  if (anterior && MAQUINA_RE.test(anterior)) {
+    return json(
+      {
+        error:
+          "Esta identidad de terreno la genera el sistema y no se puede renombrar",
+      },
+      403,
+    );
+  }
+
+  const esPropio = userId === caller.id;
+  const autorizado =
+    perfilCaller.rol === "admin" ||
+    esPropio ||
+    (perfilCaller.rol === "analista_sae" && perfilTarget.rol === "operador");
+  if (!autorizado) {
+    return json({ error: "Sin permiso para renombrar a este usuario" }, 403);
+  }
+
   if (anterior === nuevo) return json({ ok: true, username: nuevo }, 200);
 
   const { data: choque } = await adminClient
@@ -141,7 +167,7 @@ Deno.serve(async (req: Request) => {
     accion: "renombrar_usuario",
     entidad: "usuario",
     entidad_id: userId,
-    detalle: { de: anterior, a: nuevo, nombre: perfilTarget.nombre },
+    detalle: { de: anterior, a: nuevo, nombre: perfilTarget.nombre, propio: esPropio },
   });
 
   return json({ ok: true, username: nuevo }, 200);

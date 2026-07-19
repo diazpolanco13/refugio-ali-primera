@@ -27,7 +27,7 @@ Crear el **sistema de usuarios con 5 roles y privilegios diferenciados** para op
 Migración de los roles actuales: `coordinador → supervisor`, `campo → operador`, `visor → autoridad`; `admin` se mantiene; y se agrega `analista_sae` como rol nuevo.
 
 ### `admin` — Administrador
-Control total del sistema. Crea y edita usuarios, ve y edita toda la red de centros, gestionas incidencias y reportes en cualquier centro, y es el único rol que ve los **logs / historial**.
+Control total del sistema. Crea y edita usuarios, ve y edita toda la red de centros, gestiona incidencias y reportes en cualquier centro, y ve los **logs / historial** (junto con `analista_sae`).
 
 ### `analista_sae` — Analista
 > La clave interna sigue siendo `analista_sae` (BD, RLS, Edge Functions); solo
@@ -50,10 +50,10 @@ el usuario se elige su alcance en `perfiles.ambito_analista`:
 La restricción vive en la RLS (`es_analista_total()` + `mis_centros()`
 redefinida) y en las funciones de censo/traslados/denuncias, no solo en la UI.
 
-**Homólogo operativo del admin (con ámbito `red`).** Puede hacer casi todo en lo operativo: ve y edita toda la red de centros, abre y resuelve incidencias en cualquier centro, gestiona reportes diarios y ocupaciones en toda la red. La diferencia con `admin` es que **no gestiona usuarios** y **no puede ver los logs / historial** (ni los propios ni los de otros). Tiene **centros asignados** que definen su ámbito de monitoreo y responsabilidad de reporte de eventos, pero su acceso operativo es de alcance total, igual que el admin.
+**Homólogo operativo del admin (con ámbito `red`).** Puede hacer casi todo en lo operativo: ve y edita toda la red de centros, abre y resuelve incidencias en cualquier centro, gestiona reportes diarios y ocupaciones en toda la red, y ve los **logs / historial**. La diferencia con `admin` es que **no gestiona usuarios**. Tiene **centros asignados** que definen su ámbito de monitoreo y responsabilidad de reporte de eventos, pero su acceso operativo es de alcance total, igual que el admin.
 
 ### `autoridad` — Autoridad
-Alto funcionario con **solo lectura total**. Ve todos los centros, incidencias, reportes, ocupaciones y logs, pero no puede crear, modificar ni eliminar nada.
+Alto funcionario con **solo lectura total**. Ve todos los centros, incidencias, reportes y ocupaciones, pero no puede crear, modificar ni eliminar nada, ni ver la bitácora.
 
 ### `supervisor` — Supervisor
 Alto funcionario con **responsabilidad operativa integral** sobre sus centros asignados (uno o varios): seguridad, logística, salud, alimentación, reparaciones e incidencias. Solo ve y edita los centros que tiene asignados. Dentro de sus centros abre y resuelve incidencias y gestiona el parte diario.
@@ -66,8 +66,8 @@ Funcionario que hace vida en el(los) centro(s) asignado(s). Encargado de **repor
 | Rol | Crear/editar usuarios | Ver centros | Escribir centros | Reporte diario | Incidencias | Logs / historial |
 |-----|------------------------|--------------|------------------|----------------|-------------|-------------------|
 | `admin` | Sí | Todos | Todos | Todos | Abrir y resolver en todos | Sí (lee todo) |
-| `analista_sae` | No | Todos | Todos | Todos | Abrir y resolver en todos | **No** |
-| `autoridad` | No | Todos | No | No | No | Sí (solo lectura) |
+| `analista_sae` | No | Todos | Todos | Todos | Abrir y resolver en todos | Sí (lee todo) |
+| `autoridad` | No | Todos | No | No | No | No |
 | `supervisor` | No | Sus centros | Sus centros | Sus centros | Abrir y resolver en sus centros | No |
 | `operador` | No | Sus centros | Sus centros | Sus centros | Abrir en sus centros; resolver solo las propias | No |
 
@@ -89,7 +89,7 @@ El control de acceso combina **rol** + **centros asignados**:
 - `autoridad` es **solo lectura** en todas las tablas operacionales (centros, ocupaciones, reportes, incidencias); no puede crear, modificar ni eliminar nada.
 - En `incidencias_centros`, el `operador` solo puede **resolver** las incidencias que él mismo abrió.
 - `perfiles`: cada usuario lee su propio perfil; `admin` gestiona todos; los demás pueden leer campos básicos de otros (nombre, rol, centros asignados, jerarquía) para mostrar "quién marcó". El `hash_id` solo lo ve `admin` (y el propio usuario en su perfil).
-- `historial`: `admin` y `autoridad` leen; los roles operativos (`analista_sae`, `supervisor`, `operador`) insertan registros cuando actúan, pero no los leen.
+- `historial`: `admin` y `analista_sae` leen; los demás roles operativos (`supervisor`, `operador`) y `autoridad` insertan o no ven según el caso, pero no leen la bitácora.
 
 ## Gestión de usuarios
 
@@ -106,7 +106,7 @@ El admin debe poder **crear, editar, eliminar y cambiar la password** de cualqui
 - **Tarjeta de usuario**: nombre, `@username`, badge de rol, chips con los centros asignados (N.° y nombre), `hash_id` en mono, datos de contacto y badge de marca de agua ON/OFF.
 - **Formulario**: multi-select de centros asignados (reemplaza el selector único actual), selector de rol con descripción de cada uno, edición de password y eliminación con confirmación.
 - **Badges de rol**: 5 estilos diferenciados y coherentes con la paleta de la app.
-- **Visibilidad de rutas**: `/usuarios` solo para `admin`; la vista de logs solo para `admin` y `autoridad`.
+- **Visibilidad de rutas**: `/usuarios` solo para `admin`; la vista de logs solo para `admin` y `analista_sae`.
 
 ## Hash y marca de agua
 
@@ -117,10 +117,10 @@ El admin debe poder **crear, editar, eliminar y cambiar la password** de cualqui
 
 La tabla `historial` ya existe en la base de datos pero no tiene interfaz. Este requerimiento la **revive**:
 
-- Vista de logs accesible solo para `admin` (lectura completa) y `autoridad` (solo lectura).
+- Vista de logs accesible solo para `admin` y `analista_sae` (roles de administración).
 - Lista cronológica filtrable por entidad, usuario y rango de fechas.
 - Registra acciones críticas: crear/editar/eliminar usuario, crear/editar/eliminar centro, abrir/resolver incidencia, crear/actualizar reporte diario.
-- El `analista_sae` **no ve** esta vista (es la única excepción a su rol de homólogo operativo del admin).
+- `autoridad`, `supervisor` y `operador` **no ven** esta vista.
 
 ## Reportes de eventos del analista SAE
 
