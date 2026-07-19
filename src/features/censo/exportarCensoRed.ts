@@ -45,7 +45,7 @@ function formatearFechaTabla(iso: string): string {
   });
 }
 
-function siOGuion(valor: boolean): string {
+function siOGuion(valor: boolean | null | undefined): string {
   return valor ? "Sí" : "—";
 }
 

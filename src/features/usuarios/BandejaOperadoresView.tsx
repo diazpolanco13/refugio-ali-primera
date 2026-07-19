@@ -23,6 +23,7 @@ import { desuscribirCampamentoTerreno } from "@/data/desuscribirTerreno";
 import { supabase } from "@/data/supabaseClient";
 import { registrarHistorial } from "@/data/historial";
 import {
+  desvincularTelegram,
   vinculosTelegramDeUsuarios,
   type VinculoTelegram,
 } from "@/data/telegramOperador";
@@ -60,6 +61,10 @@ const FILAS_POR_PAGINA = 50;
 
 type ConfirmDesuscribir =
   | { userId: string; nombre: string; centroId: string | null; etiqueta: string }
+  | null;
+
+type ConfirmDesvincularTg =
+  | { userId: string; nombre: string; username: string | null; tgUser: string | null }
   | null;
 
 interface OperadorFila {
@@ -149,6 +154,8 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
   const [confirmDesuscribir, setConfirmDesuscribir] = useState<ConfirmDesuscribir>(null);
   const [desuscribiendo, setDesuscribiendo] = useState(false);
   const [avisoSinTelegram, setAvisoSinTelegram] = useState<string | null>(null);
+  const [confirmDesvincularTg, setConfirmDesvincularTg] = useState<ConfirmDesvincularTg>(null);
+  const [desvinculandoTg, setDesvinculandoTg] = useState(false);
   const [togglingAlertas, setTogglingAlertas] = useState<string | null>(null);
   const [vinculos, setVinculos] = useState<Map<string, VinculoTelegram>>(new Map());
 
@@ -307,6 +314,24 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
       setError(err instanceof Error ? err.message : "No se pudo desuscribir");
     } finally {
       setDesuscribiendo(false);
+    }
+  }
+
+  async function confirmarDesvincularTg() {
+    if (!confirmDesvincularTg) return;
+    setDesvinculandoTg(true);
+    setError("");
+    try {
+      await desvincularTelegram({
+        userId: confirmDesvincularTg.userId,
+        username: confirmDesvincularTg.username,
+      });
+      setConfirmDesvincularTg(null);
+      await recargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo desvincular Telegram");
+    } finally {
+      setDesvinculandoTg(false);
     }
   }
 
@@ -483,12 +508,38 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                               </Badge>
                             )}
                             {vinculos.has(o.user_id) ? (
-                              <Badge variant="outline" className="gap-1 border-sky-500/50 text-sky-600 dark:text-sky-400">
-                                <Send className="size-3" />
-                                {vinculos.get(o.user_id)?.telegram_username
-                                  ? `@${vinculos.get(o.user_id)?.telegram_username}`
-                                  : "Telegram"}
-                              </Badge>
+                              <span className="inline-flex items-center gap-1">
+                                <Badge variant="outline" className="gap-1 border-sky-500/50 text-sky-600 dark:text-sky-400">
+                                  <Send className="size-3" />
+                                  {vinculos.get(o.user_id)?.telegram_username
+                                    ? `@${vinculos.get(o.user_id)?.telegram_username}`
+                                    : "Telegram"}
+                                </Badge>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="grid size-5 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
+                                      disabled={desvinculandoTg}
+                                      aria-label="Desvincular Telegram"
+                                      onClick={() =>
+                                        setConfirmDesvincularTg({
+                                          userId: o.user_id,
+                                          nombre: o.nombre || o.username || "operador",
+                                          username: o.username,
+                                          tgUser:
+                                            vinculos.get(o.user_id)?.telegram_username ?? null,
+                                        })
+                                      }
+                                    >
+                                      <X className="size-3" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    Desvincular Telegram de este operador
+                                  </TooltipContent>
+                                </Tooltip>
+                              </span>
                             ) : (
                               <Badge variant="outline" className="gap-1 text-muted-foreground">
                                 <Send className="size-3" /> Telegram pendiente
@@ -705,6 +756,43 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setAvisoSinTelegram(null)}>
               Entendido
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmDesvincularTg != null}
+        onOpenChange={(abierto) =>
+          !abierto && !desvinculandoTg && setConfirmDesvincularTg(null)
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              ¿Desvincular Telegram de {confirmDesvincularTg?.nombre}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDesvincularTg?.tgUser
+                ? `Se elimina el vínculo con @${confirmDesvincularTg.tgUser}. `
+                : "Se elimina el vínculo con su chat de Telegram. "}
+              El operador deja de recibir alertas de seguridad y recordatorios
+              de partes. Podrá volver a vincularse desde /terreno cuando
+              quiera.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={desvinculandoTg}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={desvinculandoTg}
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmarDesvincularTg();
+              }}
+            >
+              {desvinculandoTg ? <Loader2 className="size-4 animate-spin" /> : null}
+              Desvincular
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,5 +1,7 @@
 // Lista los campamentos a los que está suscrito el operador de terreno y
-// permite darse de baja (uno o todos). Corta alertas/recordatorios Telegram.
+// permite darse de baja (uno o todos). La suscripción es global (perfiles.
+// centros_asignados): define qué campamentos puede reportar; las alertas
+// Telegram son solo una consecuencia cuando hay vínculo.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, UserMinus } from "lucide-react";
@@ -105,8 +107,8 @@ export function SuscripcionesTerreno({ centroActualId, onDesuscrito }: Props) {
   if (centrosAsignados.length === 0) {
     return (
       <p className="text-center text-[11px] leading-snug text-muted-foreground">
-        No está suscrito a ningún campamento. Al escanear un QR y reportar,
-        vuelve a quedar asignado (y pueden llegar alertas).
+        No está suscrito a ningún campamento. Al escanear un QR e
+        identificarse, vuelve a quedar suscrito.
       </p>
     );
   }
@@ -121,11 +123,11 @@ export function SuscripcionesTerreno({ centroActualId, onDesuscrito }: Props) {
   return (
     <div className="w-full space-y-2">
       <p className="text-center text-[11px] font-medium text-foreground">
-        Campamentos con alertas
+        Campamentos suscritos
       </p>
       <p className="text-center text-[10px] leading-snug text-muted-foreground">
-        Si se da de baja, deja de recibir recordatorios de ese campamento por
-        Telegram.
+        Usted está registrado como operador de estos campamentos y puede
+        reportarlos.
       </p>
       {error && (
         <p className="text-center text-[11px] text-destructive">{error}</p>
@@ -186,8 +188,10 @@ export function SuscripcionesTerreno({ centroActualId, onDesuscrito }: Props) {
               ¿Darse de baja de {etiquetaConfirmar}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Dejará de recibir alertas y recordatorios de ese campamento. Puede
-              volver a suscribirse escaneando el QR e identificándose de nuevo.
+              Deja de ser operador de ese campamento: ya no podrá reportarlo y,
+              si tiene Telegram vinculado, tampoco recibirá sus alertas ni
+              recordatorios. Puede volver a suscribirse escaneando el QR e
+              identificándose de nuevo.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -5,29 +5,54 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BadgeCheck, Loader2, Send } from "lucide-react";
 import {
+  desvincularTelegram,
   generarVinculoTelegram,
   miVinculoTelegram,
   urlVinculoTelegram,
   type VinculoTelegram,
 } from "@/data/telegramOperador";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 /** Re-chequeos tras abrir Telegram (el vínculo llega por el webhook). */
 const REINTENTOS_MS = 5000;
 const REINTENTOS_MAX = 24; // ~2 minutos
 
-export function VincularTelegramTerreno() {
+export function VincularTelegramTerreno({
+  onVinculado,
+}: {
+  /** Notifica al padre cuando el vínculo queda consumado (lo usa el gate). */
+  onVinculado?: () => void;
+} = {}) {
   const [vinculo, setVinculo] = useState<VinculoTelegram | null>(null);
   const [cargando, setCargando] = useState(true);
   const [generando, setGenerando] = useState(false);
   const [esperando, setEsperando] = useState(false);
   const [error, setError] = useState("");
+  const [confirmarDesvincular, setConfirmarDesvincular] = useState(false);
+  const [desvinculando, setDesvinculando] = useState(false);
   const reintentos = useRef(0);
+  const onVinculadoRef = useRef(onVinculado);
+  onVinculadoRef.current = onVinculado;
+  const yaNotificado = useRef(false);
 
   const consultar = useCallback(async () => {
     try {
       const v = await miVinculoTelegram();
       if (v) {
+        if (!yaNotificado.current) {
+          yaNotificado.current = true;
+          onVinculadoRef.current?.();
+        }
         setVinculo(v);
         setEsperando(false);
       }
@@ -79,17 +104,73 @@ export function VincularTelegramTerreno() {
     }
   }
 
+  async function desvincular() {
+    setDesvinculando(true);
+    setError("");
+    try {
+      await desvincularTelegram();
+      setVinculo(null);
+      setConfirmarDesvincular(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo desvincular.");
+      setConfirmarDesvincular(false);
+      void consultar();
+    } finally {
+      setDesvinculando(false);
+    }
+  }
+
   if (cargando) return null;
 
   if (vinculo) {
     return (
-      <p className="flex items-center justify-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
-        <BadgeCheck className="size-3.5" />
-        Telegram vinculado
-        {vinculo.telegram_username ? (
-          <span className="text-muted-foreground">@{vinculo.telegram_username}</span>
-        ) : null}
-      </p>
+      <div className="flex w-full flex-col items-center gap-0.5">
+        <p className="flex items-center justify-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+          <BadgeCheck className="size-3.5" />
+          Telegram vinculado
+          {vinculo.telegram_username ? (
+            <span className="text-muted-foreground">@{vinculo.telegram_username}</span>
+          ) : null}
+        </p>
+        <button
+          type="button"
+          onClick={() => setConfirmarDesvincular(true)}
+          disabled={desvinculando}
+          className="text-[11px] text-muted-foreground underline underline-offset-2 transition-colors hover:text-destructive disabled:opacity-60"
+        >
+          Desvincular Telegram
+        </button>
+        {error && <p className="text-center text-[11px] text-destructive">{error}</p>}
+        <AlertDialog
+          open={confirmarDesvincular}
+          onOpenChange={(abierto) => !abierto && !desvinculando && setConfirmarDesvincular(false)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Desvincular Telegram?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Dejará de recibir alertas de seguridad y recordatorios de partes
+                por Telegram. Puede volver a vincularlo cuando quiera desde esta
+                misma pantalla.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={desvinculando}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={desvinculando}
+                onClick={(e) => {
+                  e.preventDefault();
+                  void desvincular();
+                }}
+              >
+                {desvinculando ? <Loader2 className="size-4 animate-spin" /> : null}
+                Desvincular
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     );
   }
 

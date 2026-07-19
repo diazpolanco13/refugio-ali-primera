@@ -72,6 +72,7 @@ import {
   olvidarSesionOperadorTerreno,
   type SesionOperadorTerreno,
 } from "@/lib/terrenoFuncionario";
+import { GateTelegramTerreno } from "@/features/terreno/GateTelegramTerreno";
 import { IdentificacionCedula } from "@/features/terreno/IdentificacionCedula";
 import { SuscripcionesTerreno } from "@/features/terreno/SuscripcionesTerreno";
 import { VincularTelegramTerreno } from "@/features/terreno/VincularTelegramTerreno";
@@ -209,6 +210,9 @@ export function TerrenoView() {
   const [capacidadTs, setCapacidadTs] = useState<number | null>(null);
   const [operadorSesion, setOperadorSesion] = useState<SesionOperadorTerreno | null>(null);
   const [gateListo, setGateListo] = useState(false);
+  // Gate de vinculación Telegram: se resuelve una vez por carga de página
+  // (vinculó, ya estaba vinculado o consumió gracia del servidor).
+  const [gateTelegramOk, setGateTelegramOk] = useState(false);
   const [actualizandoApp, setActualizandoApp] = useState(false);
   const [progresoApp, setProgresoApp] = useState<ProgresoActualizacionApp | null>(
     null,
@@ -405,6 +409,10 @@ export function TerrenoView() {
     };
   }, [puedeConsultarReporte, centroValido, hoyClave, centro?.reporte_ts]);
 
+  // Solo operadores identificados por cédula (los legacy compartidos no
+  // tienen Telegram individual que exigir).
+  const requiereGateTelegram =
+    Boolean(requiereIdentificacion && operadorSesion?.cedula) && !gateTelegramOk;
   const mostrarBienvenida =
     requiereIdentificacion && gateListo && !operadorSesion && pantalla === "bienvenida";
   const mostrarIdentificacion =
@@ -483,12 +491,14 @@ export function TerrenoView() {
     };
     guardarSesionOperadorTerreno(sesion);
     setOperadorSesion(sesion);
+    setGateTelegramOk(false);
     setPantalla("menu");
   }
 
   async function cambiarOperador() {
     olvidarSesionOperadorTerreno();
     setOperadorSesion(null);
+    setGateTelegramOk(false);
     try {
       await cerrarSesionTerreno();
     } catch {
@@ -587,6 +597,7 @@ export function TerrenoView() {
   useEffect(() => {
     if (tareaDeepLinkConsumida || !gateListo || cargandoCentros || accesoDenegado) return;
     if (requiereIdentificacion && !operadorSesion) return;
+    if (requiereGateTelegram) return;
     if (pantalla !== "menu") return;
 
     const tarea = tareaTerrenoDeUrl();
@@ -610,6 +621,7 @@ export function TerrenoView() {
     cargandoCentros,
     accesoDenegado,
     requiereIdentificacion,
+    requiereGateTelegram,
     operadorSesion,
     pantalla,
   ]);
@@ -739,6 +751,15 @@ export function TerrenoView() {
           />
         </main>
       </div>
+    );
+  }
+
+  if (requiereGateTelegram && pantalla === "menu") {
+    return (
+      <GateTelegramTerreno
+        nombreOperador={operadorSesion?.funcionario.nombre}
+        onResuelto={() => setGateTelegramOk(true)}
+      />
     );
   }
 

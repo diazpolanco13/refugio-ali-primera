@@ -32,6 +32,7 @@ export type AccionHistorial =
   | "rechazar_identificacion"
   | "desuscribir_campamento"
   | "toggle_alertas_campamento"
+  | "desvincular_telegram"
   | "crear_requerimiento"
   | "actualizar_requerimiento"
   | "archivar_requerimiento"

@@ -45,9 +45,15 @@ create policy telegram_operadores_select on public.telegram_operadores
     or (select public.mi_rol()) in ('admin', 'analista_sae')
   );
 
+-- Desvincular (migración `telegram_desvincular_self`, 19-jul): el propio
+-- usuario borra SU fila desde /terreno; admin/analista cualquier fila desde
+-- la bandeja /usuarios/terreno. Re-vincular queda libre después.
 create policy telegram_operadores_delete on public.telegram_operadores
   for delete to authenticated
-  using ((select public.mi_rol()) in ('admin', 'analista_sae'));
+  using (
+    auth.uid() = user_id
+    or (select public.mi_rol()) in ('admin', 'analista_sae')
+  );
 
 create table if not exists public.telegram_vinculos (
   token text primary key,
