@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import {
   Baby,
+  BadgeCheck,
   Check,
   ChevronsUpDown,
   Heart,
@@ -14,6 +15,7 @@ import {
   Users,
   Vote,
   FilterX,
+  ScanSearch,
 } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
 import { obtenerListadoCensoRedFiltrado } from "@/data/reposCenso";
@@ -132,6 +134,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
 
   const {
     resumenes,
+    siipol,
     cargando: cargandoResumen,
     refrescar: refrescarResumen,
   } = useCensoRedResumen();
@@ -143,6 +146,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
   const [solicitado, setSolicitado] = useState<FiltroBinario>("todos");
   const [registroPolicial, setRegistroPolicial] = useState<FiltroBinario>("todos");
   const [firmo, setFirmo] = useState<FiltroBinario>("todos");
+  const [verificadoSiipol, setVerificadoSiipol] = useState<FiltroBinario>("todos");
   const [orden, setOrden] = useState<OrdenRegistrosCenso>("reciente");
 
   const {
@@ -157,7 +161,16 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
     refrescar,
     filtrosApi,
   } = useCensoRedListado(
-    { busqueda, centroId, sexo, orden, solicitado, registroPolicial, firmo },
+    {
+      busqueda,
+      centroId,
+      sexo,
+      orden,
+      solicitado,
+      registroPolicial,
+      firmo,
+      verificadoSiipol,
+    },
     { enabled: tieneAcceso },
   );
 
@@ -218,6 +231,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
     solicitado !== "todos" ||
     registroPolicial !== "todos" ||
     firmo !== "todos" ||
+    verificadoSiipol !== "todos" ||
     orden !== "reciente";
 
   const obtenerFilasExportacion = useCallback(
@@ -235,7 +249,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
       icono={Users}
       acento="teal"
       titulo="Importaciones Excel"
-      descripcion="Personas de planillas externas (MCP). No verificadas por el censo nominal."
+      descripcion="Personas de planillas externas; identidad nominal y verificación SIIPOL se controlan por separado."
       cuerpoClassName="p-4 lg:p-6"
       acciones={
         tieneAcceso ? (
@@ -329,7 +343,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
               <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Registros de interés · clic para filtrar
               </p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
                 <KpiPersona
                   valor={kpis.solicitados}
                   etiqueta="Solicitados"
@@ -357,6 +371,26 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
                   clase="bg-orange-500/10 text-orange-600 dark:text-orange-300"
                   activo={firmo === "si"}
                   onClick={() => setFirmo((v) => (v === "si" ? "todos" : "si"))}
+                />
+                <KpiPersona
+                  valor={siipol.verificados}
+                  etiqueta="SIIPOL verificados"
+                  icono={BadgeCheck}
+                  clase="bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+                  activo={verificadoSiipol === "si"}
+                  onClick={() =>
+                    setVerificadoSiipol((v) => (v === "si" ? "todos" : "si"))
+                  }
+                />
+                <KpiPersona
+                  valor={siipol.pendientes}
+                  etiqueta="SIIPOL pendientes"
+                  icono={ScanSearch}
+                  clase="bg-slate-500/10 text-slate-600 dark:text-slate-300"
+                  activo={verificadoSiipol === "no"}
+                  onClick={() =>
+                    setVerificadoSiipol((v) => (v === "no" ? "todos" : "no"))
+                  }
                 />
               </div>
             </div>
@@ -500,6 +534,23 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
             </Select>
 
             <Select
+              value={verificadoSiipol}
+              onValueChange={(v) => setVerificadoSiipol(v as FiltroBinario)}
+            >
+              <SelectTrigger
+                size="sm"
+                className={cn(CENSO_SELECT_TRIGGER, "h-8 w-44")}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Estado SIIPOL</SelectItem>
+                <SelectItem value="si">Verificados</SelectItem>
+                <SelectItem value="no">Pendientes</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
               value={orden}
               onValueChange={(v) => setOrden(v as OrdenRegistrosCenso)}
             >
@@ -516,6 +567,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
                 <SelectItem value="edad">Mayor edad</SelectItem>
                 <SelectItem value="solicitado">Solicitados primero</SelectItem>
                 <SelectItem value="reg_policial">Reg. policial primero</SelectItem>
+                <SelectItem value="siipol">SIIPOL verificados primero</SelectItem>
                 <SelectItem value="referendum">Referéndum primero</SelectItem>
                 <SelectItem value="con_cedula">Con cédula primero</SelectItem>
                 <SelectItem value="sin_cedula">Sin cédula primero</SelectItem>
@@ -534,6 +586,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
                   setSolicitado("todos");
                   setRegistroPolicial("todos");
                   setFirmo("todos");
+                  setVerificadoSiipol("todos");
                   setOrden("reciente");
                 }}
               >

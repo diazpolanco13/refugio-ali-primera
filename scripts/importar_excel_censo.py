@@ -24,6 +24,7 @@ import time
 import unicodedata
 import urllib.error
 import urllib.request
+from collections import Counter
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,6 +37,8 @@ DEFAULT_GATEWAY = "https://nexus.m0n1t0r-d3-3v3nt0s.net"
 DEFAULT_CONCURRENCY = 5
 DEFAULT_RATE = 2.5
 DEFAULT_CIRCUIT_BREAKER = 5
+DEFAULT_NEXUS_TIMEOUT = 20.0
+PROGRESS_INTERVAL = 10.0
 PAGE_SIZE = 1000
 SIN_CEDULA = {"", "S/C", "SC", "S/N", "SN", "S/D", "SD", "SIN CEDULA", "SIN CÉDULA", "N/A", "NA", "-"}
 LETRAS_NEXUS = {"V", "E"}
@@ -67,6 +70,7 @@ PREFIJOS = re.compile(
 class CentroApp:
     id: str
     nombre: str
+    activo: bool
 
 
 def strip_accents(texto: str) -> str:
@@ -273,18 +277,28 @@ def guardar_cache_nexus(
 
 def listar_centros(url: str, anon_key: str, jwt: str) -> list[CentroApp]:
     req = urllib.request.Request(
-        f"{url}/rest/v1/centros?select=id,data&deleted=eq.false&limit=500",
+        f"{url}/rest/v1/centros?select=id,data,deleted&limit=500",
         headers={"apikey": anon_key, "Authorization": f"Bearer {jwt}"},
     )
     with urllib.request.urlopen(req, timeout=60) as resp:
         rows = json.loads(resp.read().decode("utf-8"))
     return [
-        CentroApp(id=row["id"], nombre=((row.get("data") or {}).get("nombre") or row["id"]).strip())
+        CentroApp(
+            id=row["id"],
+            nombre=((row.get("data") or {}).get("nombre") or row["id"]).strip(),
+            activo=not bool(row.get("deleted")),
+        )
         for row in rows
     ]
 
 
-def consultar_nexus(gateway: str, jwt: str, letra: str, cedula: str) -> dict[str, Any]:
+def consultar_nexus(
+    gateway: str,
+    jwt: str,
+    letra: str,
+    cedula: str,
+    timeout: float,
+) -> dict[str, Any]:
     req = urllib.request.Request(
         f"{gateway}/v1/person/search/external/full/{letra}/{cedula}/censo",
         data=b"{}",
@@ -292,7 +306,7 @@ def consultar_nexus(gateway: str, jwt: str, letra: str, cedula: str) -> dict[str
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             return {"status": resp.status, "body": json.loads(resp.read().decode("utf-8"))}
     except urllib.error.HTTPError as exc:
         raw = exc.read().decode("utf-8", errors="replace")
@@ -312,6 +326,7 @@ def consultar_nexus_concurrente(
     concurrency: int,
     rate: float,
     circuit_breaker: int,
+    timeout: float,
 ) -> tuple[
     dict[tuple[str, str], dict[str, Any]],
     list[dict[str, Any]],
@@ -326,34 +341,47 @@ def consultar_nexus_concurrente(
     errores: list[dict[str, Any]] = []
     omitidas = 0
     fallos_consecutivos = 0
+    procesadas = 0
+    total = len(pendientes)
+    ultimo_progreso = time.monotonic()
 
     def procesar(clave: tuple[str, str]) -> tuple[tuple[str, str], dict[str, Any]]:
         letra, cedula = clave
-        return clave, consultar_nexus(gateway, jwt, letra, cedula)
+        return clave, consultar_nexus(gateway, jwt, letra, cedula, timeout)
 
     def registrar(
         clave: tuple[str, str],
         resultado: dict[str, Any],
     ) -> bool:
-        nonlocal fallos_consecutivos
+        nonlocal fallos_consecutivos, procesadas, ultimo_progreso
+        procesadas += 1
         status = resultado.get("status")
         body = resultado.get("body")
         if status == 200 and isinstance(body, dict) and body.get("ok") is not False:
             fichas[clave] = body
             fallos_consecutivos = 0
-            return False
-        if status == 404 or (status == 200 and isinstance(body, dict) and body.get("ok") is False):
-            fallos_consecutivos = 0
         else:
-            fallos_consecutivos += 1
-        errores.append(
-            {
-                "tipo_doc": clave[0],
-                "documento": clave[1],
-                "status": status,
-                "detalle": body,
-            }
-        )
+            if status == 404 or (status == 200 and isinstance(body, dict) and body.get("ok") is False):
+                fallos_consecutivos = 0
+            else:
+                fallos_consecutivos += 1
+            errores.append(
+                {
+                    "tipo_doc": clave[0],
+                    "documento": clave[1],
+                    "status": status,
+                    "detalle": body,
+                }
+            )
+        ahora = time.monotonic()
+        if procesadas == total or procesadas % 10 == 0 or ahora - ultimo_progreso >= PROGRESS_INTERVAL:
+            print(
+                f"Nexus: {procesadas}/{total} procesadas · "
+                f"{len(fichas)} verificadas · {len(errores)} errores",
+                file=sys.stderr,
+                flush=True,
+            )
+            ultimo_progreso = ahora
         return fallos_consecutivos >= circuit_breaker
 
     if concurrency <= 1:
@@ -390,7 +418,18 @@ def consultar_nexus_concurrente(
             if not en_vuelo:
                 break
 
-            terminados, _ = wait(en_vuelo, return_when=FIRST_COMPLETED)
+            terminados, _ = wait(en_vuelo, timeout=1, return_when=FIRST_COMPLETED)
+            if not terminados:
+                ahora = time.monotonic()
+                if ahora - ultimo_progreso >= PROGRESS_INTERVAL:
+                    print(
+                        f"Nexus: {procesadas}/{total} procesadas · "
+                        f"{len(en_vuelo)} en vuelo (timeout {timeout:g}s)",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    ultimo_progreso = ahora
+                continue
             for futuro in terminados:
                 clave = en_vuelo.pop(futuro)
                 try:
@@ -415,13 +454,24 @@ def consultar_nexus_concurrente(
 
 def resolver_centro(nombre_raw: str, centros: list[CentroApp], forzado: str | None) -> tuple[str | None, str, str]:
     if forzado:
+        centro = next((c for c in centros if c.id == forzado), None)
+        if centro is None:
+            return None, nombre_raw, "inexistente"
+        if not centro.activo:
+            return None, nombre_raw, "inactivo"
         return forzado, nombre_raw, "forzado"
     raw = (nombre_raw or "").strip()
     if not raw:
         return None, "", ""
     nombre_key = normalizar_nombre_centro(raw)
     if nombre_key in ALIASES_NOMBRE:
-        return ALIASES_NOMBRE[nombre_key], raw, "alias"
+        centro_id = ALIASES_NOMBRE[nombre_key]
+        centro = next((c for c in centros if c.id == centro_id), None)
+        if centro is None:
+            return None, raw, "inexistente"
+        if not centro.activo:
+            return None, raw, "inactivo"
+        return centro_id, raw, "alias"
     mejor: CentroApp | None = None
     mejor_score = 0.0
     for centro in centros:
@@ -429,6 +479,8 @@ def resolver_centro(nombre_raw: str, centros: list[CentroApp], forzado: str | No
         if puntaje > mejor_score:
             mejor_score = puntaje
             mejor = centro
+    if mejor and not mejor.activo and mejor_score >= 0.75:
+        return None, raw, "inactivo"
     if mejor and mejor_score >= 0.99:
         return mejor.id, raw, "exacto"
     if mejor and mejor_score >= 0.75:
@@ -444,7 +496,7 @@ def _es_fila_header(celdas: list[str]) -> bool:
     return hits >= 2
 
 
-def leer_filas(path: Path) -> list[dict[str, Any]]:
+def leer_filas(path: Path) -> tuple[list[dict[str, Any]], str, list[str]]:
     sufijo = path.suffix.lower()
     if sufijo in {".xlsx", ".xlsm"}:
         try:
@@ -452,16 +504,22 @@ def leer_filas(path: Path) -> list[dict[str, Any]]:
         except ImportError as exc:
             raise SystemExit("Para .xlsx instale openpyxl: pip install openpyxl") from exc
         wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-        ws = wb.active
-        rows = list(ws.iter_rows(values_only=True))
-        if not rows:
-            return []
-        header_idx = 0
-        for i, row in enumerate(rows[:10]):
-            celdas = [str(h or "").strip() for h in row]
-            if _es_fila_header(celdas):
-                header_idx = i
+        ws = None
+        rows: list[tuple[Any, ...]] = []
+        header_idx = -1
+        for candidata in wb.worksheets:
+            candidatas = list(candidata.iter_rows(min_row=1, max_row=20, values_only=True))
+            for i, row in enumerate(candidatas):
+                celdas = [str(h or "").strip() for h in row]
+                if _es_fila_header(celdas):
+                    ws = candidata
+                    header_idx = i
+                    break
+            if ws is not None:
                 break
+        if ws is None:
+            raise SystemExit("No se encontró una hoja con encabezados de censo")
+        rows = list(ws.iter_rows(values_only=True))
         headers = [str(h or "").strip() for h in rows[header_idx]]
         salida: list[dict[str, Any]] = []
         for row in rows[header_idx + 1 :]:
@@ -472,12 +530,13 @@ def leer_filas(path: Path) -> list[dict[str, Any]]:
                 item[header] = row[i] if i < len(row) else None
             if any(v not in (None, "") for v in item.values()):
                 salida.append(item)
-        return salida
+        return salida, ws.title, headers
 
     text = path.read_text(encoding="utf-8-sig")
     dialect = csv.Sniffer().sniff(text[:4096], delimiters=",;\t|")
     reader = csv.DictReader(text.splitlines(), dialect=dialect)
-    return [{k.strip(): v for k, v in row.items() if k} for row in reader]
+    headers = [str(h or "").strip() for h in (reader.fieldnames or [])]
+    return [{k.strip(): v for k, v in row.items() if k} for row in reader], path.name, headers
 
 
 def pick(row: dict[str, Any], *aliases: str) -> Any:
@@ -539,6 +598,10 @@ def parse_cedula(raw: Any) -> tuple[str, str]:
     match = re.match(r"^([VEP])[-\s.]?(\d+)$", valor)
     if match:
         return match.group(1), match.group(2)
+    # Núcleos familiares: menores sin cédula como V-12345678-1 (padre + índice).
+    # No son documento real → sin cédula (evitar concatenar dígitos falsos).
+    if re.match(r"^([VEP])[-\s.]?\d+-\d+$", valor):
+        return "", ""
     digitos = re.sub(r"\D", "", valor)
     if digitos and len(digitos) >= 5:
         return "V", digitos
@@ -552,6 +615,18 @@ def split_nombre(nombre: str) -> tuple[str, str]:
     if len(partes) == 1:
         return partes[0], ""
     return partes[0], partes[1]
+
+
+def split_nombre_completo(nombre: str) -> tuple[str, str, str, str]:
+    """Separa nombre completo cuando planilla no trae columnas individuales."""
+    partes = nombre.strip().split()
+    if len(partes) < 2:
+        return (partes[0] if partes else ""), "", "", ""
+    if len(partes) == 2:
+        return partes[0], "", partes[1], ""
+    if len(partes) == 3:
+        return partes[0], partes[1], partes[2], ""
+    return partes[0], partes[1], partes[2], " ".join(partes[3:])
 
 
 def normalizar_sexo(valor: Any) -> str:
@@ -610,17 +685,24 @@ def fila_a_payload(
     apellido = texto(pick(row, "apellidos", "apellido", "primer apellido", "primer_apellido"))
     segundo_apellido = texto(pick(row, "segundo apellido", "segundo_apellido"))
     if not nombre and not apellido:
-        completo = texto(pick(row, "nombre completo", "nombre_completo", "beneficiario", "persona"))
-        partes = completo.split()
-        if len(partes) >= 2:
-            nombre, apellido = partes[0], " ".join(partes[1:])
-        elif partes:
-            nombre = partes[0]
-
-    primer_nombre, resto_nombre = split_nombre(nombre)
-    primer_apellido, resto_apellido = split_nombre(apellido)
-    segundo_nombre = segundo_nombre or resto_nombre
-    segundo_apellido = segundo_apellido or resto_apellido
+        completo = texto(
+            pick(
+                row,
+                "nombre completo",
+                "nombre_completo",
+                "nombre y apellido",
+                "nombres y apellidos",
+                "nombre y apellidos",
+                "beneficiario",
+                "persona",
+            )
+        )
+        primer_nombre, segundo_nombre, primer_apellido, segundo_apellido = split_nombre_completo(completo)
+    else:
+        primer_nombre, resto_nombre = split_nombre(nombre)
+        primer_apellido, resto_apellido = split_nombre(apellido)
+        segundo_nombre = segundo_nombre or resto_nombre
+        segundo_apellido = segundo_apellido or resto_apellido
 
     nombre_centro = texto(row.get(col_centro, "")) if col_centro else ""
     if not nombre_centro:
@@ -628,15 +710,22 @@ def fila_a_payload(
     centro_id, centro_raw, match = resolver_centro(nombre_centro, centros, centro_forzado)
     if not centro_id:
         return None, {
-            "error": "sin_centro",
+            "error": "centro_inactivo" if match == "inactivo" else "sin_centro",
             "nombre_centro_raw": centro_raw or nombre_centro,
-            "documento": documento,
-            "nombre": " ".join([primer_nombre, primer_apellido]).strip(),
         }
 
     edad = parse_edad(pick(row, "edad", "age"))
     tipo_registro = texto(pick(row, "tipo de registro", "tipo registro", "tipo registro policial"))
-    observaciones = texto(
+    descripcion_verificacion = texto(
+        pick(
+            row,
+            "descripcion verificacion",
+            "descripción verificación",
+            "descripcion (verificacion)",
+            "descripción (verificación)",
+        )
+    )
+    observaciones_generales = texto(
         pick(
             row,
             "observaciones",
@@ -649,7 +738,37 @@ def fila_a_payload(
             "siipol",
         )
     )
+    observaciones = descripcion_verificacion or observaciones_generales
     flags_texto = inferir_flags_seguridad(observaciones)
+    registro_policial = parse_bool(
+        pick(
+            row,
+            "tiene registro policial",
+            "registro policial",
+            "reg policial",
+            "reg. policial",
+            "con reg policial",
+            "con registro policial",
+        )
+    ) or flags_texto["registro_policial"]
+    solicitado = parse_bool(
+        pick(row, "está solicitado", "esta solicitado", "solicitado", "requerido")
+    ) or flags_texto["solicitado"]
+    firmo_contra_presidente = parse_bool(
+        pick(
+            row,
+            "firmó contra presidente",
+            "firmo contra presidente",
+            "firmo vs pres",
+            "firmo vs presidente",
+            "firmó contra el gob.",
+            "firmo contra el gob",
+        )
+    ) or flags_texto["firmo_contra_presidente"]
+    deportado = parse_bool(pick(row, "deportado")) or flags_texto["deportado"]
+    verificado_siipol = bool(descripcion_verificacion) or any(
+        (registro_policial, solicitado, firmo_contra_presidente, deportado, bool(tipo_registro))
+    )
 
     payload: dict[str, Any] = {
         "centro_id": centro_id,
@@ -675,19 +794,13 @@ def fila_a_payload(
         "parroquia": texto(pick(row, "parroquia")),
         "calle": texto(pick(row, "direccion", "dirección", "calle", "sector")),
         "casa_edificio": texto(pick(row, "casa", "edificio", "casa_edificio", "aula")),
-        "registro_policial": parse_bool(
-            pick(row, "tiene registro policial", "registro policial", "con reg policial", "con registro policial")
-        )
-        or flags_texto["registro_policial"],
-        "solicitado": parse_bool(pick(row, "está solicitado", "esta solicitado", "solicitado", "requerido"))
-        or flags_texto["solicitado"],
-        "firmo_contra_presidente": parse_bool(
-            pick(row, "firmó contra presidente", "firmo contra presidente", "firmo vs pres", "firmo vs presidente")
-        )
-        or flags_texto["firmo_contra_presidente"],
-        "deportado": parse_bool(pick(row, "deportado")) or flags_texto["deportado"],
+        "registro_policial": registro_policial,
+        "solicitado": solicitado,
+        "firmo_contra_presidente": firmo_contra_presidente,
+        "deportado": deportado,
         "tipo_registro_policial": tipo_registro,
         "observaciones_seguridad": observaciones,
+        "verificado_siipol": verificado_siipol,
     }
     return payload, None
 
@@ -698,6 +811,11 @@ def main() -> int:
     ap.add_argument("--centro-id", default=None, help="Fuerza centro_id si el Excel es de un solo campamento")
     ap.add_argument("--col-centro", default=None, help="Columna con nombre del campamento")
     ap.add_argument("--con-nexus", action="store_true", help="Consulta Nexus por cada cédula V/E y prioriza identidad oficial")
+    ap.add_argument(
+        "--solo-cache-nexus",
+        action="store_true",
+        help="Con --con-nexus, reutiliza caché existente sin consultar cédulas pendientes",
+    )
     ap.add_argument(
         "--concurrency",
         type=int,
@@ -716,7 +834,23 @@ def main() -> int:
         default=DEFAULT_CIRCUIT_BREAKER,
         help=f"Corta tras N fallos consecutivos de infraestructura (default {DEFAULT_CIRCUIT_BREAKER})",
     )
+    ap.add_argument(
+        "--timeout-nexus",
+        type=float,
+        default=DEFAULT_NEXUS_TIMEOUT,
+        help=f"Timeout por consulta Nexus en segundos (default {DEFAULT_NEXUS_TIMEOUT:g})",
+    )
     ap.add_argument("--aplicar", action="store_true", help="Escribe en BD vía censo_importar_lote")
+    ap.add_argument(
+        "--solo-marcar-siipol",
+        action="store_true",
+        help="No reimporta filas; solo aplica evidencia SIIPOL sobre registros existentes",
+    )
+    ap.add_argument(
+        "--reconciliar-siipol",
+        action="store_true",
+        help="Usa Documento como lista autoritativa SIIPOL; no importa personas",
+    )
     ap.add_argument(
         "--dry-run",
         action="store_true",
@@ -724,6 +858,11 @@ def main() -> int:
     )
     ap.add_argument("--lote", type=int, default=200)
     ap.add_argument("--solo-con-cedula", action="store_true", help="Omite filas sin documento")
+    ap.add_argument(
+        "--permitir-omisiones",
+        action="store_true",
+        help="Permite aplicar aunque existan filas inválidas o campamentos sin resolver",
+    )
     ap.add_argument(
         "--omitir-firmo-presidente",
         action="store_true",
@@ -740,12 +879,62 @@ def main() -> int:
         raise SystemExit("--rate no puede ser negativo")
     if args.circuit_breaker < 1:
         raise SystemExit("--circuit-breaker debe ser al menos 1")
+    if args.timeout_nexus <= 0:
+        raise SystemExit("--timeout-nexus debe ser mayor que 0")
+    if args.solo_cache_nexus and not args.con_nexus:
+        raise SystemExit("--solo-cache-nexus requiere --con-nexus")
+    if args.solo_marcar_siipol and not args.aplicar:
+        raise SystemExit("--solo-marcar-siipol requiere --aplicar")
+    if args.reconciliar_siipol and args.solo_marcar_siipol:
+        raise SystemExit("--reconciliar-siipol y --solo-marcar-siipol son excluyentes")
 
     dry = args.dry_run or not args.aplicar
+    print(f"Excel: leyendo {args.archivo.name}…", file=sys.stderr, flush=True)
+    rows, hoja_datos, columnas = leer_filas(args.archivo)
+    print(
+        f"Excel: hoja «{hoja_datos}» · {len(rows)} filas · {len(columnas)} columnas",
+        file=sys.stderr,
+        flush=True,
+    )
+    print("Supabase: autenticando…", file=sys.stderr, flush=True)
     url, anon, gateway = cargar_env()
     jwt = autenticar(url, anon)
+
+    if args.reconciliar_siipol:
+        documentos_filas = [
+            parse_cedula(pick(row, "cedula", "cédula", "documento", "ci", "doc"))[1]
+            for row in rows
+        ]
+        documentos = sorted({documento for documento in documentos_filas if documento})
+        reporte_siipol = {
+            "archivo": args.archivo.name,
+            "hoja": hoja_datos,
+            "filas_leidas": len(rows),
+            "documentos_validos": sum(bool(documento) for documento in documentos_filas),
+            "documentos_unicos": len(documentos),
+            "documentos_duplicados": sum(
+                cantidad - 1
+                for documento, cantidad in Counter(documentos_filas).items()
+                if documento and cantidad > 1
+            ),
+            "sin_documento": sum(not documento for documento in documentos_filas),
+        }
+        print(json.dumps(reporte_siipol, ensure_ascii=False, indent=2))
+        if dry:
+            print("Dry-run: no se modificaron marcas SIIPOL.", file=sys.stderr)
+            return 0
+        resultado = rpc(
+            url,
+            anon,
+            jwt,
+            "censo_reconciliar_siipol",
+            {"p_documentos": documentos, "p_fuente": args.archivo.name},
+        )
+        print(json.dumps(resultado, ensure_ascii=False, indent=2))
+        return 0
+
+    print("Supabase: cargando campamentos…", file=sys.stderr, flush=True)
     centros = listar_centros(url, anon, jwt)
-    rows = leer_filas(args.archivo)
 
     preparadas: list[dict[str, Any]] = []
     ok: list[dict[str, Any]] = []
@@ -761,11 +950,19 @@ def main() -> int:
         "nexus_ok": 0,
         "nexus_error": 0,
         "nexus_omitidas_circuit_breaker": 0,
+        "nexus_omitidas_solo_cache": 0,
         "solicitados": 0,
         "registro_policial": 0,
+        "firmo_contra_presidente": 0,
+        "verificados_siipol": 0,
     }
 
     for row in rows:
+        _, documento_entrada = parse_cedula(pick(row, "cedula", "cédula", "documento", "ci", "doc"))
+        if documento_entrada:
+            conteos["con_cedula"] += 1
+        else:
+            conteos["sin_cedula"] += 1
         payload, error = fila_a_payload(row, centros, args.centro_id, args.col_centro)
         if error:
             errores.append(error)
@@ -774,12 +971,8 @@ def main() -> int:
             errores.append({"error": "fila_incompleta", "row": row})
             continue
 
-        if payload.get("documento"):
-            conteos["con_cedula"] += 1
-        else:
-            conteos["sin_cedula"] += 1
-            if args.solo_con_cedula:
-                continue
+        if not payload.get("documento") and args.solo_con_cedula:
+            continue
         preparadas.append(payload)
 
     cache_persistente: dict[tuple[str, str], dict[str, Any]] = {}
@@ -792,15 +985,25 @@ def main() -> int:
             if tipo_doc in LETRAS_NEXUS and documento:
                 candidatos.add((tipo_doc, documento))
 
+        print("Nexus: cargando verificaciones existentes…", file=sys.stderr, flush=True)
         cache_persistente = cargar_cache_nexus(url, anon, jwt)
         pendientes = sorted(candidatos - cache_persistente.keys())
         conteos["nexus_ya_verificadas_unicas"] = len(candidatos) - len(pendientes)
+        pendientes_totales = len(pendientes)
         print(
             f"Nexus: {len(candidatos)} cédulas únicas · "
             f"{len(candidatos) - len(pendientes)} ya verificadas · "
             f"{len(pendientes)} pendientes · concurrencia {args.concurrency}",
             file=sys.stderr,
         )
+        if args.solo_cache_nexus:
+            conteos["nexus_omitidas_solo_cache"] = pendientes_totales
+            pendientes = []
+            print(
+                f"Nexus: modo solo caché · {pendientes_totales} pendientes usarán datos del Excel",
+                file=sys.stderr,
+                flush=True,
+            )
 
         if pendientes:
             fichas_nuevas, nexus_errores, omitidas = consultar_nexus_concurrente(
@@ -810,6 +1013,7 @@ def main() -> int:
                 args.concurrency,
                 args.rate,
                 args.circuit_breaker,
+                args.timeout_nexus,
             )
             conteos["nexus_consultadas"] = len(fichas_nuevas) + len(nexus_errores)
             conteos["nexus_verificadas_nuevas"] = len(fichas_nuevas)
@@ -847,19 +1051,42 @@ def main() -> int:
             conteos["solicitados"] += 1
         if payload.get("registro_policial"):
             conteos["registro_policial"] += 1
+        if payload.get("firmo_contra_presidente"):
+            conteos["firmo_contra_presidente"] += 1
+        if payload.get("verificado_siipol"):
+            conteos["verificados_siipol"] += 1
         ok.append(payload)
 
     ok.sort(key=lambda f: (0 if f.get("documento") else 1, f.get("primer_apellido") or ""))
+    documentos = [texto(f.get("documento")) for f in ok if f.get("documento")]
+    documentos_repetidos = sum(cantidad - 1 for cantidad in Counter(documentos).values() if cantidad > 1)
+    errores_por_tipo = Counter(texto(error.get("error")) or "desconocido" for error in errores)
+    centros_con_error = Counter(
+        texto(error.get("nombre_centro_raw"))
+        for error in errores
+        if error.get("nombre_centro_raw")
+    )
+    sensibles_ignoradas = [
+        columna
+        for columna in columnas
+        if key(columna) in {"milita oposicion"}
+    ]
     reporte = {
         "archivo": args.archivo.name,
+        "hoja": hoja_datos,
         "filas_leidas": len(rows),
         "listas": len(ok),
         **conteos,
         "firmo_omitidos": firmo_omitidos if args.omitir_firmo_presidente else 0,
+        "documentos_repetidos": documentos_repetidos,
         "errores_match": len(errores),
-        "errores": errores[:50],
-        "nexus_errores": nexus_errores[:30],
-        "muestra": ok[:5],
+        "errores_por_tipo": dict(sorted(errores_por_tipo.items())),
+        "centros_con_error": dict(sorted(centros_con_error.items())),
+        "columnas_sensibles_ignoradas": sensibles_ignoradas,
+        "nexus_errores_muestra": [
+            {"tipo_doc": error.get("tipo_doc"), "status": error.get("status")}
+            for error in nexus_errores[:10]
+        ],
     }
     print(json.dumps(reporte, ensure_ascii=False, indent=2))
 
@@ -871,31 +1098,50 @@ def main() -> int:
         print(f"JSON escrito: {args.json_out}", file=sys.stderr)
 
     if dry:
-        print(
-            "Dry-run: no se importó el censo. Verificaciones Nexus nuevas quedaron "
-            "guardadas en nexus_consultas; --aplicar las reutilizará.",
-            file=sys.stderr,
+        detalle_nexus = (
+            " Verificaciones Nexus nuevas quedaron guardadas en nexus_consultas; "
+            "--aplicar las reutilizará."
+            if args.con_nexus and not args.solo_cache_nexus
+            else ""
         )
+        print(f"Dry-run: no se importó el censo.{detalle_nexus}", file=sys.stderr)
         return 0
+    if errores and not args.permitir_omisiones:
+        raise SystemExit(
+            f"Importación cancelada: {len(errores)} filas no están listas. "
+            "Corrija los errores o use --permitir-omisiones tras aprobar una importación parcial."
+        )
 
-    insertados = actualizados = omitidos = 0
+    insertados = actualizados = omitidos = marcados_siipol = 0
     errores_rpc: list[Any] = []
     for i in range(0, len(ok), args.lote):
         chunk = ok[i : i + args.lote]
-        result = rpc(
-            url,
-            anon,
-            jwt,
-            "censo_importar_lote",
-            {"p_filas": chunk, "p_meta": {"fuente_archivo": args.archivo.name}},
-        )
-        if isinstance(result, dict):
-            insertados += int(result.get("insertados") or 0)
-            actualizados += int(result.get("actualizados") or 0)
-            omitidos += int(result.get("omitidos") or 0)
-            err = result.get("errores") or []
-            if isinstance(err, list):
-                errores_rpc.extend(err)
+        result: object = {"modo": "solo_marcar_siipol"}
+        if not args.solo_marcar_siipol:
+            result = rpc(
+                url,
+                anon,
+                jwt,
+                "censo_importar_lote",
+                {"p_filas": chunk, "p_meta": {"fuente_archivo": args.archivo.name}},
+            )
+            if isinstance(result, dict):
+                insertados += int(result.get("insertados") or 0)
+                actualizados += int(result.get("actualizados") or 0)
+                omitidos += int(result.get("omitidos") or 0)
+                err = result.get("errores") or []
+                if isinstance(err, list):
+                    errores_rpc.extend(err)
+        if args.solo_marcar_siipol:
+            resultado_siipol = rpc(
+                url,
+                anon,
+                jwt,
+                "censo_marcar_siipol_lote",
+                {"p_filas": chunk, "p_fuente": args.archivo.name},
+            )
+            if isinstance(resultado_siipol, dict):
+                marcados_siipol += int(resultado_siipol.get("marcados_siipol") or 0)
         print(f"Lote {i // args.lote + 1}: {result}", file=sys.stderr)
 
     print(
@@ -904,6 +1150,7 @@ def main() -> int:
                 "insertados": insertados,
                 "actualizados": actualizados,
                 "omitidos": omitidos,
+                "marcados_siipol": marcados_siipol,
                 "errores_rpc": errores_rpc[:30],
             },
             ensure_ascii=False,

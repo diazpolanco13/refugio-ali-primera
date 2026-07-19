@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { FileSpreadsheet, Pencil, Trash2 } from "lucide-react";
+import { BadgeCheck, Clock3, FileSpreadsheet, Pencil, Trash2 } from "lucide-react";
 import { type RegistroCensoGuardado } from "@/data/reposCenso";
 import { CEDULA_JEFE_NO_SE } from "@/domain/catalogosHumanitarios";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,15 @@ function tituloSeguridad(fila: RegistroCensoGuardado): string | undefined {
     fila.deportado ? "Deportado" : "",
   ].filter(Boolean);
   return partes.length > 0 ? partes.join(" · ") : undefined;
+}
+
+function tituloSiipol(fila: RegistroCensoGuardado): string {
+  if (!fila.verificado_siipol) return "Pendiente de verificación SIIPOL";
+  const partes = ["Verificado SIIPOL", fila.verificado_siipol_fuente];
+  if (fila.verificado_siipol_en) {
+    partes.push(new Date(fila.verificado_siipol_en).toLocaleString("es-VE"));
+  }
+  return partes.filter(Boolean).join(" · ");
 }
 
 function FilaRegistro({
@@ -118,6 +127,25 @@ function FilaRegistro({
           )}
         </TableCell>
       )}
+      <TableCell className="px-2 py-1.5 text-center" title={tituloSiipol(fila)}>
+        {fila.verificado_siipol ? (
+          <Badge
+            variant="outline"
+            className="h-5 gap-1 border-emerald-500/60 px-1.5 text-[10px] text-emerald-700 dark:text-emerald-300"
+          >
+            <BadgeCheck className="size-3" />
+            Verificado
+          </Badge>
+        ) : (
+          <Badge
+            variant="outline"
+            className="h-5 gap-1 border-slate-400/50 px-1.5 text-[10px] text-muted-foreground"
+          >
+            <Clock3 className="size-3" />
+            Pendiente
+          </Badge>
+        )}
+      </TableCell>
       <TableCell className="px-2 py-1.5 text-center" title={tituloSeguridad(fila)}>
         {fila.solicitado ? (
           <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">
@@ -214,6 +242,7 @@ export function CensoRegistrosTabla({
             <TableHead className="h-8 px-2 text-center">Edad</TableHead>
             <TableHead className="h-8 px-2 text-center">Sexo</TableHead>
             {mostrarCentro && <TableHead className="h-8 px-2">Campamento</TableHead>}
+            <TableHead className="h-8 px-2 text-center">SIIPOL</TableHead>
             <TableHead className="h-8 px-2 text-center">Solicitado</TableHead>
             <TableHead className="h-8 px-2 text-center">Reg. policial</TableHead>
             <TableHead className="h-8 px-2 text-center">Referéndum</TableHead>

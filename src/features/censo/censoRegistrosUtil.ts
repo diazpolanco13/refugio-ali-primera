@@ -43,6 +43,7 @@ export type OrdenRegistrosCenso =
   | "edad"
   | "solicitado"
   | "reg_policial"
+  | "siipol"
   | "referendum"
   | "con_cedula"
   | "sin_cedula";
@@ -81,6 +82,12 @@ export function ordenarRegistrosCenso<T extends RegistroCensoGuardado>(
         (a, b) =>
           Number(Boolean(b.registro_policial)) - Number(Boolean(a.registro_policial)) ||
           porReciente(a, b),
+      );
+    case "siipol":
+      return copia.sort(
+        (a, b) =>
+          Number(Boolean(b.verificado_siipol)) -
+            Number(Boolean(a.verificado_siipol)) || porReciente(a, b),
       );
     case "referendum":
       return copia.sort(

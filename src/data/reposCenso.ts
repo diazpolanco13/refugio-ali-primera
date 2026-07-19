@@ -190,6 +190,9 @@ export interface RegistroCensoGuardado {
   tipo_registro_policial?: string;
   observaciones_seguridad?: string;
   verificacion_seguridad_en?: string | null;
+  verificado_siipol?: boolean;
+  verificado_siipol_en?: string | null;
+  verificado_siipol_fuente?: string;
 }
 
 /** Fila devuelta por censo_listado_red (registro + campamento). */
@@ -585,6 +588,28 @@ export async function obtenerResumenCensoRed(): Promise<ResumenCensoCentro[]> {
   return ((data ?? []) as FilaResumenCensoRed[]).map(mapearResumenCensoCentro);
 }
 
+export interface ResumenSiipol {
+  totalImportados: number;
+  verificados: number;
+  pendientes: number;
+}
+
+/** Cobertura SIIPOL de Importaciones Excel para el alcance del usuario. */
+export async function obtenerResumenSiipol(): Promise<ResumenSiipol> {
+  const { data, error } = await supabase.rpc("censo_siipol_resumen");
+  if (error) throw new Error(error.message);
+  const fila = (data?.[0] ?? {}) as {
+    total_importados?: number;
+    verificados?: number;
+    pendientes?: number;
+  };
+  return {
+    totalImportados: Number(fila.total_importados ?? 0),
+    verificados: Number(fila.verificados ?? 0),
+    pendientes: Number(fila.pendientes ?? 0),
+  };
+}
+
 type FilaListadoCensoRed = RegistroCensoRed;
 
 export const FILAS_POR_PAGINA_CENSO_RED = 50;
@@ -597,6 +622,7 @@ export interface FiltrosListadoCensoRed {
   solicitado?: string;
   registroPolicial?: string;
   firmo?: string;
+  verificadoSiipol?: string;
 }
 
 function paramsFiltrosListadoCensoRed(filtros: FiltrosListadoCensoRed) {
@@ -613,13 +639,21 @@ function paramsFiltrosListadoCensoRed(filtros: FiltrosListadoCensoRed) {
     p_solicitado: boolFiltro(filtros.solicitado),
     p_registro_policial: boolFiltro(filtros.registroPolicial),
     p_firmo: boolFiltro(filtros.firmo),
+    p_verificado_siipol: boolFiltro(filtros.verificadoSiipol),
   };
 }
 
 /** Total de registros del listado general con filtros (sin paginar). */
 export async function contarListadoCensoRed(filtros: FiltrosListadoCensoRed = {}): Promise<number> {
-  const { p_centro_id, p_sexo, p_busqueda, p_solicitado, p_registro_policial, p_firmo } =
-    paramsFiltrosListadoCensoRed(filtros);
+  const {
+    p_centro_id,
+    p_sexo,
+    p_busqueda,
+    p_solicitado,
+    p_registro_policial,
+    p_firmo,
+    p_verificado_siipol,
+  } = paramsFiltrosListadoCensoRed(filtros);
   const { data, error } = await supabase.rpc("censo_listado_red_conteo", {
     p_centro_id,
     p_sexo,
@@ -627,6 +661,7 @@ export async function contarListadoCensoRed(filtros: FiltrosListadoCensoRed = {}
     p_solicitado,
     p_registro_policial,
     p_firmo,
+    p_verificado_siipol,
   });
   if (error) throw new Error(error.message);
   return Number(data ?? 0);
@@ -646,6 +681,7 @@ export async function obtenerListadoCensoRedPaginado(
     p_solicitado,
     p_registro_policial,
     p_firmo,
+    p_verificado_siipol,
   } = paramsFiltrosListadoCensoRed(filtros);
   const { data, error } = await supabase.rpc("censo_listado_red_paginado", {
     p_limit: filasPorPagina,
@@ -657,6 +693,7 @@ export async function obtenerListadoCensoRedPaginado(
     p_solicitado,
     p_registro_policial,
     p_firmo,
+    p_verificado_siipol,
   });
   if (error) throw new Error(error.message);
   return (data ?? []) as FilaListadoCensoRed[];

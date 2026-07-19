@@ -1,4 +1,5 @@
-// Exporta el listado de censo rápido (red) a PDF (jsPDF) o Excel (xlsx).
+// Exporta Importaciones Excel (red) a PDF (jsPDF) o Excel (xlsx).
+// PDF = mismas columnas que CensoRegistrosTabla; Excel = detalle completo.
 
 import { CONDICIONES_VIVIENDA, type RegistroCensoRed } from "@/data/reposCenso";
 import { nombreCompletoRegistro } from "./censoRegistrosUtil";
@@ -34,21 +35,34 @@ function formatearFechaRegistro(iso: string): string {
   });
 }
 
+/** Misma fecha corta que CensoRegistrosTabla (sin año). */
+function formatearFechaTabla(iso: string): string {
+  return new Date(iso).toLocaleString("es-VE", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function siOGuion(valor: boolean): string {
+  return valor ? "Sí" : "—";
+}
+
+/** Columnas alineadas con CensoRegistrosTabla (vista red / Importaciones Excel). */
 function filaPdf(fila: RegistroCensoRed, numero: number): string[] {
   return [
     String(numero),
     nombreCompletoRegistro(fila),
     formatearDocumento(fila),
-    fila.edad != null ? String(fila.edad) : "",
-    fila.sexo ?? "",
+    fila.edad != null ? String(fila.edad) : "—",
+    fila.sexo ?? "—",
     fila.centro_nombre,
-    fila.telefono,
-    fila.parroquia || fila.municipio,
-    etiquetaVivienda(fila.condicion_vivienda),
-    fila.solicitado ? "Sí" : "",
-    fila.registro_policial ? "Sí" : "",
-    fila.firmo_contra_presidente ? "Sí" : "",
-    formatearFechaRegistro(fila.creado_en),
+    fila.verificado_siipol ? "Verificado" : "Pendiente",
+    siOGuion(fila.solicitado),
+    siOGuion(fila.registro_policial),
+    siOGuion(fila.firmo_contra_presidente),
+    formatearFechaTabla(fila.creado_en),
   ];
 }
 
@@ -59,16 +73,15 @@ const ENCABEZADOS_PDF = [
   "Edad",
   "Sexo",
   "Campamento",
-  "Teléfono",
-  "Parroquia",
-  "Vivienda",
-  "Solic.",
-  "Reg. pol.",
+  "SIIPOL",
+  "Solicitado",
+  "Reg. policial",
   "Referéndum",
   "Registro",
 ];
 
-const ANCHOS_PDF_MM = [8, 40, 22, 9, 9, 34, 20, 22, 16, 12, 14, 18, 26];
+// A4 landscape ~273 mm útiles (márgenes 12+12).
+const ANCHOS_PDF_MM = [8, 50, 24, 10, 10, 48, 22, 22, 24, 22, 30];
 
 function truncar(texto: string, max = 42): string {
   const t = texto.trim();
@@ -86,7 +99,7 @@ export async function exportarCensoRedPdf(filas: RegistroCensoRed[]): Promise<vo
   let y = margen;
 
   doc.setFontSize(13);
-  doc.text("Censo rápido (red) — Damnificados registrados", margen, y);
+  doc.text("Importaciones Excel (red) — Personas registradas", margen, y);
   y += 7;
 
   doc.setFontSize(9);
@@ -120,8 +133,9 @@ export async function exportarCensoRedPdf(filas: RegistroCensoRed[]): Promise<vo
       y = margen;
       dibujarEncabezado();
     }
+    // Truncar Nombre (1) y Campamento (5); el resto cabe en el ancho.
     const celdas = filaPdf(filas[i], filas.length - i).map((c, idx) =>
-      idx === 1 || idx === 5 || idx === 7 ? truncar(c, idx === 1 ? 38 : 28) : c,
+      idx === 1 || idx === 5 ? truncar(c, idx === 1 ? 42 : 38) : c,
     );
     let x = margen;
     for (let j = 0; j < celdas.length; j++) {
@@ -131,7 +145,7 @@ export async function exportarCensoRedPdf(filas: RegistroCensoRed[]): Promise<vo
     y += altoFila;
   }
 
-  doc.save(`censo-rapido-personas-${fechaArchivo()}.pdf`);
+  doc.save(`importaciones-excel-personas-${fechaArchivo()}.pdf`);
 }
 
 function filaExcel(fila: RegistroCensoRed, numero: number): Record<string, string | number | boolean> {
@@ -162,6 +176,11 @@ function filaExcel(fila: RegistroCensoRed, numero: number): Record<string, strin
     "Condición vivienda": etiquetaVivienda(fila.condicion_vivienda),
     Calle: fila.calle,
     "Casa / edificio": fila.casa_edificio,
+    "Verificado SIIPOL": fila.verificado_siipol ? "Sí" : "No",
+    "Fecha verificación SIIPOL": fila.verificado_siipol_en
+      ? formatearFechaRegistro(fila.verificado_siipol_en)
+      : "",
+    "Fuente verificación SIIPOL": fila.verificado_siipol_fuente ?? "",
     Solicitado: fila.solicitado ? "Sí" : "No",
     "Registro policial": fila.registro_policial ? "Sí" : "No",
     "Firmó contra Presidente": fila.firmo_contra_presidente ? "Sí" : "No",
@@ -183,5 +202,5 @@ export async function exportarCensoRedExcel(filas: RegistroCensoRed[]): Promise<
   const hoja = XLSX.utils.json_to_sheet(datos);
   const libro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(libro, hoja, "Personas");
-  XLSX.writeFile(libro, `censo-rapido-personas-${fechaArchivo()}.xlsx`);
+  XLSX.writeFile(libro, `importaciones-excel-personas-${fechaArchivo()}.xlsx`);
 }

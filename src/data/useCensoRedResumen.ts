@@ -2,11 +2,20 @@
 // de toda la red vía RPC censo_resumen_red() con refresh manual.
 
 import { useCallback, useEffect, useState } from "react";
-import { obtenerResumenCensoRed } from "./reposCenso";
+import {
+  obtenerResumenCensoRed,
+  obtenerResumenSiipol,
+  type ResumenSiipol,
+} from "./reposCenso";
 import type { ResumenCensoCentro } from "@/domain/censoResumen";
 
 export function useCensoRedResumen() {
   const [resumenes, setResumenes] = useState<ResumenCensoCentro[]>([]);
+  const [siipol, setSiipol] = useState<ResumenSiipol>({
+    totalImportados: 0,
+    verificados: 0,
+    pendientes: 0,
+  });
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,11 +23,16 @@ export function useCensoRedResumen() {
     setCargando(true);
     setError(null);
     try {
-      const data = await obtenerResumenCensoRed();
+      const [data, resumenSiipol] = await Promise.all([
+        obtenerResumenCensoRed(),
+        obtenerResumenSiipol(),
+      ]);
       setResumenes(data);
+      setSiipol(resumenSiipol);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo cargar el censo");
       setResumenes([]);
+      setSiipol({ totalImportados: 0, verificados: 0, pendientes: 0 });
     } finally {
       setCargando(false);
     }
@@ -28,5 +42,5 @@ export function useCensoRedResumen() {
     void refrescar();
   }, [refrescar]);
 
-  return { resumenes, cargando, error, refrescar };
+  return { resumenes, siipol, cargando, error, refrescar };
 }

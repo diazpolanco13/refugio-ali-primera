@@ -16,6 +16,7 @@ export interface FiltrosCensoRedListado {
   solicitado: string;
   registroPolicial: string;
   firmo: string;
+  verificadoSiipol?: string;
 }
 
 export function useCensoRedListado(
@@ -38,6 +39,7 @@ export function useCensoRedListado(
       solicitado: filtros.solicitado,
       registroPolicial: filtros.registroPolicial,
       firmo: filtros.firmo,
+      verificadoSiipol: filtros.verificadoSiipol,
     }),
     [
       busquedaDebounced,
@@ -47,6 +49,7 @@ export function useCensoRedListado(
       filtros.solicitado,
       filtros.registroPolicial,
       filtros.firmo,
+      filtros.verificadoSiipol,
     ],
   );
   const filtrosKey = useMemo(() => JSON.stringify(filtrosApi), [filtrosApi]);
