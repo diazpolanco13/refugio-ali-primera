@@ -77,10 +77,12 @@ export function Login() {
       // Prefetch mapa mientras auth responde → al disolverse el login ya hay chunk.
       void import("@/features/centros/CentrosView");
       await login(usuario.trim(), password, tokenCap);
+      // Éxito: NO resetear `cargando`. Este Login sigue montado (CapaLogin lo
+      // mantiene hasta que el mapa orbita debajo, ~4s + fade); si el botón
+      // volviera a "Entrar" parecería un fallo y un re-click quemaría el Cap.
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo iniciar sesión");
       if (capHabilitado) reiniciarCap();
-    } finally {
       setCargando(false);
     }
   }
