@@ -163,6 +163,7 @@ function KpiRed({
   clase,
   delta,
   invertirDelta = false,
+  cargando = false,
 }: {
   valor: number;
   etiqueta: string;
@@ -171,6 +172,8 @@ function KpiRed({
   delta?: number | null;
   /** true cuando bajar el KPI es progreso (sin iniciar, discrepancias). */
   invertirDelta?: boolean;
+  /** Datos aún cargando: muestra placeholder en vez de cifras parciales. */
+  cargando?: boolean;
 }) {
   return (
     <Card size="sm" className="border-teal-500/15 py-2">
@@ -184,11 +187,15 @@ function KpiRed({
           <Icono className="size-4" />
         </div>
         <div className="min-w-0">
-          <p className="text-lg font-bold tabular-nums leading-none">
-            {valor.toLocaleString("es")}
-          </p>
+          {cargando ? (
+            <Skeleton className="h-[18px] w-12" />
+          ) : (
+            <p className="text-lg font-bold tabular-nums leading-none">
+              {valor.toLocaleString("es")}
+            </p>
+          )}
           <p className="mt-0.5 text-[11px] text-muted-foreground">{etiqueta}</p>
-          <TextoVariacionDia delta={delta} invertir={invertirDelta} />
+          {!cargando && <TextoVariacionDia delta={delta} invertir={invertirDelta} />}
         </div>
       </CardContent>
     </Card>
@@ -291,12 +298,14 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
               clase="bg-muted text-muted-foreground"
               delta={kpis.deltaSinIniciar}
               invertirDelta
+              cargando={cargando}
             />
             <KpiRed
               valor={kpis.enCurso}
               etiqueta="Censo en progreso"
               icono={ClipboardList}
               delta={kpis.deltaEnCurso}
+              cargando={cargando}
             />
             <KpiRed
               valor={kpis.totalPersonas}
@@ -307,6 +316,7 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
               }
               icono={Users}
               delta={kpis.deltaTotalPersonas}
+              cargando={cargando}
             />
             <KpiRed
               valor={kpis.metaAlcanzada}
@@ -314,6 +324,7 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
               icono={CheckCircle2}
               clase="bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
               delta={kpis.deltaMetaAlcanzada}
+              cargando={cargando}
             />
             <KpiRed
               valor={kpis.discrepancias}
@@ -322,6 +333,7 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
               clase="bg-red-500/10 text-red-600 dark:text-red-300"
               delta={kpis.deltaDiscrepancias}
               invertirDelta
+              cargando={cargando}
             />
           </div>
 
@@ -400,7 +412,10 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
             </Badge>
           </div>
 
-          {cargando && resumenes.length === 0 ? (
+          {/* Gate por `cargando` a secas: los centros llegan antes que los
+              alojamientos (26k+) y con `resumenes.length === 0` la rama
+              saltaba al estado vacío con conteos en cero a media carga. */}
+          {cargando ? (
             <div
               className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
               aria-busy="true"

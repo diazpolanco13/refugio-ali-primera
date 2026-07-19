@@ -50,7 +50,10 @@ export function GraficoCensoRed({ serie, cargando = false }: Props) {
     return ultimo.censados - penultimo.censados;
   }, [ultimo, penultimo]);
 
-  if (cargando && serie.length === 0) {
+  // Solo `cargando`: la serie trae el punto de hoy (en 0) antes de que
+  // lleguen los alojamientos, y con `serie.length === 0` se pintaba un
+  // gráfico vacío a media carga.
+  if (cargando) {
     return (
       <Card size="sm" className="border-teal-500/15">
         <CardHeader className="px-4 pb-2 pt-3">
