@@ -23,9 +23,15 @@ export function urlVinculoTelegram(token: string): string {
   return `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${encodeURIComponent(token)}`;
 }
 
-/** Genera (o renueva) el token de vínculo del usuario autenticado. */
-export async function generarVinculoTelegram(): Promise<string> {
-  const { data, error } = await supabase.rpc("telegram_generar_vinculo");
+/**
+ * Genera (o renueva) el token de vínculo. Sin argumento es para el usuario
+ * autenticado; con `paraUserId`, admin/analista generan el enlace de OTRO
+ * usuario para compartírselo (la RPC valida el rol).
+ */
+export async function generarVinculoTelegram(paraUserId?: string): Promise<string> {
+  const { data, error } = await supabase.rpc("telegram_generar_vinculo", {
+    p_user_id: paraUserId ?? null,
+  });
   if (error) {
     throw new Error(
       /ya tiene Telegram vinculado/i.test(error.message)

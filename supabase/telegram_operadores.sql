@@ -66,35 +66,48 @@ create index if not exists telegram_vinculos_user_idx on public.telegram_vinculo
 alter table public.telegram_vinculos enable row level security;
 revoke all on table public.telegram_vinculos from public, anon, authenticated;
 
-create or replace function public.telegram_generar_vinculo()
+-- p_user_id agregado el 19-jul (migración `telegram_vinculo_para_usuario`):
+-- admin/analista_sae generan el enlace PARA otro usuario (tarjeta en
+-- /usuarios/:id/editar, se comparte por WhatsApp); sin argumento sigue el
+-- flujo self-service (/terreno y Preferencias de cuenta).
+create or replace function public.telegram_generar_vinculo(p_user_id uuid default null)
 returns text
 language plpgsql security definer
 set search_path = ''
 as $$
 declare
-  v_user uuid := auth.uid();
+  v_caller uuid := auth.uid();
+  v_target uuid;
   v_token text;
   v_ahora bigint := (extract(epoch from now()) * 1000)::bigint;
 begin
-  if v_user is null then
+  if v_caller is null then
     raise exception 'Requiere sesión';
   end if;
-  if exists (select 1 from public.telegram_operadores where user_id = v_user) then
+  v_target := coalesce(p_user_id, v_caller);
+  if v_target <> v_caller
+     and (select public.mi_rol()) not in ('admin', 'analista_sae') then
+    raise exception 'Solo admin o analista SAE pueden generar el vínculo de otro usuario';
+  end if;
+  if not exists (select 1 from public.perfiles where user_id = v_target) then
+    raise exception 'Usuario sin perfil';
+  end if;
+  if exists (select 1 from public.telegram_operadores where user_id = v_target) then
     raise exception 'Este usuario ya tiene Telegram vinculado';
   end if;
 
   delete from public.telegram_vinculos
-    where user_id = v_user and usado_ts is null;
+    where user_id = v_target and usado_ts is null;
 
   v_token := encode(extensions.gen_random_bytes(16), 'hex');
   insert into public.telegram_vinculos (token, user_id, creado_ts, expira_ts)
-    values (v_token, v_user, v_ahora, v_ahora + 60 * 60 * 1000);
+    values (v_token, v_target, v_ahora, v_ahora + 60 * 60 * 1000);
   return v_token;
 end;
 $$;
 
-revoke execute on function public.telegram_generar_vinculo() from public, anon;
-grant execute on function public.telegram_generar_vinculo() to authenticated;
+revoke execute on function public.telegram_generar_vinculo(uuid) from public, anon;
+grant execute on function public.telegram_generar_vinculo(uuid) to authenticated;
 
 -- Webhook registrado con:
 --   POST https://api.telegram.org/bot<token>/setWebhook

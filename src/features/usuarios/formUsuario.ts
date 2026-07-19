@@ -118,10 +118,16 @@ export async function crearUsuario(form: Formulario): Promise<void> {
   });
 }
 
-/** Edición: update directo de `perfiles` (RLS admin) + Edge Function para password. */
+/**
+ * Edición: update directo de `perfiles` (RLS admin) + Edge Functions para
+ * password y para renombrar el login (`update-username`: el email sintético
+ * vive en auth.users y solo se toca con service_role). `usernameOriginal`
+ * permite detectar el cambio; omitirlo deja el username como está.
+ */
 export async function actualizarUsuario(
   userId: string,
   form: Formulario,
+  usernameOriginal?: string | null,
 ): Promise<void> {
   const ambito = camposAmbito(form);
   const patch: Partial<UsuarioPerfil> = {
@@ -139,6 +145,18 @@ export async function actualizarUsuario(
   };
   const { error } = await supabase.from("perfiles").update(patch).eq("user_id", userId);
   if (error) throw new Error(error.message);
+
+  const usernameNuevo = form.username.trim().toLowerCase();
+  if (
+    usernameOriginal != null &&
+    usernameNuevo &&
+    usernameNuevo !== usernameOriginal
+  ) {
+    await invocarEdgeFunction("update-username", {
+      user_id: userId,
+      username: usernameNuevo,
+    });
+  }
 
   if (form.password) {
     await invocarEdgeFunction("update-user-password", {

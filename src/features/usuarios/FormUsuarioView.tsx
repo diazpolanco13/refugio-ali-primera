@@ -68,6 +68,7 @@ import {
   type Formulario,
 } from "./formUsuario";
 import { etiquetaCentro, type UsuarioPerfil } from "./TarjetaUsuario";
+import { VinculoTelegramUsuario } from "./VinculoTelegramUsuario";
 
 /**
  * Selector de campamentos SIEMPRE abierto (sin popover): buscador + lista
@@ -325,7 +326,7 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
     setError("");
     setGuardando(true);
     try {
-      if (esEdicion && userId) await actualizarUsuario(userId, form);
+      if (esEdicion && userId) await actualizarUsuario(userId, form, perfil?.username);
       else await crearUsuario(form);
       navigate("/usuarios");
     } catch (err) {
@@ -447,6 +448,15 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
                     disabled={guardando}
                   />
                 </div>
+                {esEdicion && userId && (
+                  <div className="border-t border-border pt-3">
+                    <VinculoTelegramUsuario
+                      userId={userId}
+                      nombre={perfil?.nombre || perfil?.username || "el usuario"}
+                      username={perfil?.username ?? null}
+                    />
+                  </div>
+                )}
               </SeccionCard>
             </div>
 
@@ -597,19 +607,31 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
               </SeccionCard>
 
               <SeccionCard titulo="Credenciales de acceso">
-                {!esEdicion && (
-                  <div className="space-y-1.5">
-                    <Label htmlFor="usuario-login">Usuario (login)</Label>
-                    <Input
-                      id="usuario-login"
-                      value={form.username}
-                      onChange={(e) => set("username", e.target.value)}
-                      required
-                      minLength={3}
-                      disabled={guardando}
-                    />
-                  </div>
-                )}
+                {(() => {
+                  // El propio usuario no se renombra (su sesión activa guarda
+                  // el username); la Edge Function también lo rechaza.
+                  const esPropio = esEdicion && userId === sesion.user.sub;
+                  return (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="usuario-login">Usuario (login)</Label>
+                      <Input
+                        id="usuario-login"
+                        value={form.username}
+                        onChange={(e) => set("username", e.target.value)}
+                        required
+                        minLength={3}
+                        disabled={guardando || esPropio}
+                      />
+                      {esEdicion && (
+                        <p className="text-[11px] leading-snug text-muted-foreground">
+                          {esPropio
+                            ? "No puede renombrar su propio usuario; pídalo a otro admin."
+                            : "Si lo cambia, el usuario entrará con el nuevo login (minúsculas, números y . _ -). Su sesión abierta sigue válida."}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="space-y-1.5">
                   <Label htmlFor="usuario-password">
                     {esEdicion ? "Nueva contraseña (opcional)" : "Contraseña"}
