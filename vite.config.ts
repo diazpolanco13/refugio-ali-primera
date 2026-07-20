@@ -55,10 +55,10 @@ export default defineConfig({
           "Gestión de campamentos transitorios del Área Metropolitana de Caracas",
         lang: "es",
         dir: "ltr",
-        // Campo: aterriza en el portal de terreno (el token ?t= ya vive en
-        // localStorage tras el primer escaneo del QR). Escritorio sigue
-        // entrando por / con sesión normal.
-        start_url: "/terreno",
+        // La app instalada abre en /: main.tsx decide según el dispositivo
+        // (token de terreno sin sesión de operador redirige a /terreno; el
+        // resto entra por login/app normal).
+        start_url: "/",
         scope: "/",
         theme_color: "#041410",
         background_color: "#041410",

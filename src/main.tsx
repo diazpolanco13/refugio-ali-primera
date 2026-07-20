@@ -14,7 +14,34 @@ function rutaEs(base: string): boolean {
   return window.location.pathname === base || window.location.pathname.startsWith(`${base}/`);
 }
 
-if (rutaEs("/censo") || rutaEs("/terreno") || rutaEs("/denuncia")) {
+// PWA instalada (start_url "/"): un dispositivo de campo —tiene token de
+// terreno recordado y ninguna sesión de operador— aterriza directo en el
+// portal de terreno. Un operador con sesión Supabase entra por la app normal.
+// Se decide aquí, antes de descargar cualquier bundle, para no pagar el
+// núcleo completo solo para redirigir.
+function debeIrATerreno(): boolean {
+  if (window.location.pathname !== "/") return false;
+  try {
+    const tieneTokenTerreno = !!localStorage
+      .getItem("refugio.token_terreno")
+      ?.trim();
+    if (!tieneTokenTerreno) return false;
+    for (let i = 0; i < localStorage.length; i++) {
+      const clave = localStorage.key(i) ?? "";
+      if (clave.startsWith("sb-") && clave.endsWith("-auth-token")) {
+        return false; // Sesión de operador: app normal.
+      }
+    }
+    return true;
+  } catch {
+    // Modo privado: sin persistencia, arranque normal.
+    return false;
+  }
+}
+
+if (debeIrATerreno()) {
+  window.location.replace("/terreno");
+} else if (rutaEs("/censo") || rutaEs("/terreno") || rutaEs("/denuncia")) {
   // Mismo splash cinematográfico que el resto de la app (logo + CAMPAMENTOS).
   // Antes se forzaba `modo-campo` (solo barra verde) y /terreno se veía vacío.
   void import("./censo-entry").then((m) => m.mount());
