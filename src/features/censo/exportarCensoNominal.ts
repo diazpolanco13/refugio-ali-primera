@@ -107,10 +107,11 @@ async function cargarFichasNexus(
   const LOTE = 200;
   try {
     for (let i = 0; i < digitsUnicos.length; i += LOTE) {
-      const { data, error } = await supabase
-        .from("nexus_consultas")
-        .select("letra, cedula, data")
-        .in("cedula", digitsUnicos.slice(i, i + LOTE));
+      // Vía RPC `nexus_cache_lote` (SECURITY DEFINER, solo roles que exportan):
+      // la RLS de `nexus_consultas` ya no permite la lectura directa.
+      const { data, error } = await supabase.rpc("nexus_cache_lote", {
+        p_cedulas: digitsUnicos.slice(i, i + LOTE),
+      });
       if (error) {
         console.warn("[exportarCensoNominal] caché Nexus:", error.message);
         return mapa;

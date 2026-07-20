@@ -307,21 +307,30 @@ export interface RegistroCensoViejoResumen {
 }
 
 /** Busca en `censo_registros` (importaciones Excel / staging) por cédula
- * normalizada — la más reciente si hubiera más de una. Solo lectura: la RLS
- * de `censo_registros` permite `select` a cualquier sesión autenticada. */
+ * normalizada — la más reciente si hubiera más de una. Va por el RPC
+ * `censo_registro_por_documento` (SECURITY DEFINER): la RLS de la tabla ya no
+ * deja leerla directo a las sesiones de terreno, y el RPC solo devuelve los
+ * campos de contacto/dirección (nunca los campos de seguridad del censo). */
 export async function buscarCensoRegistroPorDocumento(
   documentoNorm: string,
 ): Promise<RegistroCensoViejoResumen | null> {
   if (!documentoNorm) return null;
   const { data, error } = await supabase
-    .from("censo_registros")
-    .select(
-      "creado_en, funcionario_nombre, centro_id, calle, casa_edificio, parroquia, municipio, estado_federativo, telefono, jefe_tipo_doc, jefe_documento, parentesco_jefe",
-    )
-    .eq("documento_norm", documentoNorm)
-    .order("creado_en", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .rpc("censo_registro_por_documento", { p_documento_norm: documentoNorm })
+    .maybeSingle<{
+      creado_en: string;
+      funcionario_nombre: string | null;
+      centro_id: string;
+      calle: string | null;
+      casa_edificio: string | null;
+      parroquia: string | null;
+      municipio: string | null;
+      estado_federativo: string | null;
+      telefono: string | null;
+      jefe_tipo_doc: string | null;
+      jefe_documento: string | null;
+      parentesco_jefe: string | null;
+    }>();
   if (error || !data) return null;
 
   const direccion = [data.calle, data.casa_edificio, data.parroquia, data.municipio, data.estado_federativo]
@@ -408,16 +417,15 @@ export async function listarRegistrosCenso(centroId: string): Promise<RegistroCe
 }
 
 /** Ids de `censo_registros` ya marcados `procesado = true` en un centro (para
- * pintar el badge "verificado" en la lista "Registrados"). Solo lectura
- * directa a la tabla: la RLS de select es abierta a cualquier autenticado. */
+ * pintar el badge "verificado" en la lista "Registrados"). Va por el RPC
+ * `censo_ids_procesados` (SECURITY DEFINER, autoriza por rol + mis_centros);
+ * la RLS de la tabla ya no permite la lectura directa a terreno. */
 export async function listarIdsCensoProcesados(centroId: string): Promise<Set<string>> {
-  const { data, error } = await supabase
-    .from("censo_registros")
-    .select("id")
-    .eq("centro_id", centroId)
-    .eq("procesado", true);
+  const { data, error } = await supabase.rpc("censo_ids_procesados", {
+    p_centro_id: centroId,
+  });
   if (error || !data) return new Set();
-  return new Set(data.map((f) => f.id as string));
+  return new Set(data as string[]);
 }
 
 export interface ResultadoImportacionExcel {

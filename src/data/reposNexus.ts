@@ -232,12 +232,12 @@ async function leerConsultaGuardada(
   letra: string,
   digits: string,
 ): Promise<{ persona: PersonaNexusCenso; ts: number } | null> {
+  // Vía RPC `nexus_cache_cedula` (SECURITY DEFINER): la RLS de `nexus_consultas`
+  // ya no deja leerla directo a terreno. El upsert de más abajo no necesita
+  // SELECT, así que la caché se sigue poblando igual.
   const { data, error } = await supabase
-    .from("nexus_consultas")
-    .select("data, actualizado_ts")
-    .eq("letra", letra)
-    .eq("cedula", digits)
-    .maybeSingle();
+    .rpc("nexus_cache_cedula", { p_letra: letra, p_cedula: digits })
+    .maybeSingle<{ data: unknown; actualizado_ts: number }>();
   if (error || !data) return null;
   return {
     persona: data.data as PersonaNexusCenso,
