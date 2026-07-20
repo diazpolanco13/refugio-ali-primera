@@ -20,7 +20,7 @@
 --      consulte el gateway Nexus server-side con X-Gateway-Secret).
 --
 -- ⚠️ Gotcha de siempre: tras CUALQUIER `create or replace function` verificar
--- los grants EXECUTE (se resetean a PUBLIC). Ver CLAUDE.md.
+-- los grants EXECUTE (se resetean a PUBLIC). Ver docs/traspaso.md.
 -- ============================================================================
 
 alter table public.perfiles

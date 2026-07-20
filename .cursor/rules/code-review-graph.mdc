@@ -5,58 +5,35 @@ alwaysApply: true
 
 # Grafo de código primero (code-review-graph)
 
-Este proyecto tiene un **grafo de conocimiento del código** (MCP server
-`code-review-graph`, SQLite local en `.code-review-graph/`, 462 archivos /
-~2.700 nodos / ~25.700 aristas). Consultarlo cuesta ~300–2.500 tokens; leer el
-código a ciegas cuesta >150.000.
+MCP `code-review-graph` (SQLite local `.code-review-graph/`). Consulta
+~300–2.500 tokens; leer código a ciegas >150.000. Detalle ops: `GRAPH_REPORT.md`.
 
-## Regla obligatoria
+## Regla
 
-**ANTES de cualquier grep, glob, búsqueda de texto o lectura exploratoria de
-archivos: consulta primero las herramientas MCP del grafo.** Solo cae a
-grep/lectura directa si el grafo no cubre lo que necesitas (p. ej. contenido
-literal de un archivo concreto que ya localizaste).
+**ANTES** de grep/glob/lectura exploratoria: tools MCP del grafo. Fallback a
+grep/Read solo si el grafo no cubre (p. ej. contenido literal ya localizado).
 
-## Mapa de herramientas → intención
+## Mapa tools
 
-| Quieres…                                | Usa                                        |
-|-----------------------------------------|--------------------------------------------|
-| Encontrar una función/clase por nombre o tema | `semantic_search_nodes_tool`          |
-| Saber quién llama / a quién llama / imports / tests | `query_graph_tool` (`callers_of`, `callees_of`, `imports_of`, `tests_for`) |
-| Impacto de tocar un archivo/función ("blast radius") | `get_impact_radius_tool`      |
-| Revisar mis cambios actuales con riesgo | `detect_changes_tool` → `get_review_context_tool` |
-| Entender la arquitectura general        | `get_architecture_overview_tool`, `list_communities_tool` |
-| Flujos de ejecución afectados           | `get_affected_flows_tool`, `list_flows_tool` |
-| Planear un rename / detectar código muerto | `refactor_tool`                         |
-| Contexto mínimo para una tarea          | `get_minimal_context_tool`                 |
+| Quieres… | Usa |
+|----------|-----|
+| Símbolo / tema | `semantic_search_nodes_tool` |
+| callers / callees / imports / tests | `query_graph_tool` |
+| Blast radius | `get_impact_radius_tool` |
+| Riesgo cambios | `detect_changes_tool` → `get_review_context_tool` |
+| Arquitectura | `get_architecture_overview_tool`, `list_communities_tool` |
+| Flujos afectados | `get_affected_flows_tool` |
+| Rename / dead code | `refactor_tool` |
+| Contexto mínimo | `get_minimal_context_tool` |
 
-## Al empezar un chat nuevo
+## Chat nuevo
 
-1. Llama `list_graph_stats_tool` (o lee `GRAPH_REPORT.md`) para orientarte.
-2. Si vas a revisar trabajo en curso: `detect_changes_tool`.
-3. El grafo se actualiza solo (hook post-commit + hooks del editor). Si
-   sospechas que está desactualizado: `build_or_update_graph_tool`.
+1. `list_graph_stats_tool` (o `GRAPH_REPORT.md`).
+2. Trabajo en curso → `detect_changes_tool`.
+3. Grafo viejo → `build_or_update_graph_tool`.
+4. Cierre: `detect_changes_tool`; mencionar funciones sin test antes de proponer commit.
+5. No “arreglar” `.git/hooks/pre-commit` (no-op; update = post-commit).
 
-> El hook `sessionStart` (`.cursor/hooks/tarea-rapida-start.sh`) intenta
-> inyectar lo mismo vía `additional_context`. Si no llegó a esta sesión
-> (bug conocido de Cursor: race al crear el composer), **hazlo tú** con
-> los dos MCP de arriba — no re-explores el repo a ciegas.
-
-## Instrucciones clave (tarea rápida)
-
-1. **Grafo primero** — tools MCP antes de grep/lectura exploratoria.
-2. Contexto de negocio: `CLAUDE.md`. Guía del grafo: `GRAPH_REPORT.md`.
-   Código y comentarios **en español**.
-3. **Caveman ON (full)** — respuestas concisas; ver `.cursor/rules/caveman.mdc`
-   y `CURSOR.md`. Off solo si el usuario pide modo normal.
-4. Al cerrar: `detect_changes_tool` y menciona funciones sin test antes de
-   proponer commit. No “arregles” `.git/hooks/pre-commit` (es no-op a
-   propósito; el grafo se actualiza vía post-commit).
-5. No toques funciones `SECURITY DEFINER` sin releer el gotcha de
-   `CREATE OR REPLACE` en `CLAUDE.md`.
-
-## Contexto del proyecto
-
-Herramienta CCCM en español (React 19 + Vite + Supabase). El documento de
-traspaso maestro es `CLAUDE.md`; el resumen del grafo es `GRAPH_REPORT.md`.
-Mantén el código y los comentarios en español.
+Negocio / schema / RLS: leer `docs/traspaso.md` bajo demanda (no está always-on).
+Gotcha `SECURITY DEFINER` + `CREATE OR REPLACE`: ahí mismo.
+Caveman / UI: ver `caveman.mdc` y `ui-controles-visibles.mdc` — no repetir aquí.

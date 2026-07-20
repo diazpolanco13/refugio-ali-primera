@@ -15,9 +15,10 @@ comandos y errores quedan byte-a-byte.
 |-------|-----|
 | `.agents/skills/caveman/` (+ siblings) | Skill oficial |
 | `.cursor/rules/caveman.mdc` | Always-on (`alwaysApply: true`), nivel **full** |
-| `.cursor/hooks/tarea-rapida-start.sh` | sessionStart: flag `full` + recordatorio en contexto |
-| `CLAUDE.md` § Caveman | Traspaso / Claude Code |
-| `AGENTS.md` | Bloque caveman (init oficial) |
+| `.cursor/hooks/tarea-rapida-start.sh` | sessionStart: flag `full` + estado grafo (sin repetir rules) |
+| `docs/traspaso.md` | Traspaso largo (bajo demanda) |
+| `CLAUDE.md` | Índice corto always-on |
+| `AGENTS.md` | Punteros + Hermes (sin duplicar caveman/grafo) |
 
 Nivel default: **full**. Español comprimido (no inglés forzado).
 
@@ -58,5 +59,5 @@ npx skills add JuliusBrussee/caveman -a cursor -y
 npx -y github:JuliusBrussee/caveman -- --only cursor --only claude --with-init --force --non-interactive
 ```
 
-No hace falta `caveman-compress` sobre `CLAUDE.md` (es documento de traspaso
-largo a propósito).
+No hace falta `caveman-compress` sobre `docs/traspaso.md` (traspaso largo a
+propósito; no va en always-on).

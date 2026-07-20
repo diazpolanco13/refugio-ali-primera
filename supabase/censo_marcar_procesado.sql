@@ -45,7 +45,7 @@ begin
 end;
 $$;
 
--- Gotcha documentado en CLAUDE.md: Supabase re-otorga EXECUTE a `anon` vía
+-- Gotcha documentado en docs/traspaso.md: Supabase re-otorga EXECUTE a `anon` vía
 -- default privileges al crear/reemplazar la función; `revoke ... from public`
 -- NO lo quita. Hace falta el revoke explícito a `anon`.
 revoke all on function public.censo_marcar_procesado(text, text) from public;

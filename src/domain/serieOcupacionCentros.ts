@@ -9,7 +9,7 @@
 // actual`. Si un centro no tiene snapshots, aporta 0.
 //
 // Análogo al `poblacion.ts` que existía para los sectores del parque (ver
-// referencias en CLAUDE.md), aplicado ahora a la red de centros.
+// referencias en docs/traspaso.md), aplicado ahora a la red de centros.
 
 import { idCentroEsPrueba } from "./centrosTransitorios";
 import { normalizarVulnerables, totalPoblacion, type Vulnerables } from "./tipos";

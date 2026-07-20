@@ -93,13 +93,13 @@ code-review-graph wiki                      # wiki markdown por comunidades
 - **Local-first:** nada del código sale del VPS; la BD es SQLite en
   `.code-review-graph/` y está en `.gitignore`.
 - Convive sin conflicto con el resto del stack de contexto del repo:
-  `CLAUDE.md` (traspaso maestro), `AGENTS.md` / `.cursorrules` /
-  `.cursor/rules/code-review-graph.mdc` (reglas por plataforma) y los skills
-  de `.claude/skills/`. No hay otro indexador de grafo instalado (si algún
-  día se agrega uno tipo Graphify, pueden convivir: este escribe solo en
-  `.code-review-graph/`).
-- El grafo NO reemplaza a `CLAUDE.md`: el grafo responde *estructura* (quién
-  llama a qué); `CLAUDE.md` responde *contexto de negocio y decisiones*.
+  `CLAUDE.md` (índice corto), `docs/traspaso.md` (negocio, bajo demanda),
+  `.cursor/rules/code-review-graph.mdc` (regla always-on del grafo) y
+  `AGENTS.md` (punteros + Hermes). No hay otro indexador de grafo instalado
+  (si algún día se agrega uno tipo Graphify, pueden convivir: este escribe
+  solo en `.code-review-graph/`).
+- El grafo NO reemplaza a `docs/traspaso.md`: el grafo responde *estructura*
+  (quién llama a qué); el traspaso responde *contexto de negocio y decisiones*.
 - Límites conocidos (del propio proyecto upstream): la detección de flujos es
   más débil en JS/TS que en Python, y el análisis de impacto es
   deliberadamente conservador (prefiere falsos positivos a perder un

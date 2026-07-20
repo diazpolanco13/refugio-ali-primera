@@ -46,7 +46,7 @@
 - Flujo actual (`login-terreno` Edge Function): QR con token `personal` de
   `tokens_centros` → formulario self-declarado (jerarquía, nombre,
   institución, teléfono a mano) → crea usuario nuevo + magiclink → sesión
-  rol `operador` limitada a ese centro. Ver CLAUDE.md sección "Login de
+  rol `operador` limitada a ese centro. Ver docs/traspaso.md sección "Login de
   terreno por QR".
 - Nexus: gateway `nexus-gateway` en Dokploy (JWT de Supabase requerido),
   caché en `nexus_consultas` (la 2ª consulta de una cédula no toca la VPN).
@@ -115,7 +115,7 @@ Telegram = segundo factor real).
   server-side o recibe la ficha del frontend), UI de `/terreno`
   (TerrenoView: cédula → confirmación, unidad/cuerpo automáticos, jerarquía
   select). ⚠️ Recordar el gotcha de `CREATE OR REPLACE FUNCTION` → re-otorga
-  EXECUTE a PUBLIC (ver CLAUDE.md, pasó 2 veces).
+  EXECUTE a PUBLIC (ver docs/traspaso.md, pasó 2 veces).
 - **Fase B — Bot Telegram + vínculo — HECHA (16-jul, misma tarde):** bot
   **`@camp_inteligent_bot`** (BotFather no dio el username largo; nombre
   visible "campamento_verify_bot"). Implementación **serverless, sin

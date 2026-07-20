@@ -31,7 +31,7 @@ end;
 $$;
 
 -- Trigger function: nadie la llama directo; revocar EXECUTE igual
--- (gotcha: CREATE OR REPLACE re-otorga a PUBLIC — ver CLAUDE.md).
+-- (gotcha: CREATE OR REPLACE re-otorga a PUBLIC — ver docs/traspaso.md).
 revoke execute on function public.limpiar_centro_eliminado() from public, anon, authenticated;
 
 drop trigger if exists centros_limpiar_eliminado on public.centros;

@@ -44,6 +44,5 @@ Atajo: `./reiniciar.sh` levanta el frontend en segundo plano.
 
 ## Documentación
 
-Toda la guía de arquitectura, esquema Supabase, RLS, Edge Function
-`create-user`, histórico de ocupación y procedimientos de despliegue está en
-[`CLAUDE.md`](CLAUDE.md).
+- Índice corto: [`CLAUDE.md`](CLAUDE.md)
+- Traspaso completo (arquitectura, Supabase, RLS, despliegue): [`docs/traspaso.md`](docs/traspaso.md)

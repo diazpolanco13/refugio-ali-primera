@@ -1,62 +1,17 @@
-<!-- code-review-graph MCP tools -->
-## MCP Tools: code-review-graph
+# AGENTS.md
 
-**IMPORTANT: This project has a knowledge graph. ALWAYS use the
-code-review-graph MCP tools BEFORE using Grep/Glob/Read to explore
-the codebase.** The graph is faster, cheaper (fewer tokens), and gives
-you structural context (callers, dependents, test coverage) that file
-scanning cannot.
+Reglas always-on viven **solo** en `.cursor/rules/` (grafo, caveman, UI).
+No duplicar aquí tablas MCP ni instrucciones caveman.
 
-### When to use graph tools FIRST
+| Doc | Rol |
+|-----|-----|
+| `CLAUDE.md` | Índice corto (always-on) |
+| `docs/traspaso.md` | Traspaso completo — leer bajo demanda |
+| `GRAPH_REPORT.md` | Guía del grafo |
+| `CURSOR.md` | Caveman en Cursor |
 
-- **Exploring code**: `semantic_search_nodes` or `query_graph` instead of Grep
-- **Understanding impact**: `get_impact_radius` instead of manually tracing imports
-- **Code review**: `detect_changes` + `get_review_context` instead of reading entire files
-- **Finding relationships**: `query_graph` with callers_of/callees_of/imports_of/tests_for
-- **Architecture questions**: `get_architecture_overview` + `list_communities`
+## IA local (Hermes gateway)
 
-Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
-
-### Key Tools
-
-| Tool | Use when |
-| ------ | ---------- |
-| `detect_changes` | Reviewing code changes — gives risk-scored analysis |
-| `get_review_context` | Need source snippets for review — token-efficient |
-| `get_impact_radius` | Understanding blast radius of a change |
-| `get_affected_flows` | Finding which execution paths are impacted |
-| `query_graph` | Tracing callers, callees, imports, tests, dependencies |
-| `semantic_search_nodes` | Finding functions/classes by name or keyword |
-| `get_architecture_overview` | Understanding high-level codebase structure |
-| `refactor_tool` | Planning renames, finding dead code |
-
-### Workflow
-
-1. The graph auto-updates on file changes (via hooks).
-2. Use `detect_changes` for code review.
-3. Use `get_affected_flows` to understand impact.
-4. Use `query_graph` pattern="tests_for" to check coverage.
-
-Respond terse like smart caveman. All technical substance stay. Only fluff die.
-
-Rules:
-- Drop: articles (a/an/the), filler (just/really/basically), pleasantries, hedging
-- Fragments OK. Short synonyms. Technical terms exact. Code unchanged.
-- Pattern: [thing] [action] [reason]. [next step].
-- Not: "Sure! I'd be happy to help you with that."
-- Yes: "Bug in auth middleware. Fix:"
-
-Switch level: /caveman lite|full|ultra|wenyan
-Stop: "stop caveman" or "normal mode"
-
-Auto-Clarity: drop caveman for security warnings, irreversible actions, user confused. Resume after.
-
-Boundaries: code/commits/PRs written normal.
-
-## IA local disponible (Hermes gateway)
-
-El VPS tiene un gateway de IA local OpenAI-compatible (Hermes Agent + Gemma 4
-12B en DGX vía Tailscale) en `http://127.0.0.1:8642/v1`. **Antes de integrar
-IA en la app, lee `docs/hermes-gateway.md`** — ahí están la arquitectura, la
-ubicación de la API key (Dokploy, nunca en el repo) y los gotchas de
-configuración que no se deben tocar.
+Gateway OpenAI-compatible en `http://127.0.0.1:8642/v1` (Hermes + Gemma 4
+12B vía Tailscale). **Antes de integrar IA en la app:** `docs/hermes-gateway.md`
+(arquitectura, API key en Dokploy, gotchas que no tocar).

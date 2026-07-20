@@ -41,7 +41,7 @@ alter publication supabase_realtime add table public.incidentes_servicios;
 -- RPC pública mínima (banner en /censo y /terreno, sin sesión): solo los
 -- incidentes abiertos, sin PII. Excepción legítima de acceso anon, como
 -- terreno_centro(). ⚠️ Si se recrea, repetir revoke/grant (gotcha EXECUTE
--- a PUBLIC documentado en CLAUDE.md).
+-- a PUBLIC documentado en docs/traspaso.md).
 create or replace function public.estado_servicios_publico()
 returns table (servicio text, tipo text, causa text, inicio_ts bigint)
 language sql

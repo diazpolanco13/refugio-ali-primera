@@ -41,7 +41,7 @@ create trigger alojamientos_refugiados_max_lideres_trg
   for each row
   execute function public.validar_max_lideres_familia();
 
--- Gotcha documentado en CLAUDE.md: aunque esta función solo debe invocarse
+-- Gotcha documentado en docs/traspaso.md: aunque esta función solo debe invocarse
 -- como trigger (nunca directo por RPC), Supabase le otorga EXECUTE a
 -- anon/authenticated por default al crearla. `get_advisors` lo marcó
 -- (`rest/v1/rpc/validar_max_lideres_familia` quedaba invocable). El trigger

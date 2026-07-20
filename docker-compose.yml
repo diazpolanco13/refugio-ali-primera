@@ -4,7 +4,7 @@
 # local: la capa de datos (Postgres + Auth + Realtime + Storage) vive en
 # Supabase, accedida desde el frontend vía supabase-js. Este compose queda
 # solo como receta alternativa manual para servir los estáticos de la PWA.
-# En producción real la app corre en Dokploy (ver CLAUDE.md).
+# En producción real la app corre en Dokploy (ver docs/traspaso.md).
 #
 # Uso:
 #   1) cp .env.deploy.example .env  y edita los valores

@@ -1,7 +1,7 @@
 ---
 description: Botones y selects siempre con relieve shadcn (nunca texto plano)
 globs: src/**/*.{tsx,jsx}
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Controles con relieve (botones y desplegables)
