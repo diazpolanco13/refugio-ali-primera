@@ -94,8 +94,9 @@ export function CensoInstrucciones({ onContinuar }: Props) {
         </Consejo>
 
         <Consejo icono={ShieldAlert} titulo="Si la cédula ya está en otro campamento">
-          Deténgase. No cree un segundo registro: reporte a los analistas o confirme solo
-          si le indican que debe continuar.
+          Confirme con la persona qué pasó. Si de verdad se mudó a este campamento, use
+          «Trasladar a este campamento» (solo ella o su familia completa): el registro
+          anterior se cierra solo, sin duplicados. Ante la duda, reporte a los analistas.
         </Consejo>
 
         {enlaceTelegram && (

@@ -9,8 +9,10 @@ import {
   estadoNominalCedulaRed,
   listarMiembrosFamilia,
   registrarAlojamiento,
+  trasladarNominalACentro,
   upsertRefugiadoIdentidad,
   type EstadoNominalCedulaRed,
+  type ResultadoTrasladoNominal,
 } from "./reposRefugiados";
 import { marcarCensoProcesado } from "./reposCenso";
 import { supabase } from "./supabaseClient";
@@ -222,6 +224,22 @@ export async function estadoNominalPorCedula(
   // RPC SECURITY DEFINER: ve toda la red (solo centro_ids/flags, sin PII),
   // no solo los centros asignados a esta sesión. Ver upsertRefugiadoIdentidad.
   return estadoNominalCedulaRed(cedula_norm, centroId);
+}
+
+/**
+ * Traslada la cédula (o su familia completa) al campamento donde se está
+ * censando, cerrando sus alojamientos activos en otros campamentos. Ver
+ * `trasladarNominalACentro` en reposRefugiados.
+ */
+export async function trasladarCedulaACentro(
+  cedula: string,
+  letra: string,
+  centroId: string,
+  modo: "persona" | "familia",
+): Promise<ResultadoTrasladoNominal> {
+  const { cedula_norm } = normalizarCedula(cedula, tipoDocNexus(letra.toUpperCase()));
+  if (!cedula_norm) throw new Error("Cédula inválida para el traslado");
+  return trasladarNominalACentro(cedula_norm, centroId, modo);
 }
 
 /** Alta de un miembro sin documento (típicamente menores) directo al hogar activo. */

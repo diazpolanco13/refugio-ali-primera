@@ -286,12 +286,16 @@ datos viven en Postgres.
   **URL base y credenciales** de ese endpoint (pedido pendiente desde el
   11-jul). Wire-up documentado y listo en `nexusEndPoint/README.md` §6
   (~15 min: ruta nueva en el gateway + `AvatarImage` en `CensoNexusPanel`).
-- 🔁 **Traslado formal entre centros (nominal):** hoy, si una cédula ya está
-  activa en otro campamento, el censo por cédula **bloquea con aviso** (fecha,
-  quién y dónde) y exige confirmación explícita para continuar, pero no existe
-  un flujo de "cerrar el alojamiento viejo y abrir el nuevo" — el censista
-  decide y, si es necesario, el analista SAE corrige a mano desde
-  `/centros/refugiados`. Si se pide, construir esa acción de traslado.
+- ✅ **Traslado formal entre centros (nominal)** — HECHO (20-jul-2026): el
+  aviso "ya activa en otro campamento" del censo por cédula ahora ofrece
+  **"Trasladar solo a esta persona"** o **"Trasladar a toda la familia (N
+  miembros)"**. RPC `trasladar_nominal_a_centro` (`SECURITY DEFINER`,
+  `supabase/traslado_nominal_censo.sql`): egresa los alojamientos viejos con
+  motivo/destino de traslado y, en modo familia, recrea el hogar completo en
+  el destino (referencia, damnificación, residencia afectada, seguimiento);
+  queda en `historial` como `traslado_nominal`. El destino debe ser un
+  campamento donde la sesión puede censar (`mis_centros()`). El reporte por
+  Telegram a analistas sigue como vía secundaria para casos dudosos.
 - 🤖 **Bot de Telegram (emisor):** publicar el parte por campamento y el parte
   general de la red al grupo de enlaces desde un contenedor en Dokploy
   (formateadores ya listos en `src/domain/reporteTelegram*.ts`; el `REF:` del

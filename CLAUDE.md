@@ -48,6 +48,5 @@ Env local: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (ver `.env.example`).
 
 ## Pendientes (resumen)
 
-Foto SAIME (credenciales Nexus), bot Telegram emisor de partes, traslados
-nominales formales, limpieza resto módulo parque, Fase C Hermes. Detalle:
-`docs/traspaso.md` § «Qué falta».
+Foto SAIME (credenciales Nexus), bot Telegram emisor de partes, limpieza
+resto módulo parque, Fase C Hermes. Detalle: `docs/traspaso.md` § «Qué falta».

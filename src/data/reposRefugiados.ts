@@ -290,6 +290,10 @@ export interface OtroCentroActivo {
   esJefe: boolean;
   /** Username de quién lo registró en ese otro campamento. */
   registradoPor: string | null;
+  /** Hogar al que pertenece allá (null = alojado sin familia). */
+  familiaId: string | null;
+  /** Miembros activos de ese hogar (1 si está alojado sin familia). */
+  miembrosActivos: number;
 }
 
 export interface EstadoNominalCedulaRed {
@@ -331,6 +335,8 @@ export async function estadoNominalCedulaRed(
       creada_ts: number | null;
       es_jefe: boolean;
       registrado_por: string | null;
+      familia_id?: string | null;
+      miembros_activos?: number | null;
     }[];
   };
   return {
@@ -345,7 +351,56 @@ export async function estadoNominalCedulaRed(
       creadaTs: o.creada_ts,
       esJefe: o.es_jefe,
       registradoPor: o.registrado_por,
+      familiaId: o.familia_id ?? null,
+      miembrosActivos: o.miembros_activos ?? 1,
     })),
+  };
+}
+
+export interface ResultadoTrasladoNominal {
+  modo: "persona" | "familia";
+  /** Alojamientos cerrados (persona) o miembros movidos (familia). */
+  movidos: number;
+  /** Hogar recién creado en el destino (solo modo familia). */
+  familiaId: string | null;
+  centrosOrigen: string[];
+}
+
+/**
+ * Traslada a una persona (o a su familia completa) al campamento indicado,
+ * cerrando sus alojamientos activos previos en otros campamentos — nunca queda
+ * activa dos veces. RPC `SECURITY DEFINER` (la RLS le oculta al operador el
+ * campamento viejo, así que el cierre se hace del lado del servidor); exige
+ * que el destino sea un campamento donde la sesión puede censar y registra
+ * `traslado_nominal` en `historial`. En modo `familia` además copia el hogar
+ * (referencia, damnificación, residencia afectada) y mueve a todos los
+ * miembros activos; en modo `persona` el alojamiento nuevo lo crea el flujo
+ * normal del censo después.
+ */
+export async function trasladarNominalACentro(
+  cedulaNorm: string,
+  centroId: string,
+  modo: "persona" | "familia",
+): Promise<ResultadoTrasladoNominal> {
+  const { data, error } = await supabase.rpc("trasladar_nominal_a_centro", {
+    p_cedula_norm: cedulaNorm,
+    p_centro_id: centroId,
+    p_modo: modo,
+  });
+  if (error) {
+    throw new Error(`[reposRefugiados] traslado nominal: ${error.message}`);
+  }
+  const r = data as {
+    modo: string;
+    movidos: number | null;
+    familia_id: string | null;
+    centros_origen: string[] | null;
+  };
+  return {
+    modo: r.modo === "familia" ? "familia" : "persona",
+    movidos: r.movidos ?? 0,
+    familiaId: r.familia_id ?? null,
+    centrosOrigen: r.centros_origen ?? [],
   };
 }
 

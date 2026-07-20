@@ -74,6 +74,7 @@ import {
   miembrosHogarActual,
   registrarMiembroSinDocumento,
   registrarPersonaNexusEnNominal,
+  trasladarCedulaACentro,
   type EstadoNominalCedula,
 } from "@/data/reposCensoNexus";
 import {
@@ -636,6 +637,12 @@ export function CensoNexusPanel({
   // Confirmación explícita de continuar pese al aviso de duplicado — no se
   // puede crear el hogar / agregar al familiar sin marcarla primero.
   const [confirmoDuplicado, setConfirmoDuplicado] = useState(false);
+  // Traslado directo al campamento actual cuando la cédula figura activa en
+  // otro: cierra el registro viejo del lado del servidor (RPC) y refresca el
+  // estado nominal para que el flujo continúe sin duplicados.
+  const [trasladando, setTrasladando] = useState<null | "persona" | "familia">(null);
+  const [trasladoOk, setTrasladoOk] = useState("");
+  const [trasladoError, setTrasladoError] = useState("");
   /** Detalle SAIME (dirección, teléfonos, familiares): plegado por defecto. */
   const [infoSaimeAbierta, setInfoSaimeAbierta] = useState(false);
   /** Vulnerabilidades de la persona consultada por cédula. */
@@ -940,6 +947,9 @@ export function CensoNexusPanel({
     setTelNuevo("");
     setAgregandoTel(false);
     setConfirmoDuplicado(false);
+    setTrasladando(null);
+    setTrasladoOk("");
+    setTrasladoError("");
     setInfoSaimeAbierta(false);
     setResumenFamiliaAqui(null);
     setAgregarComoLider(false);
@@ -1003,6 +1013,36 @@ export function CensoNexusPanel({
       }
     } finally {
       setBuscando(false);
+    }
+  }
+
+  /**
+   * Traslada a la persona (o a su familia completa) a ESTE campamento: la RPC
+   * cierra los alojamientos activos en los otros campamentos y, en modo
+   * familia, recrea el hogar aquí. Después se refresca el estado nominal: el
+   * aviso rojo desaparece y el censo continúa por el camino normal (o por
+   * "Ir a esa familia" si la familia ya quedó registrada aquí).
+   */
+  async function onTrasladarAqui(modo: "persona" | "familia") {
+    if (!persona || trasladando) return;
+    setTrasladando(modo);
+    setTrasladoError("");
+    try {
+      const r = await trasladarCedulaACentro(persona.cedula, persona.letra, centroId, modo);
+      const nuevo = await estadoNominalPorCedula(persona.cedula, persona.letra, centroId);
+      setEstadoNominal(nuevo);
+      setConfirmoDuplicado(false);
+      setTrasladoOk(
+        modo === "familia"
+          ? `Familia trasladada a este campamento (${r.movidos} ${
+              r.movidos === 1 ? "miembro" : "miembros"
+            }). El registro anterior quedó cerrado; continúe con el hogar aquí.`
+          : "Registro anterior cerrado por traslado. Continúe el censo en este campamento.",
+      );
+    } catch (err) {
+      setTrasladoError(mensajeErrorParaUsuario(err, "No se pudo completar el traslado"));
+    } finally {
+      setTrasladando(null);
     }
   }
 
@@ -2527,6 +2567,15 @@ export function CensoNexusPanel({
               </CampoSiNo>
             </div>
 
+            {trasladoOk && !(estadoNominal && estadoNominal.otrosCentros.length > 0) ? (
+              <div className="flex items-start gap-2 rounded-lg border border-emerald-600/40 bg-emerald-600/10 px-3 py-2.5">
+                <Check className="mt-0.5 size-4 shrink-0 text-emerald-700 dark:text-emerald-400" />
+                <p className="text-sm font-medium leading-snug text-emerald-700 dark:text-emerald-400">
+                  {trasladoOk}
+                </p>
+              </div>
+            ) : null}
+
             {estadoNominal && estadoNominal.otrosCentros.length > 0 ? (
               <div className="space-y-3 rounded-lg border-2 border-destructive/60 bg-destructive/10 p-3">
                 <p className="flex items-center gap-2 text-sm font-semibold text-destructive">
@@ -2556,6 +2605,61 @@ export function CensoNexusPanel({
                   campamento cuyo registro anterior no se cerró, o{" "}
                   <strong className="text-foreground">(3)</strong> un error del sistema. No continúe sin
                   aclararlo con la persona.
+                </p>
+                <div className="space-y-2 rounded-md border border-border bg-background/60 p-2.5">
+                  <p className="text-xs font-medium leading-snug">
+                    Si la persona está físicamente aquí, trasládela a este campamento: se
+                    cierra su registro anterior y queda activa solo aquí (sin duplicados).
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="justify-start gap-1.5"
+                      disabled={trasladando !== null}
+                      onClick={() => {
+                        void onTrasladarAqui("persona");
+                      }}
+                    >
+                      {trasladando === "persona" ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <ArrowRight className="size-4" />
+                      )}
+                      Trasladar solo a esta persona
+                    </Button>
+                    {(() => {
+                      const conFamilia = estadoNominal.otrosCentros.find(
+                        (o) => o.familiaId && o.miembrosActivos > 1,
+                      );
+                      if (!conFamilia) return null;
+                      return (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="justify-start gap-1.5"
+                          disabled={trasladando !== null}
+                          onClick={() => {
+                            void onTrasladarAqui("familia");
+                          }}
+                        >
+                          {trasladando === "familia" ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Users className="size-4" />
+                          )}
+                          Trasladar a toda la familia ({conFamilia.miembrosActivos} miembros)
+                        </Button>
+                      );
+                    })()}
+                  </div>
+                  {trasladoError ? (
+                    <p className="text-xs leading-snug text-destructive">{trasladoError}</p>
+                  ) : null}
+                </div>
+                <p className="text-xs leading-snug text-muted-foreground">
+                  ¿Dudas sobre el caso? Repórtelo a un analista antes de trasladar:
                 </p>
                 {analistasContacto.filter(
                   (a) => a.telegram && tieneTelefonoContacto(a.telegram),
