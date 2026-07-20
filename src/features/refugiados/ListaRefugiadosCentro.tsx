@@ -1,10 +1,20 @@
 // Lista nominal de damnificados agrupada por familia en la pestaña Población.
 
 import { useMemo, useState } from "react";
-import { FilterX, Search, UserPlus, Users } from "lucide-react";
+import {
+  FileSpreadsheet,
+  FilterX,
+  Loader2,
+  Search,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import { useSesion } from "@/data/authSupabase";
 import { useAlojamientosCentro } from "@/data/useAlojamientosCentro";
 import { useRefugiadosRed } from "@/data/useRefugiadosRed";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
+import { puedeExportarCensoNominal } from "@/domain/permisos";
+import { exportarCensoNominalExcel } from "@/features/censo/exportarCensoNominal";
 import {
   agruparPorFamilia,
   detectarDuplicadosCedula,
@@ -52,10 +62,16 @@ export function ListaRefugiadosCentro({
 }: Props) {
   const { alojamientos, familias, cargando } = useAlojamientosCentro({ centroId: centro.id });
   const { alojamientos: alojamientosRed } = useRefugiadosRed();
+  const sesion = useSesion();
 
   const [busqueda, setBusqueda] = useState("");
   const [estado, setEstado] = useState<FiltroEstado>("activo");
   const [soloItinerante, setSoloItinerante] = useState(false);
+  const [exportando, setExportando] = useState(false);
+
+  const puedeExportar = sesion
+    ? puedeExportarCensoNominal(sesion.user.rol)
+    : false;
 
   const duplicados = useMemo(() => detectarDuplicadosCedula(alojamientosRed), [alojamientosRed]);
 
@@ -83,6 +99,18 @@ export function ListaRefugiadosCentro({
     setBusqueda("");
     setEstado("activo");
     setSoloItinerante(false);
+  }
+
+  async function exportarExcel() {
+    if (filtrados.length === 0 || exportando) return;
+    setExportando(true);
+    try {
+      await exportarCensoNominalExcel(filtrados, centro.nombre);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo exportar a Excel");
+    } finally {
+      setExportando(false);
+    }
   }
 
   function renderFila(a: AlojamientoEnriquecido) {
@@ -146,12 +174,31 @@ export function ListaRefugiadosCentro({
               {cargando && " · cargando…"}
             </CardDescription>
           </div>
-          {puedeEditar && (
-            <Button type="button" size="sm" className="gap-1.5" onClick={onRegistrar}>
-              <UserPlus className="size-4" />
-              Registrar persona
-            </Button>
-          )}
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {puedeExportar && (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="gap-1.5 border border-border shadow-sm"
+                disabled={cargando || filtrados.length === 0 || exportando}
+                onClick={() => void exportarExcel()}
+              >
+                {exportando ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="size-4" />
+                )}
+                {exportando ? "Exportando…" : "Descargar Excel"}
+              </Button>
+            )}
+            {puedeEditar && (
+              <Button type="button" size="sm" className="gap-1.5" onClick={onRegistrar}>
+                <UserPlus className="size-4" />
+                Registrar persona
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

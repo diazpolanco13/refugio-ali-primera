@@ -296,6 +296,20 @@ export function puedeEditarCensoCentro(usuario: Usuario, centroId: string): bool
 }
 
 /**
+ * Descargar el Excel del censo nominal de un campamento (relación por
+ * campamento): admin, analista SAE, supervisor y autoridad. El operador y
+ * censo_rapido no extraen el listado nominal.
+ */
+export function puedeExportarCensoNominal(rol: Rol): boolean {
+  return (
+    rol === "admin" ||
+    rol === "analista_sae" ||
+    rol === "supervisor" ||
+    rol === "autoridad"
+  );
+}
+
+/**
  * Densidad de columnas del listado nominal en reportes (más amplio que el
  * censador terreno). Admin / analista SAE / autoridad ven demografía y PII
  * de contacto; supervisor y censo_rapido ven el set operativo.

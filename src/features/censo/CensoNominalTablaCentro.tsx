@@ -18,8 +18,12 @@ import {
   esUsernameOperadorTerreno,
   useEtiquetaPerfil,
 } from "@/data/useEtiquetaPerfil";
+import { useSesion } from "@/data/authSupabase";
 import { supabase } from "@/data/supabaseClient";
-import type { NivelColumnasCensoNominal } from "@/domain/permisos";
+import {
+  puedeExportarCensoNominal,
+  type NivelColumnasCensoNominal,
+} from "@/domain/permisos";
 import {
   agruparPorFamilia,
   calcularEdad,
@@ -653,6 +657,10 @@ export function CensoNominalTablaCentro({
   const [direccionOrden, setDireccionOrden] = useState<DireccionOrden>("desc");
   const [pagina, setPagina] = useState(0);
   const [exportando, setExportando] = useState(false);
+  const sesion = useSesion();
+  const puedeExportar = sesion
+    ? puedeExportarCensoNominal(sesion.user.rol)
+    : false;
   const [estatusLocal, setEstatusLocal] = useState<
     Map<string, EstatusVivienda>
   >(new Map());
@@ -907,21 +915,23 @@ export function CensoNominalTablaCentro({
                 : `${alojamientos.length.toLocaleString("es")} persona${alojamientos.length === 1 ? "" : "s"} activa${alojamientos.length === 1 ? "" : "s"} · ${filtrados.length.toLocaleString("es")} visible${filtrados.length === 1 ? "" : "s"} · ${FILAS_POR_PAGINA} por página (más recientes primero)`}
             </CardDescription>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            className="h-9 shrink-0 gap-1.5 border border-border shadow-sm"
-            disabled={cargando || filtrados.length === 0 || exportando}
-            onClick={() => void exportarExcel()}
-          >
-            {exportando ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <FileSpreadsheet className="size-4" />
-            )}
-            {exportando ? "Exportando…" : "Descargar Excel"}
-          </Button>
+          {puedeExportar ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="h-9 shrink-0 gap-1.5 border border-border shadow-sm"
+              disabled={cargando || filtrados.length === 0 || exportando}
+              onClick={() => void exportarExcel()}
+            >
+              {exportando ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="size-4" />
+              )}
+              {exportando ? "Exportando…" : "Descargar Excel"}
+            </Button>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[12rem] flex-1">
