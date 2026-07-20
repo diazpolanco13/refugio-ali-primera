@@ -36,6 +36,7 @@ Env local: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (ver `.env.example`).
 | Botones/Selects con relieve | `.cursor/rules/ui-controles-visibles.mdc` |
 | Hermes / IA local | `docs/hermes-gateway.md` |
 | Identidad terreno | `docs/plan-identidad-terreno.md` |
+| Migración operadores a contraseña | `docs/plan-migracion-operadores-password.md` |
 | Usuarios/roles | `docs/sistema-usuarios.md` |
 
 ## Gotchas críticos (releer detalle en traspaso)
