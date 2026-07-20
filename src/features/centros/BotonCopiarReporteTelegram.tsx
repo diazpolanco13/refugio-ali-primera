@@ -13,6 +13,7 @@ import { useRequerimientosSeguimiento } from "@/data/useRequerimientosSeguimient
 import { casosAbiertosSeguimiento } from "@/domain/casosSalud";
 import { reporteControlDelDia } from "@/domain/controlReporte";
 import { eventosDelDia } from "@/domain/eventosReportes";
+import { trabajosParaParteDelDia } from "@/domain/reparaciones";
 import { textoReporteTelegramCentro } from "@/domain/reporteTelegramCentro";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { IconoTelegram } from "@/components/IconoTelegram";
@@ -35,7 +36,8 @@ export function BotonCopiarReporteTelegram({ centro, dia, className }: Props) {
   const reportes = useReportesCentros({ centroId: centro.id, dia });
   const controles = useReportesControlDia({ centroId: centro.id, dia });
   const { eventos } = useEventosReportes({ centroId: centro.id, dia });
-  const { trabajos } = useReparacionesCentros({ centroId: centro.id, soloActivos: true });
+  // Todos los trabajos: el parte del día incluye completados luego archivados.
+  const { trabajos } = useReparacionesCentros({ centroId: centro.id });
   const { requerimientos: requerimientosActivos } = useRequerimientosSeguimiento({
     centroId: centro.id,
     soloActivos: true,
@@ -51,7 +53,7 @@ export function BotonCopiarReporteTelegram({ centro, dia, className }: Props) {
       reporte: reportes.find((r) => r.dia === dia),
       controlDia: reporteControlDelDia(controles, centro.id, dia),
       eventosDia: eventosDelDia(eventos, centro.id, dia),
-      trabajosActivos: trabajos,
+      trabajosActivos: trabajosParaParteDelDia(trabajos, dia),
       requerimientosActivos,
       casosSaludAbiertos,
     });

@@ -2,6 +2,7 @@
 // subida de fotos al bucket Storage.
 
 import {
+  debeAutoArchivarTrabajo,
   normalizarEstatus,
   normalizarFotos,
   normalizarTrabajo,
@@ -126,8 +127,17 @@ export async function actualizarTrabajo(
   if (cambios.finalidad !== undefined) fila.finalidad = cambios.finalidad.trim();
   if (cambios.descripcion !== undefined) fila.descripcion = cambios.descripcion.trim();
   if (cambios.estatus !== undefined) {
-    fila.estatus = normalizarEstatus(cambios.estatus);
-    fila.resuelta_ts = cambios.estatus === "completado" ? now : null;
+    const estatus = normalizarEstatus(cambios.estatus);
+    fila.estatus = estatus;
+    if (estatus === "completado") {
+      fila.resuelta_ts = now;
+      fila.archivada_ts = null;
+    } else if (estatus === "archivado") {
+      fila.archivada_ts = now;
+    } else {
+      fila.resuelta_ts = null;
+      fila.archivada_ts = null;
+    }
   }
   if (cambios.fotos !== undefined) fila.fotos = normalizarFotos(cambios.fotos);
   if (cambios.area_infraestructura_id !== undefined) {
@@ -159,6 +169,21 @@ export async function archivarTrabajo(id: string): Promise<void> {
     throw new Error(`[reposReparaciones] archivar: ${error.message}`);
   }
   registrarHistorial("archivar_trabajo", "trabajo", id);
+}
+
+/**
+ * Pasa a archivado los completados de días anteriores a `hoyClave`.
+ * Idempotente; pensado para correr al abrir el reporte / pestaña Trabajos.
+ */
+export async function archivarTrabajosCompletadosVencidos(
+  trabajos: TrabajoCentro[],
+  hoyClave: string = claveDia(Date.now()),
+): Promise<number> {
+  const vencidos = trabajos.filter((t) => debeAutoArchivarTrabajo(t, hoyClave));
+  for (const t of vencidos) {
+    await archivarTrabajo(t.id);
+  }
+  return vencidos.length;
 }
 
 export async function agregarFotoReparacion(

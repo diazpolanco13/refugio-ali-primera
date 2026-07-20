@@ -107,6 +107,25 @@ export function eventosDelDia(
     .sort((a, b) => a.ts - b.ts || a.titulo.localeCompare(b.titulo, "es"));
 }
 
+/**
+ * Novedades de días anteriores a `diaActual` (historial / archivados del reporte).
+ * El día en curso permanece en la vista activa para el parte y Telegram.
+ */
+export function eventosArchivados(
+  eventos: EventoReporte[],
+  centroId: string,
+  diaActual: string,
+): EventoReporte[] {
+  return eventos
+    .filter((e) => e.centro_id === centroId && e.dia < diaActual)
+    .sort(
+      (a, b) =>
+        b.dia.localeCompare(a.dia) ||
+        b.ts - a.ts ||
+        a.titulo.localeCompare(b.titulo, "es"),
+    );
+}
+
 /** Mínimo de palabras en el título (evita títulos como «Pelea»). */
 export const MIN_PALABRAS_TITULO_EVENTO = 4;
 

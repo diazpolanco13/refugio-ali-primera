@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
   Check,
@@ -12,10 +12,13 @@ import { useReparacionesCentros } from "@/data/useReparacionesCentros";
 import {
   actualizarTrabajo,
   archivarTrabajo,
+  archivarTrabajosCompletadosVencidos,
   crearTrabajo,
   eliminarTrabajo,
 } from "@/data/reposReparaciones";
+import { claveDia } from "@/data/reposSupabase";
 import {
+  debeAutoArchivarTrabajo,
   ESTATUS_TRABAJO,
   META_ESTATUS_TRABAJO,
   puedeArchivarTrabajo,
@@ -61,6 +64,8 @@ interface Props {
   guardando?: boolean;
 }
 
+type VistaTrabajos = "activos" | "archivados";
+
 function TarjetaTrabajo({
   trabajo,
   onEditar,
@@ -71,7 +76,7 @@ function TarjetaTrabajo({
 }: {
   trabajo: TrabajoCentro;
   onEditar: () => void;
-  onArchivar: () => void;
+  onArchivar?: () => void;
   onEliminar: () => void;
   eliminando?: boolean;
   deshabilitado?: boolean;
@@ -83,6 +88,8 @@ function TarjetaTrabajo({
         "rounded-lg border border-border bg-card px-3 py-2.5",
         trabajo.estatus === "pendiente" && "border-red-500/30 bg-red-500/5",
         trabajo.estatus === "en_progreso" && "border-amber-500/25 bg-amber-500/5",
+        trabajo.estatus === "completado" && "border-emerald-500/30 bg-emerald-500/5",
+        trabajo.estatus === "archivado" && "border-border/70 bg-muted/30",
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -115,7 +122,7 @@ function TarjetaTrabajo({
           <Button type="button" size="icon-xs" variant="ghost" disabled={deshabilitado || eliminando} onClick={onEditar}>
             <Pencil className="size-3.5" />
           </Button>
-          {puedeArchivarTrabajo(trabajo.estatus) && (
+          {onArchivar && puedeArchivarTrabajo(trabajo.estatus) && (
             <Button
               type="button"
               size="icon-xs"
@@ -173,10 +180,16 @@ export function TrabajosReporteTab({
   deshabilitado,
   guardando,
 }: Props) {
-  const { trabajos, recargar: recargarTrabajos } = useReparacionesCentros({
+  const hoyReal = useMemo(() => claveDia(Date.now()), []);
+  const { trabajos: activos, recargar: recargarActivos } = useReparacionesCentros({
     centroId,
     soloActivos: true,
   });
+  const { trabajos: archivados, recargar: recargarArchivados } = useReparacionesCentros({
+    centroId,
+    estatus: "archivado",
+  });
+  const [vista, setVista] = useState<VistaTrabajos>("activos");
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [titulo, setTitulo] = useState("");
   const [finalidad, setFinalidad] = useState("");
@@ -186,6 +199,21 @@ export function TrabajosReporteTab({
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
   const [listadoModificado, setListadoModificado] = useState(false);
   const revisadoPrevio = useRef(revisado);
+  const autoArchivoHecho = useRef(false);
+
+  async function recargarTodo() {
+    await Promise.all([recargarActivos(), recargarArchivados()]);
+  }
+
+  // Completados de días previos → archivados (el día de cierre se queda en activos).
+  useEffect(() => {
+    if (autoArchivoHecho.current || activos.length === 0) return;
+    if (!activos.some((t) => debeAutoArchivarTrabajo(t, hoyReal))) return;
+    autoArchivoHecho.current = true;
+    void archivarTrabajosCompletadosVencidos(activos, hoyReal).then((n) => {
+      if (n > 0) void recargarTodo();
+    });
+  }, [activos, hoyReal]);
 
   useEffect(() => {
     if (revisado && !revisadoPrevio.current) {
@@ -203,11 +231,13 @@ export function TrabajosReporteTab({
   }
 
   function cargarEdicion(t: TrabajoCentro) {
+    // Reactivar desde archivados: vuelve a «En curso» con formulario.
+    setVista("activos");
     setEditandoId(t.id);
     setTitulo(t.titulo);
     setFinalidad(t.finalidad);
     setDescripcion(t.descripcion);
-    setEstatus(t.estatus);
+    setEstatus(t.estatus === "archivado" ? "completado" : t.estatus);
   }
 
   async function guardarItem() {
@@ -233,7 +263,7 @@ export function TrabajosReporteTab({
       }
       resetForm();
       setListadoModificado(true);
-      await recargarTrabajos();
+      await recargarTodo();
     } finally {
       setGuardandoItem(false);
     }
@@ -245,7 +275,7 @@ export function TrabajosReporteTab({
       await eliminarTrabajo(id);
       if (editandoId === id) resetForm();
       setListadoModificado(true);
-      await recargarTrabajos();
+      await recargarTodo();
     } finally {
       setEliminandoId(null);
     }
@@ -268,12 +298,14 @@ export function TrabajosReporteTab({
       : "Guarda el trabajo en edición antes de guardar todos los cambios."
     : undefined;
 
+  const lista = vista === "activos" ? activos : archivados;
+
   return (
     <div className="space-y-4">
       <BloqueConfirmacionReporte
         titulo="Trabajos activos"
         tituloRevisado="Trabajos revisados hoy"
-        descripcion="Revisa el listado, actualiza estatus o añade trabajos nuevos antes de confirmar."
+        descripcion="Revisa el listado, actualiza estatus o añade trabajos nuevos antes de confirmar. Los completados pasan a Archivados al día siguiente."
         icono={Wrench}
         acento="amber"
         revisado={revisado}
@@ -289,89 +321,126 @@ export function TrabajosReporteTab({
         mensajeConfirmacionBloqueada={mensajeBloqueoConfirmacion}
         badgeExtra={
           <Badge variant="outline" className="tabular-nums">
-            {trabajos.length} {trabajos.length === 1 ? "ítem" : "ítems"}
+            {activos.length} {activos.length === 1 ? "activo" : "activos"}
           </Badge>
         }
       />
 
-      <Card size="sm" className="border-border/80">
-        <CardContent className="space-y-2 px-3 py-3">
-          <p className="text-xs font-medium">{editandoId ? "Editar trabajo" : "Nuevo trabajo"}</p>
-          <div>
-            <Label className="text-[11px] text-muted-foreground">Trabajo</Label>
-            <Input className="mt-1" value={titulo} disabled={deshabilitado} onChange={(e) => setTitulo(e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-[11px] text-muted-foreground">Finalidad</Label>
-            <Input
-              className="mt-1"
-              value={finalidad}
-              disabled={deshabilitado}
-              onChange={(e) => setFinalidad(e.target.value)}
-              placeholder="Problema que resuelve"
-            />
-          </div>
-          <div>
-            <Label className="text-[11px] text-muted-foreground">Detalle (opcional)</Label>
-            <Textarea
-              className="mt-1 min-h-[3rem]"
-              rows={2}
-              value={descripcion}
-              disabled={deshabilitado}
-              onChange={(e) => setDescripcion(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label className="text-[11px] text-muted-foreground">Progreso</Label>
-            <Select value={estatus} onValueChange={(v) => setEstatus(v as EstatusTrabajo)} disabled={deshabilitado}>
-              <SelectTrigger className={claseSelectReporte}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ESTATUS_TRABAJO.filter((e) => e.valor !== "archivado").map((e) => (
-                  <SelectItem key={e.valor} value={e.valor}>
-                    {e.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" disabled={!titulo.trim() || guardandoItem || deshabilitado} onClick={() => void guardarItem()}>
-              {guardandoItem ? <Loader2 className="size-3.5 animate-spin" /> : editandoId ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
-              {editandoId ? "Actualizar" : "Guardar este trabajo"}
-            </Button>
-            {editandoId && (
-              <Button type="button" size="sm" variant="outline" onClick={resetForm}>
-                Cancelar
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            type="button"
+            size="sm"
+            variant={vista === "activos" ? "default" : "outline"}
+            className="h-8"
+            onClick={() => setVista("activos")}
+          >
+            En curso
+            {activos.length > 0 ? ` (${activos.length})` : ""}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={vista === "archivados" ? "default" : "outline"}
+            className="h-8 gap-1.5"
+            onClick={() => {
+              setVista("archivados");
+              if (editandoId) resetForm();
+            }}
+          >
+            <Archive className="size-3.5" />
+            Archivados
+            {archivados.length > 0 ? ` (${archivados.length})` : ""}
+          </Button>
+        </div>
+      </div>
 
-      {trabajos.length > 0 ? (
+      {vista === "activos" && (
+        <Card size="sm" className="border-border/80">
+          <CardContent className="space-y-2 px-3 py-3">
+            <p className="text-xs font-medium">{editandoId ? "Editar trabajo" : "Nuevo trabajo"}</p>
+            <div>
+              <Label className="text-[11px] text-muted-foreground">Trabajo</Label>
+              <Input className="mt-1" value={titulo} disabled={deshabilitado} onChange={(e) => setTitulo(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-[11px] text-muted-foreground">Finalidad</Label>
+              <Input
+                className="mt-1"
+                value={finalidad}
+                disabled={deshabilitado}
+                onChange={(e) => setFinalidad(e.target.value)}
+                placeholder="Problema que resuelve"
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] text-muted-foreground">Detalle (opcional)</Label>
+              <Textarea
+                className="mt-1 min-h-[3rem]"
+                rows={2}
+                value={descripcion}
+                disabled={deshabilitado}
+                onChange={(e) => setDescripcion(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] text-muted-foreground">Progreso</Label>
+              <Select value={estatus} onValueChange={(v) => setEstatus(v as EstatusTrabajo)} disabled={deshabilitado}>
+                <SelectTrigger className={claseSelectReporte}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ESTATUS_TRABAJO.filter((e) => e.valor !== "archivado").map((e) => (
+                    <SelectItem key={e.valor} value={e.valor}>
+                      {e.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" disabled={!titulo.trim() || guardandoItem || deshabilitado} onClick={() => void guardarItem()}>
+                {guardandoItem ? <Loader2 className="size-3.5 animate-spin" /> : editandoId ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
+                {editandoId ? "Actualizar" : "Guardar este trabajo"}
+              </Button>
+              {editandoId && (
+                <Button type="button" size="sm" variant="outline" onClick={resetForm}>
+                  Cancelar
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {lista.length > 0 ? (
         <ul className="space-y-2">
-          {trabajos.map((t) => (
+          {lista.map((t) => (
             <li key={t.id}>
               <TarjetaTrabajo
                 trabajo={t}
                 deshabilitado={deshabilitado}
                 eliminando={eliminandoId === t.id}
                 onEditar={() => cargarEdicion(t)}
-                onArchivar={() => {
-                  void archivarTrabajo(t.id).then(async () => {
-                    setListadoModificado(true);
-                    await recargarTrabajos();
-                  });
-                }}
+                onArchivar={
+                  vista === "activos"
+                    ? () => {
+                        void archivarTrabajo(t.id).then(async () => {
+                          setListadoModificado(true);
+                          await recargarTodo();
+                        });
+                      }
+                    : undefined
+                }
                 onEliminar={() => void eliminarItem(t.id)}
               />
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-muted-foreground">Sin trabajos abiertos.</p>
+        <p className="text-xs text-muted-foreground">
+          {vista === "activos" ? "Sin trabajos abiertos." : "Sin trabajos archivados."}
+        </p>
       )}
     </div>
   );

@@ -3,9 +3,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  Archive,
   CalendarPlus,
   Check,
   Circle,
+  Loader2,
   Pencil,
   Plus,
   ThumbsDown,
@@ -15,12 +17,15 @@ import {
   Users,
 } from "lucide-react";
 import { useAlojamientosCentro } from "@/data/useAlojamientosCentro";
+import { useEventosReportes } from "@/data/useEventosReportes";
+import { eliminarEventoReporte } from "@/data/reposEventosReportes";
 import { nuevoId } from "@/data/reposSupabase";
 import {
   CATALOGO_TIPOS_EVENTO_REPORTE,
   META_TIPO_EVENTO_REPORTE,
   MIN_PALABRAS_TITULO_EVENTO,
   TIPO_EVENTO_REPORTE_DEFAULT,
+  eventosArchivados,
   textoParticipantesEvento,
   tituloEventoValido,
   type EventoReporte,
@@ -30,9 +35,21 @@ import {
 import { formatearCedula, nombreCompleto, type AlojamientoEnriquecido } from "@/domain/refugiados";
 import { BloqueConfirmacionReporte } from "@/features/centros/BloqueConfirmacionReporte";
 import { claseSelectReporte } from "@/features/centros/clasesReporte";
+import { formatearDiaCalendario } from "@/features/centros/CalendarioSelectorDia";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Command,
   CommandEmpty,
@@ -54,6 +71,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { normalizarTextoBusqueda } from "./CentrosListaItems";
+
+type VistaNovedades = "dia" | "archivados";
 
 interface Props {
   centroId: string;
@@ -137,11 +156,21 @@ export function EventosReporteTab({
   guardando,
 }: Props) {
   const { alojamientos, cargando } = useAlojamientosCentro({ centroId, estado: "activo" });
+  const { eventos: eventosCentro, recargar: recargarHistorial } = useEventosReportes({
+    centroId,
+  });
+  const [vista, setVista] = useState<VistaNovedades>("dia");
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [borrador, setBorrador] = useState<BorradorEvento>(BORRADOR_INICIAL);
   const [consulta, setConsulta] = useState("");
   const [nombreManual, setNombreManual] = useState("");
   const [selectorAbierto, setSelectorAbierto] = useState(false);
+  const [eliminandoArchivadoId, setEliminandoArchivadoId] = useState<string | null>(null);
+
+  const archivados = useMemo(
+    () => eventosArchivados(eventosCentro, centroId, dia),
+    [eventosCentro, centroId, dia],
+  );
 
   const borradorPendiente =
     editandoId !== null ||
@@ -269,6 +298,16 @@ export function EventosReporteTab({
     const restantes = eventos.filter((evento) => evento.id !== id);
     onEventosChange(restantes);
     if (restantes.length === 0) onEventosRevisadosChange(false);
+  }
+
+  async function eliminarArchivado(id: string) {
+    setEliminandoArchivadoId(id);
+    try {
+      await eliminarEventoReporte(id);
+      await recargarHistorial();
+    } finally {
+      setEliminandoArchivadoId(null);
+    }
   }
 
   const mensajeBloqueoConfirmacion = borradorPendiente
@@ -487,7 +526,7 @@ export function EventosReporteTab({
       <BloqueConfirmacionReporte
         titulo="Novedades y eventos"
         tituloRevisado="Novedades revisadas hoy"
-        descripcion="Registra actividades y novedades (neutras, positivas o negativas) relevantes para el cierre diario."
+        descripcion="Registra actividades y novedades (neutras, positivas o negativas) relevantes para el cierre diario. Las de días previos quedan en Archivados."
         icono={CalendarPlus}
         acento="teal"
         revisado={eventosRevisados}
@@ -510,92 +549,222 @@ export function EventosReporteTab({
         }
       />
 
-      {formularioNovedad}
+      <div className="flex flex-wrap gap-1.5">
+        <Button
+          type="button"
+          size="sm"
+          variant={vista === "dia" ? "default" : "outline"}
+          className="h-8"
+          onClick={() => setVista("dia")}
+        >
+          Del día
+          {eventos.length > 0 ? ` (${eventos.length})` : ""}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={vista === "archivados" ? "default" : "outline"}
+          className="h-8 gap-1.5"
+          onClick={() => {
+            setVista("archivados");
+            if (editandoId) resetForm();
+          }}
+        >
+          <Archive className="size-3.5" />
+          Archivados
+          {archivados.length > 0 ? ` (${archivados.length})` : ""}
+        </Button>
+      </div>
 
-      {eventos.length > 0 ? (
-        <div className="space-y-2">
-          {eventos.map((evento) => {
-            const meta = META_TIPO_EVENTO_REPORTE[evento.tipo];
-            const enEdicion = editandoId === evento.id;
-            return (
-              <Card
-                key={evento.id}
-                size="sm"
-                className={cn(
-                  "border-border/80 py-0",
-                  enEdicion && "border-teal-500/40 bg-teal-500/5",
-                )}
-              >
-                <CardContent className="flex min-w-0 items-start gap-2 px-3 py-2.5">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/40">
-                    <IconoTipoEvento tipo={evento.tipo} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="min-w-0 truncate text-sm font-medium text-foreground">
-                        {evento.titulo}
-                      </p>
-                      <Badge
-                        variant="outline"
-                        className="px-1.5 py-0 text-[10px]"
-                        style={{ borderColor: `${meta.color}66`, color: meta.color }}
-                      >
-                        {meta.label}
-                      </Badge>
-                      <span className="text-[10px] tabular-nums text-muted-foreground">
-                        {horaDesdeTs(evento.ts) || "Sin hora"}
-                      </span>
-                    </div>
-                    {evento.descripcion && (
-                      <p className="mt-1 whitespace-pre-wrap text-xs leading-snug text-muted-foreground">
-                        {evento.descripcion}
-                      </p>
+      {vista === "dia" && (
+        <>
+          {formularioNovedad}
+
+          {eventos.length > 0 ? (
+            <div className="space-y-2">
+              {eventos.map((evento) => {
+                const meta = META_TIPO_EVENTO_REPORTE[evento.tipo];
+                const enEdicion = editandoId === evento.id;
+                return (
+                  <Card
+                    key={evento.id}
+                    size="sm"
+                    className={cn(
+                      "border-border/80 py-0",
+                      enEdicion && "border-teal-500/40 bg-teal-500/5",
                     )}
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      <Users className="mr-1 inline size-3" />
-                      {textoParticipantesEvento(evento)}
-                    </p>
-                    {evento.participantes.length > 0 && (
-                      <div className="mt-1.5 flex flex-wrap gap-1">
-                        {evento.participantes.map((p, i) => (
-                          <Badge key={`${evento.id}-${i}`} variant="secondary" className="text-[10px]">
-                            {etiquetaParticipante(p)}
-                          </Badge>
-                        ))}
+                  >
+                    <CardContent className="flex min-w-0 items-start gap-2 px-3 py-2.5">
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/40">
+                        <IconoTipoEvento tipo={evento.tipo} />
                       </div>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 gap-0.5">
-                    <Button
-                      type="button"
-                      size="icon-xs"
-                      variant="ghost"
-                      disabled={deshabilitado}
-                      onClick={() => cargarEdicion(evento)}
-                      aria-label="Editar novedad"
-                    >
-                      <Pencil className="size-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="icon-xs"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive"
-                      disabled={deshabilitado}
-                      onClick={() => quitarEvento(evento.id)}
-                      aria-label="Eliminar novedad"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground">Sin novedades registradas.</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="min-w-0 truncate text-sm font-medium text-foreground">
+                            {evento.titulo}
+                          </p>
+                          <Badge
+                            variant="outline"
+                            className="px-1.5 py-0 text-[10px]"
+                            style={{ borderColor: `${meta.color}66`, color: meta.color }}
+                          >
+                            {meta.label}
+                          </Badge>
+                          <span className="text-[10px] tabular-nums text-muted-foreground">
+                            {horaDesdeTs(evento.ts) || "Sin hora"}
+                          </span>
+                        </div>
+                        {evento.descripcion && (
+                          <p className="mt-1 whitespace-pre-wrap text-xs leading-snug text-muted-foreground">
+                            {evento.descripcion}
+                          </p>
+                        )}
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          <Users className="mr-1 inline size-3" />
+                          {textoParticipantesEvento(evento)}
+                        </p>
+                        {evento.participantes.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {evento.participantes.map((p, i) => (
+                              <Badge key={`${evento.id}-${i}`} variant="secondary" className="text-[10px]">
+                                {etiquetaParticipante(p)}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 gap-0.5">
+                        <Button
+                          type="button"
+                          size="icon-xs"
+                          variant="ghost"
+                          disabled={deshabilitado}
+                          onClick={() => cargarEdicion(evento)}
+                          aria-label="Editar novedad"
+                        >
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon-xs"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          disabled={deshabilitado}
+                          onClick={() => quitarEvento(evento.id)}
+                          aria-label="Eliminar novedad"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Sin novedades registradas.</p>
+          )}
+        </>
       )}
+
+      {vista === "archivados" &&
+        (archivados.length > 0 ? (
+          <div className="space-y-2">
+            {archivados.map((evento) => {
+              const meta = META_TIPO_EVENTO_REPORTE[evento.tipo];
+              const eliminando = eliminandoArchivadoId === evento.id;
+              return (
+                <Card
+                  key={evento.id}
+                  size="sm"
+                  className="border-border/70 bg-muted/20 py-0"
+                >
+                  <CardContent className="flex min-w-0 items-start gap-2 px-3 py-2.5">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/40">
+                      <IconoTipoEvento tipo={evento.tipo} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="min-w-0 truncate text-sm font-medium text-foreground">
+                          {evento.titulo}
+                        </p>
+                        <Badge
+                          variant="outline"
+                          className="px-1.5 py-0 text-[10px]"
+                          style={{ borderColor: `${meta.color}66`, color: meta.color }}
+                        >
+                          {meta.label}
+                        </Badge>
+                        <Badge variant="secondary" className="px-1.5 py-0 text-[10px] tabular-nums">
+                          {formatearDiaCalendario(evento.dia)}
+                        </Badge>
+                        <span className="text-[10px] tabular-nums text-muted-foreground">
+                          {horaDesdeTs(evento.ts) || "Sin hora"}
+                        </span>
+                      </div>
+                      {evento.descripcion && (
+                        <p className="mt-1 whitespace-pre-wrap text-xs leading-snug text-muted-foreground">
+                          {evento.descripcion}
+                        </p>
+                      )}
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        <Users className="mr-1 inline size-3" />
+                        {textoParticipantesEvento(evento)}
+                      </p>
+                      {evento.participantes.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {evento.participantes.map((p, i) => (
+                            <Badge key={`${evento.id}-${i}`} variant="secondary" className="text-[10px]">
+                              {etiquetaParticipante(p)}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          type="button"
+                          size="icon-xs"
+                          variant="ghost"
+                          className="shrink-0 text-destructive hover:text-destructive"
+                          disabled={deshabilitado || eliminando}
+                          aria-label="Eliminar novedad archivada"
+                        >
+                          {eliminando ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-3.5" />
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Eliminar novedad?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Se eliminará «{evento.titulo}» del reporte del{" "}
+                            {formatearDiaCalendario(evento.dia)}. Esta acción no se puede deshacer.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => void eliminarArchivado(evento.id)}
+                          >
+                            Eliminar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">Sin novedades archivadas.</p>
+        ))}
     </div>
   );
 }

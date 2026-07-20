@@ -9,7 +9,11 @@ import type { SnapshotOcupacion } from "./serieOcupacionCentros";
 import type { ReporteDiario } from "./reporteDiario";
 import type { ReporteControlDia } from "./controlReporte";
 import type { EventoReporte } from "./eventosReportes";
-import { META_ESTATUS_TRABAJO, type TrabajoCentro } from "./reparaciones";
+import {
+  META_ESTATUS_TRABAJO,
+  trabajosParaParteDelDia,
+  type TrabajoCentro,
+} from "./reparaciones";
 import type { RequerimientoSeguimiento } from "./requerimientosSeguimiento";
 import { metaUnidadSebinDe } from "./unidadesSebin";
 import { META_ESTATUS_CASO_SALUD, type CasoSaludCentro } from "./casosSalud";
@@ -158,7 +162,8 @@ export function textoReporteTelegramCentro({
   }
 
   // ---- Trabajos en ejecución ----
-  const trabajos = trabajosActivos.filter((t) => t.estatus !== "archivado");
+  // Incluye archivados resueltos ese día (parte histórico tras auto-archivo).
+  const trabajos = trabajosParaParteDelDia(trabajosActivos, dia);
   if (trabajos.length > 0) {
     partes.push(
       [

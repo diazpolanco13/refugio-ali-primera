@@ -155,9 +155,45 @@ export function normalizarReporteReparacionesDia(
   };
 }
 
-/** Trabajos activos (no archivados). */
+/** Trabajos activos (no archivados). Incluye completados del día. */
 export function trabajosActivos(trabajos: TrabajoCentro[]): TrabajoCentro[] {
   return trabajos.filter((t) => t.estatus !== "archivado");
+}
+
+/** Trabajos ya archivados (historial). */
+export function trabajosArchivados(trabajos: TrabajoCentro[]): TrabajoCentro[] {
+  return trabajos.filter((t) => t.estatus === "archivado");
+}
+
+/** Día YYYY-MM-DD en que se marcó completado (null si no aplica). */
+export function diaResueltaTrabajo(t: TrabajoCentro): string | null {
+  if (t.resuelta_ts == null || t.resuelta_ts <= 0) return null;
+  return claveDesdeTs(t.resuelta_ts);
+}
+
+/**
+ * Completado en un día anterior a `hoyClave` → debe pasar a archivados.
+ * El día de cierre permanece en activos (parte / Telegram / PDF).
+ */
+export function debeAutoArchivarTrabajo(t: TrabajoCentro, hoyClave: string): boolean {
+  if (t.estatus !== "completado") return false;
+  const dia = diaResueltaTrabajo(t);
+  if (!dia) return true;
+  return dia < hoyClave;
+}
+
+/**
+ * Ítems del parte de `diaClave`: vivos + archivados resueltos ese día
+ * (el parte histórico sigue mostrando lo completado aunque ya se archivó).
+ */
+export function trabajosParaParteDelDia(
+  trabajos: TrabajoCentro[],
+  diaClave: string,
+): TrabajoCentro[] {
+  return trabajos.filter((t) => {
+    if (t.estatus !== "archivado") return true;
+    return diaResueltaTrabajo(t) === diaClave;
+  });
 }
 
 /** @deprecated Usar trabajosActivos */
