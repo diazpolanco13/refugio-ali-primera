@@ -370,7 +370,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
     return (
       <VistaPagina
         icono={IdCard}
-        titulo="Identificaciones de terreno"
+        titulo="Usuarios de Campo"
         descripcion="Solo administración y analistas SAE pueden revisar esta bandeja."
       >
         <EstadoVacio titulo="Sin acceso" descripcion="Su rol no puede revisar identificaciones." />
@@ -381,7 +381,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
   return (
     <VistaPagina
       icono={IdCard}
-      titulo="Identificaciones de terreno"
+      titulo="Usuarios de Campo"
       descripcion="Operadores que se identificaron con su cédula desde el QR del campamento. Apruebe o rechace la identidad; desuscriba de un campamento si no debe seguir recibiendo alertas de ese centro."
       encabezadoDebajo={
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

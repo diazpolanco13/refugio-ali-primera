@@ -396,7 +396,7 @@ function NavContenido({ sesion }: Props) {
                 <ItemMenu
                   to="/usuarios/terreno"
                   icono={IdCard}
-                  label="Identificaciones terreno"
+                  label="Usuarios de Campo"
                   activo={pathname === "/usuarios/terreno"}
                 />
               )}
