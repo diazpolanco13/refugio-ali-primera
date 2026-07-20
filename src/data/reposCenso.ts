@@ -193,6 +193,9 @@ export interface RegistroCensoGuardado {
   verificado_siipol?: boolean;
   verificado_siipol_en?: string | null;
   verificado_siipol_fuente?: string;
+  verificado_nexus?: boolean;
+  verificado_nexus_en?: string | null;
+  verificado_nexus_fuente?: string;
 }
 
 /** Fila devuelta por censo_listado_red (registro + campamento). */

@@ -654,7 +654,7 @@ def edad_nexus(body: dict[str, Any]) -> int | None:
     return int(edad) if isinstance(edad, int) and 0 <= edad <= 120 else None
 
 
-def aplicar_nexus(payload: dict[str, Any], body: dict[str, Any]) -> None:
+def aplicar_nexus(payload: dict[str, Any], body: dict[str, Any], fuente: str = "nexus") -> None:
     payload["primer_nombre"] = texto(body.get("primer_nombre")) or payload["primer_nombre"]
     payload["segundo_nombre"] = texto(body.get("segundo_nombre")) or payload["segundo_nombre"]
     payload["primer_apellido"] = texto(body.get("primer_apellido")) or payload["primer_apellido"]
@@ -666,6 +666,8 @@ def aplicar_nexus(payload: dict[str, Any], body: dict[str, Any]) -> None:
     telefonos = body.get("telefonos")
     if not payload.get("telefono") and isinstance(telefonos, list) and telefonos:
         payload["telefono"] = texto(telefonos[0])
+    payload["verificado_nexus"] = True
+    payload["verificado_nexus_fuente"] = fuente if fuente in {"nexus", "cache"} else "nexus"
 
 
 def fila_a_payload(
@@ -693,6 +695,8 @@ def fila_a_payload(
                 "nombre y apellido",
                 "nombres y apellidos",
                 "nombre y apellidos",
+                "habitante nombres y apellidos",
+                "habitante (nombres y apellidos)",
                 "beneficiario",
                 "persona",
             )
@@ -782,7 +786,17 @@ def fila_a_payload(
         "tipo_doc": tipo_doc,
         "documento": documento,
         "sexo": normalizar_sexo(pick(row, "sexo", "genero", "género")),
-        "telefono": texto(pick(row, "telefono", "teléfono", "celular", "phone")),
+        "telefono": texto(
+            pick(
+                row,
+                "telefono",
+                "teléfono",
+                "telefono principal",
+                "teléfono principal",
+                "celular",
+                "phone",
+            )
+        ),
         "embarazada": parse_bool(pick(row, "embarazada", "embarazo")),
         "discapacidad": parse_bool(pick(row, "discapacidad", "discapacitado")),
         "discapacidad_detalle": texto(pick(row, "discapacidad detalle", "detalle discapacidad")),
@@ -793,7 +807,19 @@ def fila_a_payload(
         "municipio": texto(pick(row, "municipio")),
         "parroquia": texto(pick(row, "parroquia")),
         "calle": texto(pick(row, "direccion", "dirección", "calle", "sector")),
-        "casa_edificio": texto(pick(row, "casa", "edificio", "casa_edificio", "aula")),
+        "casa_edificio": texto(
+            pick(
+                row,
+                "casa",
+                "edificio",
+                "casa_edificio",
+                "aula",
+                "ubicacion bloque carpa",
+                "ubicacion (bloque/carpa)",
+                "ubicacion",
+                "ubicación",
+            )
+        ),
         "registro_policial": registro_policial,
         "solicitado": solicitado,
         "firmo_contra_presidente": firmo_contra_presidente,
@@ -801,6 +827,8 @@ def fila_a_payload(
         "tipo_registro_policial": tipo_registro,
         "observaciones_seguridad": observaciones,
         "verificado_siipol": verificado_siipol,
+        "verificado_nexus": False,
+        "verificado_nexus_fuente": "",
     }
     return payload, None
 
@@ -1030,7 +1058,8 @@ def main() -> int:
             )
             ficha = fichas_disponibles.get(clave)
             if ficha is not None:
-                aplicar_nexus(payload, ficha)
+                fuente_nexus = "cache" if clave in cache_persistente else "nexus"
+                aplicar_nexus(payload, ficha, fuente_nexus)
                 conteos["nexus_ok"] += 1
                 if clave in cache_persistente:
                     conteos["nexus_cache"] += 1

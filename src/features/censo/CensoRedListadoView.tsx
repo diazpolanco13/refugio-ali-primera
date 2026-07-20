@@ -567,6 +567,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
                 <SelectItem value="edad">Mayor edad</SelectItem>
                 <SelectItem value="solicitado">Solicitados primero</SelectItem>
                 <SelectItem value="reg_policial">Reg. policial primero</SelectItem>
+                <SelectItem value="nexus">Nexus verificados primero</SelectItem>
                 <SelectItem value="siipol">SIIPOL verificados primero</SelectItem>
                 <SelectItem value="referendum">Referéndum primero</SelectItem>
                 <SelectItem value="con_cedula">Con cédula primero</SelectItem>

@@ -58,6 +58,11 @@ function filaPdf(fila: RegistroCensoRed, numero: number): string[] {
     fila.edad != null ? String(fila.edad) : "—",
     fila.sexo ?? "—",
     fila.centro_nombre,
+    !fila.documento?.trim()
+      ? "—"
+      : fila.verificado_nexus
+        ? "Verificado"
+        : "Pendiente",
     fila.verificado_siipol ? "Verificado" : "Pendiente",
     siOGuion(fila.solicitado),
     siOGuion(fila.registro_policial),
@@ -73,6 +78,7 @@ const ENCABEZADOS_PDF = [
   "Edad",
   "Sexo",
   "Campamento",
+  "Nexus",
   "SIIPOL",
   "Solicitado",
   "Reg. policial",
@@ -81,7 +87,7 @@ const ENCABEZADOS_PDF = [
 ];
 
 // A4 landscape ~273 mm útiles (márgenes 12+12).
-const ANCHOS_PDF_MM = [8, 50, 24, 10, 10, 48, 22, 22, 24, 22, 30];
+const ANCHOS_PDF_MM = [8, 46, 22, 10, 10, 42, 20, 20, 20, 22, 20, 28];
 
 function truncar(texto: string, max = 42): string {
   const t = texto.trim();
@@ -176,6 +182,15 @@ function filaExcel(fila: RegistroCensoRed, numero: number): Record<string, strin
     "Condición vivienda": etiquetaVivienda(fila.condicion_vivienda),
     Calle: fila.calle,
     "Casa / edificio": fila.casa_edificio,
+    "Verificado Nexus": !fila.documento?.trim()
+      ? ""
+      : fila.verificado_nexus
+        ? "Sí"
+        : "No",
+    "Fecha verificación Nexus": fila.verificado_nexus_en
+      ? formatearFechaRegistro(fila.verificado_nexus_en)
+      : "",
+    "Fuente verificación Nexus": fila.verificado_nexus_fuente ?? "",
     "Verificado SIIPOL": fila.verificado_siipol ? "Sí" : "No",
     "Fecha verificación SIIPOL": fila.verificado_siipol_en
       ? formatearFechaRegistro(fila.verificado_siipol_en)
