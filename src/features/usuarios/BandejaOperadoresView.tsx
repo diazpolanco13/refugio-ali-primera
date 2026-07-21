@@ -17,6 +17,7 @@ import {
   Bell,
   BellOff,
   Check,
+  ChevronDown,
   IdCard,
   KeyRound,
   Loader2,
@@ -56,6 +57,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { PaginadorTabla } from "@/components/ui/pagination";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -176,6 +182,9 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
   const [desvinculandoTg, setDesvinculandoTg] = useState(false);
   const [togglingAlertas, setTogglingAlertas] = useState<string | null>(null);
   const [vinculos, setVinculos] = useState<Map<string, VinculoTelegram>>(new Map());
+  // Tarjetas de campamento desplegadas (cerradas por defecto; al buscar o
+  // filtrar por estado se abren todas para no esconder las coincidencias).
+  const [abiertos, setAbiertos] = useState<Set<string>>(new Set());
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
   const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>(
@@ -546,37 +555,66 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
         </div>
       ) : (
         <>
-        <div className="divide-y divide-border/70">
-          {visibles.map((g) => (
-            <section key={g.id || "sin-campamento"}>
-              <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 bg-muted/50 px-4 py-2.5 lg:px-6">
-                <div className="min-w-0">
+        <div className="space-y-2.5 p-4 lg:p-6">
+          {visibles.map((g) => {
+            const clave = g.id || "sin-campamento";
+            const abierto =
+              qNorm !== "" || filtro !== "todos" || abiertos.has(clave);
+            return (
+            <Collapsible
+              key={clave}
+              open={abierto}
+              onOpenChange={(o) =>
+                setAbiertos((prev) => {
+                  const n = new Set(prev);
+                  if (o) n.add(clave);
+                  else n.delete(clave);
+                  return n;
+                })
+              }
+              className="overflow-hidden rounded-lg border border-border bg-card"
+            >
+              <CollapsibleTrigger className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50">
+                <ChevronDown
+                  className={cn(
+                    "size-4 shrink-0 text-muted-foreground transition-transform",
+                    !abierto && "-rotate-90",
+                  )}
+                  aria-hidden
+                />
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold leading-tight">{g.etiqueta}</p>
                   {(g.cuerpo || g.unidad) && (
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      Cuerpo responsable:{" "}
-                      <span className="text-foreground/80">{g.cuerpo || "—"}</span>
+                      Cuerpo: <span className="text-foreground/80">{g.cuerpo || "—"}</span>
                       {" · "}Revista SEBIN:{" "}
                       <span className="text-foreground/80">{g.unidad || "—"}</span>
                     </p>
                   )}
                 </div>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "gap-1 font-normal",
-                    g.activados === 0
-                      ? "text-muted-foreground"
-                      : g.activados === g.total
-                        ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
-                        : "border-amber-500/50 text-amber-600 dark:text-amber-400",
-                  )}
-                >
-                  <KeyRound className="size-3" />
-                  {g.activados}/{g.total} con credencial propia
-                </Badge>
-              </header>
-              <ul className="divide-y divide-border/50">
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "gap-1 font-normal",
+                      g.activados === 0
+                        ? "text-muted-foreground"
+                        : g.activados === g.total
+                          ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+                          : "border-amber-500/50 text-amber-600 dark:text-amber-400",
+                    )}
+                  >
+                    <KeyRound className="size-3" />
+                    {g.activados}/{g.total}
+                  </Badge>
+                  <Badge variant="outline" className="font-normal text-muted-foreground">
+                    {g.operadores.length}{" "}
+                    {g.operadores.length === 1 ? "operador" : "operadores"}
+                  </Badge>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+              <ul className="divide-y divide-border/50 border-t border-border/70">
                 {g.operadores.map((o) => {
                   const pendiente = o.aprobacion === "pendiente";
                   const enOtros = (o.centros_asignados ?? []).filter((id) => id !== g.id);
@@ -804,8 +842,10 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                   );
                 })}
               </ul>
-            </section>
-          ))}
+              </CollapsibleContent>
+            </Collapsible>
+            );
+          })}
         </div>
         <PaginadorTabla
           pagina={paginaSegura}
