@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import {
   Activity,
-  BedDouble,
   ClipboardList,
   ContactRound,
   Home,
@@ -200,12 +199,9 @@ function NavTerreno({ sesion }: Props) {
               label="Autoridades"
               activo={pathname === "/campo/autoridades"}
             />
-            <ItemMenu
-              to="/campo/capacidad"
-              icono={BedDouble}
-              label="Capacidad"
-              activo={pathname === "/campo/capacidad"}
-            />
+            {/* Capacidad no va en el menú: ya vive en la pestaña
+                Infraestructura de la ficha (con su botón de edición); la ruta
+                /campo/capacidad sigue existiendo para el portal y deep links. */}
             <ItemMenuPortal icono={Users} label="Censo" onClick={irCenso} />
           </SidebarMenu>
         </SidebarGroupContent>
