@@ -1,6 +1,10 @@
 # Plan — Migración de operadores a credencial propia (usuario + contraseña)
 
-> **Estado:** propuesta aprobada en diseño (20-jul-2026), sin implementar.
+> **Estado:** Fase 1a implementada en código (21-jul-2026, commit `9594cf0`):
+> RLS scoped + `activado_ts` en `supabase/operadores_scoped_activacion.sql`
+> (⚠️ **SQL pendiente de aplicar en el proyecto**) y bandeja
+> `/usuarios/terreno` abierta a supervisor en solo lectura con avance de
+> activación. Fases 1b/2/cutover sin implementar.
 > **Predecesor:** `docs/plan-identidad-terreno.md` (Fase A: identidad por cédula
 > vía Nexus). Esto es la continuación: pasar de "sesión de operador por
 > QR + cédula" a "credencial propia provisionada / auto-activada".
