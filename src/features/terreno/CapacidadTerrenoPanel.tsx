@@ -133,7 +133,7 @@ export function CapacidadTerrenoPanel({
   }
 
   return (
-    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden shadow-lg">
+    <Card className="@container flex min-h-0 flex-1 flex-col overflow-hidden shadow-lg">
       <CardHeader className="shrink-0 space-y-1 border-b border-border pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <BedDouble className="size-4 text-primary" />
@@ -146,16 +146,19 @@ export function CapacidadTerrenoPanel({
       </CardHeader>
 
       <CardContent className="min-h-0 flex-1 space-y-5 overflow-y-auto py-4">
-        <FormularioCensoOficialCentro
-          censo={censoOficial}
-          onChange={setCensoOficial}
-          deshabilitado={guardando}
-        />
-        <FormularioCapacidadCentro
-          capacidad={capacidad}
-          onChange={setCapacidad}
-          deshabilitado={guardando}
-        />
+        {/* Portal móvil: apilado; /campo con panel ancho: lado a lado. */}
+        <div className="grid gap-5 @3xl:grid-cols-2 @3xl:items-start">
+          <FormularioCensoOficialCentro
+            censo={censoOficial}
+            onChange={setCensoOficial}
+            deshabilitado={guardando}
+          />
+          <FormularioCapacidadCentro
+            capacidad={capacidad}
+            onChange={setCapacidad}
+            deshabilitado={guardando}
+          />
+        </div>
         {error && <p className="text-xs text-destructive">{error}</p>}
         {guardadoOk && !error && (
           <p className="text-xs font-medium text-emerald-500">
@@ -167,7 +170,7 @@ export function CapacidadTerrenoPanel({
       <CardFooter className="shrink-0 border-t border-border pt-4">
         <Button
           type="button"
-          className="h-11 w-full gap-2"
+          className="h-11 w-full gap-2 @3xl:mx-auto @3xl:max-w-md"
           disabled={guardando}
           onClick={() => void guardar()}
         >

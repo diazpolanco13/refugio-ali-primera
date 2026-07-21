@@ -34,16 +34,19 @@ const TAREAS = {
     titulo: "Geolocalizar",
     icono: MapPinned,
     descripcion: "Ubique el campamento con el GPS del teléfono o el mapa",
+    ancho: "max-w-3xl",
   },
   autoridades: {
     titulo: "Autoridades",
     icono: Landmark,
     descripcion: "Directorio de coordinación del campamento",
+    ancho: "max-w-4xl",
   },
   capacidad: {
     titulo: "Capacidad",
     icono: BedDouble,
     descripcion: "Aforo y recursos Esfera del campamento",
+    ancho: "max-w-4xl",
   },
 } as const;
 
@@ -110,7 +113,7 @@ export function CampoTareaView({ sesion }: { sesion: Sesion }) {
           descripcion="Su cuenta no tiene campamentos asignados. Contacte a su supervisor."
         />
       ) : (
-        <div className="mx-auto w-full max-w-2xl" key={`${tarea}-${centro.id}`}>
+        <div className={`mx-auto w-full ${info.ancho}`} key={`${tarea}-${centro.id}`}>
           {tarea === "geolocalizar" ? (
             <GeolocalizacionCentroPanel
               centroId={centro.id}

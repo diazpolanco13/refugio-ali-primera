@@ -298,7 +298,7 @@ export function AutoridadesTerrenoPanel({
   if (vista === "formulario" && borrador) {
     const esEdicion = responsables.some((r) => r.id === borrador.id);
     return (
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden shadow-lg">
+      <Card className="@container flex min-h-0 flex-1 flex-col overflow-hidden shadow-lg">
         <CardHeader className="shrink-0 space-y-2 border-b border-border pb-3">
           <div className="flex items-center gap-2">
             <button
@@ -317,15 +317,17 @@ export function AutoridadesTerrenoPanel({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="min-h-0 flex-1 space-y-3 overflow-y-auto py-4">
-          <CamposResponsableCoordinacion
-            valor={borrador}
-            categoriasPermitidas={CATEGORIAS_AUTORIDADES_TERRENO}
-            onChange={(patch) => setBorrador((prev) => (prev ? { ...prev, ...patch } : prev))}
-          />
-          {error && <p className="text-xs text-destructive">{error}</p>}
+        <CardContent className="min-h-0 flex-1 overflow-y-auto py-4">
+          <div className="mx-auto w-full space-y-3 @2xl:max-w-2xl">
+            <CamposResponsableCoordinacion
+              valor={borrador}
+              categoriasPermitidas={CATEGORIAS_AUTORIDADES_TERRENO}
+              onChange={(patch) => setBorrador((prev) => (prev ? { ...prev, ...patch } : prev))}
+            />
+            {error && <p className="text-xs text-destructive">{error}</p>}
+          </div>
         </CardContent>
-        <CardFooter className="shrink-0 flex-col gap-2 border-t border-border pt-4 sm:flex-row">
+        <CardFooter className="shrink-0 flex-col gap-2 border-t border-border pt-4 sm:flex-row @2xl:mx-auto @2xl:w-full @2xl:max-w-2xl">
           <Button
             type="button"
             variant="secondary"
@@ -350,7 +352,7 @@ export function AutoridadesTerrenoPanel({
   }
 
   return (
-    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden shadow-lg">
+    <Card className="@container flex min-h-0 flex-1 flex-col overflow-hidden shadow-lg">
       <CardHeader className="shrink-0 space-y-3 pb-2">
         <div>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -476,7 +478,9 @@ export function AutoridadesTerrenoPanel({
             </div>
           </div>
         ) : (
-          <ul className="space-y-2">
+          // En el portal móvil (columna angosta) apila; en /campo con panel
+          // ancho, dos columnas por container query.
+          <ul className="grid gap-2 @2xl:grid-cols-2">
             {delAmbito.map((r) => {
               const meta = metaCategoriaCoordinacion(r.categoria);
               const tel = r.telefonos.find((t) => t.trim()) ?? "";
