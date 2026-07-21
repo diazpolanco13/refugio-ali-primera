@@ -504,7 +504,8 @@ export function rutaPermitidaParaRol(pathname: string, rol: Rol): boolean {
     return (
       pathname === "/" ||
       pathname === "/centros/reportes" ||
-      pathname.startsWith("/centros/reportes/")
+      pathname.startsWith("/centros/reportes/") ||
+      pathname.startsWith("/campo/")
     );
   }
   if (rol === "supervisor" && pathname.startsWith("/centros/refugiados")) {

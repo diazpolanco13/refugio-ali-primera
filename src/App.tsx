@@ -62,6 +62,7 @@ const importCensoRedView = () => import("./features/censo/CensoRedView");
 const importCensoRedListadoView = () => import("./features/censo/CensoRedListadoView");
 const importCensoCentroDetalleView = () => import("./features/censo/CensoCentroDetalleView");
 const importTrasladosView = () => import("./features/traslados/TrasladosView");
+const importCampoTareaView = () => import("./features/terreno/CampoTareaView");
 
 const CentrosView = lazy(() => importCentrosView().then((m) => ({ default: m.CentrosView })));
 const FichaCentroView = lazy(() =>
@@ -136,6 +137,9 @@ const CensoCentroDetalleView = lazy(() =>
 );
 const TrasladosView = lazy(() =>
   importTrasladosView().then((m) => ({ default: m.TrasladosView })),
+);
+const CampoTareaView = lazy(() =>
+  importCampoTareaView().then((m) => ({ default: m.CampoTareaView })),
 );
 
 /**
@@ -325,6 +329,16 @@ export function App() {
                 fallback={<TablaRedSkeleton etiqueta="Cargando traslados" />}
               >
                 <TrasladosView />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/campo/:tarea"
+            element={
+              <RutaConSkeleton
+                fallback={<TablaRedSkeleton etiqueta="Cargando trabajo de terreno" />}
+              >
+                <CampoTareaView sesion={sesion} />
               </RutaConSkeleton>
             }
           />

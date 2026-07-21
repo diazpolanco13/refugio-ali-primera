@@ -52,7 +52,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { centroIdDePathname } from "@/features/centros/seccionesFichaCentro";
-import { irAlPortalTerreno, tokenTerrenoActual, type TareaTerreno } from "@/lib/tokenTerreno";
+import { irAlPortalTerreno, tokenTerrenoActual } from "@/lib/tokenTerreno";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -156,16 +156,14 @@ function NavTerreno({ sesion }: Props) {
     : "/centros/reportes";
   const enReporte = rutaActiva(pathname, "/centros/reportes");
   const vePreferencias = puedeEditarCuentaPropia(sesion.user);
-
-  function irPortal(tarea?: TareaTerreno) {
-    irAlPortalTerreno(tarea ? { tarea } : undefined);
-  }
+  // El portal /terreno solo tiene sentido con el token del QR a mano; el
+  // operador con credencial propia trabaja en las vistas SPA /campo/*.
+  const tokenQr = tokenTerrenoActual();
 
   function irCenso() {
-    const token = tokenTerrenoActual();
     const params = new URLSearchParams();
     if (centroId) params.set("centro", centroId);
-    if (token) params.set("t", token);
+    if (tokenQr) params.set("t", tokenQr);
     const q = params.toString();
     window.location.assign(q ? `/censo?${q}` : "/censo");
   }
@@ -176,27 +174,36 @@ function NavTerreno({ sesion }: Props) {
         <SidebarGroupLabel>Trabajo en terreno</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            <ItemMenuPortal icono={Home} label="Inicio" onClick={() => irPortal()} />
+            {tokenQr && (
+              <ItemMenuPortal
+                icono={Home}
+                label="Inicio"
+                onClick={() => irAlPortalTerreno()}
+              />
+            )}
             <ItemMenu
               to={rutaReporte}
               icono={ClipboardList}
               label="Reporte"
               activo={enReporte}
             />
-            <ItemMenuPortal
+            <ItemMenu
+              to="/campo/geolocalizar"
               icono={MapPinned}
               label="Geolocalizar"
-              onClick={() => irPortal("geo")}
+              activo={pathname === "/campo/geolocalizar"}
             />
-            <ItemMenuPortal
+            <ItemMenu
+              to="/campo/autoridades"
               icono={Landmark}
               label="Autoridades"
-              onClick={() => irPortal("autoridades")}
+              activo={pathname === "/campo/autoridades"}
             />
-            <ItemMenuPortal
+            <ItemMenu
+              to="/campo/capacidad"
               icono={BedDouble}
               label="Capacidad"
-              onClick={() => irPortal("capacidad")}
+              activo={pathname === "/campo/capacidad"}
             />
             <ItemMenuPortal icono={Users} label="Censo" onClick={irCenso} />
           </SidebarMenu>
