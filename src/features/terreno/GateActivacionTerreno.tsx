@@ -8,7 +8,7 @@
 // el trabajo de campo — reintentará en la próxima entrada.
 
 import { useEffect, useRef, useState } from "react";
-import { Eye, EyeOff, KeyRound, Loader2, ShieldAlert } from "lucide-react";
+import { Check, Eye, EyeOff, KeyRound, Loader2, ShieldAlert, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,13 @@ import {
   activarOperadorTerreno,
   credencialOperadorActivada,
 } from "@/data/loginTerreno";
+import {
+  ETIQUETAS_FUERZA,
+  chequeosPassword,
+  fuerzaPassword,
+  passwordCumple,
+} from "@/domain/passwordOperador";
+import { cn } from "@/lib/utils";
 
 export function GateActivacionTerreno({
   token,
@@ -59,8 +66,10 @@ export function GateActivacionTerreno({
   }, []);
 
   const digits = cedula.replace(/\D/g, "");
-  const claveEsCedula = password.replace(/\D/g, "") === digits && password.length > 0;
-  const valida = password.length >= 6 && password === confirmar && !claveEsCedula;
+  const chequeos = chequeosPassword(password, digits);
+  const cumple = passwordCumple(password, digits);
+  const fuerza = fuerzaPassword(password, digits);
+  const valida = cumple && password === confirmar;
 
   async function activar() {
     if (!valida || activando) return;
@@ -131,9 +140,9 @@ export function GateActivacionTerreno({
                 type={verClave ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                minLength={6}
+                minLength={8}
                 autoComplete="new-password"
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Mínimo 8 caracteres"
                 className="h-11 pr-10"
                 disabled={activando}
               />
@@ -147,6 +156,53 @@ export function GateActivacionTerreno({
               </button>
             </div>
           </div>
+
+          {/* Checklist de requisitos + barra de fuerza (estilo banco). */}
+          <div className="space-y-2 rounded-lg bg-muted/40 px-3 py-2.5">
+            <ul className="space-y-1">
+              {chequeos.map((c) => (
+                <li
+                  key={c.clave}
+                  className={cn(
+                    "flex items-center gap-2 text-xs transition-colors",
+                    c.ok
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {c.ok ? (
+                    <Check className="size-3.5 shrink-0" aria-hidden />
+                  ) : (
+                    <X className="size-3.5 shrink-0 opacity-60" aria-hidden />
+                  )}
+                  {c.etiqueta}
+                </li>
+              ))}
+            </ul>
+            <div className="flex items-center gap-2">
+              <div className="flex h-1.5 flex-1 gap-1" aria-hidden>
+                {[1, 2, 3].map((n) => (
+                  <div
+                    key={n}
+                    className={cn(
+                      "flex-1 rounded-full transition-colors",
+                      fuerza >= n
+                        ? fuerza === 1
+                          ? "bg-amber-500"
+                          : fuerza === 2
+                            ? "bg-lime-500"
+                            : "bg-emerald-500"
+                        : "bg-border",
+                    )}
+                  />
+                ))}
+              </div>
+              <span className="w-16 text-right text-[10px] text-muted-foreground">
+                {password.length > 0 ? ETIQUETAS_FUERZA[fuerza] : ""}
+              </span>
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="act-confirmar">Repita la contraseña</Label>
             <Input
@@ -154,19 +210,14 @@ export function GateActivacionTerreno({
               type={verClave ? "text" : "password"}
               value={confirmar}
               onChange={(e) => setConfirmar(e.target.value)}
-              minLength={6}
+              minLength={8}
               autoComplete="new-password"
               className="h-11"
               disabled={activando}
             />
           </div>
 
-          {claveEsCedula && (
-            <p className="text-xs text-destructive">
-              La contraseña no puede ser su cédula.
-            </p>
-          )}
-          {password.length >= 6 && confirmar.length >= 6 && password !== confirmar && (
+          {cumple && confirmar.length > 0 && password !== confirmar && (
             <p className="text-xs text-destructive">Las contraseñas no coinciden.</p>
           )}
           {error && <p className="text-xs text-destructive">{error}</p>}

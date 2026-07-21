@@ -12,7 +12,9 @@
 //   - Solo UNA vez: si `activado_ts` ya está puesto, 409 (el reseteo posterior
 //     es de su supervisor vía `update-user-password`, o suyo desde
 //     Preferencias con la contraseña actual).
-//   - Contraseña mínimo 6 caracteres y NUNCA igual a la cédula (plan §2).
+//   - Política de contraseña (§8.2): mínimo 8 caracteres, al menos una letra
+//     y un número, y NUNCA igual a la cédula (plan §2). El checklist visual
+//     del gate (src/domain/passwordOperador.ts) refleja la misma regla.
 //
 // Desplegada vía MCP `deploy_edge_function` (verify_jwt: true). Este archivo
 // es la referencia versionada del código que corre en producción.
@@ -50,8 +52,11 @@ Deno.serve(async (req: Request) => {
   const password = typeof body.password === "string" ? body.password : "";
   if (!token) return json({ error: "Falta el token de terreno" }, 400);
   if (digits.length < 5 || digits.length > 12) return json({ error: "Cédula inválida" }, 400);
-  if (password.length < 6) {
-    return json({ error: "La contraseña debe tener al menos 6 caracteres" }, 400);
+  if (password.length < 8) {
+    return json({ error: "La contraseña debe tener al menos 8 caracteres" }, 400);
+  }
+  if (!/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(password) || !/\d/.test(password)) {
+    return json({ error: "La contraseña debe combinar letras y números" }, 400);
   }
   if (password.replace(/\D/g, "") === digits) {
     return json({ error: "La contraseña no puede ser su cédula" }, 400);
