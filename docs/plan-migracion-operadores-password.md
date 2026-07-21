@@ -182,6 +182,12 @@ inferir desde `auth.users` (más frágil de consultar desde el cliente).
   - `supervisor` / `analista_sae` ámbito cuerpo/centros → **solo rol operador**
     y **solo** en centros ⊆ sus `centros_asignados`.
   - Bloquear que estos roles creen admin/analista/supervisor/autoridad.
+  - **Ampliación 21-jul-2026 (edge v17):** el `analista_sae` también crea
+    cuentas de **supervisor** — credencial libre, centros ⊆ su alcance y
+    ámbito `cuerpo` solo si el analista es de red o de ese mismo cuerpo. La
+    edición/eliminación del supervisor sigue siendo admin-only (RLS
+    `perfiles_update` y `puede_gestionar_operador` no cambian); en `/usuarios`
+    el analista los ve en una sección de solo lectura.
 - Conservar cédula (`cedula`, `cedula_norm`) en el alta para no duplicar
   personas; idealmente verificar contra Nexus (reusar `login-terreno`/`reposNexus`).
 

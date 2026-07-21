@@ -23,6 +23,7 @@ import {
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
 import {
+  esAnalistaDeRed,
   INFO_ROLES,
   puedeGestionarOperadores,
   puedeGestionarUsuarios,
@@ -55,10 +56,12 @@ import { BadgeRol } from "@/components/BadgeRol";
 export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
   const navigate = useNavigate();
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
-  // Analista/supervisor: modo «Mis operadores» (solo cuentas de operador de
-  // su alcance; el servidor aplica el scoping real).
+  // Analista/supervisor: modo «Mis operadores» (cuentas de operador de su
+  // alcance; el analista además ve — sin editar — los supervisores que puede
+  // crear; el servidor aplica el scoping real).
   const autorizado = esAdmin || puedeGestionarOperadores(sesion.user.rol);
   const soloOperadores = autorizado && !esAdmin;
+  const esAnalistaCaller = sesion.user.rol === "analista_sae";
   const usuarioActualId = sesion.user.sub;
   const [usuarios, setUsuarios] = useState<UsuarioPerfil[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -106,17 +109,33 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
     try {
       let query = supabase.from("perfiles").select("*").order("username");
       // No-admin: la RLS igual deja ver analistas/supervisores (atribución en
-      // otras vistas); aquí solo interesan sus operadores.
-      if (soloOperadores) query = query.eq("rol", "operador");
+      // otras vistas); aquí interesan sus operadores y, para el analista,
+      // también los supervisores (los crea desde esta bandeja).
+      if (soloOperadores) {
+        query = query.in("rol", esAnalistaCaller ? ["operador", "supervisor"] : ["operador"]);
+      }
       const { data, error: err } = await query;
       if (err) throw new Error(err.message);
-      setUsuarios((data ?? []) as UsuarioPerfil[]);
+      let filas = (data ?? []) as UsuarioPerfil[];
+      // Analista con alcance limitado: solo supervisores de su cuerpo o que
+      // solapen sus campamentos (la RLS de lectura no filtra estas filas).
+      if (soloOperadores && esAnalistaCaller && !esAnalistaDeRed(sesion.user)) {
+        const propios = new Set(sesion.user.centros_asignados ?? []);
+        filas = filas.filter(
+          (u) =>
+            u.rol !== "supervisor" ||
+            (u.cuerpo_asignado != null &&
+              u.cuerpo_asignado === sesion.user.cuerpo_asignado) ||
+            (u.centros_asignados ?? []).some((id) => propios.has(id)),
+        );
+      }
+      setUsuarios(filas);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo cargar usuarios");
     } finally {
       setCargando(false);
     }
-  }, [soloOperadores]);
+  }, [soloOperadores, esAnalistaCaller, sesion.user]);
 
   useEffect(() => {
     if (autorizado) void recargar();
@@ -180,11 +199,23 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
   // de las cuentas viejas de acceso por QR (operador-centro-…, sin cédula) —
   // mezcladas confunden: una persona puede tener varias cuentas legacy.
   const opsIdentificados = useMemo(
-    () => (soloOperadores ? visibles.filter((u) => u.cedula_norm) : []),
+    () =>
+      soloOperadores
+        ? visibles.filter((u) => u.rol === "operador" && u.cedula_norm)
+        : [],
     [soloOperadores, visibles],
   );
   const opsLegacy = useMemo(
-    () => (soloOperadores ? visibles.filter((u) => !u.cedula_norm) : []),
+    () =>
+      soloOperadores
+        ? visibles.filter((u) => u.rol === "operador" && !u.cedula_norm)
+        : [],
+    [soloOperadores, visibles],
+  );
+  // Supervisores del alcance del analista (solo lectura: los crea, pero la
+  // edición/eliminación sigue siendo de administración).
+  const supervisoresAlcance = useMemo(
+    () => (soloOperadores ? visibles.filter((u) => u.rol === "supervisor") : []),
     [soloOperadores, visibles],
   );
 
@@ -215,10 +246,18 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
     <VistaPagina
       icono={Users}
       acento="violet"
-      titulo={soloOperadores ? "Mis operadores" : "Gestión de usuarios"}
+      titulo={
+        soloOperadores
+          ? esAnalistaCaller
+            ? "Operadores y supervisores"
+            : "Mis operadores"
+          : "Gestión de usuarios"
+      }
       descripcion={
         soloOperadores
-          ? "Cree, edite o elimine las cuentas de operador de sus campamentos"
+          ? esAnalistaCaller
+            ? "Cree cuentas de operador y de supervisor para sus campamentos"
+            : "Cree, edite o elimine las cuentas de operador de sus campamentos"
           : "Fichas, roles y permisos de acceso a la plataforma"
       }
       acciones={
@@ -226,7 +265,7 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
           <Button onClick={() => navigate("/usuarios/nuevo")} className="gap-1.5">
             <Plus className="size-4" />
             <span className="hidden sm:inline">
-              {soloOperadores ? "Nuevo operador" : "Nuevo usuario"}
+              {soloOperadores && !esAnalistaCaller ? "Nuevo operador" : "Nuevo usuario"}
             </span>
           </Button>
         ) : undefined
@@ -317,6 +356,28 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
                     </ul>
                   )}
                 </section>
+                {supervisoresAlcance.length > 0 && (
+                  <section className="space-y-2 border-t border-border pt-4">
+                    <div className="flex items-center gap-2">
+                      <BadgeRol rol="supervisor" />
+                      <span className="text-xs text-muted-foreground">
+                        {supervisoresAlcance.length} supervisor
+                        {supervisoresAlcance.length === 1 ? "" : "es"} de su
+                        alcance — la edición y eliminación las hace administración
+                      </span>
+                    </div>
+                    <ul className="grid gap-3 md:grid-cols-2">
+                      {supervisoresAlcance.map((u) => (
+                        <TarjetaUsuario
+                          key={u.user_id}
+                          usuario={u}
+                          esYo={false}
+                          centros={centros}
+                        />
+                      ))}
+                    </ul>
+                  </section>
+                )}
                 {opsLegacy.length > 0 && (
                   <section className="space-y-2 border-t border-border pt-4">
                     <div>

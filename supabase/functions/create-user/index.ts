@@ -1,5 +1,5 @@
-// Edge Function `create-user` (v5 — alta scoped de operadores, plan
-// migración operadores §5.1/§5.3).
+// Edge Function `create-user` (v6 — alta scoped de operadores y supervisores,
+// plan migración operadores §5.1/§5.3).
 //
 // Crea un usuario completo: `auth.users` (email sintético <username>@refugio.app)
 // + fila en `perfiles`, con rol de los 5 nuevos y centros asignados (array).
@@ -8,10 +8,14 @@
 //
 // Autorización:
 //   - admin: cualquier rol, como siempre.
-//   - analista_sae / supervisor: SOLO rol operador, con cédula obligatoria,
-//     username forzado a `op-<cédula>`, ámbito 'centros' y centros ⊆ su
-//     alcance (analista de red: cualquier centro; el resto vía RPC
-//     `centros_de_usuario`). Anti-duplicados por `cedula_norm`.
+//   - analista_sae: rol operador o supervisor. Operador: cédula obligatoria,
+//     username forzado a `op-<cédula>` y ámbito 'centros'. Supervisor:
+//     credencial libre; ámbito 'cuerpo' solo para el analista de red o el
+//     analista de ese mismo cuerpo; con ámbito 'centros', al menos un centro.
+//   - supervisor: SOLO rol operador (mismas reglas de operador de arriba).
+//   - En ambos scoped, centros ⊆ su alcance (analista de red: cualquier
+//     centro; el resto vía RPC `centros_de_usuario`). Anti-duplicados de
+//     operador por `cedula_norm`.
 //   - La contraseña de un operador nunca puede ser su cédula (§2 del plan).
 //
 // Desplegada vía MCP `deploy_edge_function` (verify_jwt: true). Este archivo
@@ -68,7 +72,7 @@ Deno.serve(async (req: Request) => {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
-  // 2) El caller debe ser admin
+  // 2) Caller: admin, o analista/supervisor (scoped)
   const {
     data: { user: caller },
     error: callerErr,
@@ -77,7 +81,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: perfilCaller } = await adminClient
     .from("perfiles")
-    .select("rol, username, ambito_analista")
+    .select("rol, username, ambito_analista, cuerpo_asignado")
     .eq("user_id", caller.id)
     .single();
   const esAdmin = perfilCaller?.rol === "admin";
@@ -126,22 +130,54 @@ Deno.serve(async (req: Request) => {
   const cedulaNorm =
     typeof cedula === "string" ? cedula.replace(/\D/g, "") : "";
 
-  // 3.b) Reglas del caller scoped (analista/supervisor): solo operadores,
-  //      con cédula, username canónico y ámbito por lista de centros.
+  // 3.b) Reglas del caller scoped: el supervisor solo crea operadores; el
+  //      analista crea operadores y supervisores. Operador: cédula, username
+  //      canónico y ámbito por lista de centros. Supervisor: ámbito 'cuerpo'
+  //      solo si el analista es de red o de ese mismo cuerpo.
   if (!esAdmin) {
-    if (rol !== "operador") {
-      return json({ error: "Su rol solo puede crear cuentas de operador" }, 403);
+    const rolesCreables =
+      perfilCaller.rol === "analista_sae" ? ["operador", "supervisor"] : ["operador"];
+    if (!rolesCreables.includes(rol)) {
+      return json(
+        {
+          error:
+            perfilCaller.rol === "analista_sae"
+              ? "Su rol solo puede crear cuentas de operador o supervisor"
+              : "Su rol solo puede crear cuentas de operador",
+        },
+        403,
+      );
     }
-    if (!cedulaNorm) {
-      return json({ error: "La cédula es obligatoria para crear un operador" }, 400);
-    }
-    if (username !== `op-${cedulaNorm}`) {
-      return json({ error: `El usuario del operador debe ser op-${cedulaNorm}` }, 400);
-    }
-    ambito_analista = "centros";
-    cuerpo_asignado = null;
-    if (!Array.isArray(centros_asignados) || centros_asignados.length === 0) {
-      return json({ error: "Asigne al menos un campamento al operador" }, 400);
+    if (rol === "operador") {
+      if (!cedulaNorm) {
+        return json({ error: "La cédula es obligatoria para crear un operador" }, 400);
+      }
+      if (username !== `op-${cedulaNorm}`) {
+        return json({ error: `El usuario del operador debe ser op-${cedulaNorm}` }, 400);
+      }
+      ambito_analista = "centros";
+      cuerpo_asignado = null;
+      if (!Array.isArray(centros_asignados) || centros_asignados.length === 0) {
+        return json({ error: "Asigne al menos un campamento al operador" }, 400);
+      }
+    } else if (ambito_analista === "cuerpo") {
+      const esAnalistaRed = perfilCaller.ambito_analista === "red";
+      const mismoCuerpo =
+        perfilCaller.ambito_analista === "cuerpo" &&
+        Boolean(perfilCaller.cuerpo_asignado) &&
+        cuerpo_asignado === perfilCaller.cuerpo_asignado;
+      if (!esAnalistaRed && !mismoCuerpo) {
+        return json(
+          { error: "Solo puede crear supervisores con el ámbito de su propio cuerpo" },
+          403,
+        );
+      }
+    } else {
+      ambito_analista = "centros";
+      cuerpo_asignado = null;
+      if (!Array.isArray(centros_asignados) || centros_asignados.length === 0) {
+        return json({ error: "Asigne al menos un campamento al supervisor" }, 400);
+      }
     }
   }
 

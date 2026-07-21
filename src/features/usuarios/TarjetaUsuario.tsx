@@ -94,7 +94,7 @@ type Props = {
   usuario: UsuarioPerfil;
   esYo: boolean;
   centros: CentroTransitorio[];
-  onEditar: () => void;
+  onEditar?: () => void;
   onEliminar?: () => void;
 };
 
@@ -143,10 +143,12 @@ export function TarjetaUsuario({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <Button size="sm" variant="outline" onClick={onEditar}>
-              <Pencil className="size-3" />
-              Editar
-            </Button>
+            {onEditar && (
+              <Button size="sm" variant="outline" onClick={onEditar}>
+                <Pencil className="size-3" />
+                Editar
+              </Button>
+            )}
             {onEliminar && (
               <Button
                 size="sm"

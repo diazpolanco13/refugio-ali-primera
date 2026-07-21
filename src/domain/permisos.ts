@@ -147,7 +147,9 @@ export function puedeVerLogs(rol: Rol): boolean {
  * Bandeja de operadores de terreno (/usuarios/terreno): admin, analista SAE
  * y supervisor gestionan los operadores de su alcance (aprobación, alertas,
  * desuscripción y eliminación). Distinto de `puedeGestionarUsuarios` (CRUD de
- * cuentas permanentes, admin-only). El servidor aplica el alcance: RLS
+ * cuentas permanentes, admin-only). El analista además crea cuentas de
+ * supervisor dentro de su alcance (edge `create-user`), aunque su edición y
+ * eliminación siguen siendo admin-only. El servidor aplica el alcance: RLS
  * `perfiles_select_operadores_terreno` / `perfiles_update` por solape de
  * centros, y `delete-user` valida con `puede_gestionar_operador`.
  */

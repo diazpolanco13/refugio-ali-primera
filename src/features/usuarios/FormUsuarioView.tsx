@@ -27,6 +27,7 @@ import {
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
 import {
+  esAnalistaDeRed,
   INFO_ROLES,
   puedeGestionarOperadores,
   puedeGestionarUsuarios,
@@ -259,9 +260,11 @@ function SeccionCard({
 
 /**
  * Vista a pantalla completa de alta/edición de usuario. Admin: cualquier rol.
- * Analista/supervisor (plan migración operadores §5): solo operadores — rol
- * fijo, cédula obligatoria, usuario `op-<cédula>` autogenerado y campamentos
- * limitados a su alcance. La edge `create-user` re-valida todo en el servidor.
+ * Analista (plan migración operadores §5): operadores y supervisores; el
+ * supervisor solo operadores. Alta de operador scoped: rol fijo, cédula
+ * obligatoria, usuario `op-<cédula>` autogenerado. Alta de supervisor por
+ * analista: credencial libre, con ámbito y campamentos dentro de su alcance.
+ * La edge `create-user` re-valida todo en el servidor.
  */
 export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
   const navigate = useNavigate();
@@ -269,7 +272,13 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
   const esEdicion = Boolean(userId);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
   const autorizado = esAdmin || puedeGestionarOperadores(sesion.user.rol);
-  const soloOperadores = autorizado && !esAdmin;
+  const esScoped = autorizado && !esAdmin;
+  const esAnalistaCaller = sesion.user.rol === "analista_sae";
+  const rolesCreables: Rol[] = esAdmin
+    ? ROLES
+    : esAnalistaCaller
+      ? ["supervisor", "operador"]
+      : ["operador"];
 
   const [form, setForm] = useState<Formulario>(formVacio);
   const [perfil, setPerfil] = useState<UsuarioPerfil | null>(null);
@@ -290,15 +299,27 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
     [filasCentros],
   );
 
+  // Analista con ámbito de cuerpo: solo puede asignar su propio cuerpo.
   const cuerposCatalogo = useCatalogoCuerposActivos();
-  const cuerposElegibles = cuerposCatalogo.filter((c) => c.clave !== "sin_asignar");
+  const cuerposElegibles = cuerposCatalogo.filter(
+    (c) =>
+      c.clave !== "sin_asignar" &&
+      (!esScoped || esAnalistaDeRed(sesion.user) || c.clave === sesion.user.cuerpo_asignado),
+  );
+  const puedeElegirCuerpo =
+    esAdmin ||
+    esAnalistaDeRed(sesion.user) ||
+    (esAnalistaCaller &&
+      sesion.user.ambito_analista === "cuerpo" &&
+      Boolean(sesion.user.cuerpo_asignado));
 
-  // No-admin: solo puede repartir campamentos de su propio alcance.
+  // No-admin: solo puede repartir campamentos de su propio alcance
+  // (el analista de red reparte cualquiera, igual que la edge).
   const centrosDisponibles = useMemo(() => {
-    if (!soloOperadores) return centros;
+    if (!esScoped || esAnalistaDeRed(sesion.user)) return centros;
     const propios = new Set(sesion.user.centros_asignados ?? []);
     return centros.filter((c) => propios.has(c.id));
-  }, [centros, soloOperadores, sesion.user.centros_asignados]);
+  }, [centros, esScoped, sesion.user]);
 
   useEffect(() => {
     if (!esEdicion || !userId) return;
@@ -325,8 +346,9 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
   }, [esEdicion, userId]);
 
   if (!autorizado) return <Navigate to="/usuarios" replace />;
-  // No-admin editando algo que no es operador: fuera (la RLS tampoco lo deja).
-  if (soloOperadores && esEdicion && perfil && perfil.rol !== "operador") {
+  // No-admin editando algo que no es operador: fuera (la RLS tampoco lo deja;
+  // el analista crea supervisores pero no los edita).
+  if (esScoped && esEdicion && perfil && perfil.rol !== "operador") {
     return <Navigate to="/usuarios" replace />;
   }
 
@@ -334,11 +356,14 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
+  // Alta scoped de operador (analista o supervisor creando `op-<cédula>`).
+  const soloOperadores = esScoped && form.rol === "operador";
   const usaCentros = rolUsaCentrosAsignados(form.rol);
   const esAnalista = form.rol === "analista_sae";
   const ambitoEfectivo: AmbitoAnalista = soloOperadores
     ? "centros"
-    : !esAnalista && form.ambito_analista === "red"
+    : (!esAnalista && form.ambito_analista === "red") ||
+        (form.ambito_analista === "cuerpo" && !puedeElegirCuerpo)
       ? "centros"
       : form.ambito_analista;
   const muestraSelectorCentros = usaCentros && ambitoEfectivo === "centros";
@@ -519,14 +544,16 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
                   <Label htmlFor="usuario-rol">Rol / permisos del sistema</Label>
                   <Select
                     value={form.rol}
-                    disabled={guardando || soloOperadores}
+                    disabled={
+                      guardando || rolesCreables.length === 1 || (esScoped && esEdicion)
+                    }
                     onValueChange={(v) => set("rol", v as Rol)}
                   >
                     <SelectTrigger id="usuario-rol" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {(soloOperadores ? (["operador"] as Rol[]) : ROLES).map((r) => (
+                      {rolesCreables.map((r) => (
                         <SelectItem key={r} value={r}>
                           {INFO_ROLES[r].etiqueta}
                         </SelectItem>
@@ -534,7 +561,7 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
                     </SelectContent>
                   </Select>
                   <p className="text-xs leading-snug text-muted-foreground">
-                    {soloOperadores
+                    {esScoped && !esAnalistaCaller
                       ? "Su rol solo crea cuentas de operador para sus campamentos."
                       : INFO_ROLES[form.rol].descripcion}
                   </p>
@@ -561,9 +588,11 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
                       </SelectTrigger>
                       <SelectContent>
                         {esAnalista && <SelectItem value="red">Toda la red</SelectItem>}
-                        <SelectItem value="cuerpo">
-                          Todos los campamentos de un cuerpo
-                        </SelectItem>
+                        {puedeElegirCuerpo && (
+                          <SelectItem value="cuerpo">
+                            Todos los campamentos de un cuerpo
+                          </SelectItem>
+                        )}
                         <SelectItem value="centros">Campamentos específicos</SelectItem>
                       </SelectContent>
                     </Select>
@@ -663,8 +692,9 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
               <SeccionCard titulo="Credenciales de acceso">
                 {(() => {
                   // El propio usuario no se renombra (su sesión activa guarda
-                  // el username); la Edge Function también lo rechaza. Los
-                  // callers scoped no eligen username: siempre `op-<cédula>`.
+                  // el username); la Edge Function también lo rechaza. En el
+                  // alta scoped de operador el username es siempre `op-<cédula>`;
+                  // el supervisor creado por el analista lleva credencial libre.
                   const esPropio = esEdicion && userId === sesion.user.sub;
                   return (
                     <div className="space-y-1.5">
