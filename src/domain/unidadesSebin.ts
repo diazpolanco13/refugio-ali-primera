@@ -199,6 +199,55 @@ export function getCatalogoUnidadesPorCuerpo(
   );
 }
 
+/**
+ * Claves de cuerpo con ≥1 unidad activa propia (excl. `sin_asignar` y globales).
+ * Sirve para armar el selector cascada cuerpo → sub-unidades sin hardcodear.
+ */
+export function getClavesCuerpoConUnidadesActivas(): string[] {
+  const claves = new Set<string>();
+  for (const u of getCatalogoUnidadesSebinActivas()) {
+    if (u.clave === "sin_asignar" || !u.cuerpoClave) continue;
+    claves.add(u.cuerpoClave);
+  }
+  return [...claves];
+}
+
+/**
+ * Cuerpo sugerido para filtrar unidades de supervisión:
+ * 1) cuerpo de la unidad ya asignada (si tiene unidades)
+ * 2) cuerpo del campamento (si tiene unidades)
+ * 3) primer cuerpo del orden preferido que tenga unidades
+ */
+export function sugerirCuerpoFiltroUnidades(
+  unidadClaveOValor: string | null | undefined,
+  cuerpoCampamento: string | null | undefined,
+  ordenPreferidoCuerpos: readonly string[] = [],
+): string | null {
+  const conUnidades = new Set(getClavesCuerpoConUnidadesActivas());
+  if (conUnidades.size === 0) return null;
+
+  const claveUnidad = normalizarUnidadSebin(unidadClaveOValor);
+  if (claveUnidad !== "sin_asignar") {
+    const meta = getCatalogoUnidadesSebin().find((u) => u.clave === claveUnidad);
+    if (meta?.cuerpoClave && conUnidades.has(meta.cuerpoClave)) {
+      return meta.cuerpoClave;
+    }
+  }
+
+  if (
+    cuerpoCampamento &&
+    cuerpoCampamento !== "sin_asignar" &&
+    conUnidades.has(cuerpoCampamento)
+  ) {
+    return cuerpoCampamento;
+  }
+
+  for (const clave of ordenPreferidoCuerpos) {
+    if (conUnidades.has(clave)) return clave;
+  }
+  return [...conUnidades][0] ?? null;
+}
+
 /** Actualiza el caché en memoria (lo llama el hook tras leer Supabase). */
 export function setCatalogoUnidadesSebin(filas: MetaUnidadSebin[]): void {
   const ordenadas = [...filas].sort(

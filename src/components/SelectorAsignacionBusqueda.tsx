@@ -1,5 +1,5 @@
 // Selector de asignación con buscador (shadcn Popover + Checkbox).
-// Orden fijo: Todos → Sin asignar → opciones del catálogo.
+// Orden fijo: Todos → Sin asignar → opciones del catálogo (planas o por grupo).
 // `multiple`: uno o varios. `unico`: una sola opción (radio vía checkbox).
 
 import { useMemo, useState, type ReactNode } from "react";
@@ -23,6 +23,13 @@ export interface OpcionAsignacion {
   indicador?: ReactNode;
 }
 
+/** Grupo visual (p. ej. cuerpo policial → sus unidades). */
+export interface GrupoAsignacion {
+  id: string;
+  etiqueta: string;
+  opciones: OpcionAsignacion[];
+}
+
 function normalizarBusqueda(s: string): string {
   return s
     .toLowerCase()
@@ -31,7 +38,9 @@ function normalizarBusqueda(s: string): string {
 }
 
 interface Props {
-  opciones: OpcionAsignacion[];
+  opciones?: OpcionAsignacion[];
+  /** Si hay grupos, se listan por sección (opciones planas se ignoran). */
+  grupos?: GrupoAsignacion[];
   /** Valores seleccionados (vacío = Sin asignar). */
   seleccion: string[];
   onCambiar: (valores: string[]) => void;
@@ -50,7 +59,8 @@ interface Props {
  * Lista desplegable de asignación: buscador + Todos + Sin asignar + opciones.
  */
 export function SelectorAsignacionBusqueda({
-  opciones,
+  opciones = [],
+  grupos,
   seleccion,
   onCambiar,
   modo = "unico",
@@ -65,10 +75,12 @@ export function SelectorAsignacionBusqueda({
   const [busqueda, setBusqueda] = useState("");
   const multiple = modo === "multiple";
 
-  const opcionesLimpias = useMemo(
-    () => opciones.filter((o) => o.valor && o.valor !== VALOR_SIN_ASIGNAR_ASIG),
-    [opciones],
-  );
+  const opcionesLimpias = useMemo(() => {
+    const fuente = grupos?.length
+      ? grupos.flatMap((g) => g.opciones)
+      : opciones;
+    return fuente.filter((o) => o.valor && o.valor !== VALOR_SIN_ASIGNAR_ASIG);
+  }, [opciones, grupos]);
 
   const porValor = useMemo(() => {
     const m = new Map<string, OpcionAsignacion>();
@@ -89,6 +101,24 @@ export function SelectorAsignacionBusqueda({
     opcionesLimpias.every((o) => seleccionValida.includes(o.valor));
 
   const q = normalizarBusqueda(busqueda.trim());
+
+  const gruposFiltrados = useMemo(() => {
+    if (!grupos?.length) return null;
+    return grupos
+      .map((g) => ({
+        ...g,
+        opciones: g.opciones.filter((o) => {
+          if (!o.valor || o.valor === VALOR_SIN_ASIGNAR_ASIG) return false;
+          if (!q) return true;
+          return (
+            normalizarBusqueda(o.etiqueta).includes(q) ||
+            normalizarBusqueda(g.etiqueta).includes(q)
+          );
+        }),
+      }))
+      .filter((g) => g.opciones.length > 0);
+  }, [grupos, q]);
+
   const opcionesFiltradas = q
     ? opcionesLimpias.filter((o) => normalizarBusqueda(o.etiqueta).includes(q))
     : opcionesLimpias;
@@ -135,8 +165,31 @@ export function SelectorAsignacionBusqueda({
     return `${seleccionValida.length} seleccionados`;
   })();
 
-  const sinResultados =
-    opcionesFiltradas.length === 0 && !mostrarTodos && !mostrarSinAsignar;
+  const sinResultados = gruposFiltrados
+    ? gruposFiltrados.length === 0 && !mostrarTodos && !mostrarSinAsignar
+    : opcionesFiltradas.length === 0 && !mostrarTodos && !mostrarSinAsignar;
+
+  function renderOpcion(o: OpcionAsignacion) {
+    const marcado = seleccionValida.includes(o.valor);
+    return (
+      <label
+        key={o.valor}
+        className={cn(
+          "flex cursor-pointer items-center gap-2 rounded-md border-2 border-muted-foreground/35 bg-muted/50 px-2.5 py-2 text-xs shadow-sm shadow-black/20",
+          "hover:border-teal-500/45 hover:bg-accent hover:text-accent-foreground",
+          marcado && "border-teal-500/55 bg-teal-950/40",
+        )}
+      >
+        <Checkbox
+          checked={marcado}
+          className="size-3.5"
+          onCheckedChange={() => toggleOpcion(o.valor)}
+        />
+        {o.indicador}
+        <span className="min-w-0 flex-1 truncate">{o.etiqueta}</span>
+      </label>
+    );
+  }
 
   return (
     <div className="space-y-1">
@@ -177,7 +230,7 @@ export function SelectorAsignacionBusqueda({
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-(--radix-popover-trigger-width) gap-0 border-2 border-muted-foreground/40 p-0 shadow-lg shadow-black/40 ring-1 ring-foreground/15"
+          className="z-100 w-(--radix-popover-trigger-width) gap-0 border-2 border-muted-foreground/40 p-0 shadow-lg shadow-black/40 ring-1 ring-foreground/15"
           align="start"
         >
           <div className="border-b border-border bg-muted/30 p-1.5">
@@ -232,7 +285,7 @@ export function SelectorAsignacionBusqueda({
               </label>
             )}
 
-            {(mostrarTodos || mostrarSinAsignar) && opcionesFiltradas.length > 0 && (
+            {(mostrarTodos || mostrarSinAsignar) && opcionesLimpias.length > 0 && (
               <div className="my-1 border-t border-muted-foreground/30" />
             )}
 
@@ -244,28 +297,17 @@ export function SelectorAsignacionBusqueda({
               <p className="px-2 py-3 text-center text-xs text-muted-foreground">
                 Sin resultados.
               </p>
+            ) : gruposFiltrados ? (
+              gruposFiltrados.map((g) => (
+                <div key={g.id} className="space-y-1">
+                  <p className="px-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {g.etiqueta}
+                  </p>
+                  {g.opciones.map(renderOpcion)}
+                </div>
+              ))
             ) : (
-              opcionesFiltradas.map((o) => {
-                const marcado = seleccionValida.includes(o.valor);
-                return (
-                  <label
-                    key={o.valor}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-2 rounded-md border-2 border-muted-foreground/35 bg-muted/50 px-2.5 py-2 text-xs shadow-sm shadow-black/20",
-                      "hover:border-teal-500/45 hover:bg-accent hover:text-accent-foreground",
-                      marcado && "border-teal-500/55 bg-teal-950/40",
-                    )}
-                  >
-                    <Checkbox
-                      checked={marcado}
-                      className="size-3.5"
-                      onCheckedChange={() => toggleOpcion(o.valor)}
-                    />
-                    {o.indicador}
-                    <span className="min-w-0 flex-1 truncate">{o.etiqueta}</span>
-                  </label>
-                );
-              })
+              opcionesFiltradas.map(renderOpcion)
             )}
           </div>
         </PopoverContent>

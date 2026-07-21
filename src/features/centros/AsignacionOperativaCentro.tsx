@@ -12,7 +12,7 @@ import {
 } from "@/data/useAnalistasSae";
 import { useSupervisoresSebin } from "@/data/useSupervisoresSebin";
 import { useCatalogoCuerposActivos } from "@/data/useCuerposPoliciales";
-import { useCatalogoUnidadesPorCuerpo } from "@/data/useUnidadesSebin";
+import { useCatalogoUnidadesSebinActivas } from "@/data/useUnidadesSebin";
 import {
   META_CUERPO,
   normalizarCentro,
@@ -24,8 +24,10 @@ import {
   type ClaveUnidadSebin,
   type SupervisionCentro,
 } from "@/domain/centrosTransitorios";
+import { getClavesCuerpoConUnidadesActivas } from "@/domain/unidadesSebin";
 import {
   SelectorAsignacionBusqueda,
+  type GrupoAsignacion,
   type OpcionAsignacion,
 } from "@/components/SelectorAsignacionBusqueda";
 import { Label } from "@/components/ui/label";
@@ -73,6 +75,7 @@ export function AsignacionOperativaCampos({
   disabled?: boolean;
 }) {
   const catalogoCuerpos = useCatalogoCuerposActivos();
+  const todasUnidades = useCatalogoUnidadesSebinActivas();
   const sesion = useSesion();
   // El analista con ámbito de cuerpo solo asigna campamentos a su propio
   // cuerpo (la RLS `centros_insert` rechaza unidades de otros cuerpos).
@@ -81,12 +84,27 @@ export function AsignacionOperativaCampos({
       ? (sesion.user.cuerpo_asignado ?? null)
       : null;
   const claveCuerpo = normalizarCuerpo(cuerpo);
-  const catalogoUnidades = useCatalogoUnidadesPorCuerpo(
-    claveCuerpo === "sin_asignar" ? null : claveCuerpo,
-  );
+  const supervisionN = normalizarSupervision(supervision);
+  const claveUnidad = normalizarUnidadSebin(supervisionN.unidad_sebin);
   const { supervisores, cargando: cargandoSupervisores } = useSupervisoresSebin();
   const analistasSae = useAnalistasSae();
-  const supervisionN = normalizarSupervision(supervision);
+
+  // Cuerpos con sub-unidades (sin hardcodear). Prioriza cuerpo del campamento.
+  // Analista de cuerpo: solo el suyo.
+  const cuerposConUnidades = useMemo(() => {
+    const clavesConUnidades = new Set(getClavesCuerpoConUnidadesActivas());
+    const base = catalogoCuerpos.filter(
+      (c) => c.clave !== "sin_asignar" && clavesConUnidades.has(c.clave),
+    );
+    const filtrados = cuerpoFijo
+      ? base.filter((c) => c.clave === cuerpoFijo)
+      : base;
+    return [...filtrados].sort((a, b) => {
+      if (a.clave === claveCuerpo) return -1;
+      if (b.clave === claveCuerpo) return 1;
+      return (a.orden ?? 100) - (b.orden ?? 100);
+    });
+  }, [catalogoCuerpos, cuerpoFijo, claveCuerpo]);
 
   const opcionesCuerpo: OpcionAsignacion[] = useMemo(
     () =>
@@ -112,23 +130,60 @@ export function AsignacionOperativaCampos({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [disabled, cuerpoFijo, labelCuerpoFijo, claveCuerpo]);
 
-  const opcionesUnidad: OpcionAsignacion[] = useMemo(
-    () =>
-      catalogoUnidades
-        .filter((u) => u.clave !== "sin_asignar")
-        .map((u) => ({
-          valor: u.clave,
-          etiqueta: u.label,
-          indicador: (
-            <span
-              className="size-2 shrink-0 rounded-full"
-              style={{ backgroundColor: u.color }}
-              aria-hidden
-            />
-          ),
-        })),
-    [catalogoUnidades],
-  );
+  // Un solo desplegable: grupos por cuerpo → sub-unidades (prioridad: asignado).
+  const gruposUnidad: GrupoAsignacion[] = useMemo(() => {
+    const aOpcion = (u: (typeof todasUnidades)[number]): OpcionAsignacion => ({
+      valor: u.clave,
+      etiqueta: u.label,
+      indicador: (
+        <span
+          className="size-2 shrink-0 rounded-full"
+          style={{ backgroundColor: u.color }}
+          aria-hidden
+        />
+      ),
+    });
+
+    const grupos = cuerposConUnidades.map((c) => ({
+      id: c.clave,
+      etiqueta:
+        c.clave === claveCuerpo ? `${c.label} (asignado)` : c.label,
+      opciones: todasUnidades
+        .filter(
+          (u) =>
+            u.clave !== "sin_asignar" &&
+            u.cuerpoClave === c.clave,
+        )
+        .map(aOpcion),
+    })).filter((g) => g.opciones.length > 0);
+
+    // Unidad huérfana (cuerpo sin catálogo o inactivo): al final, visible.
+    if (
+      claveUnidad !== "sin_asignar" &&
+      !grupos.some((g) => g.opciones.some((o) => o.valor === claveUnidad))
+    ) {
+      const meta = todasUnidades.find((u) => u.clave === claveUnidad);
+      if (meta) {
+        const labelCuerpo =
+          catalogoCuerpos.find((c) => c.clave === meta.cuerpoClave)?.label ??
+          meta.cuerpoClave ??
+          "Otro";
+        grupos.push({
+          id: `actual-${meta.clave}`,
+          etiqueta: `${labelCuerpo} (actual)`,
+          opciones: [aOpcion(meta)],
+        });
+      }
+    }
+
+    return grupos;
+  }, [
+    cuerposConUnidades,
+    todasUnidades,
+    claveCuerpo,
+    claveUnidad,
+    catalogoCuerpos,
+  ]);
 
   const opcionesSupervisor: OpcionAsignacion[] = useMemo(() => {
     const lista = supervisores.map((s) => ({
@@ -154,14 +209,13 @@ export function AsignacionOperativaCampos({
     [analistasSae],
   );
 
-  const claveUnidad = normalizarUnidadSebin(supervisionN.unidad_sebin);
-  const unidadPerteneceAlCuerpo = useMemo(() => {
+  const unidadValidaEnCatalogo = useMemo(() => {
     if (claveUnidad === "sin_asignar") return true;
-    return catalogoUnidades.some((u) => u.clave === claveUnidad);
-  }, [catalogoUnidades, claveUnidad]);
+    return todasUnidades.some((u) => u.clave === claveUnidad);
+  }, [todasUnidades, claveUnidad]);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-muted/15">
+    <div className="rounded-lg border border-border bg-muted/15">
       <div className="flex items-baseline justify-between gap-2 border-b border-border/70 px-3 py-1.5">
         <p className="text-xs font-semibold text-foreground">Asignación operativa</p>
         <p className="truncate text-[10px] text-muted-foreground">
@@ -189,9 +243,9 @@ export function AsignacionOperativaCampos({
         <CampoCompacto n={2} label="Unidad de supervisión">
           <SelectorAsignacionBusqueda
             modo="unico"
-            opciones={opcionesUnidad}
+            grupos={gruposUnidad}
             seleccion={
-              claveUnidad === "sin_asignar" || !unidadPerteneceAlCuerpo
+              claveUnidad === "sin_asignar" || !unidadValidaEnCatalogo
                 ? []
                 : [claveUnidad]
             }
@@ -199,11 +253,11 @@ export function AsignacionOperativaCampos({
             placeholder={
               claveCuerpo === "sin_asignar" ? "Elegí cuerpo primero" : "Unidad"
             }
-            buscarPlaceholder="Buscar unidad…"
-            vacioMensaje="Sin unidades para este cuerpo."
+            buscarPlaceholder="Buscar unidad o cuerpo…"
+            vacioMensaje="Sin unidades de supervisión en el catálogo."
             onCambiar={(vals) => {
               const clave = (vals[0] ?? "sin_asignar") as ClaveUnidadSebin;
-              const meta = catalogoUnidades.find((u) => u.clave === clave);
+              const meta = todasUnidades.find((u) => u.clave === clave);
               onSupervisionChange({ unidad_sebin: meta?.valorDb ?? "" });
             }}
           />
