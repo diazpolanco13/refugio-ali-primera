@@ -1,5 +1,6 @@
 // Seguimiento operativo derivado de los reportes diarios: casos de salud
-// (`casos_salud_centros`) y novedades (`eventos_reportes`).
+// (`casos_salud_centros`), novedades (`eventos_reportes`) y trabajos
+// (`reparaciones_centros` — ver SeguimientoTrabajosCentro).
 
 import {
   casosAbiertosSeguimiento,

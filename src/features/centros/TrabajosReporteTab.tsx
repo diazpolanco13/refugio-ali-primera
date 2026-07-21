@@ -66,106 +66,154 @@ interface Props {
 
 type VistaTrabajos = "activos" | "archivados";
 
-function TarjetaTrabajo({
+export function TarjetaTrabajo({
   trabajo,
   onEditar,
+  onCambiarEstatus,
   onArchivar,
   onEliminar,
+  cambiando,
+  archivando,
   eliminando,
   deshabilitado,
 }: {
   trabajo: TrabajoCentro;
   onEditar: () => void;
+  /** Select compacto pendiente → en_progreso → completado. */
+  onCambiarEstatus?: (estatus: EstatusTrabajo) => void;
   onArchivar?: () => void;
   onEliminar: () => void;
+  cambiando?: boolean;
+  archivando?: boolean;
   eliminando?: boolean;
   deshabilitado?: boolean;
 }) {
   const meta = META_ESTATUS_TRABAJO[trabajo.estatus];
+  const ocupado = Boolean(deshabilitado || eliminando || cambiando || archivando);
+  const puedeArchivar = Boolean(onArchivar && puedeArchivarTrabajo(trabajo.estatus));
+  const finalidadExtra =
+    trabajo.finalidad.trim() &&
+    trabajo.finalidad.trim().toLowerCase() !== trabajo.titulo.trim().toLowerCase()
+      ? trabajo.finalidad.trim()
+      : "";
+  const detalle = [finalidadExtra, trabajo.descripcion.trim()].filter(Boolean).join(" · ");
+
   return (
     <div
       className={cn(
-        "rounded-lg border border-border bg-card px-3 py-2.5",
-        trabajo.estatus === "pendiente" && "border-red-500/30 bg-red-500/5",
-        trabajo.estatus === "en_progreso" && "border-amber-500/25 bg-amber-500/5",
-        trabajo.estatus === "completado" && "border-emerald-500/30 bg-emerald-500/5",
-        trabajo.estatus === "archivado" && "border-border/70 bg-muted/30",
+        "rounded-md border border-border/70 bg-card px-2.5 py-1.5",
+        trabajo.estatus === "pendiente" && "border-red-500/25 bg-red-500/5",
+        trabajo.estatus === "en_progreso" && "border-amber-500/20 bg-amber-500/5",
+        trabajo.estatus === "completado" && "border-emerald-500/25 bg-emerald-500/5",
+        trabajo.estatus === "archivado" && "border-border/60 bg-muted/20",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1 space-y-1">
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-sm font-medium text-foreground">{trabajo.titulo}</span>
-            <Badge
-              variant="outline"
-              className="text-[10px]"
-              style={{ borderColor: `${meta.color}66`, color: meta.color }}
-            >
-              {meta.label}
-            </Badge>
+            <span className="truncate text-xs font-medium text-foreground">{trabajo.titulo}</span>
             <BadgeAntiguedad
               reportadoDia={trabajo.reportada_dia}
               resueltaTs={trabajo.resuelta_ts}
               creadaTs={trabajo.creada_ts}
             />
+            {ocupado && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
           </div>
-          {trabajo.finalidad && (
-            <p className="text-[11px] text-muted-foreground">
-              <span className="font-medium">Finalidad:</span> {trabajo.finalidad}
+          {detalle ? (
+            <p className="mt-0.5 line-clamp-1 text-[10px] leading-snug text-muted-foreground">
+              {detalle}
             </p>
-          )}
-          {trabajo.descripcion && (
-            <p className="whitespace-pre-wrap text-xs text-muted-foreground">{trabajo.descripcion}</p>
-          )}
+          ) : null}
         </div>
-        <div className="flex shrink-0 gap-0.5">
-          <Button type="button" size="icon-xs" variant="ghost" disabled={deshabilitado || eliminando} onClick={onEditar}>
-            <Pencil className="size-3.5" />
-          </Button>
-          {onArchivar && puedeArchivarTrabajo(trabajo.estatus) && (
+
+        {trabajo.estatus !== "archivado" && onCambiarEstatus && !deshabilitado ? (
+          <Select
+            value={trabajo.estatus}
+            disabled={ocupado}
+            onValueChange={(v) => onCambiarEstatus(v as EstatusTrabajo)}
+          >
+            <SelectTrigger
+              className="h-7 w-[7.25rem] shrink-0 text-[11px]"
+              style={{ borderColor: `${meta.color}66`, color: meta.color }}
+            >
+              {cambiando ? <Loader2 className="size-3 animate-spin" /> : <SelectValue />}
+            </SelectTrigger>
+            <SelectContent>
+              {ESTATUS_TRABAJO.filter((e) => e.valor !== "archivado").map((e) => (
+                <SelectItem key={e.valor} value={e.valor} className="text-xs">
+                  {e.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Badge
+            variant="outline"
+            className="h-5 shrink-0 px-1.5 text-[10px]"
+            style={{ borderColor: `${meta.color}66`, color: meta.color }}
+          >
+            {meta.label}
+          </Badge>
+        )}
+
+        {trabajo.estatus !== "archivado" && (
+          <div className="flex shrink-0 items-center gap-0.5">
+            {puedeArchivar && (
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="outline"
+                disabled={ocupado}
+                onClick={onArchivar}
+                aria-label="Archivar trabajo"
+                title="Archivar"
+              >
+                {archivando ? <Loader2 className="size-3.5 animate-spin" /> : <Archive className="size-3.5" />}
+              </Button>
+            )}
             <Button
               type="button"
               size="icon-xs"
               variant="ghost"
-              disabled={deshabilitado || eliminando}
-              onClick={onArchivar}
-              aria-label="Archivar"
+              disabled={ocupado}
+              onClick={onEditar}
+              aria-label="Editar trabajo"
             >
-              <Archive className="size-3.5" />
+              <Pencil className="size-3.5" />
             </Button>
-          )}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                type="button"
-                size="icon-xs"
-                variant="ghost"
-                className="text-destructive hover:text-destructive"
-                disabled={deshabilitado || eliminando}
-                aria-label="Eliminar trabajo"
-              >
-                {eliminando ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Eliminar trabajo?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Se borrará «{trabajo.titulo}» de forma permanente. Esta acción no se puede deshacer.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={onEliminar}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon-xs"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive"
+                  disabled={ocupado}
+                  aria-label="Eliminar trabajo"
                 >
-                  Eliminar
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+                  {eliminando ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar trabajo?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Se borrará «{trabajo.titulo}» de forma permanente. Esta acción no se puede deshacer.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={onEliminar}
+                  >
+                    Eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -197,6 +245,8 @@ export function TrabajosReporteTab({
   const [estatus, setEstatus] = useState<EstatusTrabajo>("pendiente");
   const [guardandoItem, setGuardandoItem] = useState(false);
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
+  const [cambiandoId, setCambiandoId] = useState<string | null>(null);
+  const [archivandoId, setArchivandoId] = useState<string | null>(null);
   const [listadoModificado, setListadoModificado] = useState(false);
   const revisadoPrevio = useRef(revisado);
   const autoArchivoHecho = useRef(false);
@@ -278,6 +328,29 @@ export function TrabajosReporteTab({
       await recargarTodo();
     } finally {
       setEliminandoId(null);
+    }
+  }
+
+  async function cambiarEstatus(id: string, estatus: EstatusTrabajo) {
+    setCambiandoId(id);
+    try {
+      await actualizarTrabajo(id, { estatus });
+      setListadoModificado(true);
+      await recargarTodo();
+    } finally {
+      setCambiandoId(null);
+    }
+  }
+
+  async function archivarItem(id: string) {
+    setArchivandoId(id);
+    try {
+      await archivarTrabajo(id);
+      if (editandoId === id) resetForm();
+      setListadoModificado(true);
+      await recargarTodo();
+    } finally {
+      setArchivandoId(null);
     }
   }
 
@@ -420,16 +493,18 @@ export function TrabajosReporteTab({
               <TarjetaTrabajo
                 trabajo={t}
                 deshabilitado={deshabilitado}
+                cambiando={cambiandoId === t.id}
+                archivando={archivandoId === t.id}
                 eliminando={eliminandoId === t.id}
                 onEditar={() => cargarEdicion(t)}
+                onCambiarEstatus={
+                  vista === "activos" && !deshabilitado
+                    ? (est) => void cambiarEstatus(t.id, est)
+                    : undefined
+                }
                 onArchivar={
-                  vista === "activos"
-                    ? () => {
-                        void archivarTrabajo(t.id).then(async () => {
-                          setListadoModificado(true);
-                          await recargarTodo();
-                        });
-                      }
+                  vista === "activos" && !deshabilitado
+                    ? () => void archivarItem(t.id)
                     : undefined
                 }
                 onEliminar={() => void eliminarItem(t.id)}

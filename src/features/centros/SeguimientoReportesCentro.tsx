@@ -1,8 +1,9 @@
-// Seguimiento de incidencias de salud y novedades del reporte diario.
-// Casos de salud y novedades se pueden crear aquí o en el reporte.
+// Seguimiento de salud, trabajos y novedades del reporte diario.
+// Se pueden crear aquí o en el reporte.
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
+  Archive,
   CalendarDays,
   CalendarPlus,
   Check,
@@ -19,11 +20,13 @@ import {
   ThumbsDown,
   ThumbsUp,
   Trash2,
+  Wrench,
   X,
 } from "lucide-react";
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
+import { useReparacionesCentros } from "@/data/useReparacionesCentros";
 import {
   actualizarCasoSalud,
   archivarCasoSalud,
@@ -95,16 +98,20 @@ import {
   formatearDiaCalendario,
 } from "./CalendarioSelectorDia";
 import { GraficoSeguimientoCentro } from "./GraficoSeguimientoCentro";
+import {
+  contarTrabajosPendientesSeguimiento,
+  SeguimientoTrabajosCentro,
+} from "./SeguimientoTrabajosCentro";
 
 interface Props {
   centro: CentroTransitorio;
   puedeEditar: boolean;
   variant?: "compacto" | "expandido";
-  /** Abre el formulario del reporte en la fase indicada (parte | salud | novedades). */
+  /** Abre el formulario del reporte en la fase indicada (parte | salud | trabajos | novedades). */
   onIrAReporte?: (fase?: string) => void;
 }
 
-type TabSeguimiento = "salud" | "novedades";
+type TabSeguimiento = "salud" | "trabajos" | "novedades";
 
 const LEYENDA_CALENDARIO = [
   { color: "#ef4444", label: "Salud o novedad negativa" },
@@ -205,12 +212,10 @@ function TarjetaCasoSalud({
   onEditar,
   onCancelarEdicion,
   onGuardar,
-  onEliminar,
   onCambiarEstatus,
   onArchivar,
   cambiando,
   archivando,
-  eliminando,
   guardando,
 }: {
   caso: CasoSaludCentro;
@@ -221,16 +226,14 @@ function TarjetaCasoSalud({
   onEditar: () => void;
   onCancelarEdicion: () => void;
   onGuardar: () => void;
-  onEliminar: () => void;
   onCambiarEstatus: (estatus: EstatusCasoSalud) => void;
   onArchivar: () => void;
   cambiando: boolean;
   archivando: boolean;
-  eliminando: boolean;
   guardando: boolean;
 }) {
   const meta = META_ESTATUS_CASO_SALUD[caso.estatus];
-  const ocupado = cambiando || archivando || eliminando || guardando;
+  const ocupado = cambiando || archivando || guardando;
 
   return (
     <div
@@ -287,23 +290,27 @@ function TarjetaCasoSalud({
                   type="button"
                   size="icon-sm"
                   variant="ghost"
-                  className="text-destructive hover:text-destructive"
                   disabled={ocupado}
-                  aria-label="Eliminar caso"
+                  aria-label="Archivar caso"
                 >
-                  {eliminando ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                  {archivando ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Archive className="size-4" />
+                  )}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>¿Eliminar caso de salud?</AlertDialogTitle>
+                  <AlertDialogTitle>¿Archivar caso de salud?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Se archivará «{caso.titulo}». Esta acción no se puede deshacer.
+                    «{caso.titulo}» pasará a Archivados. Podrás consultarlo después en esa
+                    pestaña.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={onEliminar}>Eliminar</AlertDialogAction>
+                  <AlertDialogAction onClick={onArchivar}>Archivar</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -402,11 +409,11 @@ function TarjetaCasoSalud({
               type="button"
               size="sm"
               variant="outline"
-              className="w-full"
+              className="w-full gap-1.5"
               disabled={ocupado}
               onClick={onArchivar}
             >
-              {archivando ? <Loader2 className="size-4 animate-spin" /> : null}
+              {archivando ? <Loader2 className="size-4 animate-spin" /> : <Archive className="size-4" />}
               Archivar caso resuelto
             </Button>
           )}
@@ -643,8 +650,25 @@ function SeguimientoExpandido({
     desde: verNovedadesAnteriores ? undefined : desde,
   });
   const snapshots = useOcupacionesCentros({ centroId: centro.id, desde });
+  const { trabajos: trabajosActivosLista, recargar: recargarTrabajosActivos } = useReparacionesCentros({
+    centroId: centro.id,
+    soloActivos: true,
+  });
+  const { trabajos: trabajosArchivadosLista, recargar: recargarTrabajosArchivados } =
+    useReparacionesCentros({
+      centroId: centro.id,
+      estatus: "archivado",
+    });
+
+  const recargarTrabajos = useCallback(async () => {
+    await Promise.all([recargarTrabajosActivos(), recargarTrabajosArchivados()]);
+  }, [recargarTrabajosActivos, recargarTrabajosArchivados]);
 
   const casos = useMemo(() => casosSaludEnSeguimiento(todosCasos), [todosCasos]);
+  const trabajosPendientesCount = useMemo(
+    () => contarTrabajosPendientesSeguimiento(trabajosActivosLista),
+    [trabajosActivosLista],
+  );
 
   const contadores = useMemo(
     () => contadoresSeguimientoCentro(casos, eventos, hoyClave),
@@ -655,8 +679,7 @@ function SeguimientoExpandido({
     [centro.id, snapshots, eventos],
   );
 
-  // Pestaña activa: hasta que el usuario elige, se abre donde hay trabajo
-  // pendiente (salud con casos activos) y si no, en las novedades.
+  // Pestaña activa: salud con pendientes → trabajos abiertos → novedades.
   const [tabManual, setTabManual] = useState<TabSeguimiento | null>(null);
   const [subSalud, setSubSalud] = useState<"seguimiento" | "archivados">("seguimiento");
   const [diaSel, setDiaSel] = useState<string | null>(null);
@@ -664,7 +687,6 @@ function SeguimientoExpandido({
   const [evolucionAbierta, setEvolucionAbierta] = useState(false);
   const [cambiandoId, setCambiandoId] = useState<string | null>(null);
   const [archivandoId, setArchivandoId] = useState<string | null>(null);
-  const [eliminandoCasoId, setEliminandoCasoId] = useState<string | null>(null);
   const [guardandoCasoId, setGuardandoCasoId] = useState<string | null>(null);
   const [editandoCasoId, setEditandoCasoId] = useState<string | null>(null);
   const [borradorCaso, setBorradorCaso] = useState({
@@ -719,7 +741,12 @@ function SeguimientoExpandido({
   );
 
   const tab: TabSeguimiento =
-    tabManual ?? (casosPendientes.length + saludSinDetalle.length > 0 ? "salud" : "novedades");
+    tabManual ??
+    (casosPendientes.length + saludSinDetalle.length > 0
+      ? "salud"
+      : trabajosPendientesCount > 0
+        ? "trabajos"
+        : "novedades");
 
   const saludSinDetalleVisibles = useMemo(() => {
     if (subSalud === "archivados") return [];
@@ -833,17 +860,6 @@ function SeguimientoExpandido({
     }
   }
 
-  async function eliminarCaso(id: string) {
-    setEliminandoCasoId(id);
-    try {
-      await archivarCasoSalud(id);
-      await recargarCasos();
-      if (editandoCasoId === id) cancelarEdicionCaso();
-    } finally {
-      setEliminandoCasoId(null);
-    }
-  }
-
   function cancelarEdicionNovedad() {
     setEditandoNovedadId(null);
     setBorradorNovedad({ tipo: TIPO_EVENTO_REPORTE_DEFAULT, hora: "", titulo: "", descripcion: "" });
@@ -922,7 +938,10 @@ function SeguimientoExpandido({
     }
   }
 
-  const hayAlerta = contadores.casosActivos > 0 || contadores.novedadesNegativasRecientes > 0;
+  const hayAlerta =
+    contadores.casosActivos > 0 ||
+    contadores.novedadesNegativasRecientes > 0 ||
+    trabajosPendientesCount > 0;
   // El badge de Salud cuenta solo lo accionable: casos abiertos y partes sin detallar.
   const totalSaludTab = casosPendientes.length + saludSinDetalle.length;
 
@@ -984,10 +1003,8 @@ function SeguimientoExpandido({
               onEditar={() => iniciarEdicionCaso(c)}
               onCancelarEdicion={cancelarEdicionCaso}
               onGuardar={() => void guardarCasoEditado(c.id)}
-              onEliminar={() => void eliminarCaso(c.id)}
               cambiando={cambiandoId === c.id}
               archivando={archivandoId === c.id}
-              eliminando={eliminandoCasoId === c.id}
               guardando={guardandoCasoId === c.id}
               onCambiarEstatus={(est) => void cambiarEstatus(c.id, est)}
               onArchivar={() => void archivar(c.id)}
@@ -1053,6 +1070,22 @@ function SeguimientoExpandido({
             {contadores.casosActivos > 0
               ? `${contadores.casosActivos} activo${contadores.casosActivos === 1 ? "" : "s"}`
               : "sin activos"}
+          </span>
+        </span>
+        <span className="hidden text-border sm:inline">·</span>
+        <span className="text-muted-foreground">
+          Trabajos:{" "}
+          <span
+            className={cn(
+              "font-medium",
+              trabajosPendientesCount > 0 ? "text-amber-400" : "text-foreground",
+            )}
+          >
+            {trabajosPendientesCount > 0
+              ? `${trabajosPendientesCount} abierto${trabajosPendientesCount === 1 ? "" : "s"}`
+              : trabajosActivosLista.length > 0
+                ? `${trabajosActivosLista.length} en curso`
+                : "sin abiertos"}
           </span>
         </span>
         <span className="hidden text-border sm:inline">·</span>
@@ -1156,7 +1189,7 @@ function SeguimientoExpandido({
         <div className="border-b border-border">
           <TabsList
             variant="line"
-            className="!grid h-10 w-full grid-cols-2 gap-0 overflow-hidden rounded-none bg-transparent p-0"
+            className="!grid h-10 w-full grid-cols-3 gap-0 overflow-hidden rounded-none bg-transparent p-0"
           >
             <TabsTrigger value="salud" className={tabTriggerClass}>
               <Stethoscope className="size-3.5 shrink-0" />
@@ -1167,6 +1200,18 @@ function SeguimientoExpandido({
                   className="h-4 min-w-4 border-rose-500/30 bg-rose-500/10 px-1 text-[9px] tabular-nums text-rose-400"
                 >
                   {totalSaludTab}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="trabajos" className={tabTriggerClass}>
+              <Wrench className="size-3.5 shrink-0" />
+              <span className="truncate">Trabajos</span>
+              {trabajosPendientesCount > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="h-4 min-w-4 border-amber-500/30 bg-amber-500/10 px-1 text-[9px] tabular-nums text-amber-400"
+                >
+                  {trabajosPendientesCount}
                 </Badge>
               )}
             </TabsTrigger>
@@ -1352,10 +1397,8 @@ function SeguimientoExpandido({
                   onEditar={() => iniciarEdicionCaso(c)}
                   onCancelarEdicion={cancelarEdicionCaso}
                   onGuardar={() => void guardarCasoEditado(c.id)}
-                  onEliminar={() => void eliminarCaso(c.id)}
                   cambiando={cambiandoId === c.id}
                   archivando={archivandoId === c.id}
-                  eliminando={eliminandoCasoId === c.id}
                   guardando={guardandoCasoId === c.id}
                   onCambiarEstatus={(est) => void cambiarEstatus(c.id, est)}
                   onArchivar={() => void archivar(c.id)}
@@ -1363,6 +1406,19 @@ function SeguimientoExpandido({
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="trabajos" className="mt-4 space-y-4">
+          <SeguimientoTrabajosCentro
+            centroId={centro.id}
+            puedeEditar={puedeEditar}
+            hoyClave={hoyClave}
+            diaSel={diaSel}
+            activos={trabajosActivosLista}
+            archivados={trabajosArchivadosLista}
+            onRecargar={recargarTrabajos}
+            onIrAReporte={onIrAReporte}
+          />
         </TabsContent>
 
         <TabsContent value="novedades" className="mt-4 space-y-4">
@@ -1537,7 +1593,15 @@ function SeguimientoCompacto({
   const hoyClave = useMemo(() => claveDia(Date.now()), []);
   const { casos } = useCasosSaludCentros({ centroId: centro.id, soloActivos: true });
   const { eventos } = useEventosReportes({ centroId: centro.id, dia: hoyClave });
+  const { trabajos: trabajosActivosLista } = useReparacionesCentros({
+    centroId: centro.id,
+    soloActivos: true,
+  });
   const pendientes = useMemo(() => casosSaludPendientes(casos), [casos]);
+  const trabajosPendientesCount = useMemo(
+    () => contarTrabajosPendientesSeguimiento(trabajosActivosLista),
+    [trabajosActivosLista],
+  );
   const contadores = useMemo(
     () => contadoresSeguimientoCentro(casos, eventos, hoyClave),
     [casos, eventos, hoyClave],
@@ -1556,6 +1620,9 @@ function SeguimientoCompacto({
           {contadores.casosActivos > 0
             ? `${contadores.casosActivos} caso(s) de salud activo(s)`
             : "Sin casos de salud activos"}
+          {trabajosPendientesCount > 0
+            ? ` · ${trabajosPendientesCount} trabajo(s) abierto(s)`
+            : ""}
           {eventos.length > 0 ? ` · ${eventos.length} novedad(es) hoy` : ""}
         </p>
         {pendientes.slice(0, 2).map((c) => (
