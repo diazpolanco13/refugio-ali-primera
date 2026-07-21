@@ -8,6 +8,18 @@ export interface MiembroTraslado {
   es_jefe_familia: boolean;
 }
 
+/** Origen del registro en tabla `traslados`. */
+export type FuenteTraslado = "wizard" | "censo_nominal";
+
+/** Persona resuelta para mostrar en historial enriquecido. */
+export interface PersonaTrasladoVista {
+  refugiado_id: string;
+  nombre: string;
+  cedula: string | null;
+  tipo_doc: string | null;
+  es_jefe_familia: boolean;
+}
+
 /** Fila de historial `traslados`. */
 export interface Traslado {
   id: string;
@@ -19,6 +31,12 @@ export interface Traslado {
   miembros: MiembroTraslado[];
   creada_ts: number;
   creada_por: string;
+  fuente: FuenteTraslado;
+}
+
+/** Traslado con nombres/cédulas de miembros resueltos. */
+export interface TrasladoEnriquecido extends Traslado {
+  personas: PersonaTrasladoVista[];
 }
 
 /** Persona activa en un hogar candidato a traslado. */
@@ -99,6 +117,14 @@ export function normalizarMiembroTraslado(raw: unknown): MiembroTraslado {
   };
 }
 
+export function normalizarFuenteTraslado(raw: unknown): FuenteTraslado {
+  return raw === "censo_nominal" ? "censo_nominal" : "wizard";
+}
+
+export function etiquetaFuenteTraslado(fuente: FuenteTraslado): string {
+  return fuente === "censo_nominal" ? "Censo" : "Wizard";
+}
+
 export function normalizarTraslado(raw: Record<string, unknown>): Traslado {
   const miembrosRaw = Array.isArray(raw.miembros) ? raw.miembros : [];
   return {
@@ -115,5 +141,6 @@ export function normalizarTraslado(raw: Record<string, unknown>): Traslado {
     miembros: miembrosRaw.map(normalizarMiembroTraslado),
     creada_ts: Number(raw.creada_ts ?? 0),
     creada_por: String(raw.creada_por ?? ""),
+    fuente: normalizarFuenteTraslado(raw.fuente),
   };
 }

@@ -39,6 +39,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -643,6 +652,8 @@ export function CensoNexusPanel({
   const [trasladando, setTrasladando] = useState<null | "persona" | "familia">(null);
   const [trasladoOk, setTrasladoOk] = useState("");
   const [trasladoError, setTrasladoError] = useState("");
+  const [dialogTraslado, setDialogTraslado] = useState<null | "persona" | "familia">(null);
+  const [motivoTraslado, setMotivoTraslado] = useState("");
   /** Detalle SAIME (dirección, teléfonos, familiares): plegado por defecto. */
   const [infoSaimeAbierta, setInfoSaimeAbierta] = useState(false);
   /** Vulnerabilidades de la persona consultada por cédula. */
@@ -1023,15 +1034,35 @@ export function CensoNexusPanel({
    * aviso rojo desaparece y el censo continúa por el camino normal (o por
    * "Ir a esa familia" si la familia ya quedó registrada aquí).
    */
-  async function onTrasladarAqui(modo: "persona" | "familia") {
-    if (!persona || trasladando) return;
+  function abrirDialogTraslado(modo: "persona" | "familia") {
+    setTrasladoError("");
+    setMotivoTraslado("");
+    setDialogTraslado(modo);
+  }
+
+  async function confirmarTrasladoConMotivo() {
+    if (!persona || trasladando || !dialogTraslado) return;
+    const motivo = motivoTraslado.trim();
+    if (motivo.length < 3) {
+      setTrasladoError("Indique el motivo del traslado (mínimo 3 caracteres).");
+      return;
+    }
+    const modo = dialogTraslado;
     setTrasladando(modo);
     setTrasladoError("");
     try {
-      const r = await trasladarCedulaACentro(persona.cedula, persona.letra, centroId, modo);
+      const r = await trasladarCedulaACentro(
+        persona.cedula,
+        persona.letra,
+        centroId,
+        modo,
+        motivo,
+      );
       const nuevo = await estadoNominalPorCedula(persona.cedula, persona.letra, centroId);
       setEstadoNominal(nuevo);
       setConfirmoDuplicado(false);
+      setDialogTraslado(null);
+      setMotivoTraslado("");
       setTrasladoOk(
         modo === "familia"
           ? `Familia trasladada a este campamento (${r.movidos} ${
@@ -2617,9 +2648,7 @@ export function CensoNexusPanel({
                       size="sm"
                       className="justify-start gap-1.5"
                       disabled={trasladando !== null}
-                      onClick={() => {
-                        void onTrasladarAqui("persona");
-                      }}
+                      onClick={() => abrirDialogTraslado("persona")}
                     >
                       {trasladando === "persona" ? (
                         <Loader2 className="size-4 animate-spin" />
@@ -2640,9 +2669,7 @@ export function CensoNexusPanel({
                           variant="secondary"
                           className="justify-start gap-1.5"
                           disabled={trasladando !== null}
-                          onClick={() => {
-                            void onTrasladarAqui("familia");
-                          }}
+                          onClick={() => abrirDialogTraslado("familia")}
                         >
                           {trasladando === "familia" ? (
                             <Loader2 className="size-4 animate-spin" />
@@ -2654,10 +2681,75 @@ export function CensoNexusPanel({
                       );
                     })()}
                   </div>
-                  {trasladoError ? (
+                  {trasladoError && !dialogTraslado ? (
                     <p className="text-xs leading-snug text-destructive">{trasladoError}</p>
                   ) : null}
                 </div>
+                <Dialog
+                  open={dialogTraslado !== null}
+                  onOpenChange={(open) => {
+                    if (!open && trasladando === null) {
+                      setDialogTraslado(null);
+                      setMotivoTraslado("");
+                    }
+                  }}
+                >
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {dialogTraslado === "familia"
+                          ? "Confirmar traslado de familia"
+                          : "Confirmar traslado"}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {dialogTraslado === "familia"
+                          ? "Se cerrarán los registros activos de toda la familia en el campamento de origen y quedarán activos aquí."
+                          : "Se cerrará el registro activo en el campamento de origen y la persona quedará activa aquí."}
+                        {" "}
+                        Indique el motivo del traslado (queda en el historial).
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                      <Label htmlFor="motivo-traslado-censo">Motivo</Label>
+                      <Textarea
+                        id="motivo-traslado-censo"
+                        value={motivoTraslado}
+                        onChange={(e) => setMotivoTraslado(e.target.value)}
+                        placeholder="Ej.: reubicación por capacidad / solicitud familiar / censo en destino"
+                        rows={3}
+                        disabled={trasladando !== null}
+                      />
+                      {trasladoError ? (
+                        <p className="text-xs text-destructive">{trasladoError}</p>
+                      ) : null}
+                    </div>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={trasladando !== null}
+                        onClick={() => {
+                          setDialogTraslado(null);
+                          setMotivoTraslado("");
+                          setTrasladoError("");
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="button"
+                        disabled={trasladando !== null || motivoTraslado.trim().length < 3}
+                        onClick={() => void confirmarTrasladoConMotivo()}
+                      >
+                        {trasladando ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          "Confirmar traslado"
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
                 <p className="text-xs leading-snug text-muted-foreground">
                   ¿Dudas sobre el caso? Repórtelo a un analista antes de trasladar:
                 </p>

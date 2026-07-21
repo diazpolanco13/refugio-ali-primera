@@ -2,6 +2,7 @@
 
 import {
   formatearCedula,
+  nombreCompleto,
   type TipoDoc,
 } from "../domain/refugiados";
 import {
@@ -11,12 +12,13 @@ import {
   type HogarTrasladable,
   type InputEjecutarTraslado,
   type MiembroHogarTraslado,
+  type PersonaTrasladoVista,
   type ResultadoTraslado,
   type Traslado,
+  type TrasladoEnriquecido,
 } from "../domain/traslados";
 import { esFalloDeRed, MENSAJE_SIN_CONEXION } from "@/lib/errorRed";
 import { supabase } from "./supabaseClient";
-import { registrarHistorial } from "./historial";
 
 function errorRepos(contexto: string, message: string): Error {
   console.warn(`[reposTraslados] ${contexto}:`, message);
@@ -121,11 +123,76 @@ export async function obtenerHogarTrasladable(
   return normalizarHogarTrasladable(data);
 }
 
-/** Historial de traslados (más recientes primero). */
+async function resolverPersonasTraslado(
+  traslados: Traslado[],
+): Promise<Map<string, PersonaTrasladoVista>> {
+  const ids = [
+    ...new Set(
+      traslados.flatMap((t) =>
+        t.miembros.map((m) => m.refugiado_id).filter(Boolean),
+      ),
+    ),
+  ];
+  const mapa = new Map<string, PersonaTrasladoVista>();
+  if (ids.length === 0) return mapa;
+
+  const { data, error } = await supabase
+    .from("refugiados")
+    .select(
+      "id, nombres, apellidos, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, cedula, tipo_doc",
+    )
+    .in("id", ids);
+  if (error) {
+    console.warn("[reposTraslados] resolver personas:", error.message);
+    return mapa;
+  }
+
+  for (const raw of data ?? []) {
+    const r = raw as Record<string, unknown>;
+    const id = String(r.id ?? "");
+    if (!id) continue;
+    mapa.set(id, {
+      refugiado_id: id,
+      nombre: nombreCompleto({
+        nombres: String(r.nombres ?? ""),
+        apellidos: String(r.apellidos ?? ""),
+        primer_nombre: String(r.primer_nombre ?? ""),
+        segundo_nombre: String(r.segundo_nombre ?? ""),
+        primer_apellido: String(r.primer_apellido ?? ""),
+        segundo_apellido: String(r.segundo_apellido ?? ""),
+      }),
+      cedula: r.cedula != null ? String(r.cedula) : null,
+      tipo_doc: r.tipo_doc != null ? String(r.tipo_doc) : null,
+      es_jefe_familia: false,
+    });
+  }
+  return mapa;
+}
+
+function enriquecerTraslados(
+  traslados: Traslado[],
+  personas: Map<string, PersonaTrasladoVista>,
+): TrasladoEnriquecido[] {
+  return traslados.map((t) => ({
+    ...t,
+    personas: t.miembros.map((m) => {
+      const base = personas.get(m.refugiado_id);
+      return {
+        refugiado_id: m.refugiado_id,
+        nombre: base?.nombre ?? "Persona",
+        cedula: base?.cedula ?? null,
+        tipo_doc: base?.tipo_doc ?? null,
+        es_jefe_familia: m.es_jefe_familia,
+      };
+    }),
+  }));
+}
+
+/** Historial de traslados (más recientes primero), con nombres de miembros. */
 export async function listarTraslados(opts?: {
   centroId?: string;
   limite?: number;
-}): Promise<Traslado[]> {
+}): Promise<TrasladoEnriquecido[]> {
   let q = supabase
     .from("traslados")
     .select("*")
@@ -142,7 +209,40 @@ export async function listarTraslados(opts?: {
   if (error) {
     throw errorRepos("listar traslados", error.message);
   }
-  return ((data ?? []) as Record<string, unknown>[]).map(normalizarTraslado);
+  const lista = ((data ?? []) as Record<string, unknown>[]).map(
+    normalizarTraslado,
+  );
+  const personas = await resolverPersonasTraslado(lista);
+  return enriquecerTraslados(lista, personas);
+}
+
+/** Traslados donde el refugiado figura en `miembros` (jsonb). */
+export async function listarTrasladosPorRefugiado(
+  refugiadoId: string,
+  opts?: { limite?: number },
+): Promise<TrasladoEnriquecido[]> {
+  const id = refugiadoId.trim();
+  if (!id) return [];
+
+  // PostgREST `cs` exige literal JSON; `.contains([{...}])` a veces manda
+  // sintaxis inválida ("invalid input syntax for type json").
+  const filtroMiembros = JSON.stringify([{ refugiado_id: id }]);
+
+  const { data, error } = await supabase
+    .from("traslados")
+    .select("*")
+    .filter("miembros", "cs", filtroMiembros)
+    .order("creada_ts", { ascending: false })
+    .limit(opts?.limite ?? 50);
+
+  if (error) {
+    throw errorRepos("listar traslados por refugiado", error.message);
+  }
+  const lista = ((data ?? []) as Record<string, unknown>[]).map(
+    normalizarTraslado,
+  );
+  const personas = await resolverPersonasTraslado(lista);
+  return enriquecerTraslados(lista, personas);
 }
 
 /** Ejecuta traslado parcial vía RPC dedicada. */
@@ -178,14 +278,7 @@ export async function ejecutarTraslado(
     centro_destino: String(raw.centro_destino ?? input.centroDestino),
   };
 
-  registrarHistorial("trasladar_familia", "traslado", resultado.traslado_id, {
-    centro_origen: resultado.centro_origen,
-    centro_destino: resultado.centro_destino,
-    motivo: input.motivo.trim(),
-    miembros: resultado.miembros.length,
-    alojamiento_ids: ids,
-  });
-
+  // Bitácora por persona la escribe la RPC (entidad = refugiado).
   return resultado;
 }
 

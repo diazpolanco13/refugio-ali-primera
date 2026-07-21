@@ -33,6 +33,7 @@ declare
   v_familia_origen uuid;
   v_jefe_aloj_id uuid;
   v_hoy date := (timezone('America/Caracas', now()))::date;
+  v_miembro jsonb;
 begin
   if v_rol is null then raise exception 'No autenticado'; end if;
   if not public.puede_trasladar_entre_centros() then
@@ -159,7 +160,7 @@ begin
     end if;
     update public.alojamientos_refugiados set
       estado = 'egresado', fecha_egreso = v_fecha,
-      motivo_egreso = 'Traslado entre campamentos', destino_egreso = v_destino_label,
+      motivo_egreso = v_motivo, destino_egreso = v_destino_label,
       updated_at = v_ahora, updated_by = v_user
     where id = v_aloj.id;
     insert into public.alojamientos_refugiados (
@@ -183,11 +184,28 @@ begin
 
   insert into public.traslados (
     familia_id_origen, familia_id_destino, centro_origen, centro_destino,
-    motivo, miembros, creada_ts, creada_por
+    motivo, miembros, creada_ts, creada_por, fuente
   ) values (
     v_familia_origen, v_fam_destino_id, p_centro_origen, p_centro_destino,
-    v_motivo, v_miembros, v_ahora, v_user
+    v_motivo, v_miembros, v_ahora, v_user, 'wizard'
   ) returning id into v_traslado_id;
+
+  for v_miembro in select * from jsonb_array_elements(v_miembros)
+  loop
+    insert into public.historial (ts, usuario, accion, entidad, entidad_id, detalle)
+    values (
+      v_ahora, v_user, 'trasladar_familia', 'refugiado',
+      (v_miembro->>'refugiado_id'),
+      jsonb_build_object(
+        'centro_origen', p_centro_origen,
+        'centro_destino', p_centro_destino,
+        'motivo', v_motivo,
+        'traslado_id', v_traslado_id,
+        'fuente', 'wizard',
+        'es_jefe_familia', coalesce((v_miembro->>'es_jefe_familia')::boolean, false)
+      )
+    );
+  end loop;
 
   return jsonb_build_object(
     'traslado_id', v_traslado_id,

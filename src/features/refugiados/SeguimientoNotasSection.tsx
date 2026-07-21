@@ -1,12 +1,18 @@
-// Pestaña Seguimiento — notas, derivaciones, plan de egreso, timeline.
+// Pestaña Seguimiento — notas, derivaciones, plan de egreso, traslados, timeline.
 
 import { useEffect, useState } from "react";
-import { ClipboardList, Loader2, Plus } from "lucide-react";
+import { ClipboardList, Loader2, Plus, Truck } from "lucide-react";
 import { actualizarSeguimiento } from "@/data/reposRefugiados";
+import { listarTrasladosPorRefugiado } from "@/data/reposTraslados";
 import { useHistorial, type EntradaHistorial } from "@/data/historial";
 import type { DetalleAlojamiento } from "@/data/useAlojamientoDetalle";
 import type { DerivacionSeguimiento, SeguimientoAlojamiento } from "@/domain/refugiados";
+import {
+  etiquetaFuenteTraslado,
+  type TrasladoEnriquecido,
+} from "@/domain/traslados";
 import { claveDia, nuevoId } from "@/data/reposSupabase";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,6 +24,30 @@ interface Props {
   puedeEditar: boolean;
 }
 
+function esAccionTraslado(accion: string): boolean {
+  return accion === "trasladar_familia" || accion === "traslado_nominal";
+}
+
+function textoDetalleTraslado(e: EntradaHistorial): string | null {
+  if (!esAccionTraslado(e.accion) || !e.detalle) return null;
+  const d = e.detalle;
+  const origen = String(d.centro_origen ?? "");
+  const destino = String(d.centro_destino ?? d.destino ?? "");
+  const motivo = String(d.motivo ?? "").trim();
+  const partes: string[] = [];
+  if (origen || destino) {
+    partes.push(`${origen || "?"} → ${destino || "?"}`);
+  }
+  if (motivo) partes.push(motivo);
+  return partes.length > 0 ? partes.join(" · ") : null;
+}
+
+function etiquetaAccion(accion: string): string {
+  if (accion === "trasladar_familia") return "Traslado (wizard)";
+  if (accion === "traslado_nominal") return "Traslado (censo)";
+  return accion;
+}
+
 export function SeguimientoNotasSection({ detalle, puedeEditar }: Props) {
   const seg = detalle.seguimiento;
   const [editando, setEditando] = useState(false);
@@ -27,6 +57,8 @@ export function SeguimientoNotasSection({ detalle, puedeEditar }: Props) {
     derivaciones: seg.derivaciones ?? [],
     plan_egreso: seg.plan_egreso ?? {},
   });
+  const [traslados, setTraslados] = useState<TrasladoEnriquecido[]>([]);
+  const [cargandoTraslados, setCargandoTraslados] = useState(true);
 
   const { entradas } = useHistorial({ entidadId: detalle.refugiado.id });
 
@@ -37,6 +69,24 @@ export function SeguimientoNotasSection({ detalle, puedeEditar }: Props) {
       plan_egreso: detalle.seguimiento.plan_egreso ?? {},
     });
   }, [detalle.seguimiento]);
+
+  useEffect(() => {
+    let cancelado = false;
+    setCargandoTraslados(true);
+    void listarTrasladosPorRefugiado(detalle.refugiado.id)
+      .then((lista) => {
+        if (!cancelado) setTraslados(lista);
+      })
+      .catch(() => {
+        if (!cancelado) setTraslados([]);
+      })
+      .finally(() => {
+        if (!cancelado) setCargandoTraslados(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [detalle.refugiado.id]);
 
   async function guardar() {
     setGuardando(true);
@@ -156,6 +206,52 @@ export function SeguimientoNotasSection({ detalle, puedeEditar }: Props) {
 
       <Card>
         <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Truck className="size-4" />
+            Traslados entre campamentos
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Movimientos registrados (wizard o censo) con motivo
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {cargandoTraslados ? (
+            <p className="text-xs text-muted-foreground">Cargando traslados…</p>
+          ) : traslados.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Sin traslados registrados.</p>
+          ) : (
+            <ul className="max-h-56 space-y-2 overflow-y-auto text-xs">
+              {traslados.map((t) => (
+                <li
+                  key={t.id}
+                  className="rounded border border-border/50 px-2 py-1.5 space-y-0.5"
+                >
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-muted-foreground">
+                      {new Date(t.creada_ts).toLocaleString("es")}
+                    </span>
+                    <Badge variant="outline" className="text-[10px]">
+                      {etiquetaFuenteTraslado(t.fuente)}
+                    </Badge>
+                  </div>
+                  <p className="font-medium">
+                    {t.centro_origen} → {t.centro_destino}
+                  </p>
+                  <p className="text-muted-foreground whitespace-pre-wrap">
+                    Motivo: {t.motivo || "—"}
+                  </p>
+                  {t.creada_por ? (
+                    <p className="text-muted-foreground">Registró: {t.creada_por}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
           <CardTitle className="text-sm">Timeline reciente</CardTitle>
           <CardDescription className="text-xs">Acciones en bitácora sobre esta persona</CardDescription>
         </CardHeader>
@@ -164,14 +260,24 @@ export function SeguimientoNotasSection({ detalle, puedeEditar }: Props) {
             <p className="text-xs text-muted-foreground">Sin entradas en bitácora.</p>
           ) : (
             <ul className="max-h-48 space-y-1 overflow-y-auto text-xs">
-              {entradas.slice(0, 20).map((e: EntradaHistorial) => (
-                <li key={e.id} className="rounded border border-border/50 px-2 py-1">
-                  <span className="text-muted-foreground">{new Date(e.ts).toLocaleString("es")}</span>
-                  {" · "}
-                  <span className="font-medium">{e.accion}</span>
-                  {e.usuario && <span className="text-muted-foreground"> — {e.usuario}</span>}
-                </li>
-              ))}
+              {entradas.slice(0, 20).map((e: EntradaHistorial) => {
+                const detalleTraslado = textoDetalleTraslado(e);
+                return (
+                  <li key={e.id} className="rounded border border-border/50 px-2 py-1">
+                    <span className="text-muted-foreground">
+                      {new Date(e.ts).toLocaleString("es")}
+                    </span>
+                    {" · "}
+                    <span className="font-medium">{etiquetaAccion(e.accion)}</span>
+                    {e.usuario && (
+                      <span className="text-muted-foreground"> — {e.usuario}</span>
+                    )}
+                    {detalleTraslado ? (
+                      <p className="mt-0.5 text-muted-foreground">{detalleTraslado}</p>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>

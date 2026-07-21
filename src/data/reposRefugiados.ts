@@ -381,11 +381,17 @@ export async function trasladarNominalACentro(
   cedulaNorm: string,
   centroId: string,
   modo: "persona" | "familia",
+  motivo: string,
 ): Promise<ResultadoTrasladoNominal> {
+  const motivoTrim = motivo.trim();
+  if (motivoTrim.length < 3) {
+    throw new Error("Indique el motivo del traslado (mínimo 3 caracteres).");
+  }
   const { data, error } = await supabase.rpc("trasladar_nominal_a_centro", {
     p_cedula_norm: cedulaNorm,
     p_centro_id: centroId,
     p_modo: modo,
+    p_motivo: motivoTrim,
   });
   if (error) {
     throw new Error(`[reposRefugiados] traslado nominal: ${error.message}`);

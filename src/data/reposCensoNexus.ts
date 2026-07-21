@@ -236,10 +236,11 @@ export async function trasladarCedulaACentro(
   letra: string,
   centroId: string,
   modo: "persona" | "familia",
+  motivo: string,
 ): Promise<ResultadoTrasladoNominal> {
   const { cedula_norm } = normalizarCedula(cedula, tipoDocNexus(letra.toUpperCase()));
   if (!cedula_norm) throw new Error("Cédula inválida para el traslado");
-  return trasladarNominalACentro(cedula_norm, centroId, modo);
+  return trasladarNominalACentro(cedula_norm, centroId, modo, motivo);
 }
 
 /** Alta de un miembro sin documento (típicamente menores) directo al hogar activo. */
