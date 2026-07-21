@@ -4,12 +4,14 @@
 // aprueban (o rechazan) a posteriori desde aquí. Un rechazo bloquea el
 // próximo login por cédula (check en `login-terreno`).
 //
-// Fase 1a del plan de migración a credencial propia
-// (docs/plan-migracion-operadores-password.md §4.3): el supervisor también
-// entra, en solo lectura, y ve los operadores de sus campamentos con su
-// estado de activación (la RLS `perfiles_select_operadores_terreno` acota
-// las filas en el servidor). El resumen de avance por campamento usa
-// `activado_ts` (lo escribe la Fase 2; mientras tanto todo sale pendiente).
+// Fase 1a/1b del plan de migración a credencial propia
+// (docs/plan-migracion-operadores-password.md §4–§5): admin, analista SAE y
+// supervisor gestionan los operadores de su alcance agrupados por campamento
+// (aprobación, alertas, quitar campamento, eliminar cuenta). El servidor
+// aplica el alcance: RLS `perfiles_select_operadores_terreno` y
+// `perfiles_update` por solape de centros, y `delete-user` valida con
+// `puede_gestionar_operador`. El avance por campamento usa `activado_ts`
+// (lo escribe la Fase 2; mientras tanto todo sale pendiente).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -25,10 +27,12 @@ import {
   Send,
   ShieldAlert,
   Trash2,
+  UserX,
   X,
 } from "lucide-react";
 import type { Sesion } from "@/data/authSupabase";
 import { desuscribirCampamentoTerreno } from "@/data/desuscribirTerreno";
+import { invocarEdgeFunction } from "@/data/edgeFunctions";
 import { supabase } from "@/data/supabaseClient";
 import { registrarHistorial } from "@/data/historial";
 import {
@@ -84,6 +88,10 @@ type ConfirmDesuscribir =
 
 type ConfirmDesvincularTg =
   | { userId: string; nombre: string; username: string | null; tgUser: string | null }
+  | null;
+
+type ConfirmEliminar =
+  | { userId: string; nombre: string; cedula: string | null }
   | null;
 
 interface OperadorFila {
@@ -165,8 +173,9 @@ function iniciales(nombre: string): string {
 export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
   const rol = sesion.user.rol;
   const autorizado = puedeGestionarOperadores(rol);
-  // Supervisor: solo lectura (aprobar/desuscribir/Telegram quedan en la sala;
-  // la RLS de `perfiles` además bloquea sus updates en el servidor).
+  // Acciones (aprobar/rechazar, alertas, quitar, eliminar): el servidor aplica
+  // el alcance real (RLS `perfiles_update` por solape de centros y `delete-user`
+  // vía `puede_gestionar_operador`); este flag solo controla la UI.
   const puedeResolver = puedeResolverOperadores(rol);
   const [operadores, setOperadores] = useState<OperadorFila[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -180,6 +189,8 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
   const [avisoSinTelegram, setAvisoSinTelegram] = useState<string | null>(null);
   const [confirmDesvincularTg, setConfirmDesvincularTg] = useState<ConfirmDesvincularTg>(null);
   const [desvinculandoTg, setDesvinculandoTg] = useState(false);
+  const [confirmEliminar, setConfirmEliminar] = useState<ConfirmEliminar>(null);
+  const [eliminando, setEliminando] = useState(false);
   const [togglingAlertas, setTogglingAlertas] = useState<string | null>(null);
   const [vinculos, setVinculos] = useState<Map<string, VinculoTelegram>>(new Map());
   // Tarjetas de campamento desplegadas (cerradas por defecto; al buscar o
@@ -406,6 +417,23 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
     }
   }
 
+  /** Elimina cuenta y perfil del operador (edge function `delete-user`;
+   *  el servidor valida el alcance del caller con `puede_gestionar_operador`). */
+  async function confirmarEliminar() {
+    if (!confirmEliminar) return;
+    setEliminando(true);
+    setError("");
+    try {
+      await invocarEdgeFunction("delete-user", { user_id: confirmEliminar.userId });
+      setConfirmEliminar(null);
+      await recargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo eliminar el operador");
+    } finally {
+      setEliminando(false);
+    }
+  }
+
   async function confirmarDesvincularTg() {
     if (!confirmDesvincularTg) return;
     setDesvinculandoTg(true);
@@ -471,11 +499,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
     <VistaPagina
       icono={IdCard}
       titulo="Usuarios de Campo"
-      descripcion={
-        puedeResolver
-          ? "Operadores que se identificaron con su cédula desde el QR del campamento. Apruebe o rechace la identidad; desuscriba de un campamento si no debe seguir recibiendo alertas de ese centro."
-          : "Operadores que reportan en sus campamentos: identidad, vínculo Telegram y avance de activación de su credencial propia (solo lectura)."
-      }
+      descripcion="Operadores agrupados por campamento: apruebe o rechace su identidad, gestione alertas y campamentos, y siga el avance de activación de su credencial propia."
       encabezadoDebajo={
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <Tabs
@@ -574,7 +598,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
               }
               className="overflow-hidden rounded-lg border border-border bg-card"
             >
-              <CollapsibleTrigger className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50">
+              <CollapsibleTrigger className="flex w-full items-center gap-3 bg-muted/70 px-4 py-3 text-left transition-colors hover:bg-muted">
                 <ChevronDown
                   className={cn(
                     "size-4 shrink-0 text-muted-foreground transition-transform",
@@ -836,6 +860,30 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                               </Tooltip>
                             </>
                           )}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="outline"
+                                className="size-8 text-destructive"
+                                disabled={accionando === o.user_id || eliminando}
+                                aria-label={`Eliminar a ${o.nombre || o.username || "operador"}`}
+                                onClick={() =>
+                                  setConfirmEliminar({
+                                    userId: o.user_id,
+                                    nombre: o.nombre || o.username || "operador",
+                                    cedula: o.cedula || o.cedula_norm,
+                                  })
+                                }
+                              >
+                                <UserX className="size-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              Eliminar operador (cuenta completa)
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                       )}
                     </li>
@@ -858,6 +906,41 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
         />
         </>
       )}
+
+      <AlertDialog
+        open={confirmEliminar != null}
+        onOpenChange={(abierto) => !abierto && !eliminando && setConfirmEliminar(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              ¿Eliminar a {confirmEliminar?.nombre}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmEliminar?.cedula ? `Cédula ${confirmEliminar.cedula}. ` : ""}
+              Se elimina la cuenta completa del operador: acceso, perfil,
+              vínculo Telegram y asignaciones a campamentos. Sus reportes y
+              registros del censo se conservan. Esta acción no se puede
+              deshacer; si vuelve a presentarse, tendrá que identificarse de
+              nuevo desde el QR.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={eliminando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={eliminando}
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmarEliminar();
+              }}
+            >
+              {eliminando ? <Loader2 className="size-4 animate-spin" /> : null}
+              Eliminar operador
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={avisoSinTelegram != null}

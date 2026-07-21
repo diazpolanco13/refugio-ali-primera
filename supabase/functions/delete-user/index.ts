@@ -2,8 +2,13 @@
 //
 // Elimina un usuario COMPLETO: borra el `auth.users` con service_role y el
 // `ON DELETE CASCADE` de `perfiles.user_id → auth.users.id` arrastra el
-// perfil. Solo un admin autenticado puede invocarla; el admin no puede
-// eliminarse a sí mismo. Registra la acción en `historial`.
+// perfil. Autorización (plan migración operadores §5):
+//   - admin: cualquier usuario (como siempre).
+//   - analista_sae / supervisor: SOLO operadores dentro de su alcance — la
+//     RPC `puede_gestionar_operador` (service_role) aplica la regla: analista
+//     de red cualquier operador; analista con ámbito / supervisor solo si
+//     comparte al menos un centro con el operador.
+// Nadie puede eliminarse a sí mismo. Registra la acción en `historial`.
 //
 // Desplegada vía MCP `deploy_edge_function` (verify_jwt: true). Este archivo
 // es la referencia versionada del código que corre en producción.
@@ -50,8 +55,9 @@ Deno.serve(async (req: Request) => {
     .select("rol, username")
     .eq("user_id", caller.id)
     .single();
-  if (!perfilCaller || perfilCaller.rol !== "admin") {
-    return json({ error: "Solo admin puede eliminar usuarios" }, 403);
+  const rolesPermitidos = ["admin", "analista_sae", "supervisor"];
+  if (!perfilCaller || !rolesPermitidos.includes(perfilCaller.rol)) {
+    return json({ error: "Su rol no puede eliminar usuarios" }, 403);
   }
 
   let body;
@@ -66,6 +72,21 @@ Deno.serve(async (req: Request) => {
   }
   if (user_id === caller.id) {
     return json({ error: "No puedes eliminar tu propia cuenta" }, 400);
+  }
+
+  // No-admin: solo operadores dentro de su alcance (regla en el servidor,
+  // la UI únicamente oculta el botón).
+  if (perfilCaller.rol !== "admin") {
+    const { data: permitido, error: permisoErr } = await adminClient.rpc(
+      "puede_gestionar_operador",
+      { p_caller: caller.id, p_objetivo: user_id },
+    );
+    if (permisoErr) {
+      return json({ error: `No se pudo validar el alcance: ${permisoErr.message}` }, 500);
+    }
+    if (permitido !== true) {
+      return json({ error: "Solo puede eliminar operadores de sus campamentos" }, 403);
+    }
   }
 
   // Datos del objetivo para la bitácora (antes de borrarlo)

@@ -144,19 +144,20 @@ export function puedeVerLogs(rol: Rol): boolean {
 }
 
 /**
- * Bandeja de operadores de terreno (/usuarios/terreno): admin y analista SAE
- * gestionan; el supervisor ve (solo lectura) los operadores de sus campamentos
- * y su avance de activación. Distinto de `puedeGestionarUsuarios` (CRUD de
- * cuentas permanentes, admin-only). La RLS
- * `perfiles_select_operadores_terreno` acota las filas en el servidor.
+ * Bandeja de operadores de terreno (/usuarios/terreno): admin, analista SAE
+ * y supervisor gestionan los operadores de su alcance (aprobación, alertas,
+ * desuscripción y eliminación). Distinto de `puedeGestionarUsuarios` (CRUD de
+ * cuentas permanentes, admin-only). El servidor aplica el alcance: RLS
+ * `perfiles_select_operadores_terreno` / `perfiles_update` por solape de
+ * centros, y `delete-user` valida con `puede_gestionar_operador`.
  */
 export function puedeGestionarOperadores(rol: Rol): boolean {
   return rol === "admin" || rol === "analista_sae" || rol === "supervisor";
 }
 
-/** Acciones de la bandeja (aprobar/rechazar, desuscribir, Telegram). */
+/** Acciones de la bandeja (aprobar/rechazar, alertas, quitar, eliminar). */
 export function puedeResolverOperadores(rol: Rol): boolean {
-  return rol === "admin" || rol === "analista_sae";
+  return puedeGestionarOperadores(rol);
 }
 
 /**
