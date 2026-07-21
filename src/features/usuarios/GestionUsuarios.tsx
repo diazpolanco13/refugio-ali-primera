@@ -1,8 +1,13 @@
-// Lista y gestión de usuarios (`/usuarios`, solo admin). El alta y la edición
-// viven en vistas a pantalla completa (`/usuarios/nuevo` y
-// `/usuarios/:userId/editar`, ver FormUsuarioView); aquí quedan la lista
-// agrupada por rol, los filtros (rol + cuerpo + búsqueda), la cobertura de
-// centros y la eliminación con confirmación.
+// Lista y gestión de usuarios (`/usuarios`). El alta y la edición viven en
+// vistas a pantalla completa (`/usuarios/nuevo` y `/usuarios/:userId/editar`,
+// ver FormUsuarioView); aquí quedan la lista agrupada por rol, los filtros
+// (rol + cuerpo + búsqueda), la cobertura de centros y la eliminación con
+// confirmación.
+//
+// Alcances (plan migración operadores §5): admin gestiona todos los usuarios;
+// analista SAE y supervisor entran en modo «Mis operadores» — solo cuentas de
+// operador de su alcance (la RLS filtra las filas; las edge functions
+// create-user / update-user-password / delete-user validan en el servidor).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, ShieldCheck, Trash2, Users } from "lucide-react";
@@ -17,7 +22,11 @@ import {
   normalizarCuerpo,
   type CentroTransitorio,
 } from "@/domain/centrosTransitorios";
-import { INFO_ROLES, puedeGestionarUsuarios } from "@/domain/permisos";
+import {
+  INFO_ROLES,
+  puedeGestionarOperadores,
+  puedeGestionarUsuarios,
+} from "@/domain/permisos";
 import { Button } from "@/components/ui/button";
 import { VistaPagina } from "@/components/VistaPagina";
 import { EstadoVacio, LoadingTable } from "@/components/skeletons";
@@ -46,6 +55,10 @@ import { BadgeRol } from "@/components/BadgeRol";
 export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
   const navigate = useNavigate();
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
+  // Analista/supervisor: modo «Mis operadores» (solo cuentas de operador de
+  // su alcance; el servidor aplica el scoping real).
+  const autorizado = esAdmin || puedeGestionarOperadores(sesion.user.rol);
+  const soloOperadores = autorizado && !esAdmin;
   const usuarioActualId = sesion.user.sub;
   const [usuarios, setUsuarios] = useState<UsuarioPerfil[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -91,10 +104,11 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
     setError("");
     setCargando(true);
     try {
-      const { data, error: err } = await supabase
-        .from("perfiles")
-        .select("*")
-        .order("username");
+      let query = supabase.from("perfiles").select("*").order("username");
+      // No-admin: la RLS igual deja ver analistas/supervisores (atribución en
+      // otras vistas); aquí solo interesan sus operadores.
+      if (soloOperadores) query = query.eq("rol", "operador");
+      const { data, error: err } = await query;
       if (err) throw new Error(err.message);
       setUsuarios((data ?? []) as UsuarioPerfil[]);
     } catch (err) {
@@ -102,10 +116,10 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [soloOperadores]);
 
   useEffect(() => {
-    if (esAdmin) void recargar();
+    if (autorizado) void recargar();
     // Realtime: si otro admin edita un perfil, refrescar la lista.
     const canal = supabase
       .channel("perfiles-gestion")
@@ -118,7 +132,7 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
     return () => {
       void supabase.removeChannel(canal);
     };
-  }, [esAdmin, recargar]);
+  }, [autorizado, recargar]);
 
   /** Conteo por rol (sobre el total, no el filtro de búsqueda). */
   const conteos = useMemo(() => {
@@ -187,24 +201,30 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
     <VistaPagina
       icono={Users}
       acento="violet"
-      titulo="Gestión de usuarios"
-      descripcion="Fichas, roles y permisos de acceso a la plataforma"
+      titulo={soloOperadores ? "Mis operadores" : "Gestión de usuarios"}
+      descripcion={
+        soloOperadores
+          ? "Cree, edite o elimine las cuentas de operador de sus campamentos"
+          : "Fichas, roles y permisos de acceso a la plataforma"
+      }
       acciones={
-        esAdmin ? (
+        autorizado ? (
           <Button onClick={() => navigate("/usuarios/nuevo")} className="gap-1.5">
             <Plus className="size-4" />
-            <span className="hidden sm:inline">Nuevo usuario</span>
+            <span className="hidden sm:inline">
+              {soloOperadores ? "Nuevo operador" : "Nuevo usuario"}
+            </span>
           </Button>
         ) : undefined
       }
       cuerpoClassName="p-4 lg:p-6"
     >
-      {!esAdmin ? (
+      {!autorizado ? (
           <div className="mx-auto mt-6 max-w-md rounded-xl border border-border bg-background/70 p-6 text-center">
             <ShieldCheck className="mx-auto mb-3 size-8 text-muted-foreground" />
             <p className="text-sm font-medium text-foreground">Acceso restringido</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Solo los administradores pueden gestionar usuarios.
+              Solo administración, analistas SAE y supervisores gestionan usuarios.
             </p>
           </div>
         ) : (
@@ -215,10 +235,12 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
               </div>
             )}
 
-            <ResumenCoberturaCentros
-              cobertura={cobertura}
-              cargando={cargando}
-            />
+            {esAdmin && (
+              <ResumenCoberturaCentros
+                cobertura={cobertura}
+                cargando={cargando}
+              />
+            )}
 
             {(cargando || usuarios.length > 0) && (
               <BarraFiltrosUsuarios

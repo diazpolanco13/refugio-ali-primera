@@ -1,11 +1,18 @@
-// Edge Function `create-user` (v4 — alcance por cuerpo también para
-// supervisor/operador).
+// Edge Function `create-user` (v5 — alta scoped de operadores, plan
+// migración operadores §5.1/§5.3).
 //
 // Crea un usuario completo: `auth.users` (email sintético <username>@refugio.app)
 // + fila en `perfiles`, con rol de los 5 nuevos y centros asignados (array).
 // El `hash_id` de la marca de agua se genera AQUÍ (servidor), formato
-// XXXX-XXXX hex, único e inmutable. Solo un admin autenticado puede invocarla.
-// Registra la acción en `historial`.
+// XXXX-XXXX hex, único e inmutable. Registra la acción en `historial`.
+//
+// Autorización:
+//   - admin: cualquier rol, como siempre.
+//   - analista_sae / supervisor: SOLO rol operador, con cédula obligatoria,
+//     username forzado a `op-<cédula>`, ámbito 'centros' y centros ⊆ su
+//     alcance (analista de red: cualquier centro; el resto vía RPC
+//     `centros_de_usuario`). Anti-duplicados por `cedula_norm`.
+//   - La contraseña de un operador nunca puede ser su cédula (§2 del plan).
 //
 // Desplegada vía MCP `deploy_edge_function` (verify_jwt: true). Este archivo
 // es la referencia versionada del código que corre en producción.
@@ -70,11 +77,14 @@ Deno.serve(async (req: Request) => {
 
   const { data: perfilCaller } = await adminClient
     .from("perfiles")
-    .select("rol, username")
+    .select("rol, username, ambito_analista")
     .eq("user_id", caller.id)
     .single();
-  if (!perfilCaller || perfilCaller.rol !== "admin") {
-    return json({ error: "Solo admin puede crear usuarios" }, 403);
+  const esAdmin = perfilCaller?.rol === "admin";
+  const esCallerScoped =
+    perfilCaller?.rol === "analista_sae" || perfilCaller?.rol === "supervisor";
+  if (!perfilCaller || (!esAdmin && !esCallerScoped)) {
+    return json({ error: "Su rol no puede crear usuarios" }, 403);
   }
 
   // 3) Body
@@ -84,7 +94,7 @@ Deno.serve(async (req: Request) => {
   } catch {
     return json({ error: "Body inválido" }, 400);
   }
-  const {
+  let {
     username,
     password,
     nombre,
@@ -109,6 +119,52 @@ Deno.serve(async (req: Request) => {
   }
   if (!ROLES_VALIDOS.includes(rol)) {
     return json({ error: "Rol inválido" }, 400);
+  }
+
+  // Cédula normalizada (solo dígitos), misma convención que el flujo v3 de
+  // terreno (`op-<cedula_norm>` / cedula_norm sin letra).
+  const cedulaNorm =
+    typeof cedula === "string" ? cedula.replace(/\D/g, "") : "";
+
+  // 3.b) Reglas del caller scoped (analista/supervisor): solo operadores,
+  //      con cédula, username canónico y ámbito por lista de centros.
+  if (!esAdmin) {
+    if (rol !== "operador") {
+      return json({ error: "Su rol solo puede crear cuentas de operador" }, 403);
+    }
+    if (!cedulaNorm) {
+      return json({ error: "La cédula es obligatoria para crear un operador" }, 400);
+    }
+    if (username !== `op-${cedulaNorm}`) {
+      return json({ error: `El usuario del operador debe ser op-${cedulaNorm}` }, 400);
+    }
+    ambito_analista = "centros";
+    cuerpo_asignado = null;
+    if (!Array.isArray(centros_asignados) || centros_asignados.length === 0) {
+      return json({ error: "Asigne al menos un campamento al operador" }, 400);
+    }
+  }
+
+  // 3.c) Nunca contraseña = cédula para operadores (reabriría el hueco de
+  //      suplantación durante la coexistencia, plan §2).
+  if (rol === "operador" && cedulaNorm && password.replace(/\D/g, "") === cedulaNorm) {
+    return json({ error: "La contraseña no puede ser la cédula del operador" }, 400);
+  }
+
+  // 3.d) Anti-duplicados: una sola cuenta de operador por cédula.
+  if (rol === "operador" && cedulaNorm) {
+    const { data: dupe } = await adminClient
+      .from("perfiles")
+      .select("username")
+      .eq("rol", "operador")
+      .eq("cedula_norm", cedulaNorm)
+      .maybeSingle();
+    if (dupe) {
+      return json(
+        { error: `Ya existe un operador con esa cédula (${dupe.username}). Asígnele el campamento en vez de crearlo de nuevo.` },
+        409,
+      );
+    }
   }
 
   // Alcance de los roles limitados: el analista acepta 'red' | 'cuerpo' |
@@ -168,6 +224,23 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // 4.b) Caller scoped: los centros del nuevo operador deben estar dentro de
+  //      su alcance (analista de red: cualquier centro).
+  if (!esAdmin && !(perfilCaller.rol === "analista_sae" && perfilCaller.ambito_analista === "red")) {
+    const { data: alcance, error: alcanceErr } = await adminClient.rpc(
+      "centros_de_usuario",
+      { p_user_id: caller.id },
+    );
+    if (alcanceErr) {
+      return json({ error: `No se pudo validar el alcance: ${alcanceErr.message}` }, 500);
+    }
+    const propios = new Set((alcance ?? []) as string[]);
+    const fuera = centros.filter((c) => !propios.has(c));
+    if (fuera.length > 0) {
+      return json({ error: `Solo puede asignar campamentos de su alcance. Fuera de alcance: ${fuera.join(", ")}` }, 403);
+    }
+  }
+
   // 5) hash_id único generado en el servidor (inmutable de por vida)
   let hashId = generarHashId();
   for (let i = 0; i < 5; i++) {
@@ -203,6 +276,7 @@ Deno.serve(async (req: Request) => {
     centros_asignados: centros,
     jerarquia,
     cedula,
+    cedula_norm: cedulaNorm || null,
     responsabilidad,
     whatsapp,
     telegram,

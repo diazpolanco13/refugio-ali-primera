@@ -386,11 +386,11 @@ function NavContenido({ sesion }: Props) {
           <SidebarGroupLabel>Configuración</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {esAdmin && (
+              {veBandejaTerreno && (
                 <ItemMenu
                   to="/usuarios"
                   icono={Users}
-                  label="Gestión de usuarios"
+                  label={esAdmin ? "Gestión de usuarios" : "Mis operadores"}
                   activo={rutaActiva(pathname, "/usuarios") && pathname !== "/usuarios/terreno"}
                 />
               )}
@@ -398,7 +398,7 @@ function NavContenido({ sesion }: Props) {
                 <ItemMenu
                   to="/usuarios/terreno"
                   icono={IdCard}
-                  label="Usuarios de Campo"
+                  label="Operadores por campamento"
                   activo={pathname === "/usuarios/terreno"}
                 />
               )}

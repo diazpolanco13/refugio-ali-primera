@@ -28,6 +28,7 @@ import {
 } from "@/domain/centrosTransitorios";
 import {
   INFO_ROLES,
+  puedeGestionarOperadores,
   puedeGestionarUsuarios,
   ROLES,
   rolUsaCentrosAsignados,
@@ -256,12 +257,19 @@ function SeccionCard({
   );
 }
 
-/** Vista a pantalla completa de alta/edición de usuario (solo admin). */
+/**
+ * Vista a pantalla completa de alta/edición de usuario. Admin: cualquier rol.
+ * Analista/supervisor (plan migración operadores §5): solo operadores — rol
+ * fijo, cédula obligatoria, usuario `op-<cédula>` autogenerado y campamentos
+ * limitados a su alcance. La edge `create-user` re-valida todo en el servidor.
+ */
 export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
   const navigate = useNavigate();
   const { userId } = useParams<{ userId: string }>();
   const esEdicion = Boolean(userId);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
+  const autorizado = esAdmin || puedeGestionarOperadores(sesion.user.rol);
+  const soloOperadores = autorizado && !esAdmin;
 
   const [form, setForm] = useState<Formulario>(formVacio);
   const [perfil, setPerfil] = useState<UsuarioPerfil | null>(null);
@@ -284,6 +292,13 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
 
   const cuerposCatalogo = useCatalogoCuerposActivos();
   const cuerposElegibles = cuerposCatalogo.filter((c) => c.clave !== "sin_asignar");
+
+  // No-admin: solo puede repartir campamentos de su propio alcance.
+  const centrosDisponibles = useMemo(() => {
+    if (!soloOperadores) return centros;
+    const propios = new Set(sesion.user.centros_asignados ?? []);
+    return centros.filter((c) => propios.has(c.id));
+  }, [centros, soloOperadores, sesion.user.centros_asignados]);
 
   useEffect(() => {
     if (!esEdicion || !userId) return;
@@ -309,7 +324,11 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
     };
   }, [esEdicion, userId]);
 
-  if (!esAdmin) return <Navigate to="/usuarios" replace />;
+  if (!autorizado) return <Navigate to="/usuarios" replace />;
+  // No-admin editando algo que no es operador: fuera (la RLS tampoco lo deja).
+  if (soloOperadores && esEdicion && perfil && perfil.rol !== "operador") {
+    return <Navigate to="/usuarios" replace />;
+  }
 
   function set<K extends keyof Formulario>(k: K, v: Formulario[K]) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -317,17 +336,43 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
 
   const usaCentros = rolUsaCentrosAsignados(form.rol);
   const esAnalista = form.rol === "analista_sae";
-  const ambitoEfectivo: AmbitoAnalista =
-    !esAnalista && form.ambito_analista === "red" ? "centros" : form.ambito_analista;
+  const ambitoEfectivo: AmbitoAnalista = soloOperadores
+    ? "centros"
+    : !esAnalista && form.ambito_analista === "red"
+      ? "centros"
+      : form.ambito_analista;
   const muestraSelectorCentros = usaCentros && ambitoEfectivo === "centros";
+
+  const cedulaDigits = form.cedula.replace(/\D/g, "");
+  const usernameOperador = cedulaDigits ? `op-${cedulaDigits}` : "";
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (soloOperadores) {
+      if (!cedulaDigits) {
+        setError("La cédula es obligatoria para crear un operador.");
+        return;
+      }
+      if (form.password && form.password.replace(/\D/g, "") === cedulaDigits) {
+        setError("La contraseña no puede ser la cédula del operador.");
+        return;
+      }
+    }
     setGuardando(true);
     try {
-      if (esEdicion && userId) await actualizarUsuario(userId, form, perfil?.username);
-      else await crearUsuario(form);
+      // No-admin: rol y ámbito fijos; en alta el usuario es `op-<cédula>`.
+      const efectivo: Formulario = soloOperadores
+        ? {
+            ...form,
+            rol: "operador",
+            ambito_analista: "centros",
+            cuerpo_asignado: null,
+            username: esEdicion ? form.username : usernameOperador,
+          }
+        : form;
+      if (esEdicion && userId) await actualizarUsuario(userId, efectivo, perfil?.username);
+      else await crearUsuario(efectivo);
       navigate("/usuarios");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar");
@@ -389,8 +434,15 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
                       value={form.cedula}
                       onChange={(e) => set("cedula", e.target.value)}
                       placeholder="V-12345678"
+                      required={soloOperadores}
                       disabled={guardando}
                     />
+                    {soloOperadores && !esEdicion && (
+                      <p className="text-[11px] leading-snug text-muted-foreground">
+                        El usuario de acceso se genera con la cédula
+                        {usernameOperador ? `: ${usernameOperador}` : "."}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="usuario-brazalete">Código de brazalete</Label>
@@ -467,14 +519,14 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
                   <Label htmlFor="usuario-rol">Rol / permisos del sistema</Label>
                   <Select
                     value={form.rol}
-                    disabled={guardando}
+                    disabled={guardando || soloOperadores}
                     onValueChange={(v) => set("rol", v as Rol)}
                   >
                     <SelectTrigger id="usuario-rol" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {ROLES.map((r) => (
+                      {(soloOperadores ? (["operador"] as Rol[]) : ROLES).map((r) => (
                         <SelectItem key={r} value={r}>
                           {INFO_ROLES[r].etiqueta}
                         </SelectItem>
@@ -482,10 +534,12 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
                     </SelectContent>
                   </Select>
                   <p className="text-xs leading-snug text-muted-foreground">
-                    {INFO_ROLES[form.rol].descripcion}
+                    {soloOperadores
+                      ? "Su rol solo crea cuentas de operador para sus campamentos."
+                      : INFO_ROLES[form.rol].descripcion}
                   </p>
                 </div>
-                {usaCentros && (
+                {usaCentros && !soloOperadores && (
                   <div className="space-y-1.5">
                     <Label htmlFor="usuario-ambito">
                       {`Alcance del ${INFO_ROLES[form.rol].etiqueta.toLowerCase()}`}
@@ -524,7 +578,7 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
                     </p>
                   </div>
                 )}
-                {usaCentros && ambitoEfectivo === "cuerpo" && (
+                {usaCentros && !soloOperadores && ambitoEfectivo === "cuerpo" && (
                   <div className="space-y-1.5">
                     <Label htmlFor="usuario-cuerpo">Cuerpo policial asignado</Label>
                     <Select
@@ -550,7 +604,7 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
               {muestraSelectorCentros && (
                 <SeccionCard titulo="Campamentos asignados">
                   <SelectorCentrosInline
-                    centros={centros}
+                    centros={centrosDisponibles}
                     seleccion={form.centros_asignados}
                     onCambiar={(ids) => set("centros_asignados", ids)}
                     disabled={guardando}
@@ -609,25 +663,35 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
               <SeccionCard titulo="Credenciales de acceso">
                 {(() => {
                   // El propio usuario no se renombra (su sesión activa guarda
-                  // el username); la Edge Function también lo rechaza.
+                  // el username); la Edge Function también lo rechaza. Los
+                  // callers scoped no eligen username: siempre `op-<cédula>`.
                   const esPropio = esEdicion && userId === sesion.user.sub;
                   return (
                     <div className="space-y-1.5">
                       <Label htmlFor="usuario-login">Usuario (login)</Label>
                       <Input
                         id="usuario-login"
-                        value={form.username}
+                        value={
+                          soloOperadores && !esEdicion ? usernameOperador : form.username
+                        }
                         onChange={(e) => set("username", e.target.value)}
-                        required
+                        required={!soloOperadores}
                         minLength={3}
-                        disabled={guardando || esPropio}
+                        placeholder={soloOperadores ? "op-<cédula>" : undefined}
+                        disabled={guardando || esPropio || soloOperadores}
                       />
-                      {esEdicion && (
+                      {soloOperadores ? (
                         <p className="text-[11px] leading-snug text-muted-foreground">
-                          {esPropio
-                            ? "Su propio login se cambia desde Preferencias de cuenta."
-                            : "Si lo cambia, el usuario entrará con el nuevo login (minúsculas, números y . _ -). Su sesión abierta sigue válida."}
+                          Se genera automáticamente con la cédula del operador.
                         </p>
+                      ) : (
+                        esEdicion && (
+                          <p className="text-[11px] leading-snug text-muted-foreground">
+                            {esPropio
+                              ? "Su propio login se cambia desde Preferencias de cuenta."
+                              : "Si lo cambia, el usuario entrará con el nuevo login (minúsculas, números y . _ -). Su sesión abierta sigue válida."}
+                          </p>
+                        )
                       )}
                     </div>
                   );

@@ -1,8 +1,13 @@
-// Edge Function `update-user-password`.
+// Edge Function `update-user-password` (v2 — reseteo scoped, plan migración
+// operadores §5.2).
 //
 // Cambia la contraseña de OTRO usuario con service_role
-// (`auth.admin.updateUserById`). Solo un admin autenticado puede invocarla.
-// Registra la acción en `historial` (sin incluir la contraseña).
+// (`auth.admin.updateUserById`). Autorización:
+//   - admin: cualquier usuario.
+//   - analista_sae / supervisor: SOLO operadores dentro de su alcance (RPC
+//     `puede_gestionar_operador`, service_role).
+// La contraseña de un operador nunca puede ser su cédula. Registra la acción
+// en `historial` (sin incluir la contraseña).
 //
 // Desplegada vía MCP `deploy_edge_function` (verify_jwt: true). Este archivo
 // es la referencia versionada del código que corre en producción.
@@ -49,8 +54,9 @@ Deno.serve(async (req: Request) => {
     .select("rol, username")
     .eq("user_id", caller.id)
     .single();
-  if (!perfilCaller || perfilCaller.rol !== "admin") {
-    return json({ error: "Solo admin puede cambiar contraseñas" }, 403);
+  const rolesPermitidos = ["admin", "analista_sae", "supervisor"];
+  if (!perfilCaller || !rolesPermitidos.includes(perfilCaller.rol)) {
+    return json({ error: "Su rol no puede cambiar contraseñas" }, 403);
   }
 
   let body;
@@ -67,16 +73,39 @@ Deno.serve(async (req: Request) => {
     return json({ error: "La contraseña debe tener al menos 6 caracteres" }, 400);
   }
 
+  // No-admin: solo operadores dentro de su alcance (server-side, la UI solo oculta).
+  if (perfilCaller.rol !== "admin") {
+    const { data: permitido, error: permisoErr } = await adminClient.rpc(
+      "puede_gestionar_operador",
+      { p_caller: caller.id, p_objetivo: user_id },
+    );
+    if (permisoErr) {
+      return json({ error: `No se pudo validar el alcance: ${permisoErr.message}` }, 500);
+    }
+    if (permitido !== true) {
+      return json({ error: "Solo puede cambiar la contraseña de operadores de sus campamentos" }, 403);
+    }
+  }
+
+  const { data: objetivo } = await adminClient
+    .from("perfiles")
+    .select("username, rol, cedula_norm")
+    .eq("user_id", user_id)
+    .maybeSingle();
+
+  // Nunca contraseña = cédula para operadores (plan §2 / §9).
+  if (
+    objetivo?.rol === "operador" &&
+    objetivo.cedula_norm &&
+    password.replace(/\D/g, "") === objetivo.cedula_norm
+  ) {
+    return json({ error: "La contraseña no puede ser la cédula del operador" }, 400);
+  }
+
   const { error: updErr } = await adminClient.auth.admin.updateUserById(user_id, {
     password,
   });
   if (updErr) return json({ error: `No se pudo cambiar la contraseña: ${updErr.message}` }, 500);
-
-  const { data: objetivo } = await adminClient
-    .from("perfiles")
-    .select("username")
-    .eq("user_id", user_id)
-    .maybeSingle();
 
   await adminClient.from("historial").insert({
     ts: Date.now(),
