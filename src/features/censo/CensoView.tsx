@@ -644,14 +644,19 @@ export function CensoView() {
               <span className="hidden sm:inline">Inicio del censo</span>
               <span className="sm:hidden">Inicio</span>
             </button>
+            {/* Con token del QR se vuelve al portal de terreno; con sesión por
+                contraseña (sin token) el portal sería un callejón sin salida:
+                se vuelve al sistema (/) y rutaInicialDeRol redirige. */}
             <a
-              href={urlPortalTerreno()}
+              href={tokenTerrenoActual() ? urlPortalTerreno() : "/"}
               className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-primary-foreground/25 bg-primary-foreground/10 px-2.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary-foreground/20 sm:px-3 sm:text-sm"
-              aria-label="Volver al portal de terreno"
-              title="Portal de terreno"
+              aria-label={
+                tokenTerrenoActual() ? "Volver al portal de terreno" : "Volver al sistema"
+              }
+              title={tokenTerrenoActual() ? "Portal de terreno" : "Volver al sistema"}
             >
               <LayoutGrid className="size-3.5 shrink-0" aria-hidden />
-              <span>Portal</span>
+              <span>{tokenTerrenoActual() ? "Portal" : "Volver"}</span>
             </a>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
