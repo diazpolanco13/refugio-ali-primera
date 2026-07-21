@@ -69,7 +69,8 @@ import { EstadoVacio, LoadingTable } from "@/components/skeletons";
 import { cn } from "@/lib/utils";
 import { etiquetaCentro } from "./TarjetaUsuario";
 
-const FILAS_POR_PAGINA = 50;
+/** La lista se pagina por campamento (cada grupo trae sus operadores). */
+const CENTROS_POR_PAGINA = 10;
 
 type ConfirmDesuscribir =
   | { userId: string; nombre: string; centroId: string | null; etiqueta: string }
@@ -294,12 +295,53 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
     return porEstado.filter((o) => coincideBusqueda(o, qNorm, etiquetasCentros));
   }, [operadores, filtro, qNorm, etiquetasCentros]);
 
-  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / FILAS_POR_PAGINA));
+  // Agrupación por campamento: el rol ve sus centros y, dentro de cada uno,
+  // los operadores que reportan ahí (un operador multi-centro aparece en cada
+  // grupo). Los operadores sin campamento van a un grupo final propio.
+  const grupos = useMemo(() => {
+    const porCentro = new Map<string, OperadorFila[]>();
+    for (const o of filtrados) {
+      const ids = o.centros_asignados?.length ? o.centros_asignados : [""];
+      for (const id of ids) {
+        const arr = porCentro.get(id) ?? [];
+        arr.push(o);
+        porCentro.set(id, arr);
+      }
+    }
+    const avance = new Map(avancePorCentro.map((c) => [c.id, c]));
+    return [...porCentro.entries()]
+      .map(([id, ops]) => {
+        const centro = centrosPorId.get(id);
+        return {
+          id,
+          etiqueta: id
+            ? centro
+              ? etiquetaCentro(centro, id)
+              : id
+            : "Sin campamento asignado",
+          cuerpo: id ? metaCuerpoDe(centro?.cuerpo).label : "",
+          unidad: id && centro ? metaUnidadSebinCentro(centro).label : "",
+          operadores: ops,
+          // Avance sobre TODOS los operadores del centro (sin filtro de pestaña).
+          activados: avance.get(id)?.activados ?? 0,
+          total: avance.get(id)?.total ?? ops.length,
+        };
+      })
+      .sort((a, b) =>
+        a.id === ""
+          ? 1
+          : b.id === ""
+            ? -1
+            : a.etiqueta.localeCompare(b.etiqueta, "es"),
+      );
+  }, [filtrados, centrosPorId, avancePorCentro]);
+
+  const totalPaginas = Math.max(1, Math.ceil(grupos.length / CENTROS_POR_PAGINA));
   const paginaSegura = Math.min(pagina, totalPaginas - 1);
   const visibles = useMemo(() => {
-    const inicio = paginaSegura * FILAS_POR_PAGINA;
-    return filtrados.slice(inicio, inicio + FILAS_POR_PAGINA);
-  }, [filtrados, paginaSegura]);
+    const inicio = paginaSegura * CENTROS_POR_PAGINA;
+    return grupos.slice(inicio, inicio + CENTROS_POR_PAGINA);
+  }, [grupos, paginaSegura]);
 
   useEffect(() => {
     setPagina(0);
@@ -472,40 +514,18 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
     >
       {error && <p className="px-4 pt-3 text-xs text-destructive lg:px-6">{error}</p>}
 
-      {!cargando && avancePorCentro.length > 0 && (
-        <div className="border-b border-border/70 px-4 py-3 lg:px-6">
-          <p className="mb-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-            Avance de activación de credencial propia · {totalActivados}/
-            {operadores.length} operadores
-          </p>
-          <ul className="flex flex-wrap gap-1.5">
-            {avancePorCentro.map((c) => (
-              <li key={c.id}>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "gap-1 font-normal",
-                    c.activados === 0
-                      ? "text-muted-foreground"
-                      : c.activados === c.total
-                        ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
-                        : "border-amber-500/50 text-amber-600 dark:text-amber-400",
-                  )}
-                >
-                  <KeyRound className="size-3" />
-                  {c.etiqueta}: {c.activados}/{c.total}
-                </Badge>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {!cargando && operadores.length > 0 && (
+        <p className="flex items-center gap-1.5 border-b border-border/70 px-4 py-2 text-xs text-muted-foreground lg:px-6">
+          <KeyRound className="size-3.5" aria-hidden />
+          Credencial propia activada: {totalActivados}/{operadores.length} operadores
+        </p>
       )}
 
       {cargando ? (
         <div className="p-4 lg:p-6">
           <LoadingTable rows={5} cols={3} />
         </div>
-      ) : filtrados.length === 0 ? (
+      ) : grupos.length === 0 ? (
         <div className="p-4 lg:p-6">
           <EstadoVacio
             titulo={
@@ -526,21 +546,56 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
         </div>
       ) : (
         <>
-        <ul className="divide-y divide-border/70">
-          {visibles.map((o) => {
-            const pendiente = o.aprobacion === "pendiente";
-            return (
-              <li
-                key={o.user_id}
-                className={cn(
-                  "space-y-3 border-l-2 border-l-transparent px-4 py-4 lg:px-6",
-                  pendiente && "border-l-amber-500/60",
-                )}
-              >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="divide-y divide-border/70">
+          {visibles.map((g) => (
+            <section key={g.id || "sin-campamento"}>
+              <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 bg-muted/50 px-4 py-2.5 lg:px-6">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold leading-tight">{g.etiqueta}</p>
+                  {(g.cuerpo || g.unidad) && (
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Cuerpo responsable:{" "}
+                      <span className="text-foreground/80">{g.cuerpo || "—"}</span>
+                      {" · "}Revista SEBIN:{" "}
+                      <span className="text-foreground/80">{g.unidad || "—"}</span>
+                    </p>
+                  )}
+                </div>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "gap-1 font-normal",
+                    g.activados === 0
+                      ? "text-muted-foreground"
+                      : g.activados === g.total
+                        ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+                        : "border-amber-500/50 text-amber-600 dark:text-amber-400",
+                  )}
+                >
+                  <KeyRound className="size-3" />
+                  {g.activados}/{g.total} con credencial propia
+                </Badge>
+              </header>
+              <ul className="divide-y divide-border/50">
+                {g.operadores.map((o) => {
+                  const pendiente = o.aprobacion === "pendiente";
+                  const enOtros = (o.centros_asignados ?? []).filter((id) => id !== g.id);
+                  const telegramOk = vinculos.has(o.user_id);
+                  const tgUser = vinculos.get(o.user_id)?.telegram_username;
+                  const silenciado = (o.alertas_silenciadas ?? []).includes(g.id);
+                  const alertasOn = telegramOk && !silenciado;
+                  const togglingKey = `${o.user_id}:${g.id}`;
+                  return (
+                    <li
+                      key={o.user_id}
+                      className={cn(
+                        "flex flex-col gap-2 border-l-2 border-l-transparent px-4 py-3 sm:flex-row sm:items-center sm:justify-between lg:px-6",
+                        pendiente && "border-l-amber-500/60",
+                      )}
+                    >
                       <div className="flex min-w-0 items-start gap-3">
                         <div
-                          className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold text-muted-foreground"
+                          className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold text-muted-foreground"
                           aria-hidden
                         >
                           {iniciales(o.nombre || o.username || "?")}
@@ -567,6 +622,11 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                             {o.jerarquia ? ` · ${o.jerarquia}` : ""}
                             {o.created_at ? ` · identificado el ${fechaCorta(o.created_at)}` : ""}
                             {!pendiente && o.aprobacion_por ? ` · revisado por ${o.aprobacion_por}` : ""}
+                            {enOtros.length > 0
+                              ? ` · también en ${enOtros
+                                  .map((id) => etiquetasCentros.get(id) ?? id)
+                                  .join(", ")}`
+                              : ""}
                           </p>
                           <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                             {o.verificado_nexus ? (
@@ -587,39 +647,36 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                                 <KeyRound className="size-3" /> Activación pendiente
                               </Badge>
                             )}
-                            {vinculos.has(o.user_id) ? (
+                            {telegramOk ? (
                               <span className="inline-flex items-center gap-1">
                                 <Badge variant="outline" className="gap-1 border-sky-500/50 text-sky-600 dark:text-sky-400">
                                   <Send className="size-3" />
-                                  {vinculos.get(o.user_id)?.telegram_username
-                                    ? `@${vinculos.get(o.user_id)?.telegram_username}`
-                                    : "Telegram"}
+                                  {tgUser ? `@${tgUser}` : "Telegram"}
                                 </Badge>
                                 {puedeResolver && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="grid size-5 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
-                                      disabled={desvinculandoTg}
-                                      aria-label="Desvincular Telegram"
-                                      onClick={() =>
-                                        setConfirmDesvincularTg({
-                                          userId: o.user_id,
-                                          nombre: o.nombre || o.username || "operador",
-                                          username: o.username,
-                                          tgUser:
-                                            vinculos.get(o.user_id)?.telegram_username ?? null,
-                                        })
-                                      }
-                                    >
-                                      <X className="size-3" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top">
-                                    Desvincular Telegram de este operador
-                                  </TooltipContent>
-                                </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        type="button"
+                                        className="grid size-5 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
+                                        disabled={desvinculandoTg}
+                                        aria-label="Desvincular Telegram"
+                                        onClick={() =>
+                                          setConfirmDesvincularTg({
+                                            userId: o.user_id,
+                                            nombre: o.nombre || o.username || "operador",
+                                            username: o.username,
+                                            tgUser: tgUser ?? null,
+                                          })
+                                        }
+                                      >
+                                        <X className="size-3" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      Desvincular Telegram de este operador
+                                    </TooltipContent>
+                                  </Tooltip>
                                 )}
                               </span>
                             ) : (
@@ -631,195 +688,130 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                         </div>
                       </div>
                       {puedeResolver && (
-                      <div className="flex shrink-0 gap-2 sm:pl-4">
-                        {pendiente ? (
-                          <>
-                            <Button
-                              size="sm"
-                              disabled={accionando === o.user_id}
-                              onClick={() => void resolver(o, "aprobada")}
-                            >
-                              {accionando === o.user_id ? (
-                                <Loader2 className="size-4 animate-spin" />
-                              ) : (
-                                <Check className="size-4" />
-                              )}
-                              Aprobar
-                            </Button>
+                        <div className="flex shrink-0 items-center gap-1.5 sm:pl-4">
+                          {pendiente ? (
+                            <>
+                              <Button
+                                size="sm"
+                                disabled={accionando === o.user_id}
+                                onClick={() => void resolver(o, "aprobada")}
+                              >
+                                {accionando === o.user_id ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <Check className="size-4" />
+                                )}
+                                Aprobar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive"
+                                disabled={accionando === o.user_id}
+                                onClick={() => void resolver(o, "rechazada")}
+                              >
+                                <X className="size-4" />
+                                Rechazar
+                              </Button>
+                            </>
+                          ) : (
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-destructive"
                               disabled={accionando === o.user_id}
-                              onClick={() => void resolver(o, "rechazada")}
-                            >
-                              <X className="size-4" />
-                              Rechazar
-                            </Button>
-                          </>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={accionando === o.user_id}
-                            onClick={() =>
-                              void resolver(o, o.aprobacion === "aprobada" ? "rechazada" : "aprobada")
-                            }
-                          >
-                            {accionando === o.user_id ? (
-                              <Loader2 className="size-4 animate-spin" />
-                            ) : null}
-                            {o.aprobacion === "aprobada" ? "Rechazar" : "Aprobar"}
-                          </Button>
-                        )}
-                      </div>
-                      )}
-                    </div>
-                    {(o.centros_asignados?.length ?? 0) > 0 && (
-                      <div className="border-t border-border pt-3">
-                        <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-                            Campamentos asignados ({o.centros_asignados?.length})
-                          </p>
-                          {puedeResolver && (o.centros_asignados?.length ?? 0) > 1 && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 px-2 text-xs text-destructive"
-                              disabled={accionando === o.user_id || desuscribiendo}
                               onClick={() =>
-                                setConfirmDesuscribir({
-                                  userId: o.user_id,
-                                  nombre: o.nombre || o.username || "operador",
-                                  centroId: null,
-                                  etiqueta: "todos los campamentos",
-                                })
+                                void resolver(o, o.aprobacion === "aprobada" ? "rechazada" : "aprobada")
                               }
                             >
-                              <Trash2 className="size-3.5" />
-                              Quitar de todos
+                              {accionando === o.user_id ? (
+                                <Loader2 className="size-4 animate-spin" />
+                              ) : null}
+                              {o.aprobacion === "aprobada" ? "Rechazar" : "Aprobar"}
                             </Button>
                           )}
-                        </div>
-                        <ul className="grid gap-1.5 xl:grid-cols-2">
-                            {(o.centros_asignados ?? []).map((id) => {
-                              const centro = centrosPorId.get(id);
-                              const etiqueta = centro ? etiquetaCentro(centro, id) : id;
-                              const cuerpo = metaCuerpoDe(centro?.cuerpo).label;
-                              const unidad = centro
-                                ? metaUnidadSebinCentro(centro).label
-                                : "—";
-                              const telegramOk = vinculos.has(o.user_id);
-                              const tgUser = vinculos.get(o.user_id)?.telegram_username;
-                              const silenciado = (o.alertas_silenciadas ?? []).includes(id);
-                              const alertasOn = telegramOk && !silenciado;
-                              const togglingKey = `${o.user_id}:${id}`;
-                              return (
-                                <li
-                                  key={id}
-                                  className="flex items-start gap-2 rounded-md bg-muted/40 px-2.5 py-1.5"
-                                >
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-[11px] font-medium leading-tight">
-                                      {etiqueta}
-                                    </p>
-                                    <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
-                                      Cuerpo responsable del centro:{" "}
-                                      <span className="text-foreground/80">{cuerpo || "—"}</span>
-                                      {" · "}
-                                      Revista SEBIN:{" "}
-                                      <span className="text-foreground/80">{unidad || "—"}</span>
-                                    </p>
-                                  </div>
-                                  <div className="flex shrink-0 gap-1">
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          type="button"
-                                          size="icon"
-                                          variant="outline"
-                                          className={cn(
-                                            "size-8",
-                                            alertasOn
-                                              ? "border-sky-500/50 text-sky-600 dark:text-sky-400"
-                                              : "text-muted-foreground",
-                                          )}
-                                          disabled={
-                                            !puedeResolver ||
-                                            togglingAlertas === togglingKey ||
-                                            desuscribiendo
-                                          }
-                                          aria-label={
-                                            alertasOn
-                                              ? "Alertas activas — clic para silenciar"
-                                              : telegramOk
-                                                ? "Alertas silenciadas — clic para activar"
-                                                : "Sin Telegram — no recibe alertas"
-                                          }
-                                          aria-pressed={alertasOn}
-                                          onClick={() => void toggleAlertasCampamento(o, id)}
-                                        >
-                                          {togglingAlertas === togglingKey ? (
-                                            <Loader2 className="size-3.5 animate-spin" />
-                                          ) : alertasOn ? (
-                                            <Bell className="size-3.5" />
-                                          ) : (
-                                            <BellOff className="size-3.5" />
-                                          )}
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top" className="max-w-56">
-                                        {!telegramOk
-                                          ? "Sin Telegram vinculado: no recibe alertas. Clic para más info."
-                                          : alertasOn
-                                            ? `Alertas activas${tgUser ? ` (@${tgUser})` : ""}. Clic para silenciar este campamento.`
-                                            : "Alertas silenciadas. Clic para volver a activarlas."}
-                                      </TooltipContent>
-                                    </Tooltip>
-                                    {puedeResolver && (
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          type="button"
-                                          size="icon"
-                                          variant="outline"
-                                          className="size-8 text-destructive"
-                                          disabled={accionando === o.user_id || desuscribiendo}
-                                          aria-label={`Quitar ${etiqueta}`}
-                                          onClick={() =>
-                                            setConfirmDesuscribir({
-                                              userId: o.user_id,
-                                              nombre: o.nombre || o.username || "operador",
-                                              centroId: id,
-                                              etiqueta,
-                                            })
-                                          }
-                                        >
-                                          <Trash2 className="size-3.5" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top">
-                                        Quitar este campamento del operador
-                                      </TooltipContent>
-                                    </Tooltip>
+                          {g.id && (
+                            <>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="outline"
+                                    className={cn(
+                                      "size-8",
+                                      alertasOn
+                                        ? "border-sky-500/50 text-sky-600 dark:text-sky-400"
+                                        : "text-muted-foreground",
                                     )}
-                                  </div>
-                                </li>
-                              );
-                            })}
-                        </ul>
-                      </div>
-                    )}
-              </li>
-            );
-          })}
-        </ul>
+                                    disabled={togglingAlertas === togglingKey || desuscribiendo}
+                                    aria-label={
+                                      alertasOn
+                                        ? "Alertas activas — clic para silenciar"
+                                        : telegramOk
+                                          ? "Alertas silenciadas — clic para activar"
+                                          : "Sin Telegram — no recibe alertas"
+                                    }
+                                    aria-pressed={alertasOn}
+                                    onClick={() => void toggleAlertasCampamento(o, g.id)}
+                                  >
+                                    {togglingAlertas === togglingKey ? (
+                                      <Loader2 className="size-3.5 animate-spin" />
+                                    ) : alertasOn ? (
+                                      <Bell className="size-3.5" />
+                                    ) : (
+                                      <BellOff className="size-3.5" />
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-56">
+                                  {!telegramOk
+                                    ? "Sin Telegram vinculado: no recibe alertas. Clic para más info."
+                                    : alertasOn
+                                      ? `Alertas activas${tgUser ? ` (@${tgUser})` : ""}. Clic para silenciar este campamento.`
+                                      : "Alertas silenciadas. Clic para volver a activarlas."}
+                                </TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="outline"
+                                    className="size-8 text-destructive"
+                                    disabled={accionando === o.user_id || desuscribiendo}
+                                    aria-label={`Quitar de ${g.etiqueta}`}
+                                    onClick={() =>
+                                      setConfirmDesuscribir({
+                                        userId: o.user_id,
+                                        nombre: o.nombre || o.username || "operador",
+                                        centroId: g.id,
+                                        etiqueta: g.etiqueta,
+                                      })
+                                    }
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  Quitar este campamento del operador
+                                </TooltipContent>
+                              </Tooltip>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
         <PaginadorTabla
           pagina={paginaSegura}
           totalPaginas={totalPaginas}
-          totalFilas={filtrados.length}
-          filasPorPagina={FILAS_POR_PAGINA}
+          totalFilas={grupos.length}
+          filasPorPagina={CENTROS_POR_PAGINA}
           cargando={cargando}
           onPagina={setPagina}
           className="border-t border-border/70 px-4 py-3 lg:px-6"
