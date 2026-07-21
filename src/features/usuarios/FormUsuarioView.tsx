@@ -152,7 +152,9 @@ function SelectorCentrosInline({
                 variant="outline"
                 className="gap-1 pr-1 text-[10px] text-muted-foreground"
               >
-                <span className="max-w-40 truncate">{etiquetaCentro(porId.get(id), id)}</span>
+                <span className="max-w-[min(10rem,55vw)] truncate">
+                  {etiquetaCentro(porId.get(id), id)}
+                </span>
                 {!disabled && (
                   <button
                     type="button"
@@ -171,9 +173,9 @@ function SelectorCentrosInline({
         )}
       </div>
 
-      <Command className="rounded-lg border border-input">
+      <Command className="min-w-0 rounded-lg border border-border">
         <CommandInput placeholder="Buscar campamento o cuerpo…" disabled={disabled} />
-        <CommandList className="max-h-72">
+        <CommandList className="max-h-56 sm:max-h-72">
           <CommandEmpty>Sin resultados.</CommandEmpty>
           <CommandGroup>
             <CommandItem
@@ -247,13 +249,13 @@ function SeccionCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card size="sm">
+    <Card size="sm" className="min-w-0 overflow-hidden">
       <CardHeader className="pb-0">
         <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {titulo}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">{children}</CardContent>
+      <CardContent className="min-w-0 space-y-3">{children}</CardContent>
     </Card>
   );
 }
@@ -410,12 +412,17 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
     : "Nuevo usuario";
 
   return (
-    <MarcoVista ancho={ANCHO_VISTA_PRINCIPAL} marcoClassName="text-foreground">
-      <div className="mb-3">
-        <Button asChild variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+    <MarcoVista
+      ancho={ANCHO_VISTA_PRINCIPAL}
+      // En teléfonos chicos el p-4 del shell + marco + cards come el gutter.
+      className="p-2 sm:p-4 lg:p-6"
+      marcoClassName="text-foreground"
+    >
+      <div className="px-3 pt-3 sm:px-4 lg:px-6">
+        <Button asChild variant="outline" size="sm" className="min-h-10 gap-1.5">
           <Link to="/usuarios">
-            <ArrowLeft className="size-4" />
-            Volver a usuarios
+            <ArrowLeft className="size-4 shrink-0" />
+            <span className="truncate">Volver a usuarios</span>
           </Link>
         </Button>
       </div>
@@ -423,6 +430,7 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
         icono={esEdicion ? Pencil : UserPlus}
         acento={esEdicion ? "sky" : "emerald"}
         titulo={titulo}
+        className="px-3 sm:px-4 lg:px-6"
         descripcion={
           esEdicion
             ? "Ajusta la ficha, el rol y el alcance del usuario."
@@ -431,14 +439,17 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
       />
 
       {cargandoPerfil ? (
-        <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="flex min-h-[40vh] items-center justify-center px-3 sm:px-4">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <form onSubmit={enviar} className="mt-4 space-y-4">
-          <div className="grid items-start gap-4 lg:grid-cols-3">
+        <form
+          onSubmit={enviar}
+          className="mt-3 space-y-4 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:mt-4 sm:px-4 lg:px-6"
+        >
+          <div className="grid min-w-0 items-start gap-3 sm:gap-4 lg:grid-cols-3">
             {/* Columna 1: identidad + contacto */}
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-3 sm:space-y-4">
               <SeccionCard titulo="Identidad">
                 <div className="space-y-1.5">
                   <Label htmlFor="usuario-nombre">Nombre y apellido</Label>
@@ -538,7 +549,7 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
             </div>
 
             {/* Columna 2 (doble en escritorio no: 1fr): rol, alcance y campamentos */}
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-3 sm:space-y-4">
               <SeccionCard titulo="Rol y alcance">
                 <div className="space-y-1.5">
                   <Label htmlFor="usuario-rol">Rol / permisos del sistema</Label>
@@ -549,7 +560,7 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
                     }
                     onValueChange={(v) => set("rol", v as Rol)}
                   >
-                    <SelectTrigger id="usuario-rol" className="w-full">
+                    <SelectTrigger id="usuario-rol" className="min-h-10 w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -583,7 +594,7 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
                         }));
                       }}
                     >
-                      <SelectTrigger id="usuario-ambito" className="w-full">
+                      <SelectTrigger id="usuario-ambito" className="min-h-10 w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -615,7 +626,7 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
                       disabled={guardando}
                       onValueChange={(v) => set("cuerpo_asignado", v || null)}
                     >
-                      <SelectTrigger id="usuario-cuerpo" className="w-full">
+                      <SelectTrigger id="usuario-cuerpo" className="min-h-10 w-full">
                         <SelectValue placeholder="Elegí el cuerpo…" />
                       </SelectTrigger>
                       <SelectContent>
@@ -646,7 +657,7 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
             </div>
 
             {/* Columna 3: seguridad + credenciales */}
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-3 sm:space-y-4">
               {esEdicion && perfil?.hash_id && (
                 <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
                   <Fingerprint className="size-4 shrink-0 text-primary" />
@@ -752,21 +763,26 @@ export function FormUsuarioView({ sesion }: { sesion: Sesion }) {
           </div>
 
           {error && (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs break-words text-destructive">
               {error}
             </div>
           )}
 
-          <div className="flex justify-end gap-2 border-t border-border pt-3 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          <div className="flex flex-col-reverse gap-2 border-t border-border pt-3 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="outline"
+              className="min-h-10 w-full sm:w-auto"
               onClick={() => navigate("/usuarios")}
               disabled={guardando}
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={guardando}>
+            <Button
+              type="submit"
+              className="min-h-10 w-full sm:w-auto"
+              disabled={guardando}
+            >
               {guardando ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />

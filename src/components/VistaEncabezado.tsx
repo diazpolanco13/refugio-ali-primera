@@ -122,8 +122,11 @@ export function VistaEncabezado({
           {descripcion ? (
             <CardDescription
               className={cn(
-                "mt-1 truncate sm:overflow-visible sm:whitespace-normal",
-                compacto && "hidden sm:block",
+                // En móvil, truncate corta subtítulos útiles (p. ej. alta de usuario).
+                // compacto: una línea; normal: wrap con text-pretty.
+                compacto
+                  ? "mt-1 hidden truncate sm:block sm:overflow-visible sm:whitespace-normal"
+                  : "mt-1 text-pretty",
               )}
             >
               {descripcion}
