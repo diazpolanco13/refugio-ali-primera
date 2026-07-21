@@ -57,12 +57,12 @@ El script bloquea `--aplicar` si hay filas inválidas, campamentos inexistentes
 o inactivos. `--permitir-omisiones` habilita importación parcial; usarlo solo
 con aprobación explícita después de informar cantidades y causas.
 
-**Referéndum (`firmo_contra_presidente`):** se importa por defecto desde la
-columna `Firmó contra el Gob.` / texto SIIPOL. Solo usar
-`--omitir-firmo-presidente` si el usuario pide explícitamente NO cargarlo.
-En el resumen informar `firmo_contra_presidente` / firmantes detectados.
-`Milita oposición` nunca se importa: dato político sensible sin destino
-operativo en `censo_registros`.
+**Dato político (referéndum / militancia):** nunca se importa.
+`firmo_contra_presidente` siempre queda `false`. Columnas `Firmó contra el
+Gob.` / texto de firma / `Milita oposición` / afiliación (PJ, Vente) se
+ignoran y se limpian de `observaciones_seguridad` (se conservan solo
+solicitado, reg. policial y deportado). `--omitir-firmo-presidente` es
+legado no-op.
 
 ## Archivos consolidados
 
@@ -111,9 +111,9 @@ python3 scripts/importar_excel_censo.py \
    - `nexus_ya_verificadas_unicas`, `nexus_consultadas`,
      `nexus_verificadas_nuevas`, `nexus_error`,
      `nexus_omitidas_solo_cache`;
-   - `solicitados`, `registro_policial`, `firmo_contra_presidente` (referéndum);
+   - `solicitados`, `registro_policial`;
    - `verificados_siipol`;
-   - columnas sensibles ignoradas.
+   - columnas sensibles ignoradas (referéndum / militancia).
 6. Si hay errores, corregirlos o pedir aprobación explícita para importación
    parcial con `--permitir-omisiones`.
 7. Preguntar confirmación antes de `--aplicar`.
@@ -172,7 +172,8 @@ Seguridad:
 - Texto SIIPOL con `se encuentra solicitado` / `solicitado por` /
   `persona extraviada` / `extraviada(o)` → `solicitado` (denuncia de
   extraviado = búsqueda activa; misma bandeja KPI Solicitados)
-- `Firmó contra Presidente`, `Firmo vs Pres.` → `firmo_contra_presidente`
+- `Firmó contra Presidente`, `Firmo vs Pres.`, `Milita oposición`,
+  afiliación política en texto → **ignorados** (scrub; no persisten)
 - `Deportado` → `deportado`
 - `Tipo de Registro` → `tipo_registro_policial`
 - `Descripción (verificación)` / `Observaciones` /

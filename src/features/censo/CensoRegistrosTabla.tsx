@@ -18,7 +18,6 @@ function tituloSeguridad(fila: RegistroCensoGuardado): string | undefined {
   const partes = [
     fila.tipo_registro_policial,
     fila.observaciones_seguridad,
-    fila.firmo_contra_presidente ? "Firmó contra Presidente" : "",
     fila.deportado ? "Deportado" : "",
   ].filter(Boolean);
   return partes.length > 0 ? partes.join(" · ") : undefined;
@@ -198,18 +197,6 @@ function FilaRegistro({
           "—"
         )}
       </TableCell>
-      <TableCell className="px-2 py-1.5 text-center" title={tituloSeguridad(fila)}>
-        {fila.firmo_contra_presidente ? (
-          <Badge
-            variant="outline"
-            className="h-5 border-orange-500/60 px-1.5 text-[10px] text-orange-700 dark:text-orange-300"
-          >
-            Sí
-          </Badge>
-        ) : (
-          "—"
-        )}
-      </TableCell>
       <TableCell className="px-2 py-1.5 text-right text-muted-foreground">{fecha}</TableCell>
       {puedeEditar && (
         <TableCell className="px-1 py-1.5">
@@ -277,7 +264,6 @@ export function CensoRegistrosTabla({
             <TableHead className="h-8 px-2 text-center">SIIPOL</TableHead>
             <TableHead className="h-8 px-2 text-center">Solicitado</TableHead>
             <TableHead className="h-8 px-2 text-center">Reg. policial</TableHead>
-            <TableHead className="h-8 px-2 text-center">Referéndum</TableHead>
             <TableHead className="h-8 px-2 text-right">Registro</TableHead>
             {puedeEditar && <TableHead className="h-8 w-16 px-1 text-center">Acc.</TableHead>}
           </TableRow>

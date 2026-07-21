@@ -584,11 +584,32 @@ def inferir_flags_seguridad(obs: str) -> dict[str, bool]:
             or "extraviada" in t
             or "extraviado" in t
         ),
-        "firmo_contra_presidente": (
-            "firmo contra el presidente" in t or "firmo contra presidente" in t
-        ),
         "deportado": "deportado" in t,
     }
+
+
+def scrub_dato_politico(obs: str) -> str:
+    """Quita firmas de referéndum y afiliación política; conserva policial."""
+    if not obs:
+        return ""
+    limpio = re.sub(
+        r"(?i)(,\s*)?(y\s+)?(s[ií]\s+)?firm[oó]\s+contra\s+el\s+presidente"
+        r"(\s+en\s+\d{4})?(\s+y\s+(\d{4}|firm[oó]\s+contra\s+el\s+presidente"
+        r"(\s+en\s+\d{4})?))?",
+        "",
+        obs,
+    )
+    limpio = re.sub(r"(?i)(,\s*)?(data\s+)?vente\s+venezuela", "", limpio)
+    limpio = re.sub(
+        r"(?i)(,\s*)?militante(\s+de)?(\s+pj)?(\s+distrito\s+capital)?"
+        r"(\s+vente\s+venezuela)?",
+        "",
+        limpio,
+    )
+    limpio = re.sub(r"[.,;]\s*[.,;]+", ".", limpio)
+    limpio = re.sub(r"\s{2,}", " ", limpio)
+    limpio = re.sub(r",(\S)", r", \1", limpio)
+    return limpio.strip(" ,.;")
 
 
 def parse_cedula(raw: Any) -> tuple[str, str]:
@@ -758,20 +779,11 @@ def fila_a_payload(
     solicitado = parse_bool(
         pick(row, "está solicitado", "esta solicitado", "solicitado", "requerido")
     ) or flags_texto["solicitado"]
-    firmo_contra_presidente = parse_bool(
-        pick(
-            row,
-            "firmó contra presidente",
-            "firmo contra presidente",
-            "firmo vs pres",
-            "firmo vs presidente",
-            "firmó contra el gob.",
-            "firmo contra el gob",
-        )
-    ) or flags_texto["firmo_contra_presidente"]
     deportado = parse_bool(pick(row, "deportado")) or flags_texto["deportado"]
+    # Dato político sensible: nunca persistir firma de referéndum ni afiliación.
+    observaciones = scrub_dato_politico(observaciones)
     verificado_siipol = bool(descripcion_verificacion) or any(
-        (registro_policial, solicitado, firmo_contra_presidente, deportado, bool(tipo_registro))
+        (registro_policial, solicitado, deportado, bool(tipo_registro))
     )
 
     payload: dict[str, Any] = {
@@ -822,7 +834,7 @@ def fila_a_payload(
         ),
         "registro_policial": registro_policial,
         "solicitado": solicitado,
-        "firmo_contra_presidente": firmo_contra_presidente,
+        "firmo_contra_presidente": False,
         "deportado": deportado,
         "tipo_registro_policial": tipo_registro,
         "observaciones_seguridad": observaciones,
@@ -894,7 +906,7 @@ def main() -> int:
     ap.add_argument(
         "--omitir-firmo-presidente",
         action="store_true",
-        help="Fuerza firmo_contra_presidente=false (no importa firmas de referéndum)",
+        help=argparse.SUPPRESS,  # legado: siempre omitido; flag no-op
     )
     ap.add_argument("--json-out", type=Path, default=None)
     args = ap.parse_args()
@@ -981,7 +993,6 @@ def main() -> int:
         "nexus_omitidas_solo_cache": 0,
         "solicitados": 0,
         "registro_policial": 0,
-        "firmo_contra_presidente": 0,
         "verificados_siipol": 0,
     }
 
@@ -1066,22 +1077,20 @@ def main() -> int:
             elif clave[0] in LETRAS_NEXUS and clave[1]:
                 conteos["nexus_error"] += 1
 
-    firmo_omitidos = 0
     for payload in preparadas:
         if not payload.get("primer_nombre") or not payload.get("primer_apellido"):
             errores.append({"error": "sin_nombre", "documento": payload.get("documento")})
             continue
 
-        if args.omitir_firmo_presidente and payload.get("firmo_contra_presidente"):
-            firmo_omitidos += 1
-            payload["firmo_contra_presidente"] = False
+        payload["firmo_contra_presidente"] = False
+        payload["observaciones_seguridad"] = scrub_dato_politico(
+            texto(payload.get("observaciones_seguridad"))
+        )
 
         if payload.get("solicitado"):
             conteos["solicitados"] += 1
         if payload.get("registro_policial"):
             conteos["registro_policial"] += 1
-        if payload.get("firmo_contra_presidente"):
-            conteos["firmo_contra_presidente"] += 1
         if payload.get("verificado_siipol"):
             conteos["verificados_siipol"] += 1
         ok.append(payload)
@@ -1095,10 +1104,17 @@ def main() -> int:
         for error in errores
         if error.get("nombre_centro_raw")
     )
+    columnas_politicas = {
+        "milita oposicion",
+        "firmo contra presidente",
+        "firmó contra presidente",
+        "firmo vs pres",
+        "firmo vs presidente",
+        "firmo contra el gob",
+        "firmó contra el gob.",
+    }
     sensibles_ignoradas = [
-        columna
-        for columna in columnas
-        if key(columna) in {"milita oposicion"}
+        columna for columna in columnas if key(columna) in columnas_politicas
     ]
     reporte = {
         "archivo": args.archivo.name,
@@ -1106,7 +1122,6 @@ def main() -> int:
         "filas_leidas": len(rows),
         "listas": len(ok),
         **conteos,
-        "firmo_omitidos": firmo_omitidos if args.omitir_firmo_presidente else 0,
         "documentos_repetidos": documentos_repetidos,
         "errores_match": len(errores),
         "errores_por_tipo": dict(sorted(errores_por_tipo.items())),

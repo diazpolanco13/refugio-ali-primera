@@ -217,7 +217,6 @@ export function CensoCentroPanel({
       orden: "reciente",
       solicitado: "todos",
       registroPolicial: "todos",
-      firmo: "todos",
     },
     { enabled: tab === "importaciones" },
   );

@@ -15,7 +15,6 @@ export interface FiltrosCensoRedListado {
   orden: OrdenRegistrosCenso;
   solicitado: string;
   registroPolicial: string;
-  firmo: string;
   verificadoSiipol?: string;
 }
 
@@ -38,7 +37,6 @@ export function useCensoRedListado(
       orden: filtros.orden,
       solicitado: filtros.solicitado,
       registroPolicial: filtros.registroPolicial,
-      firmo: filtros.firmo,
       verificadoSiipol: filtros.verificadoSiipol,
     }),
     [
@@ -48,7 +46,6 @@ export function useCensoRedListado(
       filtros.orden,
       filtros.solicitado,
       filtros.registroPolicial,
-      filtros.firmo,
       filtros.verificadoSiipol,
     ],
   );

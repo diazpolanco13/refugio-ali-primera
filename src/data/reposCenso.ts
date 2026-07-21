@@ -632,7 +632,6 @@ export interface FiltrosListadoCensoRed {
   orden?: string;
   solicitado?: string;
   registroPolicial?: string;
-  firmo?: string;
   verificadoSiipol?: string;
 }
 
@@ -649,7 +648,8 @@ function paramsFiltrosListadoCensoRed(filtros: FiltrosListadoCensoRed) {
     p_orden: filtros.orden ?? "reciente",
     p_solicitado: boolFiltro(filtros.solicitado),
     p_registro_policial: boolFiltro(filtros.registroPolicial),
-    p_firmo: boolFiltro(filtros.firmo),
+    // Dato político retirado: RPC aún acepta p_firmo; siempre null.
+    p_firmo: null as boolean | null,
     p_verificado_siipol: boolFiltro(filtros.verificadoSiipol),
   };
 }

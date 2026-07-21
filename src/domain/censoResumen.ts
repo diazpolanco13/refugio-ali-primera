@@ -52,7 +52,7 @@ export interface ResumenCensoCentro {
   solicitados: number;
   /** Personas con registro policial reportado en verificación SIIPOL/planilla. */
   conRegistroPolicial: number;
-  /** Personas que firmaron contra el Presidente (referéndum) según SIIPOL/planilla. */
+  /** Legado RPC: siempre 0 en UI (dato político retirado). */
   firmoContraPresidente: number;
 }
 

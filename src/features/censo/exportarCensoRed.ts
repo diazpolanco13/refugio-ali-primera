@@ -66,7 +66,6 @@ function filaPdf(fila: RegistroCensoRed, numero: number): string[] {
     fila.verificado_siipol ? "Verificado" : "Pendiente",
     siOGuion(fila.solicitado),
     siOGuion(fila.registro_policial),
-    siOGuion(fila.firmo_contra_presidente),
     formatearFechaTabla(fila.creado_en),
   ];
 }
@@ -82,12 +81,11 @@ const ENCABEZADOS_PDF = [
   "SIIPOL",
   "Solicitado",
   "Reg. policial",
-  "Referéndum",
   "Registro",
 ];
 
 // A4 landscape ~273 mm útiles (márgenes 12+12).
-const ANCHOS_PDF_MM = [8, 46, 22, 10, 10, 42, 20, 20, 20, 22, 20, 28];
+const ANCHOS_PDF_MM = [8, 50, 22, 10, 10, 46, 20, 20, 20, 22, 30];
 
 function truncar(texto: string, max = 42): string {
   const t = texto.trim();
@@ -198,7 +196,6 @@ function filaExcel(fila: RegistroCensoRed, numero: number): Record<string, strin
     "Fuente verificación SIIPOL": fila.verificado_siipol_fuente ?? "",
     Solicitado: fila.solicitado ? "Sí" : "No",
     "Registro policial": fila.registro_policial ? "Sí" : "No",
-    "Firmó contra Presidente": fila.firmo_contra_presidente ? "Sí" : "No",
     Deportado: fila.deportado ? "Sí" : "No",
     "Tipo registro policial": fila.tipo_registro_policial ?? "",
     "Observaciones seguridad": fila.observaciones_seguridad ?? "",

@@ -13,7 +13,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   Users,
-  Vote,
   FilterX,
   ScanSearch,
 } from "lucide-react";
@@ -145,7 +144,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
   const [sexo, setSexo] = useState<FiltroSexo>("todos");
   const [solicitado, setSolicitado] = useState<FiltroBinario>("todos");
   const [registroPolicial, setRegistroPolicial] = useState<FiltroBinario>("todos");
-  const [firmo, setFirmo] = useState<FiltroBinario>("todos");
   const [verificadoSiipol, setVerificadoSiipol] = useState<FiltroBinario>("todos");
   const [orden, setOrden] = useState<OrdenRegistrosCenso>("reciente");
 
@@ -168,7 +166,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
       orden,
       solicitado,
       registroPolicial,
-      firmo,
       verificadoSiipol,
     },
     { enabled: tieneAcceso },
@@ -191,7 +188,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
     let especiales = 0;
     let solicitados = 0;
     let conRegistroPolicial = 0;
-    let firmoContraPresidente = 0;
     let campamentosConDatos = 0;
     for (const r of resumenes) {
       if (r.totalRegistrados <= 0) continue;
@@ -209,7 +205,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
       especiales += r.embarazadas + r.discapacidad;
       solicitados += r.solicitados;
       conRegistroPolicial += r.conRegistroPolicial;
-      firmoContraPresidente += r.firmoContraPresidente;
     }
     return {
       total: totalPersonas,
@@ -220,7 +215,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
       especiales,
       solicitados,
       conRegistroPolicial,
-      firmoContraPresidente,
     };
   }, [resumenes]);
 
@@ -230,7 +224,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
     sexo !== "todos" ||
     solicitado !== "todos" ||
     registroPolicial !== "todos" ||
-    firmo !== "todos" ||
     verificadoSiipol !== "todos" ||
     orden !== "reciente";
 
@@ -343,7 +336,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
               <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Registros de interés · clic para filtrar
               </p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 <KpiPersona
                   valor={kpis.solicitados}
                   etiqueta="Solicitados"
@@ -363,14 +356,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
                   onClick={() =>
                     setRegistroPolicial((v) => (v === "si" ? "todos" : "si"))
                   }
-                />
-                <KpiPersona
-                  valor={kpis.firmoContraPresidente}
-                  etiqueta="Referéndum"
-                  icono={Vote}
-                  clase="bg-orange-500/10 text-orange-600 dark:text-orange-300"
-                  activo={firmo === "si"}
-                  onClick={() => setFirmo((v) => (v === "si" ? "todos" : "si"))}
                 />
                 <KpiPersona
                   valor={siipol.verificados}
@@ -519,20 +504,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
               </SelectContent>
             </Select>
 
-            <Select value={firmo} onValueChange={(v) => setFirmo(v as FiltroBinario)}>
-              <SelectTrigger
-                size="sm"
-                className={cn(CENSO_SELECT_TRIGGER, "h-8 w-36")}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Referéndum</SelectItem>
-                <SelectItem value="si">Solo sí</SelectItem>
-                <SelectItem value="no">Solo no</SelectItem>
-              </SelectContent>
-            </Select>
-
             <Select
               value={verificadoSiipol}
               onValueChange={(v) => setVerificadoSiipol(v as FiltroBinario)}
@@ -569,7 +540,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
                 <SelectItem value="reg_policial">Reg. policial primero</SelectItem>
                 <SelectItem value="nexus">Nexus verificados primero</SelectItem>
                 <SelectItem value="siipol">SIIPOL verificados primero</SelectItem>
-                <SelectItem value="referendum">Referéndum primero</SelectItem>
                 <SelectItem value="con_cedula">Con cédula primero</SelectItem>
                 <SelectItem value="sin_cedula">Sin cédula primero</SelectItem>
               </SelectContent>
@@ -586,7 +556,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
                   setSexo("todos");
                   setSolicitado("todos");
                   setRegistroPolicial("todos");
-                  setFirmo("todos");
                   setVerificadoSiipol("todos");
                   setOrden("reciente");
                 }}
