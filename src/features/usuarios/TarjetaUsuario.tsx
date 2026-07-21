@@ -37,6 +37,8 @@ export interface UsuarioPerfil {
   cuerpo_asignado?: string | null;
   jerarquia: string | null;
   cedula: string | null;
+  /** Cédula normalizada (solo dígitos); null en cuentas viejas de QR. */
+  cedula_norm?: string | null;
   responsabilidad: string | null;
   whatsapp: string | null;
   telegram: string | null;

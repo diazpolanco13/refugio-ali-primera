@@ -161,18 +161,32 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
       .map((c) => ({ clave: c.clave, label: c.label }));
   }, [usuarios, mapaCentroCuerpo, cuerposCatalogo]);
 
-  /** Usuarios visibles según rol + cuerpo + búsqueda, agrupados por rol. */
-  const grupos = useMemo(() => {
-    const visibles = filtrarUsuariosGestion({
-      usuarios,
-      mapaCentrosEtiqueta,
-      filtroRol,
-      busqueda,
-      filtroCuerpo,
-      mapaCentroCuerpo,
-    });
-    return agruparUsuariosPorRol(visibles);
-  }, [usuarios, mapaCentrosEtiqueta, filtroRol, busqueda, filtroCuerpo, mapaCentroCuerpo]);
+  /** Usuarios visibles según rol + cuerpo + búsqueda. */
+  const visibles = useMemo(
+    () =>
+      filtrarUsuariosGestion({
+        usuarios,
+        mapaCentrosEtiqueta,
+        filtroRol,
+        busqueda,
+        filtroCuerpo,
+        mapaCentroCuerpo,
+      }),
+    [usuarios, mapaCentrosEtiqueta, filtroRol, busqueda, filtroCuerpo, mapaCentroCuerpo],
+  );
+  const grupos = useMemo(() => agruparUsuariosPorRol(visibles), [visibles]);
+
+  // Modo «Mis operadores»: separar los operadores con identidad (op-<cédula>)
+  // de las cuentas viejas de acceso por QR (operador-centro-…, sin cédula) —
+  // mezcladas confunden: una persona puede tener varias cuentas legacy.
+  const opsIdentificados = useMemo(
+    () => (soloOperadores ? visibles.filter((u) => u.cedula_norm) : []),
+    [soloOperadores, visibles],
+  );
+  const opsLegacy = useMemo(
+    () => (soloOperadores ? visibles.filter((u) => !u.cedula_norm) : []),
+    [soloOperadores, visibles],
+  );
 
   const sinResultadosFiltro =
     !cargando &&
@@ -260,9 +274,80 @@ export function GestionUsuarios({ sesion }: { sesion: Sesion }) {
             {cargando ? (
               <LoadingTable rows={6} cols={3} conToolbar={false} />
             ) : usuarios.length === 0 ? (
-              <EstadoVacio titulo="No hay usuarios registrados" />
+              <EstadoVacio
+                titulo={
+                  soloOperadores
+                    ? "Sus campamentos aún no tienen operadores"
+                    : "No hay usuarios registrados"
+                }
+              />
             ) : sinResultadosFiltro ? (
               <EstadoVacio titulo="Sin resultados para la búsqueda o el filtro" />
+            ) : soloOperadores ? (
+              <>
+                <section className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <BadgeRol rol="operador" />
+                    <span className="text-xs text-muted-foreground">
+                      {opsIdentificados.length} operador
+                      {opsIdentificados.length === 1 ? "" : "es"} identificado
+                      {opsIdentificados.length === 1 ? "" : "s"} por cédula
+                    </span>
+                  </div>
+                  {opsIdentificados.length === 0 ? (
+                    <EstadoVacio
+                      titulo="Sin operadores identificados"
+                      descripcion="Cree la cuenta con «Nuevo operador» o pídales identificarse desde el QR del campamento."
+                    />
+                  ) : (
+                    <ul className="grid gap-3 md:grid-cols-2">
+                      {opsIdentificados.map((u) => (
+                        <TarjetaUsuario
+                          key={u.user_id}
+                          usuario={u}
+                          esYo={false}
+                          centros={centros}
+                          onEditar={() => navigate(`/usuarios/${u.user_id}/editar`)}
+                          onEliminar={() => {
+                            setErrorEliminar("");
+                            setEliminando(u);
+                          }}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </section>
+                {opsLegacy.length > 0 && (
+                  <section className="space-y-2 border-t border-border pt-4">
+                    <div>
+                      <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                        Cuentas antiguas de acceso por QR ({opsLegacy.length})
+                      </p>
+                      <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground/80">
+                        Credenciales genéricas por campamento del sistema
+                        anterior, sin identidad por cédula. No participan en la
+                        migración a credencial propia; elimínelas cuando sus
+                        campamentos ya trabajen con cuentas identificadas.
+                      </p>
+                    </div>
+                    <ul className="grid gap-3 opacity-75 md:grid-cols-2">
+                      {opsLegacy.map((u) => (
+                        <TarjetaUsuario
+                          key={u.user_id}
+                          usuario={u}
+                          esYo={false}
+                          centros={centros}
+                          onEditar={() => navigate(`/usuarios/${u.user_id}/editar`)}
+                          onEliminar={() => {
+                            setErrorEliminar("");
+                            setEliminando(u);
+                          }}
+                        />
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </>
             ) : (
               grupos.map(({ rol, usuarios: lista }) => (
                 <section key={rol} className="space-y-2">
