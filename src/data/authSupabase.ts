@@ -12,7 +12,10 @@
 import { useSyncExternalStore } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { FunctionsHttpError } from "@supabase/supabase-js";
-import { puedeEditarCuentaPropia } from "@/domain/permisos";
+import {
+  esUsuarioTemporalTerreno,
+  puedeEditarCuentaPropia,
+} from "@/domain/permisos";
 import { capHabilitado } from "./capConfig";
 import { invocarEdgeFunction } from "./edgeFunctions";
 import { supabase } from "./supabaseClient";
@@ -53,6 +56,9 @@ export interface Usuario {
   whatsapp?: string | null;
   telegram?: string | null;
   brazalete?: string | null;
+  /** Epoch ms en que el operador activó su credencial propia (Fase 2 del
+   *  plan de migración); null/ausente = aún entra solo por token de terreno. */
+  activado_ts?: number | null;
 }
 
 export interface Sesion {
@@ -77,6 +83,7 @@ interface Perfil {
   whatsapp: string | null;
   telegram: string | null;
   brazalete: string | null;
+  activado_ts: number | null;
 }
 
 const ROLES_CONOCIDOS: Rol[] = [
@@ -122,6 +129,7 @@ function mapearUsuario(session: Session, perfil: Perfil | null): Usuario {
     whatsapp: perfil?.whatsapp ?? null,
     telegram: perfil?.telegram ?? null,
     brazalete: perfil?.brazalete ?? null,
+    activado_ts: perfil?.activado_ts ?? null,
   };
 }
 
@@ -318,6 +326,11 @@ export async function renombrarMiUsuario(nuevoUsername: string): Promise<Sesion>
   if (!puedeEditarCuentaPropia(sesion.user)) {
     throw new Error("Las cuentas temporales de terreno no cambian su usuario");
   }
+  // El operador activado edita perfil y contraseña, pero su usuario es la
+  // cédula (`op-<cédula>`): renombrarlo rompería el find-or-create de terreno.
+  if (esUsuarioTemporalTerreno(sesion.user.username)) {
+    throw new Error("El usuario del operador es su cédula y no se puede cambiar");
+  }
   const nuevo = nuevoUsername.trim().toLowerCase();
   if (!nuevo) throw new Error("El usuario de login es obligatorio");
   if (nuevo === sesion.user.username) return sesion;
@@ -376,14 +389,19 @@ export async function login(
   password: string,
   capToken?: string,
 ): Promise<Sesion> {
+  // Operador activado (Fase 2): puede escribir su cédula pelada en el login;
+  // se mapea a su usuario canónico `op-<cédula>`.
+  const limpio = username.trim();
+  const usernameEfectivo = /^\d{5,12}$/.test(limpio) ? `op-${limpio}` : limpio;
+
   if (capHabilitado) {
     if (!capToken?.trim()) {
       throw new Error("Completa la verificación de seguridad");
     }
-    return loginConCap(username, password, capToken.trim());
+    return loginConCap(usernameEfectivo, password, capToken.trim());
   }
 
-  const email = `${username.trim()}@refugio.app`;
+  const email = `${usernameEfectivo}@refugio.app`;
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw new Error(mensajeErrorLogin(error.message));
   if (!data.session) throw new Error("Login sin sesión devuelta");

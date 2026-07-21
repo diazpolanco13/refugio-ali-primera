@@ -72,6 +72,7 @@ import {
   olvidarSesionOperadorTerreno,
   type SesionOperadorTerreno,
 } from "@/lib/terrenoFuncionario";
+import { GateActivacionTerreno } from "@/features/terreno/GateActivacionTerreno";
 import { GateTelegramTerreno } from "@/features/terreno/GateTelegramTerreno";
 import { IdentificacionCedula } from "@/features/terreno/IdentificacionCedula";
 import { SuscripcionesTerreno } from "@/features/terreno/SuscripcionesTerreno";
@@ -213,6 +214,9 @@ export function TerrenoView() {
   // Gate de vinculación Telegram: se resuelve una vez por carga de página
   // (vinculó, ya estaba vinculado o consumió gracia del servidor).
   const [gateTelegramOk, setGateTelegramOk] = useState(false);
+  // Gate de activación de credencial propia (Fase 2 migración operadores):
+  // crea su contraseña la primera vez que entra por el QR.
+  const [gateActivacionOk, setGateActivacionOk] = useState(false);
   const [actualizandoApp, setActualizandoApp] = useState(false);
   const [progresoApp, setProgresoApp] = useState<ProgresoActualizacionApp | null>(
     null,
@@ -413,6 +417,9 @@ export function TerrenoView() {
   // tienen Telegram individual que exigir).
   const requiereGateTelegram =
     Boolean(requiereIdentificacion && operadorSesion?.cedula) && !gateTelegramOk;
+  // Activación de credencial propia: mismo universo (identificados por cédula).
+  const requiereGateActivacion =
+    Boolean(requiereIdentificacion && operadorSesion?.cedula) && !gateActivacionOk;
   const mostrarBienvenida =
     requiereIdentificacion && gateListo && !operadorSesion && pantalla === "bienvenida";
   const mostrarIdentificacion =
@@ -492,6 +499,7 @@ export function TerrenoView() {
     guardarSesionOperadorTerreno(sesion);
     setOperadorSesion(sesion);
     setGateTelegramOk(false);
+    setGateActivacionOk(false);
     setPantalla("menu");
   }
 
@@ -499,6 +507,7 @@ export function TerrenoView() {
     olvidarSesionOperadorTerreno();
     setOperadorSesion(null);
     setGateTelegramOk(false);
+    setGateActivacionOk(false);
     try {
       await cerrarSesionTerreno();
     } catch {
@@ -751,6 +760,17 @@ export function TerrenoView() {
           />
         </main>
       </div>
+    );
+  }
+
+  if (requiereGateActivacion && pantalla === "menu") {
+    return (
+      <GateActivacionTerreno
+        token={token}
+        cedula={operadorSesion?.cedula ?? ""}
+        nombreOperador={operadorSesion?.funcionario.nombre}
+        onResuelto={() => setGateActivacionOk(true)}
+      />
     );
   }
 

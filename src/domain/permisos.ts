@@ -459,12 +459,19 @@ export function esUsuarioTemporalTerreno(username: string): boolean {
   return /^(operador-|op-)/.test(username.trim());
 }
 
-/** Cuenta permanente: puede ver/editar su ficha y cambiar su contraseña. */
+/**
+ * Cuenta con credencial propia: puede ver/editar su ficha y cambiar su
+ * contraseña. Un `op-<cédula>` deja de ser "temporal" cuando activó su
+ * credencial (Fase 2 del plan de migración: `activado_ts` puesto por la
+ * edge `activar-operador`). El username NO se renombra en ningún caso para
+ * los usuarios de terreno (la convención `op-<cédula>` es la identidad).
+ */
 export function puedeEditarCuentaPropia(
-  usuario: Pick<Usuario, "username"> | null | undefined,
+  usuario: Pick<Usuario, "username" | "activado_ts"> | null | undefined,
 ): boolean {
   if (!usuario?.username) return false;
-  return !esUsuarioTemporalTerreno(usuario.username);
+  if (!esUsuarioTemporalTerreno(usuario.username)) return true;
+  return usuario.activado_ts != null;
 }
 
 /** Pestañas de la ficha del campamento visibles para la sesión de terreno. */

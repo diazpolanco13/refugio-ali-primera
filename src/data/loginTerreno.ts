@@ -245,6 +245,40 @@ function emailOperadorCedula(cedula: string): string {
 }
 
 /**
+ * Fase 2 (plan de migración de operadores §6.1): el operador crea su
+ * contraseña propia. El token del QR es la prueba de presencia que autoriza
+ * la operación; el servidor marca `perfiles.activado_ts` y a partir de ahí
+ * puede entrar por el login normal con `op-<cédula>` (o su cédula) + clave.
+ */
+export async function activarOperadorTerreno(
+  token: string,
+  cedula: string,
+  password: string,
+): Promise<void> {
+  await invocarEdgeFunction("activar-operador", {
+    token,
+    cedula,
+    password,
+  });
+}
+
+/** ¿La sesión actual (operador por cédula) ya activó su credencial propia? */
+export async function credencialOperadorActivada(): Promise<boolean | null> {
+  await initAuth();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return null;
+  const { data, error } = await supabase
+    .from("perfiles")
+    .select("activado_ts")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+  if (error) return null; // best-effort: ante fallo no bloquear el terreno
+  return (data?.activado_ts ?? null) != null;
+}
+
+/**
  * Garantiza la sesión del operador identificado por cédula. Si el dispositivo
  * ya tiene la sesión de ESA persona la reutiliza; si no, vuelve a entrar por
  * la Edge Function (que además suma el campamento a sus asignados).
