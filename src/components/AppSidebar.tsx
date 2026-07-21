@@ -119,6 +119,7 @@ function ItemMenuPortal({
         type="button"
         isActive={activo}
         tooltip={label}
+        className="cursor-pointer"
         onClick={onClick}
       >
         <Icono />
@@ -504,8 +505,8 @@ export function AppSidebar({ sesion }: Props) {
               <SidebarMenuButton
                 type="button"
                 size="lg"
-                tooltip="Volver al portal de terreno"
-                className="group-data-[collapsible=icon]:justify-center"
+                tooltip="Volver al inicio"
+                className="cursor-pointer group-data-[collapsible=icon]:justify-center"
                 onClick={() => irAlPortalTerreno()}
               >
                 <span className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-inset ring-primary/30">

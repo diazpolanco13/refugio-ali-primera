@@ -61,7 +61,7 @@ function MigasPanLista({
                   <BreadcrumbLink asChild>
                     <button
                       type="button"
-                      className="truncate"
+                      className="cursor-pointer truncate"
                       onClick={() => irAlPortalTerreno()}
                     >
                       {miga.label}

@@ -52,11 +52,20 @@ export function urlPortalTerreno(opts?: {
 /**
  * Navega al portal de terreno con recarga completa: `/terreno` vive en el
  * bootstrap ligero (`censo-entry`), no en el AppShell de React Router.
+ *
+ * Sin token de QR el portal es un callejón sin salida (no puede canjear
+ * sesión ni volver al home): el operador con credencial propia va al AppShell
+ * (`/`) y `rutaInicialDeRol` lo deja en su vista inicial.
  */
 export function irAlPortalTerreno(opts?: {
   token?: string;
   tarea?: TareaTerreno;
 }): void {
+  const token = (opts?.token ?? tokenTerrenoActual()).trim();
+  if (!token) {
+    window.location.assign("/");
+    return;
+  }
   window.location.assign(urlPortalTerreno(opts));
 }
 
