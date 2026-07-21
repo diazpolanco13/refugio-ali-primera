@@ -1,8 +1,15 @@
-// Bandeja de identificaciones de terreno (`/usuarios/terreno`, admin y
-// analista SAE). Fase A del plan de identidad (decisión (b) del 16-jul):
-// los operadores que se identifican con cédula entran a trabajar de una vez
-// y los analistas los aprueban (o rechazan) a posteriori desde aquí. Un
-// rechazo bloquea el próximo login por cédula (check en `login-terreno`).
+// Bandeja de identificaciones de terreno (`/usuarios/terreno`). Fase A del
+// plan de identidad (decisión (b) del 16-jul): los operadores que se
+// identifican con cédula entran a trabajar de una vez y los analistas los
+// aprueban (o rechazan) a posteriori desde aquí. Un rechazo bloquea el
+// próximo login por cédula (check en `login-terreno`).
+//
+// Fase 1a del plan de migración a credencial propia
+// (docs/plan-migracion-operadores-password.md §4.3): el supervisor también
+// entra, en solo lectura, y ve los operadores de sus campamentos con su
+// estado de activación (la RLS `perfiles_select_operadores_terreno` acota
+// las filas en el servidor). El resumen de avance por campamento usa
+// `activado_ts` (lo escribe la Fase 2; mientras tanto todo sale pendiente).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -11,6 +18,7 @@ import {
   BellOff,
   Check,
   IdCard,
+  KeyRound,
   Loader2,
   Search,
   Send,
@@ -32,6 +40,10 @@ import { desenvolver, type FilaSync } from "@/data/desenvolver";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
 import { metaUnidadSebinCentro } from "@/domain/centrosTransitorios";
 import { metaCuerpoDe } from "@/domain/cuerposPoliciales";
+import {
+  puedeGestionarOperadores,
+  puedeResolverOperadores,
+} from "@/domain/permisos";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -82,6 +94,8 @@ interface OperadorFila {
   centros_asignados: string[] | null;
   /** Campamentos con alertas Telegram silenciadas (sigue asignado). */
   alertas_silenciadas: string[] | null;
+  /** Epoch ms de activación de credencial propia; null = solo entra por QR. */
+  activado_ts: number | null;
   created_at?: string;
 }
 
@@ -143,7 +157,10 @@ function iniciales(nombre: string): string {
 
 export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
   const rol = sesion.user.rol;
-  const autorizado = rol === "admin" || rol === "analista_sae";
+  const autorizado = puedeGestionarOperadores(rol);
+  // Supervisor: solo lectura (aprobar/desuscribir/Telegram quedan en la sala;
+  // la RLS de `perfiles` además bloquea sus updates en el servidor).
+  const puedeResolver = puedeResolverOperadores(rol);
   const [operadores, setOperadores] = useState<OperadorFila[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -179,7 +196,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
       const { data, error: err } = await supabase
         .from("perfiles")
         .select(
-          "user_id, username, nombre, jerarquia, responsabilidad, cedula, cedula_norm, verificado_nexus, aprobacion, aprobacion_por, aprobacion_ts, centros_asignados, alertas_silenciadas, created_at",
+          "user_id, username, nombre, jerarquia, responsabilidad, cedula, cedula_norm, verificado_nexus, aprobacion, aprobacion_por, aprobacion_ts, centros_asignados, alertas_silenciadas, activado_ts, created_at",
         )
         .eq("rol", "operador")
         .not("cedula_norm", "is", null)
@@ -216,6 +233,27 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
     for (const [id, c] of centrosPorId) m.set(id, etiquetaCentro(c, id));
     return m;
   }, [centrosPorId]);
+
+  // Tablero de avance de la migración (§4.3 / §7 del plan): por campamento,
+  // cuántos de sus operadores ya activaron credencial propia (`activado_ts`).
+  const avancePorCentro = useMemo(() => {
+    const m = new Map<string, { total: number; activados: number }>();
+    for (const o of operadores) {
+      for (const id of o.centros_asignados ?? []) {
+        const e = m.get(id) ?? { total: 0, activados: 0 };
+        e.total++;
+        if (o.activado_ts != null) e.activados++;
+        m.set(id, e);
+      }
+    }
+    return [...m.entries()]
+      .map(([id, e]) => ({ id, etiqueta: etiquetasCentros.get(id) ?? id, ...e }))
+      .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es"));
+  }, [operadores, etiquetasCentros]);
+  const totalActivados = useMemo(
+    () => operadores.filter((o) => o.activado_ts != null).length,
+    [operadores],
+  );
 
   const qNorm = useMemo(
     () =>
@@ -371,7 +409,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
       <VistaPagina
         icono={IdCard}
         titulo="Usuarios de Campo"
-        descripcion="Solo administración y analistas SAE pueden revisar esta bandeja."
+        descripcion="Solo administración, analistas SAE y supervisores pueden ver esta bandeja."
       >
         <EstadoVacio titulo="Sin acceso" descripcion="Su rol no puede revisar identificaciones." />
       </VistaPagina>
@@ -382,7 +420,11 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
     <VistaPagina
       icono={IdCard}
       titulo="Usuarios de Campo"
-      descripcion="Operadores que se identificaron con su cédula desde el QR del campamento. Apruebe o rechace la identidad; desuscriba de un campamento si no debe seguir recibiendo alertas de ese centro."
+      descripcion={
+        puedeResolver
+          ? "Operadores que se identificaron con su cédula desde el QR del campamento. Apruebe o rechace la identidad; desuscriba de un campamento si no debe seguir recibiendo alertas de ese centro."
+          : "Operadores que reportan en sus campamentos: identidad, vínculo Telegram y avance de activación de su credencial propia (solo lectura)."
+      }
       encabezadoDebajo={
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <Tabs
@@ -429,6 +471,35 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
       }
     >
       {error && <p className="px-4 pt-3 text-xs text-destructive lg:px-6">{error}</p>}
+
+      {!cargando && avancePorCentro.length > 0 && (
+        <div className="border-b border-border/70 px-4 py-3 lg:px-6">
+          <p className="mb-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+            Avance de activación de credencial propia · {totalActivados}/
+            {operadores.length} operadores
+          </p>
+          <ul className="flex flex-wrap gap-1.5">
+            {avancePorCentro.map((c) => (
+              <li key={c.id}>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "gap-1 font-normal",
+                    c.activados === 0
+                      ? "text-muted-foreground"
+                      : c.activados === c.total
+                        ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+                        : "border-amber-500/50 text-amber-600 dark:text-amber-400",
+                  )}
+                >
+                  <KeyRound className="size-3" />
+                  {c.etiqueta}: {c.activados}/{c.total}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {cargando ? (
         <div className="p-4 lg:p-6">
@@ -507,6 +578,15 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                                 <ShieldAlert className="size-3" /> Sin verificar
                               </Badge>
                             )}
+                            {o.activado_ts != null ? (
+                              <Badge variant="outline" className="gap-1 border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
+                                <KeyRound className="size-3" /> Credencial activa
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="gap-1 text-muted-foreground">
+                                <KeyRound className="size-3" /> Activación pendiente
+                              </Badge>
+                            )}
                             {vinculos.has(o.user_id) ? (
                               <span className="inline-flex items-center gap-1">
                                 <Badge variant="outline" className="gap-1 border-sky-500/50 text-sky-600 dark:text-sky-400">
@@ -515,6 +595,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                                     ? `@${vinculos.get(o.user_id)?.telegram_username}`
                                     : "Telegram"}
                                 </Badge>
+                                {puedeResolver && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <button
@@ -539,6 +620,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                                     Desvincular Telegram de este operador
                                   </TooltipContent>
                                 </Tooltip>
+                                )}
                               </span>
                             ) : (
                               <Badge variant="outline" className="gap-1 text-muted-foreground">
@@ -548,6 +630,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                           </div>
                         </div>
                       </div>
+                      {puedeResolver && (
                       <div className="flex shrink-0 gap-2 sm:pl-4">
                         {pendiente ? (
                           <>
@@ -590,6 +673,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                           </Button>
                         )}
                       </div>
+                      )}
                     </div>
                     {(o.centros_asignados?.length ?? 0) > 0 && (
                       <div className="border-t border-border pt-3">
@@ -597,7 +681,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                           <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                             Campamentos asignados ({o.centros_asignados?.length})
                           </p>
-                          {(o.centros_asignados?.length ?? 0) > 1 && (
+                          {puedeResolver && (o.centros_asignados?.length ?? 0) > 1 && (
                             <Button
                               type="button"
                               size="sm"
@@ -662,7 +746,9 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                                               : "text-muted-foreground",
                                           )}
                                           disabled={
-                                            togglingAlertas === togglingKey || desuscribiendo
+                                            !puedeResolver ||
+                                            togglingAlertas === togglingKey ||
+                                            desuscribiendo
                                           }
                                           aria-label={
                                             alertasOn
@@ -691,6 +777,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                                             : "Alertas silenciadas. Clic para volver a activarlas."}
                                       </TooltipContent>
                                     </Tooltip>
+                                    {puedeResolver && (
                                     <Tooltip>
                                       <TooltipTrigger asChild>
                                         <Button
@@ -716,6 +803,7 @@ export function BandejaOperadoresView({ sesion }: { sesion: Sesion }) {
                                         Quitar este campamento del operador
                                       </TooltipContent>
                                     </Tooltip>
+                                    )}
                                   </div>
                                 </li>
                               );

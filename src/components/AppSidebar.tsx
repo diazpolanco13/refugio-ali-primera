@@ -23,6 +23,7 @@ import type { Sesion } from "@/data/authSupabase";
 import {
   puedeEditarCuentaPropia,
   puedeGestionarCatalogosOperativos,
+  puedeGestionarOperadores,
   puedeGestionarUsuarios,
   puedeVerCensoRapidoRed,
   puedeVerEstadoSistema,
@@ -220,8 +221,9 @@ function NavContenido({ sesion }: Props) {
   const esCensoRapido = esRolCensoRapido(sesion.user.rol);
   const esTerreno = esRolTerreno(sesion.user.rol);
   const esAdmin = puedeGestionarUsuarios(sesion.user.rol);
-  // Bandeja de identificaciones de terreno (Fase A identidad): admin y analista.
-  const veBandejaTerreno = esAdmin || sesion.user.rol === "analista_sae";
+  // Bandeja de operadores de terreno: admin/analista gestionan; supervisor ve
+  // los de sus campamentos (solo lectura, plan migración operadores §4.3).
+  const veBandejaTerreno = puedeGestionarOperadores(sesion.user.rol);
   const gestionaCatalogos = puedeGestionarCatalogosOperativos(sesion.user.rol);
   const veLogs = puedeVerLogs(sesion.user.rol);
   const veEstadoSistema = puedeVerEstadoSistema(sesion.user.rol);
