@@ -164,11 +164,12 @@ export function puedeResolverOperadores(rol: Rol): boolean {
 
 /**
  * Vista /estado (estado del sistema): salud de la plataforma vs servicios
- * externos (Nexus) con histórico de incidentes. Sala + autoridad; la RLS de
- * `incidentes_servicios` aplica lo mismo en el servidor.
+ * externos (Nexus) con histórico de incidentes. Todos los roles salvo
+ * operador y censo_rapido; la RLS de `incidentes_servicios` aplica lo mismo
+ * en el servidor.
  */
 export function puedeVerEstadoSistema(rol: Rol): boolean {
-  return rol === "admin" || rol === "analista_sae" || rol === "autoridad";
+  return rol !== "operador" && rol !== "censo_rapido";
 }
 
 /** Vista interna /centros/censo (resumen agregado del censo nominal en red). */

@@ -7,8 +7,9 @@
 -- (/opt/vigilante-nexus/vigilante-nexus.sh) la llama en cada transición de
 -- estado de Nexus con el secret `app_secrets.vigilante_incidentes_secret`
 -- (config en /opt/vigilante-nexus/config-incidentes.env).
--- Quién lee: admin / analista_sae / autoridad (RLS); el público solo los
--- incidentes ABIERTOS vía la RPC estado_servicios_publico() (sin PII).
+-- Quién lee: admin / analista_sae / autoridad / supervisor (RLS); sin
+-- operador ni censo_rapido. El público solo los incidentes ABIERTOS vía
+-- la RPC estado_servicios_publico() (sin PII).
 
 create table public.incidentes_servicios (
   id uuid primary key default gen_random_uuid(),
@@ -34,7 +35,7 @@ alter table public.incidentes_servicios enable row level security;
 
 create policy incidentes_servicios_select on public.incidentes_servicios
   for select to authenticated
-  using ((select mi_rol()) in ('admin', 'analista_sae', 'autoridad'));
+  using ((select mi_rol()) in ('admin', 'analista_sae', 'autoridad', 'supervisor'));
 
 alter publication supabase_realtime add table public.incidentes_servicios;
 
