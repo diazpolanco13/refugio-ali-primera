@@ -280,10 +280,13 @@ datos viven en Postgres.
   la fusión de duplicados `operador-*` viejos ocurre gradualmente cuando cada
   persona se identifica con su cédula.
 - ✅ **Foto SAIME en el censo por cédula** — HECHO (22-jul-2026): gateway
-  `GET /foto/<foto_nombre>` baja de MinIO institucional (`alfa-images`) vía
-  VPN; UI `/censo` prioriza SAIME sobre foto de campo en Storage. **No**
-  cachear en Supabase (factura / salida prevista). Siguiente: MinIO propio
-  en Dokploy (cache-aside). Detalle: `nexusEndPoint/README.md` §6.
+  `GET /foto/<foto_nombre>` con **cache-aside**: primero MinIO **propio**
+  (compose Dokploy `minio-cache`, bucket `saime-fotos`); miss → MinIO
+  institucional (`alfa-images`) vía VPN + PutObject best-effort al cache
+  (hit ~0.06 s vs miss ~0.6 s; fotos cacheadas se sirven aun con VPN caída).
+  UI `/censo` prioriza SAIME sobre foto de campo en Storage. **No** cachear
+  en Supabase (factura / salida prevista). Bucket `media` reservado para
+  migrar fotos de campo/centros. Detalle: `nexusEndPoint/README.md` §6.
 - ✅ **Traslado formal entre centros (nominal)** — HECHO (20-jul-2026): el
   aviso "ya activa en otro campamento" del censo por cédula ahora ofrece
   **"Trasladar solo a esta persona"** o **"Trasladar a toda la familia (N

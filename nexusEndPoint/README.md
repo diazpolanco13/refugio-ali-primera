@@ -240,17 +240,41 @@ Health: `GET /health` → `{ "foto_minio": true }` si las vars están cargadas.
 
 **No cachear en Supabase Storage** (factura + roadmap de salir de Supabase).
 
-**Siguiente (decidido 22-jul):** MinIO **propio** en Dokploy como almacén de
-media post-Supabase. Flujo cache-aside:
+### Cache MinIO propio — ACTIVO (22-jul-2026)
+
+MinIO **propio** en Dokploy (compose **`minio-cache`**, mismo proyecto/env que
+`nexus-vpn`) como almacén de media post-Supabase. Flujo cache-aside en el
+gateway:
 
 ```
 GET /foto/<nombre>
-  → ¿objeto en MinIO propio (bucket saime-fotos)? → servir
-  → miss → MinIO institucional → PutObject propio → servir
+  → ¿objeto en MinIO propio (bucket saime-fotos)? → servir  (cache=hit, ~0.06 s)
+  → miss → MinIO institucional (VPN) → PutObject propio best-effort → servir
 ```
 
-Así: menos latencia/VPN en 2ª vista, cero bytes SAIME en Supabase, base para
-migrar fotos de campo/centros al mismo MinIO.
+Medido: hit ~0.06 s vs miss ~0.6 s. Las fotos ya cacheadas se sirven
+**aunque la VPN esté caída**. Cero bytes SAIME en Supabase.
+
+| Pieza | Valor |
+|---|---|
+| Compose Dokploy | `minio-cache` (raw, imagen `minio/minio`, volumen `minio-cache-data`) |
+| API S3 | `http://minio-cache:9000` — **solo** red interna `dokploy-network`, no publicado |
+| Consola | `127.0.0.1:9001` del VPS — solo por túnel SSH (`ssh -L 9001:localhost:9001`) |
+| Buckets | `saime-fotos` (cache SAIME, key = `foto_nombre`) · `media` (futuro fotos campo/centros) |
+| Credenciales | **nuevas** (no las institucionales): `/etc/dokploy/minio-cache/env.secret` + env Dokploy |
+| Vars del gateway | `CACHE_MINIO_HOST/PORT/ACCESS_KEY/SECRET_KEY/BUCKET` en compose `nexus-vpn` |
+| Logs | `docker logs nexus-gateway \| grep "foto "` → `cache=hit\|miss\|origin_fail` |
+
+Los objetos son inmutables por nombre (el `foto_nombre` lleva sufijo hash), así
+que el cache no necesita TTL ni invalidación.
+
+**Gotcha DNS (musl/Alpine):** el contenedor `nexus-gateway` pisa
+`resolv.conf` con el DNS de la VPN, y el resolver de musl consulta todos los
+nameservers en paralelo (un NXDOMAIN público le gana al DNS de Docker). Por eso
+`entrypoint.sh` restaura `127.0.0.11` al arrancar, resuelve `minio-cache` con
+`dig @127.0.0.11` y fija la IP en `/etc/hosts` **antes** de cambiar el DNS.
+Si `minio-cache` cambia de IP (redeploy), `docker restart nexus-gateway`;
+mientras tanto el proxy degrada solo a servir desde el origen.
 
 ---
 
@@ -259,7 +283,8 @@ migrar fotos de campo/centros al mismo MinIO.
 | Qué | Dónde | ¿Git? |
 |---|---|---|
 | API key Nexus, VPN user/pass, PROXY_SECRET, anon Supabase | Dokploy env del compose + `/etc/dokploy/nexus-vpn/env.secret` | **No** |
-| `ONFALO_MINIO_*` / `MINIO_*` (foto SAIME) | Dokploy env del compose `nexus-vpn` | **No** |
+| `ONFALO_MINIO_*` / `MINIO_*` (foto SAIME, origen) | Dokploy env del compose `nexus-vpn` | **No** |
+| `CACHE_MINIO_*` (cache propio) | Dokploy env de `nexus-vpn` y `minio-cache` + `/etc/dokploy/minio-cache/env.secret` | **No** |
 | `.ovpn` con cert/key | `/etc/dokploy/nexus-vpn/client.ovpn` (y copia local en `runtime/`) | **No** (gitignore) |
 | `vpn.txt`, `runtime/` | Local / host | **No** |
 | Esta documentación, ejemplos JSON, `endpointNexus.txt` | `nexusEndPoint/` | Sí (sin keys) |
@@ -349,18 +374,18 @@ el `docker-compose` / env.
       cédula del familiar con un toque, vía caché). **Alerta FALLECIDO** en
       rojo si la cédula del titular tiene acta de defunción. Chips
       estado/municipio/parroquia fiscales en el bloque de dirección.
-- [ ] ⚠️ **Redeploy del gateway pendiente**: `runtime/proxy.py` ganó
-      `fallecido`/`fecha_fallecimiento` (titular, por `deathCertificate` SAIME
-      y `fechadefuncion` IPSFA), defunción y nacimiento de familiares (merge
-      fiscal+IPSFA que antes se descartaba por duplicado), `ubicacion_fiscal`
-      (estado/municipio/parroquia) y corrige el centinela `0001-01-01` que se
-      colaba como fecha real. **Activar con:**
-      `cp nexusEndPoint/runtime/proxy.py /etc/dokploy/nexus-vpn/proxy.py && docker restart nexus-gateway`.
-      Las consultas ya guardadas en `nexus_consultas` son de la versión vieja:
-      usar «Reconsultar» para refrescarlas.
+- [x] **Redeploy del gateway con `fallecido`/`ubicacion_fiscal`** — verificado
+      aplicado en producción (22-jul-2026): el `proxy.py` del host ya incluye
+      `fallecido`/`fecha_fallecimiento`, merge fiscal+IPSFA de familiares,
+      `ubicacion_fiscal` y el fix del centinela `0001-01-01`. Las consultas
+      viejas en `nexus_consultas` se refrescan con «Reconsultar».
 - [x] **Foto SAIME** — Opción B activa (22-jul-2026): MinIO institucional vía
-      VPN; gateway `GET /foto/<filename>`; UI prioriza SAIME. **Siguiente:**
-      MinIO propio Dokploy (cache-aside; no Supabase Storage).
+      VPN; gateway `GET /foto/<filename>`; UI prioriza SAIME.
+- [x] **Cache MinIO propio** — ACTIVO (22-jul-2026): compose Dokploy
+      `minio-cache` (buckets `saime-fotos` + `media`), cache-aside en el
+      gateway (`cache=hit` ~0.06 s; sirve fotos cacheadas con VPN caída),
+      credenciales propias, API S3 solo red interna, consola solo por túnel
+      SSH. Ver §6.
 - [ ] Edge Function opcional (hoy el browser habla directo al gateway)
 - [ ] Commit/push a `main` + env `VITE_NEXUS_GATEWAY_URL` en build Dokploy de la PWA
 

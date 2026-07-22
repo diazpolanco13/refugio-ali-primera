@@ -26,13 +26,15 @@ Destino: tablas nominales (`refugiados`, `familias_centro`, `alojamientos_refugi
 ## Foto SAIME
 
 1. Slim trae `foto_nombre` (no el binario).
-2. Origen: MinIO institucional `alfa-images` (VPN).
-3. Gateway: `GET /foto/<foto_nombre>` (SigV4 path-style).
+2. Gateway: `GET /foto/<foto_nombre>` con **cache-aside** (activo 22-jul-2026):
+   primero MinIO **propio** (`minio-cache`, bucket `saime-fotos`, red interna
+   Docker); miss → MinIO institucional `alfa-images` (VPN) + copia al cache.
+3. Hit ~0.06 s; las fotos cacheadas se sirven aunque la VPN esté caída.
+   Logs: `docker logs nexus-gateway | grep "foto "` → `cache=hit|miss`.
 4. UI: `cargarFotoSaime()` → blob URL; avatares del hogar priorizan SAIME
    sobre `foto_url` de Storage (foto de campo antigua).
 
-**No** guardar en Supabase Storage. Próximo: MinIO propio en Dokploy
-(cache-aside) — ver README §6.
+**No** guardar en Supabase Storage. Detalle del cache: README §6.
 
 ```bash
 # Ejemplo (ops)
