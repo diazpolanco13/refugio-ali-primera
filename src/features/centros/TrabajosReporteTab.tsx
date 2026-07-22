@@ -27,6 +27,7 @@ import {
 } from "@/domain/reparaciones";
 import { BloqueConfirmacionReporte } from "@/features/centros/BloqueConfirmacionReporte";
 import { claseSelectReporte } from "@/features/centros/clasesReporte";
+import { formatearDiaCalendario } from "@/features/centros/CalendarioSelectorDia";
 import { BadgeAntiguedad } from "@/components/ui/badge-antiguedad";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,7 @@ export function TarjetaTrabajo({
   archivando,
   eliminando,
   deshabilitado,
+  variante = "compacta",
 }: {
   trabajo: TrabajoCentro;
   onEditar: () => void;
@@ -87,6 +89,8 @@ export function TarjetaTrabajo({
   archivando?: boolean;
   eliminando?: boolean;
   deshabilitado?: boolean;
+  /** `seguimiento` = tarjeta ampliada (misma familia visual que Salud/Novedades). */
+  variante?: "compacta" | "seguimiento";
 }) {
   const meta = META_ESTATUS_TRABAJO[trabajo.estatus];
   const ocupado = Boolean(deshabilitado || eliminando || cambiando || archivando);
@@ -97,6 +101,160 @@ export function TarjetaTrabajo({
       ? trabajo.finalidad.trim()
       : "";
   const detalle = [finalidadExtra, trabajo.descripcion.trim()].filter(Boolean).join(" · ");
+  const esSeguimiento = variante === "seguimiento";
+
+  const selectEstatus =
+    trabajo.estatus !== "archivado" && onCambiarEstatus && !deshabilitado ? (
+      <Select
+        value={trabajo.estatus}
+        disabled={ocupado}
+        onValueChange={(v) => onCambiarEstatus(v as EstatusTrabajo)}
+      >
+        <SelectTrigger
+          className={cn(
+            "shrink-0 text-[11px]",
+            esSeguimiento ? "h-8 w-[8rem]" : "h-7 w-[7.25rem]",
+          )}
+          style={{ borderColor: `${meta.color}66`, color: meta.color }}
+        >
+          {cambiando ? <Loader2 className="size-3 animate-spin" /> : <SelectValue />}
+        </SelectTrigger>
+        <SelectContent>
+          {ESTATUS_TRABAJO.filter((e) => e.valor !== "archivado").map((e) => (
+            <SelectItem key={e.valor} value={e.valor} className="text-xs">
+              {e.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    ) : (
+      <Badge
+        variant="outline"
+        className="h-5 shrink-0 px-1.5 text-[10px]"
+        style={{ borderColor: `${meta.color}66`, color: meta.color }}
+      >
+        {meta.label}
+      </Badge>
+    );
+
+  const acciones =
+    trabajo.estatus !== "archivado" ? (
+      <div className="flex shrink-0 items-center gap-0.5">
+        {puedeArchivar && (
+          <Button
+            type="button"
+            size={esSeguimiento ? "icon-sm" : "icon-xs"}
+            variant={esSeguimiento ? "ghost" : "outline"}
+            disabled={ocupado}
+            onClick={onArchivar}
+            aria-label="Archivar trabajo"
+            title="Archivar"
+          >
+            {archivando ? (
+              <Loader2 className={cn("animate-spin", esSeguimiento ? "size-4" : "size-3.5")} />
+            ) : (
+              <Archive className={esSeguimiento ? "size-4" : "size-3.5"} />
+            )}
+          </Button>
+        )}
+        <Button
+          type="button"
+          size={esSeguimiento ? "icon-sm" : "icon-xs"}
+          variant="ghost"
+          disabled={ocupado}
+          onClick={onEditar}
+          aria-label="Editar trabajo"
+        >
+          <Pencil className={esSeguimiento ? "size-4" : "size-3.5"} />
+        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              size={esSeguimiento ? "icon-sm" : "icon-xs"}
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              disabled={ocupado}
+              aria-label="Eliminar trabajo"
+            >
+              {eliminando ? (
+                <Loader2 className={cn("animate-spin", esSeguimiento ? "size-4" : "size-3.5")} />
+              ) : (
+                <Trash2 className={esSeguimiento ? "size-4" : "size-3.5"} />
+              )}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar trabajo?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se borrará «{trabajo.titulo}» de forma permanente. Esta acción no se puede
+                deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={onEliminar}
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    ) : null;
+
+  if (esSeguimiento) {
+    return (
+      <div
+        className={cn(
+          "rounded-lg border bg-muted/10 px-3 py-3",
+          trabajo.estatus === "pendiente" && "border-red-500/30",
+          trabajo.estatus === "en_progreso" && "border-amber-500/30",
+          trabajo.estatus === "completado" && "border-emerald-500/30",
+          (trabajo.estatus === "archivado" ||
+            !["pendiente", "en_progreso", "completado"].includes(trabajo.estatus)) &&
+            "border-border/70",
+        )}
+      >
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge
+                variant="outline"
+                className="text-[9px]"
+                style={{ borderColor: `${meta.color}66`, color: meta.color }}
+              >
+                {meta.label}
+              </Badge>
+              <BadgeAntiguedad
+                reportadoDia={trabajo.reportada_dia}
+                resueltaTs={trabajo.resuelta_ts}
+                creadaTs={trabajo.creada_ts}
+              />
+              {ocupado && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+            </div>
+            <p className="mt-1.5 text-sm font-medium leading-snug text-foreground">
+              {trabajo.titulo}
+            </p>
+            {detalle ? (
+              <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{detalle}</p>
+            ) : null}
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Reportado {formatearDiaCalendario(trabajo.reportada_dia)}
+              {trabajo.updated_by ? ` · ${trabajo.updated_by}` : ""}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1.5 sm:flex-row sm:items-start">
+            {selectEstatus}
+            {acciones}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -125,95 +283,8 @@ export function TarjetaTrabajo({
             </p>
           ) : null}
         </div>
-
-        {trabajo.estatus !== "archivado" && onCambiarEstatus && !deshabilitado ? (
-          <Select
-            value={trabajo.estatus}
-            disabled={ocupado}
-            onValueChange={(v) => onCambiarEstatus(v as EstatusTrabajo)}
-          >
-            <SelectTrigger
-              className="h-7 w-[7.25rem] shrink-0 text-[11px]"
-              style={{ borderColor: `${meta.color}66`, color: meta.color }}
-            >
-              {cambiando ? <Loader2 className="size-3 animate-spin" /> : <SelectValue />}
-            </SelectTrigger>
-            <SelectContent>
-              {ESTATUS_TRABAJO.filter((e) => e.valor !== "archivado").map((e) => (
-                <SelectItem key={e.valor} value={e.valor} className="text-xs">
-                  {e.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Badge
-            variant="outline"
-            className="h-5 shrink-0 px-1.5 text-[10px]"
-            style={{ borderColor: `${meta.color}66`, color: meta.color }}
-          >
-            {meta.label}
-          </Badge>
-        )}
-
-        {trabajo.estatus !== "archivado" && (
-          <div className="flex shrink-0 items-center gap-0.5">
-            {puedeArchivar && (
-              <Button
-                type="button"
-                size="icon-xs"
-                variant="outline"
-                disabled={ocupado}
-                onClick={onArchivar}
-                aria-label="Archivar trabajo"
-                title="Archivar"
-              >
-                {archivando ? <Loader2 className="size-3.5 animate-spin" /> : <Archive className="size-3.5" />}
-              </Button>
-            )}
-            <Button
-              type="button"
-              size="icon-xs"
-              variant="ghost"
-              disabled={ocupado}
-              onClick={onEditar}
-              aria-label="Editar trabajo"
-            >
-              <Pencil className="size-3.5" />
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  type="button"
-                  size="icon-xs"
-                  variant="ghost"
-                  className="text-destructive hover:text-destructive"
-                  disabled={ocupado}
-                  aria-label="Eliminar trabajo"
-                >
-                  {eliminando ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Eliminar trabajo?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Se borrará «{trabajo.titulo}» de forma permanente. Esta acción no se puede deshacer.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={onEliminar}
-                  >
-                    Eliminar
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        )}
+        {selectEstatus}
+        {acciones}
       </div>
     </div>
   );

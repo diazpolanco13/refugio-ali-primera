@@ -2,7 +2,7 @@
 // reporte diario). Crear, editar, archivar y eliminar sin bloque de confirmación.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Archive, Check, Loader2, Plus, Wrench, X } from "lucide-react";
+import { Check, Loader2, Plus, Wrench, X } from "lucide-react";
 import {
   actualizarTrabajo,
   archivarTrabajo,
@@ -20,10 +20,16 @@ import {
 import { TarjetaTrabajo } from "@/features/centros/TrabajosReporteTab";
 import { claseSelectReporte } from "@/features/centros/clasesReporte";
 import { formatearDiaCalendario } from "./CalendarioSelectorDia";
+import {
+  EncabezadoDiaSeguimiento,
+  SEGUIMIENTO_ITEMS_POR_PAGINA,
+  agruparPorDiaCampo,
+} from "./seguimientoListaUi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PaginadorTabla } from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
@@ -61,6 +67,7 @@ export function SeguimientoTrabajosCentro({
   const autoArchivoHecho = useRef(false);
 
   const [subVista, setSubVista] = useState<SubVista>("activos");
+  const [pagina, setPagina] = useState(0);
   const [formularioNuevo, setFormularioNuevo] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [titulo, setTitulo] = useState("");
@@ -181,6 +188,21 @@ export function SeguimientoTrabajosCentro({
     );
   }, [listaBase, diaSel]);
 
+  const totalPaginas = Math.max(1, Math.ceil(lista.length / SEGUIMIENTO_ITEMS_POR_PAGINA));
+  const paginaSegura = Math.min(pagina, totalPaginas - 1);
+  const listaPagina = useMemo(() => {
+    const inicio = paginaSegura * SEGUIMIENTO_ITEMS_POR_PAGINA;
+    return lista.slice(inicio, inicio + SEGUIMIENTO_ITEMS_POR_PAGINA);
+  }, [lista, paginaSegura]);
+  const gruposPagina = useMemo(
+    () => agruparPorDiaCampo(listaPagina, (t) => t.reportada_dia),
+    [listaPagina],
+  );
+
+  useEffect(() => {
+    setPagina(0);
+  }, [subVista, diaSel]);
+
   const mostrarForm = puedeEditar && (formularioNuevo || editandoId !== null);
 
   return (
@@ -244,6 +266,12 @@ export function SeguimientoTrabajosCentro({
           </div>
         )}
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        {subVista === "activos"
+          ? "Trabajos abiertos del campamento. Completados pasan a Archivados al día siguiente."
+          : "Trabajos archivados, ordenados por fecha."}
+      </p>
 
       {mostrarForm && (
         <div className="space-y-3 rounded-lg border border-teal-500/40 bg-teal-500/5 px-3 py-3">
@@ -362,38 +390,51 @@ export function SeguimientoTrabajosCentro({
           )}
         </div>
       ) : (
-        <ul className="space-y-2">
-          {lista.map((t) => (
-            <li key={t.id}>
-              <TarjetaTrabajo
-                trabajo={t}
-                deshabilitado={!puedeEditar}
-                cambiando={cambiandoId === t.id}
-                archivando={archivandoId === t.id}
-                eliminando={eliminandoId === t.id}
-                onEditar={() => iniciarEdicion(t)}
-                onCambiarEstatus={
-                  subVista === "activos" && puedeEditar
-                    ? (est) => void cambiarEstatus(t.id, est)
-                    : undefined
-                }
-                onArchivar={
-                  subVista === "activos" && puedeEditar
-                    ? () => void archivar(t.id)
-                    : undefined
-                }
-                onEliminar={() => void eliminar(t.id)}
+        <div className="space-y-4">
+          {gruposPagina.map((grupo) => (
+            <div key={grupo.dia} className="space-y-2">
+              <EncabezadoDiaSeguimiento
+                dia={grupo.dia}
+                cantidad={grupo.items.length}
+                hoyClave={hoyClave}
               />
-            </li>
+              <div className="space-y-2">
+                {grupo.items.map((t) => (
+                  <TarjetaTrabajo
+                    key={t.id}
+                    trabajo={t}
+                    variante="seguimiento"
+                    deshabilitado={!puedeEditar}
+                    cambiando={cambiandoId === t.id}
+                    archivando={archivandoId === t.id}
+                    eliminando={eliminandoId === t.id}
+                    onEditar={() => iniciarEdicion(t)}
+                    onCambiarEstatus={
+                      subVista === "activos" && puedeEditar
+                        ? (est) => void cambiarEstatus(t.id, est)
+                        : undefined
+                    }
+                    onArchivar={
+                      subVista === "activos" && puedeEditar
+                        ? () => void archivar(t.id)
+                        : undefined
+                    }
+                    onEliminar={() => void eliminar(t.id)}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
-        </ul>
-      )}
-
-      {subVista === "archivados" && archivados.length > 0 && !diaSel && (
-        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <Archive className="size-3.5" />
-          Completados pasan a archivados al día siguiente.
-        </p>
+          {lista.length > SEGUIMIENTO_ITEMS_POR_PAGINA && (
+            <PaginadorTabla
+              pagina={paginaSegura}
+              totalPaginas={totalPaginas}
+              totalFilas={lista.length}
+              filasPorPagina={SEGUIMIENTO_ITEMS_POR_PAGINA}
+              onPagina={setPagina}
+            />
+          )}
+        </div>
       )}
     </div>
   );

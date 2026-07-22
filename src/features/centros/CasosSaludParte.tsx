@@ -3,8 +3,8 @@ import { Check, Loader2, Pencil, Plus, Stethoscope, Trash2, X } from "lucide-rea
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import {
   actualizarCasoSalud,
-  archivarCasoSalud,
   crearCasoSalud,
+  eliminarCasoSalud,
 } from "@/data/reposCasosSalud";
 import {
   casosAbiertosSeguimiento,
@@ -257,7 +257,7 @@ export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabil
   async function eliminarCaso(id: string) {
     setEliminandoId(id);
     try {
-      await archivarCasoSalud(id);
+      await eliminarCasoSalud(id);
       await recargar();
       if (editandoId === id) cancelarEdicion();
     } finally {

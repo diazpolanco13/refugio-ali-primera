@@ -79,4 +79,10 @@ export async function archivarCasoSalud(id: string): Promise<void> {
   registrarHistorial("archivar_caso_salud", "caso_salud", id);
 }
 
+export async function eliminarCasoSalud(id: string): Promise<void> {
+  const { error } = await supabase.from("casos_salud_centros").delete().eq("id", id);
+  if (error) throw new Error(`[reposCasosSalud] delete: ${error.message}`);
+  registrarHistorial("eliminar_caso_salud", "caso_salud", id);
+}
+
 export { normalizarCasoSalud };

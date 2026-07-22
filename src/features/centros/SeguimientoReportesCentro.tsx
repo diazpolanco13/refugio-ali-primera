@@ -1,7 +1,7 @@
 // Seguimiento de salud, trabajos y novedades del reporte diario.
 // Se pueden crear aquí o en el reporte.
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Archive,
   CalendarDays,
@@ -31,6 +31,7 @@ import {
   actualizarCasoSalud,
   archivarCasoSalud,
   crearCasoSalud,
+  eliminarCasoSalud,
 } from "@/data/reposCasosSalud";
 import {
   actualizarEventoReporte,
@@ -38,7 +39,7 @@ import {
   eliminarEventoReporte,
 } from "@/data/reposEventosReportes";
 import { claveDia } from "@/data/reposSupabase";
-import { casosAbiertosSeguimiento, ESTATUS_CASO_SALUD } from "@/domain/casosSalud";
+import { casosAbiertosSeguimiento, ESTATUS_CASO_SALUD, puedeArchivarCasoSalud } from "@/domain/casosSalud";
 import {
   casosSaludEnSeguimiento,
   casosSaludPendientes,
@@ -53,6 +54,8 @@ import {
   CATALOGO_TIPOS_EVENTO_REPORTE,
   MIN_PALABRAS_TITULO_EVENTO,
   TIPO_EVENTO_REPORTE_DEFAULT,
+  eventosArchivados,
+  eventosDelDia,
   textoParticipantesEvento,
   tituloEventoValido,
   type EventoReporte,
@@ -71,6 +74,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PaginadorTabla } from "@/components/ui/pagination";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -102,6 +106,11 @@ import {
   contarTrabajosPendientesSeguimiento,
   SeguimientoTrabajosCentro,
 } from "./SeguimientoTrabajosCentro";
+import {
+  EncabezadoDiaSeguimiento,
+  SEGUIMIENTO_ITEMS_POR_PAGINA,
+  agruparPorDiaCampo,
+} from "./seguimientoListaUi";
 
 interface Props {
   centro: CentroTransitorio;
@@ -214,8 +223,10 @@ function TarjetaCasoSalud({
   onGuardar,
   onCambiarEstatus,
   onArchivar,
+  onEliminar,
   cambiando,
   archivando,
+  eliminando,
   guardando,
 }: {
   caso: CasoSaludCentro;
@@ -228,97 +239,20 @@ function TarjetaCasoSalud({
   onGuardar: () => void;
   onCambiarEstatus: (estatus: EstatusCasoSalud) => void;
   onArchivar: () => void;
+  onEliminar: () => void;
   cambiando: boolean;
   archivando: boolean;
+  eliminando: boolean;
   guardando: boolean;
 }) {
   const meta = META_ESTATUS_CASO_SALUD[caso.estatus];
-  const ocupado = cambiando || archivando || guardando;
+  const ocupado = cambiando || archivando || eliminando || guardando;
+  const puedeCambiarEstatus = puedeEditar && !editando && caso.estatus !== "archivado";
+  const puedeArchivar = puedeEditar && puedeArchivarCasoSalud(caso.estatus);
 
-  return (
-    <div
-      className={cn(
-        "rounded-lg border bg-muted/10 px-3 py-3",
-        editando ? "border-teal-500/50 ring-1 ring-teal-500/20" : "border-border/70",
-      )}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          {!editando && (
-            <>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Badge
-                  variant="outline"
-                  className="text-[9px]"
-                  style={{ borderColor: `${meta.color}66`, color: meta.color }}
-                >
-                  {meta.label}
-                </Badge>
-                <BadgeAntiguedad
-                  reportadoDia={caso.reportado_dia}
-                  resueltaTs={caso.resuelta_ts}
-                  creadaTs={caso.creada_ts}
-                />
-                {ocupado && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
-              </div>
-              <p className="mt-1.5 text-sm font-medium leading-snug text-foreground">{caso.titulo}</p>
-              {caso.descripcion ? (
-                <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{caso.descripcion}</p>
-              ) : null}
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                Reportado {formatearDiaCalendario(caso.reportado_dia)}
-                {caso.updated_by ? ` · ${caso.updated_by}` : ""}
-              </p>
-            </>
-          )}
-        </div>
-        {puedeEditar && !editando && caso.estatus !== "archivado" && (
-          <div className="flex shrink-0 gap-1">
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              disabled={ocupado}
-              aria-label="Editar caso"
-              onClick={onEditar}
-            >
-              <Pencil className="size-4" />
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  disabled={ocupado}
-                  aria-label="Archivar caso"
-                >
-                  {archivando ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Archive className="size-4" />
-                  )}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Archivar caso de salud?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    «{caso.titulo}» pasará a Archivados. Podrás consultarlo después en esa
-                    pestaña.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={onArchivar}>Archivar</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        )}
-      </div>
-
-      {editando && (
+  if (editando) {
+    return (
+      <div className="rounded-lg border border-teal-500/50 bg-muted/10 px-3 py-3 ring-1 ring-teal-500/20">
         <div className="space-y-3">
           <Input
             className="h-10 text-sm"
@@ -376,49 +310,165 @@ function TarjetaCasoSalud({
             </Button>
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {puedeEditar && !editando && caso.estatus !== "archivado" && (
-        <div className="mt-2.5 space-y-2">
-          {caso.estatus !== "resuelto" ? (
-            <div className="flex overflow-hidden rounded-lg border border-border/70">
-              {(["activo", "en_proceso", "resuelto"] as const).map((est) => {
-                const e = META_ESTATUS_CASO_SALUD[est];
-                const activo = caso.estatus === est;
-                return (
-                  <button
-                    key={est}
-                    type="button"
-                    disabled={ocupado || activo}
-                    onClick={() => onCambiarEstatus(est)}
-                    className={cn(
-                      "flex-1 border-r border-border/70 px-2 py-1.5 text-[11px] font-semibold transition-colors last:border-r-0",
-                      activo
-                        ? "text-white"
-                        : "text-muted-foreground hover:bg-muted/40 active:bg-muted/60",
-                    )}
-                    style={activo ? { backgroundColor: e.color } : undefined}
-                  >
-                    {e.label}
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <Button
-              type="button"
-              size="sm"
+  return (
+    <div
+      className={cn(
+        "rounded-lg border bg-muted/10 px-3 py-3",
+        caso.estatus === "activo" && "border-red-500/30",
+        caso.estatus === "en_proceso" && "border-amber-500/30",
+        caso.estatus === "resuelto" && "border-emerald-500/30",
+        caso.estatus === "archivado" && "border-border/70",
+      )}
+    >
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge
               variant="outline"
-              className="w-full gap-1.5"
-              disabled={ocupado}
-              onClick={onArchivar}
+              className="text-[9px]"
+              style={{ borderColor: `${meta.color}66`, color: meta.color }}
             >
-              {archivando ? <Loader2 className="size-4 animate-spin" /> : <Archive className="size-4" />}
-              Archivar caso resuelto
-            </Button>
+              {meta.label}
+            </Badge>
+            <BadgeAntiguedad
+              reportadoDia={caso.reportado_dia}
+              resueltaTs={caso.resuelta_ts}
+              creadaTs={caso.creada_ts}
+            />
+            {ocupado && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+          </div>
+          <p className="mt-1.5 text-sm font-medium leading-snug text-foreground">{caso.titulo}</p>
+          {caso.descripcion ? (
+            <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{caso.descripcion}</p>
+          ) : null}
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            Reportado {formatearDiaCalendario(caso.reportado_dia)}
+            {caso.updated_by ? ` · ${caso.updated_by}` : ""}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 flex-col items-end gap-1.5 sm:flex-row sm:items-start">
+          {puedeCambiarEstatus ? (
+            <Select
+              value={caso.estatus}
+              disabled={ocupado}
+              onValueChange={(v) => onCambiarEstatus(v as EstatusCasoSalud)}
+            >
+              <SelectTrigger
+                className="h-8 w-[8rem] shrink-0 text-[11px]"
+                style={{ borderColor: `${meta.color}66`, color: meta.color }}
+              >
+                {cambiando ? <Loader2 className="size-3 animate-spin" /> : <SelectValue />}
+              </SelectTrigger>
+              <SelectContent>
+                {ESTATUS_CASO_SALUD.filter((e) => e.valor !== "archivado").map((e) => (
+                  <SelectItem key={e.valor} value={e.valor} className="text-xs">
+                    {e.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : caso.estatus === "archivado" ? (
+            <Badge
+              variant="outline"
+              className="h-5 shrink-0 px-1.5 text-[10px]"
+              style={{ borderColor: `${meta.color}66`, color: meta.color }}
+            >
+              {meta.label}
+            </Badge>
+          ) : null}
+
+          {puedeEditar && !editando && (
+            <div className="flex shrink-0 items-center gap-0.5">
+              {puedeArchivar && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      disabled={ocupado}
+                      aria-label="Archivar caso"
+                      title="Archivar"
+                    >
+                      {archivando ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Archive className="size-4" />
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Archivar caso de salud?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        «{caso.titulo}» pasará a Archivados. Podrás consultarlo después en esa
+                        pestaña.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={onArchivar}>Archivar</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              {caso.estatus !== "archivado" && (
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  disabled={ocupado}
+                  aria-label="Editar caso"
+                  onClick={onEditar}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              )}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    disabled={ocupado}
+                    aria-label="Eliminar caso"
+                  >
+                    {eliminando ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="size-4" />
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Eliminar caso de salud?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Se borrará «{caso.titulo}» de forma permanente. Esta acción no se puede
+                      deshacer.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={onEliminar}
+                    >
+                      Eliminar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -682,11 +732,17 @@ function SeguimientoExpandido({
   // Pestaña activa: salud con pendientes → trabajos abiertos → novedades.
   const [tabManual, setTabManual] = useState<TabSeguimiento | null>(null);
   const [subSalud, setSubSalud] = useState<"seguimiento" | "archivados">("seguimiento");
+  const [subNovedades, setSubNovedades] = useState<"seguimiento" | "archivados">(
+    "seguimiento",
+  );
+  const [paginaSalud, setPaginaSalud] = useState(0);
+  const [paginaNovedades, setPaginaNovedades] = useState(0);
   const [diaSel, setDiaSel] = useState<string | null>(null);
   const [calendarioAbierto, setCalendarioAbierto] = useState(false);
   const [evolucionAbierta, setEvolucionAbierta] = useState(false);
   const [cambiandoId, setCambiandoId] = useState<string | null>(null);
   const [archivandoId, setArchivandoId] = useState<string | null>(null);
+  const [eliminandoCasoId, setEliminandoCasoId] = useState<string | null>(null);
   const [guardandoCasoId, setGuardandoCasoId] = useState<string | null>(null);
   const [editandoCasoId, setEditandoCasoId] = useState<string | null>(null);
   const [borradorCaso, setBorradorCaso] = useState({
@@ -730,9 +786,17 @@ function SeguimientoExpandido({
     [todosCasos],
   );
 
-  const eventosOrdenados = useMemo(
-    () => [...eventos].sort((a, b) => b.dia.localeCompare(a.dia) || b.ts - a.ts),
-    [eventos],
+  // Novedades: del día = en seguimiento; día anterior = archivadas (auto al cerrar el día).
+  const novedadesEnSeguimiento = useMemo(
+    () =>
+      [...eventosDelDia(eventos, centro.id, hoyClave)].sort(
+        (a, b) => b.ts - a.ts || a.titulo.localeCompare(b.titulo, "es"),
+      ),
+    [eventos, centro.id, hoyClave],
+  );
+  const novedadesArchivadas = useMemo(
+    () => eventosArchivados(eventos, centro.id, hoyClave),
+    [eventos, centro.id, hoyClave],
   );
 
   const saludSinDetalle = useMemo(
@@ -773,10 +837,42 @@ function SeguimientoExpandido({
     );
   }, [subSalud, casosPendientes, casosResueltos, historialCasos, diaSel]);
 
-  const listaNovedades = useMemo(
-    () => (diaSel ? eventosOrdenados.filter((e) => e.dia === diaSel) : eventosOrdenados),
-    [eventosOrdenados, diaSel],
+  const totalPaginasSalud = Math.max(
+    1,
+    Math.ceil(listaCasos.length / SEGUIMIENTO_ITEMS_POR_PAGINA),
   );
+  const paginaSaludSegura = Math.min(paginaSalud, totalPaginasSalud - 1);
+  const listaCasosPagina = useMemo(() => {
+    const inicio = paginaSaludSegura * SEGUIMIENTO_ITEMS_POR_PAGINA;
+    return listaCasos.slice(inicio, inicio + SEGUIMIENTO_ITEMS_POR_PAGINA);
+  }, [listaCasos, paginaSaludSegura]);
+
+  const listaNovedades = useMemo(() => {
+    const base =
+      subNovedades === "archivados" ? novedadesArchivadas : novedadesEnSeguimiento;
+    const filtrados = diaSel ? base.filter((e) => e.dia === diaSel) : base;
+    return [...filtrados].sort(
+      (a, b) => b.dia.localeCompare(a.dia) || b.ts - a.ts || a.titulo.localeCompare(b.titulo, "es"),
+    );
+  }, [subNovedades, novedadesArchivadas, novedadesEnSeguimiento, diaSel]);
+
+  const totalPaginasNovedades = Math.max(
+    1,
+    Math.ceil(listaNovedades.length / SEGUIMIENTO_ITEMS_POR_PAGINA),
+  );
+  const paginaNovedadesSegura = Math.min(paginaNovedades, totalPaginasNovedades - 1);
+  const listaNovedadesPagina = useMemo(() => {
+    const inicio = paginaNovedadesSegura * SEGUIMIENTO_ITEMS_POR_PAGINA;
+    return listaNovedades.slice(inicio, inicio + SEGUIMIENTO_ITEMS_POR_PAGINA);
+  }, [listaNovedades, paginaNovedadesSegura]);
+
+  useEffect(() => {
+    setPaginaSalud(0);
+  }, [subSalud, diaSel]);
+
+  useEffect(() => {
+    setPaginaNovedades(0);
+  }, [subNovedades, diaSel, verNovedadesAnteriores]);
 
   const diaMarcado = diaSel;
 
@@ -798,6 +894,17 @@ function SeguimientoExpandido({
       if (editandoCasoId === id) cancelarEdicionCaso();
     } finally {
       setArchivandoId(null);
+    }
+  }
+
+  async function eliminarCaso(id: string) {
+    setEliminandoCasoId(id);
+    try {
+      await eliminarCasoSalud(id);
+      await recargarCasos();
+      if (editandoCasoId === id) cancelarEdicionCaso();
+    } finally {
+      setEliminandoCasoId(null);
     }
   }
 
@@ -874,6 +981,7 @@ function SeguimientoExpandido({
     cancelarEdicionCaso();
     cancelarNuevoCaso();
     cancelarEdicionNovedad();
+    setSubNovedades(diaSel && diaSel < hoyClave ? "archivados" : "seguimiento");
     setFormularioNuevaNovedad(true);
   }
 
@@ -881,6 +989,7 @@ function SeguimientoExpandido({
     setEditandoCasoId(null);
     cancelarNuevoCaso();
     cancelarNuevaNovedad();
+    setSubNovedades(evento.dia < hoyClave ? "archivados" : "seguimiento");
     setEditandoNovedadId(evento.id);
     setBorradorNovedad({
       tipo: evento.tipo,
@@ -957,8 +1066,44 @@ function SeguimientoExpandido({
   );
 
   function renderListaSalud(casosLista: CasoSaludCentro[], pendientesDetalle: typeof saludSinDetalle) {
+    const vacio =
+      casosLista.length === 0 &&
+      listaCasos.length === 0 &&
+      pendientesDetalle.length === 0;
+
+    if (vacio) {
+      return (
+        <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
+          <Stethoscope className="mx-auto size-10 text-muted-foreground/40" />
+          <p className="mt-3 text-sm font-medium text-foreground">
+            {subSalud === "archivados"
+              ? diaSel
+                ? "Sin casos archivados ese día"
+                : "Sin casos archivados"
+              : "Sin casos de salud en seguimiento"}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Añade un caso aquí o desde el reporte del día.
+          </p>
+          {puedeEditar && subSalud === "seguimiento" && (
+            <Button
+              type="button"
+              size="sm"
+              className="mt-4 gap-1.5"
+              onClick={abrirNuevoCaso}
+            >
+              <Plus className="size-3.5" />
+              Añadir caso
+            </Button>
+          )}
+        </div>
+      );
+    }
+
+    const grupos = agruparPorDiaCampo(casosLista, (c) => c.reportado_dia);
+
     return (
-      <div className="space-y-2">
+      <div className="space-y-4">
         {pendientesDetalle.map((p) => (
           <TarjetaSaludPendienteDetalle
             key={`pendiente-${p.dia}`}
@@ -970,53 +1115,52 @@ function SeguimientoExpandido({
             }
           />
         ))}
-        {casosLista.length === 0 && pendientesDetalle.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
-            <Stethoscope className="mx-auto size-10 text-muted-foreground/40" />
-            <p className="mt-3 text-sm font-medium text-foreground">
-              Sin casos de salud en seguimiento
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Añade un caso aquí o desde el reporte del día.
-            </p>
-            {puedeEditar && (
-              <Button
-                type="button"
-                size="sm"
-                className="mt-4 gap-1.5"
-                onClick={abrirNuevoCaso}
-              >
-                <Plus className="size-3.5" />
-                Añadir caso
-              </Button>
-            )}
-          </div>
-        ) : (
-          casosLista.map((c) => (
-            <TarjetaCasoSalud
-              key={c.id}
-              caso={c}
-              puedeEditar={puedeEditar}
-              editando={editandoCasoId === c.id}
-              borrador={borradorCaso}
-              onBorradorChange={setBorradorCaso}
-              onEditar={() => iniciarEdicionCaso(c)}
-              onCancelarEdicion={cancelarEdicionCaso}
-              onGuardar={() => void guardarCasoEditado(c.id)}
-              cambiando={cambiandoId === c.id}
-              archivando={archivandoId === c.id}
-              guardando={guardandoCasoId === c.id}
-              onCambiarEstatus={(est) => void cambiarEstatus(c.id, est)}
-              onArchivar={() => void archivar(c.id)}
+        {grupos.map((grupo) => (
+          <div key={grupo.dia} className="space-y-2">
+            <EncabezadoDiaSeguimiento
+              dia={grupo.dia}
+              cantidad={grupo.items.length}
+              hoyClave={hoyClave}
             />
-          ))
+            <div className="space-y-2">
+              {grupo.items.map((c) => (
+                <TarjetaCasoSalud
+                  key={c.id}
+                  caso={c}
+                  puedeEditar={puedeEditar}
+                  editando={editandoCasoId === c.id}
+                  borrador={borradorCaso}
+                  onBorradorChange={setBorradorCaso}
+                  onEditar={() => iniciarEdicionCaso(c)}
+                  onCancelarEdicion={cancelarEdicionCaso}
+                  onGuardar={() => void guardarCasoEditado(c.id)}
+                  cambiando={cambiandoId === c.id}
+                  archivando={archivandoId === c.id}
+                  eliminando={eliminandoCasoId === c.id}
+                  guardando={guardandoCasoId === c.id}
+                  onCambiarEstatus={(est) => void cambiarEstatus(c.id, est)}
+                  onArchivar={() => void archivar(c.id)}
+                  onEliminar={() => void eliminarCaso(c.id)}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+        {listaCasos.length > SEGUIMIENTO_ITEMS_POR_PAGINA && (
+          <PaginadorTabla
+            pagina={paginaSaludSegura}
+            totalPaginas={totalPaginasSalud}
+            totalFilas={listaCasos.length}
+            filasPorPagina={SEGUIMIENTO_ITEMS_POR_PAGINA}
+            onPagina={setPaginaSalud}
+          />
         )}
       </div>
     );
   }
 
   function renderListaNovedades(lista: EventoReporte[], vacioTitulo: string) {
-    if (lista.length === 0) {
+    if (lista.length === 0 && listaNovedades.length === 0) {
       return (
         <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
           <CalendarPlus className="mx-auto size-10 text-muted-foreground/40" />
@@ -1038,24 +1182,47 @@ function SeguimientoExpandido({
         </div>
       );
     }
+
+    const grupos = agruparPorDiaCampo(lista, (e) => e.dia);
+
     return (
-      <div className="space-y-2">
-        {lista.map((e) => (
-          <TarjetaNovedad
-            key={e.id}
-            evento={e}
-            puedeEditar={puedeEditar}
-            editando={editandoNovedadId === e.id}
-            borrador={borradorNovedad}
-            onBorradorChange={setBorradorNovedad}
-            onEditar={() => iniciarEdicionNovedad(e)}
-            onCancelarEdicion={cancelarEdicionNovedad}
-            onGuardar={() => void guardarNovedadEditada(e)}
-            onEliminar={() => void eliminarNovedad(e.id)}
-            guardando={guardandoNovedadId === e.id}
-            eliminando={eliminandoNovedadId === e.id}
-          />
+      <div className="space-y-4">
+        {grupos.map((grupo) => (
+          <div key={grupo.dia} className="space-y-2">
+            <EncabezadoDiaSeguimiento
+              dia={grupo.dia}
+              cantidad={grupo.items.length}
+              hoyClave={hoyClave}
+            />
+            <div className="space-y-2">
+              {grupo.items.map((e) => (
+                <TarjetaNovedad
+                  key={e.id}
+                  evento={e}
+                  puedeEditar={puedeEditar}
+                  editando={editandoNovedadId === e.id}
+                  borrador={borradorNovedad}
+                  onBorradorChange={setBorradorNovedad}
+                  onEditar={() => iniciarEdicionNovedad(e)}
+                  onCancelarEdicion={cancelarEdicionNovedad}
+                  onGuardar={() => void guardarNovedadEditada(e)}
+                  onEliminar={() => void eliminarNovedad(e.id)}
+                  guardando={guardandoNovedadId === e.id}
+                  eliminando={eliminandoNovedadId === e.id}
+                />
+              ))}
+            </div>
+          </div>
         ))}
+        {listaNovedades.length > SEGUIMIENTO_ITEMS_POR_PAGINA && (
+          <PaginadorTabla
+            pagina={paginaNovedadesSegura}
+            totalPaginas={totalPaginasNovedades}
+            totalFilas={listaNovedades.length}
+            filasPorPagina={SEGUIMIENTO_ITEMS_POR_PAGINA}
+            onPagina={setPaginaNovedades}
+          />
+        )}
       </div>
     );
   }
@@ -1092,9 +1259,11 @@ function SeguimientoExpandido({
         <span className="text-muted-foreground">
           Novedades:{" "}
           <span className="font-medium text-foreground">
-            {eventosOrdenados.length > 0
-              ? `${eventosOrdenados.length} (30d)`
-              : "ninguna"}
+            {novedadesEnSeguimiento.length > 0
+              ? `${novedadesEnSeguimiento.length} hoy`
+              : novedadesArchivadas.length > 0
+                ? `${novedadesArchivadas.length} archivada${novedadesArchivadas.length === 1 ? "" : "s"}`
+                : "ninguna"}
           </span>
         </span>
         {contadores.novedadesNegativasRecientes > 0 && (
@@ -1218,9 +1387,9 @@ function SeguimientoExpandido({
             <TabsTrigger value="novedades" className={tabTriggerClass}>
               <CalendarPlus className="size-3.5 shrink-0" />
               <span className="truncate">Novedades</span>
-              {eventosOrdenados.length > 0 && (
+              {novedadesEnSeguimiento.length > 0 && (
                 <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[9px] tabular-nums">
-                  {eventosOrdenados.length}
+                  {novedadesEnSeguimiento.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -1308,6 +1477,11 @@ function SeguimientoExpandido({
               </div>
             )}
           </div>
+          <p className="text-xs text-muted-foreground">
+            {subSalud === "seguimiento"
+              ? "Casos activos, en proceso o resueltos pendientes de archivar."
+              : "Casos de salud ya archivados, ordenados por fecha."}
+          </p>
           {puedeEditar && formularioNuevoCaso && (
             <div className="rounded-lg border border-teal-500/40 bg-teal-500/5 px-3 py-3 space-y-3">
               <div className="flex items-center justify-between gap-2">
@@ -1378,34 +1552,9 @@ function SeguimientoExpandido({
               </div>
             </div>
           )}
-          {subSalud === "seguimiento" ? (
-            renderListaSalud(listaCasos, saludSinDetalleVisibles)
-          ) : listaCasos.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
-              Sin casos archivados{diaSel ? " ese día" : ""}.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {listaCasos.map((c) => (
-                <TarjetaCasoSalud
-                  key={c.id}
-                  caso={c}
-                  puedeEditar={puedeEditar}
-                  editando={editandoCasoId === c.id}
-                  borrador={borradorCaso}
-                  onBorradorChange={setBorradorCaso}
-                  onEditar={() => iniciarEdicionCaso(c)}
-                  onCancelarEdicion={cancelarEdicionCaso}
-                  onGuardar={() => void guardarCasoEditado(c.id)}
-                  cambiando={cambiandoId === c.id}
-                  archivando={archivandoId === c.id}
-                  guardando={guardandoCasoId === c.id}
-                  onCambiarEstatus={(est) => void cambiarEstatus(c.id, est)}
-                  onArchivar={() => void archivar(c.id)}
-                />
-              ))}
-            </div>
-          )}
+          {subSalud === "seguimiento"
+            ? renderListaSalud(listaCasosPagina, saludSinDetalleVisibles)
+            : renderListaSalud(listaCasosPagina, [])}
         </TabsContent>
 
         <TabsContent value="trabajos" className="mt-4 space-y-4">
@@ -1422,12 +1571,48 @@ function SeguimientoExpandido({
         </TabsContent>
 
         <TabsContent value="novedades" className="mt-4 space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              {verNovedadesAnteriores
-                ? "Todas las novedades registradas del campamento."
-                : "Novedades positivas y negativas de los últimos 30 días."}
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex overflow-hidden rounded-lg border border-border/70 text-[11px] font-semibold">
+              {(
+                [
+                  {
+                    valor: "seguimiento" as const,
+                    label: `En seguimiento${
+                      novedadesEnSeguimiento.length > 0
+                        ? ` (${novedadesEnSeguimiento.length})`
+                        : ""
+                    }`,
+                  },
+                  {
+                    valor: "archivados" as const,
+                    label: `Archivados${
+                      novedadesArchivadas.length > 0
+                        ? ` (${novedadesArchivadas.length})`
+                        : ""
+                    }`,
+                  },
+                ]
+              ).map((s) => (
+                <button
+                  key={s.valor}
+                  type="button"
+                  onClick={() => {
+                    setSubNovedades(s.valor);
+                    if (s.valor === "archivados" && formularioNuevaNovedad) {
+                      cancelarNuevaNovedad();
+                    }
+                  }}
+                  className={cn(
+                    "border-r border-border/70 px-2.5 py-1.5 transition-colors last:border-r-0",
+                    subNovedades === s.valor
+                      ? "bg-teal-600/20 text-teal-300"
+                      : "text-muted-foreground hover:bg-muted/40",
+                  )}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
             {puedeEditar && (
               <div className="flex flex-wrap items-center gap-1.5">
                 <Button
@@ -1455,6 +1640,13 @@ function SeguimientoExpandido({
               </div>
             )}
           </div>
+          <p className="text-xs text-muted-foreground">
+            {subNovedades === "seguimiento"
+              ? "Novedades del día en curso. Al cerrar el día pasan a Archivados."
+              : verNovedadesAnteriores
+                ? "Historial completo de novedades de días anteriores."
+                : "Novedades de días anteriores (últimos 30 días)."}
+          </p>
           {puedeEditar && formularioNuevaNovedad && (
             <div className="space-y-3 rounded-lg border border-teal-500/40 bg-teal-500/5 px-3 py-3">
               <div className="flex items-center justify-between gap-2">
@@ -1560,10 +1752,16 @@ function SeguimientoExpandido({
             </div>
           )}
           {renderListaNovedades(
-            listaNovedades,
-            diaSel ? "Sin novedades este día" : "Sin novedades registradas",
+            listaNovedadesPagina,
+            subNovedades === "archivados"
+              ? diaSel
+                ? "Sin novedades archivadas ese día"
+                : "Sin novedades archivadas"
+              : diaSel
+                ? "Sin novedades este día"
+                : "Sin novedades del día en curso",
           )}
-          {!verNovedadesAnteriores && !diaSel && (
+          {subNovedades === "archivados" && !verNovedadesAnteriores && !diaSel && (
             <Button
               type="button"
               size="sm"
