@@ -4,18 +4,14 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   Baby,
-  Building2,
   Check,
   Home,
   Loader2,
   MapPin,
-  Minus,
-  Plus,
   RefreshCw,
   Search,
   ShieldAlert,
   ShieldCheck,
-  Skull,
   Trash2,
   UserPlus,
   Users,
@@ -25,7 +21,6 @@ import {
   RotateCcw,
   ChevronDown,
   ArrowRight,
-  Save,
   X,
 } from "lucide-react";
 import {
@@ -97,31 +92,18 @@ import {
 import { CEDULA_JEFE_NO_SE } from "@/domain/catalogosHumanitarios";
 import {
   actualizarConsentimientoFoto,
-  actualizarDamnificacionFamilia,
-  guardarFamiliaresReferencia,
-  guardarResidenciaAfectada,
   registrarEgreso,
   type OtroCentroActivo,
 } from "@/data/reposRefugiados";
-import { nuevoId } from "@/data/reposSupabase";
 import { subirFotoRefugiado, supabaseDisponible, urlFotoRefugiado } from "@/data/supabase";
 import { supabase } from "@/data/supabaseClient";
 import { asegurarSesionTerreno } from "@/data/loginTerreno";
 import { type FamiliarNexus, type PersonaNexusCenso } from "@/domain/nexusPersona";
 import {
-  META_NIVEL_AFECTACION,
-  nivelAfectacionHogar,
-} from "@/domain/nivelAfectacionHogar";
-import {
   PARENTESCOS_JEFE,
   calcularEdad,
   formatearCedula,
-  normalizarCedula,
-  type EstatusVivienda,
-  type FamiliarSeparado,
   type SexoRefugiado,
-  type TipoDoc,
-  type VulnerabilidadesRefugiado,
 } from "@/domain/refugiados";
 import {
   EstadoNexusApi,
@@ -139,7 +121,6 @@ import { mensajeErrorParaUsuario } from "@/lib/errorRed";
 import { copiarTexto } from "@/lib/portapapeles";
 import { cn } from "@/lib/utils";
 import {
-  CampoSiNo,
   CENSO_BOTON_ACCION,
   CENSO_BOTON_SECUNDARIO,
   CENSO_SELECT_TRIGGER,
@@ -148,103 +129,6 @@ import {
 /** Máximo de líderes de familia activos por hogar (ver supabase/familia_lideres.sql
  * y MAX_LIDERES_FAMILIA en src/data/reposRefugiados.ts). */
 const MAX_LIDERES_FAMILIA = 2;
-
-const SEVERIDAD_VIVIENDA_OPCIONES: { valor: EstatusVivienda; label: string; emoji: string }[] = [
-  { valor: "destruida", label: "Colapsada / destruida", emoji: "🔴" },
-  { valor: "inabitable", label: "Inhabitable / insegura", emoji: "🟠" },
-  { valor: "habitable_con_riesgo", label: "Daños menores", emoji: "🟡" },
-  { valor: "sin_dano", label: "Sin daño", emoji: "🟢" },
-];
-
-const UBICACIONES_VIVIENDA = ["Caracas", "Miranda", "La Guaira"] as const;
-
-function nuevaPerdidaVacia(): FamiliarSeparado {
-  return {
-    id: nuevoId(),
-    nombre: "",
-    parentesco: "Otro familiar",
-    estado: "fallecido",
-    cedula: "",
-    tipo_doc: "V",
-    cedula_norm: null,
-    verificado_nexus: false,
-  };
-}
-
-function StepperInline({
-  value,
-  onChange,
-  min = 0,
-  max,
-  className,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  min?: number;
-  max?: number;
-  className?: string;
-}) {
-  const enMin = value <= min;
-  const enMax = max != null && value >= max;
-
-  return (
-    <div
-      className={cn(
-        "inline-flex h-9 w-[7.5rem] shrink-0 items-stretch overflow-hidden rounded-lg border border-border bg-background shadow-sm",
-        className,
-      )}
-    >
-      <button
-        type="button"
-        disabled={enMin}
-        aria-label="Restar"
-        className={cn(
-          "flex w-9 shrink-0 items-center justify-center bg-muted/70 text-foreground transition-colors",
-          "hover:bg-muted active:bg-muted/90",
-          "disabled:pointer-events-none disabled:opacity-35",
-        )}
-        onClick={() => onChange(Math.max(min, value - 1))}
-      >
-        <Minus className="size-3.5 stroke-[2.5]" />
-      </button>
-      <div className="flex min-w-0 flex-1 items-center justify-center border-x border-border bg-card">
-        <span className="text-sm font-bold tabular-nums leading-none">{value}</span>
-      </div>
-      <button
-        type="button"
-        disabled={enMax}
-        aria-label="Sumar"
-        className={cn(
-          "flex w-9 shrink-0 items-center justify-center bg-primary text-primary-foreground transition-colors",
-          "hover:bg-primary/90 active:bg-primary/80",
-          "disabled:pointer-events-none disabled:opacity-35",
-        )}
-        onClick={() => onChange(max != null ? Math.min(max, value + 1) : value + 1)}
-      >
-        <Plus className="size-3.5 stroke-[2.5]" />
-      </button>
-    </div>
-  );
-}
-
-function FilaContador({
-  label,
-  value,
-  onChange,
-  min = 0,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  min?: number;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/20 px-2.5 py-1.5">
-      <Label className="min-w-0 flex-1 text-xs leading-snug font-medium">{label}</Label>
-      <StepperInline value={value} onChange={onChange} min={min} />
-    </div>
-  );
-}
 
 type Letra = "V" | "E";
 
@@ -466,9 +350,6 @@ interface FormMenor {
   fecha_nacimiento: string;
   edad: string;
   parentesco: string;
-  embarazada: boolean;
-  discapacidad: boolean;
-  discapacidad_detalle: string;
 }
 
 function formMenorVacio(): FormMenor {
@@ -481,24 +362,6 @@ function formMenorVacio(): FormMenor {
     fecha_nacimiento: "",
     edad: "",
     parentesco: "Hijo/a",
-    embarazada: false,
-    discapacidad: false,
-    discapacidad_detalle: "",
-  };
-}
-
-function vulnerabilidadesDesdeUi(opts: {
-  sexo: string | null | undefined;
-  embarazada: boolean;
-  discapacidad: boolean;
-  discapacidadDetalle: string;
-}): VulnerabilidadesRefugiado {
-  return {
-    embarazada: opts.sexo === "F" ? opts.embarazada : false,
-    discapacidad: opts.discapacidad,
-    discapacidad_detalle: opts.discapacidad
-      ? opts.discapacidadDetalle.trim() || undefined
-      : undefined,
   };
 }
 
@@ -640,35 +503,14 @@ export function CensoNexusPanel({
   );
   const [abriendoFamilia, setAbriendoFamilia] = useState(false);
 
-  // ¿Persona buscada es líder de familia? null = sin responder (se pregunta
-  // antes de mostrar la sección de damnificación, que es del hogar, no de
-  // cualquier persona). Solo aplica mientras no hay hogar creado.
+  // ¿Persona buscada es líder de familia? null = sin responder (la creación
+  // del hogar depende de esta respuesta). Solo aplica mientras no hay hogar
+  // creado.
   const [esJefe, setEsJefe] = useState<boolean | null>(null);
   // Si el líder no está presente: registrar igual a esta persona como
   // miembro fundador del hogar (sin líder asignado todavía).
   const [registrarSinLider, setRegistrarSinLider] = useState(false);
   const [parentescoSinLider, setParentescoSinLider] = useState("Otro familiar");
-
-  // Contexto del terremoto: se captura una sola vez, al crear el hogar.
-  const [estatusVivienda, setEstatusVivienda] = useState<EstatusVivienda | null>(null);
-  const [ubicacionVivienda, setUbicacionVivienda] = useState("");
-  const [ubicacionOtro, setUbicacionOtro] = useState("");
-  const [miembrosDamnificados, setMiembrosDamnificados] = useState(0);
-  const [fallecidosCount, setFallecidosCount] = useState(0);
-  const [desaparecidosCount, setDesaparecidosCount] = useState(0);
-  const [detallePerdidas, setDetallePerdidas] = useState<FamiliarSeparado[]>([]);
-  const [detalleAbierto, setDetalleAbierto] = useState(false);
-  /** Id de la fila de pérdida cuya cédula se está verificando en Nexus. */
-  const [verificandoPerdidaId, setVerificandoPerdidaId] = useState<string | null>(null);
-  const [errorPerdidaCedula, setErrorPerdidaCedula] = useState<Record<string, string>>({});
-  const [guardandoNombres, setGuardandoNombres] = useState(false);
-  const [mensajeNombres, setMensajeNombres] = useState("");
-  // Nivel de afectación del hogar recién creado, para el badge del header.
-  const [nivelHogar, setNivelHogar] = useState<{
-    estatusVivienda: EstatusVivienda;
-    fallecidos: number;
-    desaparecidos: number;
-  } | null>(null);
 
   // Familiares que Nexus sugirió para el jefe del hogar. Sobreviven a la
   // creación del hogar para poder marcarlos después de verificar al jefe.
@@ -702,10 +544,6 @@ export function CensoNexusPanel({
   const [motivoTraslado, setMotivoTraslado] = useState("");
   /** Detalle SAIME (dirección, teléfonos, familiares): plegado por defecto. */
   const [infoSaimeAbierta, setInfoSaimeAbierta] = useState(false);
-  /** Vulnerabilidades de la persona consultada por cédula. */
-  const [personaEmbarazada, setPersonaEmbarazada] = useState(false);
-  const [personaDiscapacidad, setPersonaDiscapacidad] = useState(false);
-  const [personaDiscapacidadDetalle, setPersonaDiscapacidadDetalle] = useState("");
 
   const [pestanaMiembros, setPestanaMiembros] = useState<"adultos" | "sin_cedula">(
     "adultos",
@@ -879,7 +717,6 @@ export function CensoNexusPanel({
       if (restantes.length === 0) {
         setFamiliaId(null);
         setCedulaJefe(null);
-        setNivelHogar(null);
         setFamSugeridos([]);
         setPestanaMiembros("adultos");
       }
@@ -981,77 +818,6 @@ export function CensoNexusPanel({
     };
   }, [persona?.foto_nombre, persona?.tiene_foto_saime]);
 
-  function resetDamnificacion() {
-    setEstatusVivienda(null);
-    setUbicacionVivienda("");
-    setUbicacionOtro("");
-    setMiembrosDamnificados(0);
-    setFallecidosCount(0);
-    setDesaparecidosCount(0);
-    setDetallePerdidas([]);
-    setDetalleAbierto(false);
-    setVerificandoPerdidaId(null);
-    setErrorPerdidaCedula({});
-    setGuardandoNombres(false);
-    setMensajeNombres("");
-  }
-
-  function actualizarPerdida(
-    id: string,
-    patch: Partial<FamiliarSeparado> | ((prev: FamiliarSeparado) => FamiliarSeparado),
-  ) {
-    setDetallePerdidas((prev) =>
-      prev.map((x) => {
-        if (x.id !== id) return x;
-        return typeof patch === "function" ? patch(x) : { ...x, ...patch };
-      }),
-    );
-  }
-
-  /** Verifica en Nexus la cédula de un fallecido/desaparecido y rellena nombre/edad. */
-  async function verificarCedulaPerdida(id: string) {
-    const fila = detallePerdidas.find((x) => x.id === id);
-    if (!fila) return;
-    const digits = soloDigitos(fila.cedula ?? "");
-    if (digits.length < 5) {
-      setErrorPerdidaCedula((prev) => ({
-        ...prev,
-        [id]: "Indique al menos 5 dígitos de la cédula.",
-      }));
-      return;
-    }
-    const letraDoc: Letra = fila.tipo_doc === "E" ? "E" : "V";
-    setVerificandoPerdidaId(id);
-    setErrorPerdidaCedula((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-    try {
-      const ficha = await buscarPersonaNexusConCache(letraDoc, digits);
-      const p = ficha.persona;
-      const norm = normalizarCedula(digits, letraDoc);
-      actualizarPerdida(id, {
-        nombre: p.nombre_completo?.trim() || fila.nombre,
-        edad_aproximada: typeof p.edad === "number" ? p.edad : fila.edad_aproximada ?? null,
-        cedula: norm.cedula,
-        tipo_doc: norm.tipo_doc,
-        cedula_norm: norm.cedula_norm,
-        verificado_nexus: true,
-        estado: p.fallecido ? "fallecido" : fila.estado,
-        fecha_fallecimiento: p.fecha_fallecimiento ?? fila.fecha_fallecimiento ?? null,
-      });
-    } catch (err) {
-      actualizarPerdida(id, { verificado_nexus: false });
-      setErrorPerdidaCedula((prev) => ({
-        ...prev,
-        [id]: mensajeErrorParaUsuario(err, "No se pudo verificar la cédula en Nexus."),
-      }));
-    } finally {
-      setVerificandoPerdidaId(null);
-    }
-  }
-
   async function onBuscar(
     e?: React.FormEvent,
     opts?: { forzarNexus?: boolean; cedulaBuscar?: string; letraBuscar?: Letra },
@@ -1080,13 +846,9 @@ export function CensoNexusPanel({
     setResumenFamiliaAqui(null);
     setAgregarComoLider(false);
     limpiarFotoLocal();
-    setPersonaEmbarazada(false);
-    setPersonaDiscapacidad(false);
-    setPersonaDiscapacidadDetalle("");
     if (!familiaId) {
       setEsJefe(null);
       setRegistrarSinLider(false);
-      resetDamnificacion();
     }
     setBuscando(true);
     try {
@@ -1206,37 +968,8 @@ export function CensoNexusPanel({
     }
   }
 
-  function detallePerdidasAGuardar(): FamiliarSeparado[] {
-    return detallePerdidas.filter(
-      (f) => f.nombre.trim().length > 0 || soloDigitos(f.cedula ?? "").length >= 5,
-    );
-  }
-
-  /** Etiqueta del botón según estado fallecido/desaparecido de las filas. */
-  function etiquetaConfirmarPerdidas(): string {
-    const list = detallePerdidasAGuardar();
-    const ref = list.length > 0 ? list : detallePerdidas;
-    const todosFallecidos =
-      ref.length > 0 && ref.every((f) => f.estado === "fallecido");
-    const todosDesaparecidos =
-      ref.length > 0 && ref.every((f) => f.estado === "desaparecido");
-    const plural = (list.length > 1 || (list.length === 0 && ref.length > 1));
-    const verbo = hayHogar ? "Guardar" : "Confirmar";
-    if (todosFallecidos) {
-      return plural ? `${verbo} fallecidos` : `${verbo} fallecido`;
-    }
-    if (todosDesaparecidos) {
-      return plural ? `${verbo} desaparecidos` : `${verbo} desaparecido`;
-    }
-    return hayHogar ? "Guardar nombres" : "Confirmar nombres";
-  }
-
   async function onCrearHogar() {
     if (!persona) return;
-    if (!estatusVivienda) {
-      setErrorBusqueda("Indique la severidad de la vivienda antes de crear el hogar.");
-      return;
-    }
     setGuardando(true);
     setMensaje("");
     setErrorBusqueda("");
@@ -1249,40 +982,12 @@ export function CensoNexusPanel({
         crearHogarSiFalta: !esLider,
         parentescoJefe: esLider ? undefined : parentescoSinLider,
         telefonosConfirmados: telsConfirmados,
-        vulnerabilidades: vulnerabilidadesDesdeUi({
-          sexo: persona.sexo,
-          embarazada: personaEmbarazada,
-          discapacidad: personaDiscapacidad,
-          discapacidadDetalle: personaDiscapacidadDetalle,
-        }),
       });
       await persistirFotoCampo(r.refugiadoId);
       limpiarFotoLocal();
       setFamiliaId(r.familiaId);
       setCedulaJefe(esLider ? persona.cedula : null);
       setAvisoOtros(r.otrosCentros);
-
-      const ubicacion = (ubicacionVivienda === "Otro" ? ubicacionOtro : ubicacionVivienda).trim();
-      try {
-        await guardarResidenciaAfectada({
-          familia_id: r.familiaId,
-          centro_id: centroId,
-          estatus_vivienda: estatusVivienda,
-          estado_federativo: ubicacion || undefined,
-        });
-        await actualizarDamnificacionFamilia(r.familiaId, {
-          miembros_damnificados_declarados: miembrosDamnificados || null,
-          fallecidos_confirmados: fallecidosCount,
-          desaparecidos: desaparecidosCount,
-        });
-        if (detallePerdidasAGuardar().length > 0) {
-          await guardarFamiliaresReferencia(r.familiaId, [], detallePerdidasAGuardar());
-        }
-        setNivelHogar({ estatusVivienda, fallecidos: fallecidosCount, desaparecidos: desaparecidosCount });
-      } catch {
-        // El hogar y la persona ya quedaron registrados; la damnificación se
-        // puede completar después desde la ficha del hogar si esto falla.
-      }
 
       await refrescarMiembros(r.familiaId);
       setMensaje(
@@ -1294,96 +999,10 @@ export function CensoNexusPanel({
       setEstadoNominal(null);
       setOrigenFicha(null);
       setCedula("");
-      setPersonaEmbarazada(false);
-      setPersonaDiscapacidad(false);
-      setPersonaDiscapacidadDetalle("");
-      // No resetear damnificación: así se puede volver a revisarla desde la miga.
     } catch (err) {
       setErrorBusqueda(mensajeErrorParaUsuario(err, "No se pudo crear el hogar"));
     } finally {
       setGuardando(false);
-    }
-  }
-
-  /** Actualiza damnificación de un hogar ya creado (vuelta desde la miga). */
-  async function onGuardarDamnificacion() {
-    if (!familiaId || !estatusVivienda) {
-      setErrorBusqueda("Indique la severidad de la vivienda.");
-      return;
-    }
-    setGuardando(true);
-    setMensaje("");
-    setErrorBusqueda("");
-    try {
-      const ubicacion = (ubicacionVivienda === "Otro" ? ubicacionOtro : ubicacionVivienda).trim();
-      await guardarResidenciaAfectada({
-        familia_id: familiaId,
-        centro_id: centroId,
-        estatus_vivienda: estatusVivienda,
-        estado_federativo: ubicacion || undefined,
-      });
-      await actualizarDamnificacionFamilia(familiaId, {
-        miembros_damnificados_declarados: miembrosDamnificados || null,
-        fallecidos_confirmados: fallecidosCount,
-        desaparecidos: desaparecidosCount,
-      });
-      if (detallePerdidasAGuardar().length > 0) {
-        await guardarFamiliaresReferencia(familiaId, [], detallePerdidasAGuardar());
-      }
-      setNivelHogar({
-        estatusVivienda,
-        fallecidos: fallecidosCount,
-        desaparecidos: desaparecidosCount,
-      });
-      setMensaje("Damnificación actualizada.");
-      setPasoEnfoque("hogar");
-      window.setTimeout(() => {
-        refPasoHogar.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 50);
-    } catch (err) {
-      setErrorBusqueda(
-        mensajeErrorParaUsuario(err, "No se pudo guardar la damnificación"),
-      );
-    } finally {
-      setGuardando(false);
-    }
-  }
-
-  /**
-   * Persiste nombres de fallecidos/desaparecidos en BD (familiares_separados).
-   * Sin hogar aún: marca listo en UI; se grabarán al crear el hogar.
-   * No toca conteos de partes.
-   */
-  async function onGuardarNombresPerdidas() {
-    const aGuardar = detallePerdidasAGuardar();
-    if (aGuardar.length === 0) {
-      setMensajeNombres("Indique al menos un nombre o cédula antes de guardar.");
-      return;
-    }
-    if (!familiaId) {
-      setMensajeNombres(
-        aGuardar.length === 1
-          ? "Nombre listo. Se grabará al crear el hogar."
-          : `${aGuardar.length} nombres listos. Se grabarán al crear el hogar.`,
-      );
-      return;
-    }
-    setGuardandoNombres(true);
-    setMensajeNombres("");
-    setErrorBusqueda("");
-    try {
-      await guardarFamiliaresReferencia(familiaId, [], aGuardar);
-      setMensajeNombres(
-        aGuardar.length === 1
-          ? "Nombre guardado en el hogar."
-          : `${aGuardar.length} nombres guardados en el hogar.`,
-      );
-    } catch (err) {
-      setErrorBusqueda(
-        mensajeErrorParaUsuario(err, "No se pudieron guardar los nombres"),
-      );
-    } finally {
-      setGuardandoNombres(false);
     }
   }
 
@@ -1409,9 +1028,6 @@ export function CensoNexusPanel({
     setInfoSaimeAbierta(false);
     setErrorBusqueda("");
     limpiarFotoLocal();
-    setPersonaEmbarazada(false);
-    setPersonaDiscapacidad(false);
-    setPersonaDiscapacidadDetalle("");
     setPasoEnfoque(familiaId ? "hogar" : "cedula");
   }
 
@@ -1432,12 +1048,6 @@ export function CensoNexusPanel({
         esJefe: agregarComoLider,
         parentescoJefe: agregarComoLider ? undefined : parentescoDirecto,
         telefonosConfirmados: telsConfirmados,
-        vulnerabilidades: vulnerabilidadesDesdeUi({
-          sexo: persona.sexo,
-          embarazada: personaEmbarazada,
-          discapacidad: personaDiscapacidad,
-          discapacidadDetalle: personaDiscapacidadDetalle,
-        }),
       });
       await persistirFotoCampo(r.refugiadoId);
       limpiarFotoLocal();
@@ -1453,9 +1063,6 @@ export function CensoNexusPanel({
       setOrigenFicha(null);
       setCedula("");
       setAgregarComoLider(false);
-      setPersonaEmbarazada(false);
-      setPersonaDiscapacidad(false);
-      setPersonaDiscapacidadDetalle("");
     } catch (err) {
       setErrorBusqueda(mensajeErrorParaUsuario(err, "No se pudo agregar"));
     } finally {
@@ -1555,12 +1162,6 @@ export function CensoNexusPanel({
           menor.fecha_nacimiento ||
           (edadNum != null ? fechaAproximadaPorEdad(Math.max(0, edadNum)) : null),
         parentescoJefe: menor.parentesco,
-        vulnerabilidades: vulnerabilidadesDesdeUi({
-          sexo: menor.sexo,
-          embarazada: menor.embarazada,
-          discapacidad: menor.discapacidad,
-          discapacidadDetalle: menor.discapacidad_detalle,
-        }),
       });
       await persistirFotoCampo(r.refugiadoId, fotoMenorArchivo);
       limpiarFotoMenor();
@@ -1604,11 +1205,6 @@ export function CensoNexusPanel({
     setRegistrarSinLider(false);
     setParentescoSinLider("Otro familiar");
     setConfirmoDuplicado(false);
-    resetDamnificacion();
-    setNivelHogar(null);
-    setPersonaEmbarazada(false);
-    setPersonaDiscapacidad(false);
-    setPersonaDiscapacidadDetalle("");
     limpiarFotoLocal();
     limpiarFotoMenor();
     setErrorBusqueda("");
@@ -1747,15 +1343,12 @@ export function CensoNexusPanel({
   // usuario mira (miga + borde verde), y puede ir atrás sin perder el avance.
   const refPasoCedula = useRef<HTMLDivElement | null>(null);
   const refPasoIdentidad = useRef<HTMLDivElement | null>(null);
-  const refPasoDamnificacion = useRef<HTMLDivElement | null>(null);
   const refPasoHogar = useRef<HTMLDivElement | null>(null);
   const refResumenCierre = useRef<HTMLDivElement | null>(null);
   const [pasoEnfoque, setPasoEnfoque] = useState<PasoCensoId>("cedula");
 
   const pasoFlujo: PasoCensoId = persona
-    ? !hayHogar && esJefe === true
-      ? "damnificacion"
-      : "identidad"
+    ? "identidad"
     : hayHogar
       ? "hogar"
       : "cedula";
@@ -1774,7 +1367,6 @@ export function CensoNexusPanel({
     const ref = {
       cedula: refPasoCedula,
       identidad: refPasoIdentidad,
-      damnificacion: refPasoDamnificacion,
       hogar: refPasoHogar,
     }[pasoFlujo];
     window.setTimeout(() => {
@@ -1784,8 +1376,6 @@ export function CensoNexusPanel({
 
   const pasosCenso: PasoCenso[] = useMemo(() => {
     const hayPersona = persona != null;
-    const damnificacionAlcanzada =
-      hayHogar || (hayPersona && esJefe === true);
     return [
       {
         id: "cedula",
@@ -1799,21 +1389,10 @@ export function CensoNexusPanel({
         estado:
           pasoEnfoque === "identidad"
             ? "actual"
-            : hayHogar || damnificacionAlcanzada
-              ? "completado"
-              : "pendiente",
-        disponible: hayPersona,
-      },
-      {
-        id: "damnificacion",
-        label: "Damnificación",
-        estado:
-          pasoEnfoque === "damnificacion"
-            ? "actual"
             : hayHogar
               ? "completado"
               : "pendiente",
-        disponible: damnificacionAlcanzada,
+        disponible: hayPersona,
       },
       {
         id: "hogar",
@@ -1823,7 +1402,7 @@ export function CensoNexusPanel({
         disponible: hayHogar,
       },
     ];
-  }, [persona, esJefe, hayHogar, pasoEnfoque]);
+  }, [persona, hayHogar, pasoEnfoque]);
 
   function irAPaso(id: PasoCensoId) {
     setResumenCierreAbierto(false);
@@ -1831,11 +1410,9 @@ export function CensoNexusPanel({
     const ref = {
       cedula: refPasoCedula,
       identidad: refPasoIdentidad,
-      damnificacion: refPasoDamnificacion,
       hogar: refPasoHogar,
     }[id];
-    // Si el paso monta al enfocarlo (p. ej. damnificación tras crear hogar),
-    // esperar al paint antes de hacer scroll.
+    // Si el paso monta al enfocarlo, esperar al paint antes de hacer scroll.
     window.setTimeout(() => {
       ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 50);
@@ -1881,13 +1458,7 @@ export function CensoNexusPanel({
               variant="outline"
               size="sm"
               className="h-9 shrink-0 gap-1.5 border-2 border-amber-500/50 bg-amber-500/15 px-3 text-xs font-semibold text-amber-800 shadow-sm hover:bg-amber-500/25 hover:text-amber-900 dark:border-amber-500/40 dark:text-amber-300 dark:hover:bg-amber-500/20 dark:hover:text-amber-200"
-              disabled={
-                !hayHogar &&
-                !persona &&
-                !cedula &&
-                esJefe == null &&
-                !estatusVivienda
-              }
+              disabled={!hayHogar && !persona && !cedula && esJefe == null}
               title="Reiniciar el registro desde el inicio"
             >
               <RotateCcw className="size-3.5 shrink-0" />
@@ -2394,13 +1965,7 @@ export function CensoNexusPanel({
                                 ? "bg-primary text-primary-foreground"
                                 : "bg-background text-foreground hover:bg-muted/80",
                             )}
-                            onClick={() =>
-                              setMenor((m) => ({
-                                ...m,
-                                sexo: s,
-                                embarazada: s === "F" ? m.embarazada : false,
-                              }))
-                            }
+                            onClick={() => setMenor((m) => ({ ...m, sexo: s }))}
                           >
                             {s === "M" ? "Masc." : "Fem."}
                           </button>
@@ -2489,39 +2054,6 @@ export function CensoNexusPanel({
                       ? "La edad se calcula sola desde la fecha. Bórrela si solo conoce la edad aproximada."
                       : "Si conoce la fecha, póngala arriba y la edad se completa sola. Si no, escriba solo la edad aproximada."}
                   </p>
-                  <div className="space-y-2">
-                    {menor.sexo === "F" ? (
-                      <CampoSiNo
-                        label="¿Embarazada?"
-                        valor={menor.embarazada}
-                        onChange={(v) => setMenor((m) => ({ ...m, embarazada: v }))}
-                      />
-                    ) : null}
-                    <CampoSiNo
-                      label="¿Discapacidad / patologías?"
-                      valor={menor.discapacidad}
-                      onChange={(v) =>
-                        setMenor((m) => ({
-                          ...m,
-                          discapacidad: v,
-                          discapacidad_detalle: v ? m.discapacidad_detalle : "",
-                        }))
-                      }
-                    >
-                      <Input
-                        value={menor.discapacidad_detalle}
-                        onChange={(e) =>
-                          setMenor((m) => ({
-                            ...m,
-                            discapacidad_detalle: e.target.value,
-                          }))
-                        }
-                        placeholder="Indique discapacidad o patología"
-                        className="h-11"
-                        autoComplete="off"
-                      />
-                    </CampoSiNo>
-                  </div>
                   {errorMenor ? (
                     <p className="text-xs text-destructive">{errorMenor}</p>
                   ) : null}
@@ -2708,35 +2240,6 @@ export function CensoNexusPanel({
                   ) : null}
                 </div>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Condición de salud relevante
-              </p>
-              {persona.sexo === "F" ? (
-                <CampoSiNo
-                  label="¿Embarazada?"
-                  valor={personaEmbarazada}
-                  onChange={setPersonaEmbarazada}
-                />
-              ) : null}
-              <CampoSiNo
-                label="¿Discapacidad / patologías?"
-                valor={personaDiscapacidad}
-                onChange={(v) => {
-                  setPersonaDiscapacidad(v);
-                  if (!v) setPersonaDiscapacidadDetalle("");
-                }}
-              >
-                <Input
-                  value={personaDiscapacidadDetalle}
-                  onChange={(e) => setPersonaDiscapacidadDetalle(e.target.value)}
-                  placeholder="Indique discapacidad o patología"
-                  className="h-11"
-                  autoComplete="off"
-                />
-              </CampoSiNo>
             </div>
 
             {trasladoOk && !(estadoNominal && estadoNominal.otrosCentros.length > 0) ? (
@@ -3238,11 +2741,10 @@ export function CensoNexusPanel({
               </CollapsibleContent>
             </Collapsible>
 
-            {/* Se pregunta al censador antes de damnificación (esas preguntas
-                son del hogar). Un hogar puede tener 1 o 2 líderes (ver
-                MAX_LIDERES_FAMILIA); si el líder no está presente, cualquier
-                adulto puede fundar el hogar igual. Si ya está registrado
-                aquí, el acceso es «Ir a esa familia». */}
+            {/* La creación del hogar sale de esta caja. Un hogar puede tener
+                1 o 2 líderes (ver MAX_LIDERES_FAMILIA); si el líder no está
+                presente, cualquier adulto puede fundar el hogar igual. Si ya
+                está registrado aquí, el acceso es «Ir a esa familia». */}
             {!hayHogar && !(estadoNominal?.enEsteCentro && estadoNominal.familiaAqui) ? (
               <div className="space-y-2 rounded-lg border bg-muted/40 px-3 py-3">
                 <p className="text-sm font-medium leading-snug">
@@ -3280,6 +2782,28 @@ export function CensoNexusPanel({
                     No
                   </button>
                 </div>
+                {esJefe === true ? (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      Se creará el hogar de {persona.nombre_completo}. Después podrá
+                      agregar al resto del grupo familiar.
+                    </p>
+                    <Button
+                      className={CENSO_BOTON_ACCION}
+                      disabled={guardando || hayDuplicadoSinConfirmar}
+                      onClick={onCrearHogar}
+                    >
+                      {guardando ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Home className="size-4" />
+                      )}
+                      {estadoNominal?.esJefeAqui
+                        ? "Verificar y reanudar su hogar"
+                        : "Verificar y crear hogar"}
+                    </Button>
+                  </div>
+                ) : null}
                 {esJefe === false && !registrarSinLider ? (
                   <div className="space-y-2 pt-1">
                     <p className="text-xs text-muted-foreground">
@@ -3334,6 +2858,18 @@ export function CensoNexusPanel({
                         </SelectContent>
                       </Select>
                     </div>
+                    <Button
+                      className={cn(CENSO_BOTON_ACCION, "whitespace-normal leading-snug")}
+                      disabled={guardando || hayDuplicadoSinConfirmar}
+                      onClick={onCrearHogar}
+                    >
+                      {guardando ? (
+                        <Loader2 className="size-4 shrink-0 animate-spin" />
+                      ) : (
+                        <Home className="size-4 shrink-0" />
+                      )}
+                      Registrar y crear hogar (el líder se asignará después)
+                    </Button>
                   </div>
                 ) : null}
               </div>
@@ -3436,406 +2972,6 @@ export function CensoNexusPanel({
         </Card>
       ) : null}
 
-      {/* Paso 3: damnificación — al crear el hogar, o al volver desde la miga. */}
-      {((!hayHogar && esJefe === true) ||
-        (hayHogar && pasoEnfoque === "damnificacion")) &&
-      !resumenCierreAbierto ? (
-        <Card
-          ref={refPasoDamnificacion}
-          className={cn(
-            "scroll-mt-14 transition-[border-color,box-shadow]",
-            pasoEnfoque === "damnificacion" && "border-primary ring-1 ring-primary/40",
-          )}
-        >
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Building2 className="size-4" />
-              Damnificación por el terremoto
-            </CardTitle>
-            <CardDescription>
-              Registre el daño a la vivienda, dónde quedó y cuántas personas del
-              hogar resultaron afectadas, fallecidas o desaparecidas.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Severidad de la vivienda</Label>
-              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                {SEVERIDAD_VIVIENDA_OPCIONES.map((op) => {
-                  const activo = estatusVivienda === op.valor;
-                  return (
-                    <button
-                      key={op.valor}
-                      type="button"
-                      className={cn(
-                        "flex min-h-9 items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-xs font-semibold transition-colors",
-                        activo
-                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                          : "border-border bg-background text-foreground hover:bg-muted/70",
-                      )}
-                      onClick={() => setEstatusVivienda(op.valor)}
-                    >
-                      <span aria-hidden className="text-sm leading-none">
-                        {op.emoji}
-                      </span>
-                      <span className="leading-snug">{op.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">
-                Ubicación de la vivienda afectada
-              </Label>
-              <div className="grid grid-cols-2 gap-1.5">
-                {[...UBICACIONES_VIVIENDA, "Otro"].map((op) => {
-                  const activo = ubicacionVivienda === op;
-                  return (
-                    <button
-                      key={op}
-                      type="button"
-                      className={cn(
-                        "min-h-9 rounded-lg border px-2 text-xs font-semibold transition-colors",
-                        activo
-                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                          : "border-border bg-background text-foreground hover:bg-muted/70",
-                      )}
-                      onClick={() => setUbicacionVivienda(op)}
-                    >
-                      {op}
-                    </button>
-                  );
-                })}
-              </div>
-              {ubicacionVivienda === "Otro" ? (
-                <Input
-                  placeholder="Estado"
-                  value={ubicacionOtro}
-                  onChange={(e) => setUbicacionOtro(e.target.value)}
-                  className="h-9 text-sm"
-                />
-              ) : null}
-            </div>
-
-            <div className="space-y-2">
-              <FilaContador
-                label="Miembros de la familia damnificados (incluyéndolo)"
-                value={miembrosDamnificados}
-                onChange={setMiembrosDamnificados}
-              />
-              <FilaContador
-                label="Fallecidos confirmados"
-                value={fallecidosCount}
-                onChange={setFallecidosCount}
-              />
-              <FilaContador
-                label="Desaparecidos"
-                value={desaparecidosCount}
-                onChange={setDesaparecidosCount}
-              />
-            </div>
-
-            {fallecidosCount > 0 || desaparecidosCount > 0 ? (
-              <div className="space-y-2">
-                <div className="space-y-2 rounded-lg border border-border/80 bg-muted/20 p-3">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium flex items-center gap-2">
-                        <Skull className="size-4 shrink-0" />
-                        Nombres de fallecidos y desaparecidos
-                      </p>
-                      <Badge
-                        variant="outline"
-                        className="border-amber-500/50 bg-amber-500/15 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-300"
-                      >
-                        Opcional
-                      </Badge>
-                    </div>
-                    <p className="text-[11px] leading-snug text-muted-foreground">
-                      <span className="font-semibold text-foreground">No es obligatorio.</span>{" "}
-                      Si conoce nombres o cédulas de las personas del conteo de arriba (
-                      {[
-                        fallecidosCount > 0
-                          ? `${fallecidosCount} fallecido${fallecidosCount === 1 ? "" : "s"}`
-                          : null,
-                        desaparecidosCount > 0
-                          ? `${desaparecidosCount} desaparecido${desaparecidosCount === 1 ? "" : "s"}`
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")}
-                      ), anótelos aquí. Con cédula puede buscar en Nexus para
-                      rellenar el nombre. Use Confirmar para dejarlos listos
-                      (no cambian los conteos de partes). Si no los conocen, puede
-                      crear el hogar sin completarlos.
-                    </p>
-                  </div>
-                  {!detalleAbierto ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={cn(
-                        CENSO_BOTON_SECUNDARIO,
-                        "h-10 border-amber-500/55 bg-amber-500/10 text-amber-950 hover:bg-amber-500/20 dark:text-amber-100",
-                      )}
-                      onClick={() => {
-                        setDetalleAbierto(true);
-                        setMensajeNombres("");
-                        if (detallePerdidas.length === 0) {
-                          setDetallePerdidas([nuevaPerdidaVacia()]);
-                        }
-                      }}
-                    >
-                      <Plus className="size-4" />
-                      Agregar nombres
-                    </Button>
-                  ) : (
-                    <div className="space-y-2">
-                      {detallePerdidas.map((f) => {
-                        const verificando = verificandoPerdidaId === f.id;
-                        const errorCed = errorPerdidaCedula[f.id];
-                        const digitsCed = soloDigitos(f.cedula ?? "");
-                        return (
-                          <div key={f.id} className="space-y-1.5 rounded-md border p-2">
-                            <div className="flex items-stretch gap-1.5">
-                              <div className="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-lg border border-border bg-background">
-                                <div
-                                  className="flex shrink-0 border-r border-border bg-muted/40 p-0.5"
-                                  role="group"
-                                  aria-label="Tipo de documento"
-                                >
-                                  {(["V", "E"] as const).map((op) => {
-                                    const activo = (f.tipo_doc === "E" ? "E" : "V") === op;
-                                    return (
-                                      <button
-                                        key={op}
-                                        type="button"
-                                        aria-pressed={activo}
-                                        className={cn(
-                                          "h-8 min-w-8 rounded-md px-1.5 text-xs font-bold tabular-nums transition-colors",
-                                          activo
-                                            ? "bg-primary text-primary-foreground shadow-sm"
-                                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                                        )}
-                                        onClick={() =>
-                                          actualizarPerdida(f.id, {
-                                            tipo_doc: op as TipoDoc,
-                                            verificado_nexus: false,
-                                          })
-                                        }
-                                      >
-                                        {op}-
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                                <Input
-                                  inputMode="numeric"
-                                  autoComplete="off"
-                                  placeholder="Cédula (opcional)"
-                                  value={digitsCed}
-                                  onChange={(e) => {
-                                    const digitos = soloDigitos(e.target.value);
-                                    actualizarPerdida(f.id, {
-                                      cedula: digitos,
-                                      cedula_norm: null,
-                                      verificado_nexus: false,
-                                    });
-                                    setErrorPerdidaCedula((prev) => {
-                                      if (!prev[f.id]) return prev;
-                                      const next = { ...prev };
-                                      delete next[f.id];
-                                      return next;
-                                    });
-                                  }}
-                                  className="h-8 flex-1 rounded-none border-0 bg-transparent px-2 font-mono text-xs tracking-wider shadow-none focus-visible:ring-0"
-                                />
-                              </div>
-                              <Button
-                                type="button"
-                                variant="default"
-                                size="sm"
-                                className="h-9 shrink-0 gap-1.5 rounded-lg border-2 border-primary px-3 text-xs font-bold shadow-md"
-                                disabled={verificando || digitsCed.length < 5}
-                                onClick={() => void verificarCedulaPerdida(f.id)}
-                              >
-                                {verificando ? (
-                                  <Loader2 className="size-3.5 animate-spin" />
-                                ) : (
-                                  <Search className="size-3.5" />
-                                )}
-                                Buscar
-                              </Button>
-                            </div>
-                            {f.verificado_nexus ? (
-                              <Badge
-                                variant="secondary"
-                                className="h-5 gap-1 bg-emerald-600/15 text-[10px] text-emerald-700 dark:text-emerald-400"
-                              >
-                                <ShieldCheck className="size-3" />
-                                Verificado en Nexus
-                              </Badge>
-                            ) : null}
-                            {errorCed ? (
-                              <p className="text-[11px] leading-snug text-rose-600 dark:text-rose-400">
-                                {errorCed}
-                              </p>
-                            ) : null}
-                            <div className="grid grid-cols-2 gap-1.5">
-                              <Input
-                                placeholder="Nombre aproximado"
-                                value={f.nombre}
-                                onChange={(e) =>
-                                  actualizarPerdida(f.id, {
-                                    nombre: e.target.value,
-                                    verificado_nexus: false,
-                                  })
-                                }
-                                className="h-8 text-xs"
-                              />
-                              <Select
-                                value={f.parentesco}
-                                onValueChange={(v) =>
-                                  actualizarPerdida(f.id, { parentesco: v })
-                                }
-                              >
-                                <SelectTrigger
-                                  className={cn(CENSO_SELECT_TRIGGER, "h-9 w-full text-xs")}
-                                >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {PARENTESCOS_JEFE.map((p) => (
-                                    <SelectItem key={p} value={p}>
-                                      {p}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Input
-                                placeholder="Edad aproximada"
-                                type="number"
-                                inputMode="numeric"
-                                min={0}
-                                max={120}
-                                value={f.edad_aproximada ?? ""}
-                                onChange={(e) =>
-                                  actualizarPerdida(f.id, {
-                                    edad_aproximada: e.target.value
-                                      ? Number(e.target.value)
-                                      : null,
-                                  })
-                                }
-                                className="h-8 text-xs"
-                              />
-                              <div className="flex items-center gap-1.5">
-                                <Select
-                                  value={f.estado}
-                                  onValueChange={(v) =>
-                                    actualizarPerdida(f.id, {
-                                      estado: v as FamiliarSeparado["estado"],
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger
-                                    className={cn(CENSO_SELECT_TRIGGER, "h-9 flex-1 text-xs")}
-                                  >
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="fallecido">Fallecido</SelectItem>
-                                    <SelectItem value="desaparecido">Desaparecido</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="size-8 shrink-0 text-rose-400"
-                                  onClick={() => {
-                                    setDetallePerdidas((prev) =>
-                                      prev.filter((x) => x.id !== f.id),
-                                    );
-                                    setMensajeNombres("");
-                                    setErrorPerdidaCedula((prev) => {
-                                      if (!prev[f.id]) return prev;
-                                      const next = { ...prev };
-                                      delete next[f.id];
-                                      return next;
-                                    });
-                                  }}
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <Button
-                        type="button"
-                        variant="default"
-                        className={cn(CENSO_BOTON_ACCION, "h-11")}
-                        disabled={guardandoNombres || detallePerdidasAGuardar().length === 0}
-                        onClick={() => void onGuardarNombresPerdidas()}
-                      >
-                        {guardandoNombres ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <Save className="size-4" />
-                        )}
-                        {etiquetaConfirmarPerdidas()}
-                      </Button>
-                      {mensajeNombres ? (
-                        <p className="text-[11px] font-medium leading-snug text-emerald-700 dark:text-emerald-400">
-                          {mensajeNombres}
-                        </p>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-                {detalleAbierto ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={cn(
-                      CENSO_BOTON_SECUNDARIO,
-                      "h-10 border-2 border-amber-500/60 bg-amber-500/10 font-semibold text-amber-950 shadow-md hover:bg-amber-500/20 dark:text-amber-100",
-                    )}
-                    onClick={() => {
-                      setMensajeNombres("");
-                      setDetallePerdidas((prev) => [...prev, nuevaPerdidaVacia()]);
-                    }}
-                  >
-                    <Plus className="size-4 shrink-0" />
-                    Agregar otra persona
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
-
-            <Button
-              className={CENSO_BOTON_ACCION}
-              disabled={
-                guardando ||
-                !estatusVivienda ||
-                (!hayHogar && hayDuplicadoSinConfirmar)
-              }
-              onClick={hayHogar ? onGuardarDamnificacion : onCrearHogar}
-            >
-              {guardando ? <Loader2 className="size-4 animate-spin" /> : <Home className="size-4" />}
-              {hayHogar
-                ? "Guardar damnificación"
-                : estadoNominal?.esJefeAqui
-                  ? "Verificar y reanudar su hogar"
-                  : "Verificar y crear hogar"}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
       {hayHogar && !resumenCierreAbierto ? (
         <Card
           ref={refPasoHogar}
@@ -3854,25 +2990,6 @@ export function CensoNexusPanel({
                 <Badge variant="secondary">
                   {miembros.length} {miembros.length === 1 ? "miembro" : "miembros"}
                 </Badge>
-                {nivelHogar ? (
-                  (() => {
-                    const nivel = META_NIVEL_AFECTACION[
-                      nivelAfectacionHogar(
-                        nivelHogar.estatusVivienda,
-                        nivelHogar.fallecidos,
-                        nivelHogar.desaparecidos,
-                      )
-                    ];
-                    return (
-                      <Badge
-                        variant="outline"
-                        style={{ borderColor: nivel.color, color: nivel.color }}
-                      >
-                        {nivel.emoji} {nivel.label}
-                      </Badge>
-                    );
-                  })()
-                ) : null}
               </div>
             </div>
           </CardHeader>
@@ -3987,25 +3104,6 @@ export function CensoNexusPanel({
                 {miembros.length}{" "}
                 {miembros.length === 1 ? "miembro" : "miembros"}
               </Badge>
-              {nivelHogar ? (
-                (() => {
-                  const nivel = META_NIVEL_AFECTACION[
-                    nivelAfectacionHogar(
-                      nivelHogar.estatusVivienda,
-                      nivelHogar.fallecidos,
-                      nivelHogar.desaparecidos,
-                    )
-                  ];
-                  return (
-                    <Badge
-                      variant="outline"
-                      style={{ borderColor: nivel.color, color: nivel.color }}
-                    >
-                      {nivel.emoji} {nivel.label}
-                    </Badge>
-                  );
-                })()
-              ) : null}
             </div>
 
             <ul className="space-y-2">

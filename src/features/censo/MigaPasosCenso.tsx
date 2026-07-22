@@ -1,13 +1,13 @@
-// Miga de pan de los pasos del censo por cédula: muestra el avance del
-// levantamiento (Cédula → Identidad → Damnificación → Hogar) y permite
-// saltar a cualquier paso ya alcanzado. En móvil solo el paso actual lleva
-// etiqueta; los demás quedan como círculos numerados para no desbordar.
+// Miga de pan de los pasos del registro por cédula: muestra el avance de la
+// verificación (Cédula → Identidad → Hogar) y permite saltar a cualquier
+// paso ya alcanzado. En móvil solo el paso actual lleva etiqueta; los demás
+// quedan como círculos numerados para no desbordar.
 
 import { Fragment } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type PasoCensoId = "cedula" | "identidad" | "damnificacion" | "hogar";
+export type PasoCensoId = "cedula" | "identidad" | "hogar";
 
 export interface PasoCenso {
   id: PasoCensoId;

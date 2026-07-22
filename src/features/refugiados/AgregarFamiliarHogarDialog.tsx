@@ -10,11 +10,9 @@ import {
   type Refugiado,
   type SexoRefugiado,
   type TipoDoc,
-  type VulnerabilidadesRefugiado,
 } from "@/domain/refugiados";
 import {
   asociarRefugiadoAFamilia,
-  actualizarRefugiado,
   buscarRefugiados,
   crearRefugiado,
   listarAlojamientosActivosRefugiado,
@@ -49,7 +47,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CampoSiNo } from "@/features/censo/censoFormularioShared";
 
 interface Props {
   open: boolean;
@@ -84,9 +81,6 @@ export function AgregarFamiliarHogarDialog({
   const [segundoApellido, setSegundoApellido] = useState("");
   const [fechaNacimiento, setFechaNacimiento] = useState("");
   const [sexo, setSexo] = useState<SexoRefugiado | "">("");
-  const [embarazada, setEmbarazada] = useState(false);
-  const [discapacidad, setDiscapacidad] = useState(false);
-  const [discapacidadDetalle, setDiscapacidadDetalle] = useState("");
 
   const [fechaIngreso, setFechaIngreso] = useState(() => claveDia(Date.now()));
   const [esJefe, setEsJefe] = useState(false);
@@ -97,18 +91,6 @@ export function AgregarFamiliarHogarDialog({
   const idsMiembros = useMemo(() => new Set(miembros.map((m) => m.refugiado_id)), [miembros]);
   const jefeActual = miembros.find((m) => m.es_jefe_familia);
   const yaEnHogar = seleccionado ? idsMiembros.has(seleccionado.id) : false;
-  const sexoEfectivo: SexoRefugiado | "" =
-    modo === "crear" ? sexo : (seleccionado?.sexo ?? "");
-
-  function vulnerabilidadesUi(): VulnerabilidadesRefugiado {
-    return {
-      embarazada: sexoEfectivo === "F" ? embarazada : false,
-      discapacidad,
-      discapacidad_detalle: discapacidad
-        ? discapacidadDetalle.trim() || undefined
-        : undefined,
-    };
-  }
 
   useEffect(() => {
     if (!open) {
@@ -121,19 +103,9 @@ export function AgregarFamiliarHogarDialog({
       setGuardando(false);
       setEsJefe(false);
       setParentesco("");
-      setEmbarazada(false);
-      setDiscapacidad(false);
-      setDiscapacidadDetalle("");
       return;
     }
   }, [open]);
-
-  useEffect(() => {
-    if (!seleccionado) return;
-    setEmbarazada(Boolean(seleccionado.vulnerabilidades.embarazada));
-    setDiscapacidad(Boolean(seleccionado.vulnerabilidades.discapacidad));
-    setDiscapacidadDetalle(seleccionado.vulnerabilidades.discapacidad_detalle ?? "");
-  }, [seleccionado]);
 
   useEffect(() => {
     if (!open || modo !== "buscar") return;
@@ -229,7 +201,6 @@ export function AgregarFamiliarHogarDialog({
           segundo_apellido: segundoApellido,
           fecha_nacimiento: fechaNacimiento || null,
           sexo: sexo || null,
-          vulnerabilidades: vulnerabilidadesUi(),
         }, centroId);
       }
       if (!refugiadoId) throw new Error("No se pudo identificar la persona a asociar.");
@@ -241,15 +212,6 @@ export function AgregarFamiliarHogarDialog({
         es_jefe_familia: esJefe,
         parentesco_jefe: esJefe ? "" : parentesco,
       });
-      if (modo === "buscar") {
-        try {
-          await actualizarRefugiado(refugiadoId, {
-            vulnerabilidades: vulnerabilidadesUi(),
-          });
-        } catch {
-          /* vulnerabilidades opcionales */
-        }
-      }
       onAgregado?.(alojamientoId);
       onOpenChange(false);
     } catch (err) {
@@ -393,9 +355,7 @@ export function AgregarFamiliarHogarDialog({
                   <Select
                     value={sexo || "none"}
                     onValueChange={(v) => {
-                      const next = v === "none" ? "" : (v as SexoRefugiado);
-                      setSexo(next);
-                      if (next !== "F") setEmbarazada(false);
+                      setSexo(v === "none" ? "" : (v as SexoRefugiado));
                     }}
                   >
                     <SelectTrigger className="mt-1 h-9"><SelectValue placeholder="—" /></SelectTrigger>
@@ -408,31 +368,6 @@ export function AgregarFamiliarHogarDialog({
                   </Select>
                 </div>
               </div>
-              <div className="space-y-2">
-                {sexo === "F" ? (
-                  <CampoSiNo
-                    label="¿Embarazada?"
-                    valor={embarazada}
-                    onChange={setEmbarazada}
-                  />
-                ) : null}
-                <CampoSiNo
-                  label="¿Discapacidad / patologías?"
-                  valor={discapacidad}
-                  onChange={(v) => {
-                    setDiscapacidad(v);
-                    if (!v) setDiscapacidadDetalle("");
-                  }}
-                >
-                  <Input
-                    value={discapacidadDetalle}
-                    onChange={(e) => setDiscapacidadDetalle(e.target.value)}
-                    placeholder="Indique discapacidad o patología"
-                    className="h-9"
-                    autoComplete="off"
-                  />
-                </CampoSiNo>
-              </div>
               {menorSinDocumento && (
                 <p className="text-xs text-muted-foreground">
                   Al guardar se genera un código de ficha para que el menor sea buscable aunque no tenga documento.
@@ -442,43 +377,16 @@ export function AgregarFamiliarHogarDialog({
           )}
 
           {seleccionado && (
-            <div className="space-y-3">
-              <div className="rounded-lg border bg-muted/20 p-3 text-sm">
-                <p className="font-medium">{nombreCompleto(seleccionado)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {seleccionado.codigo_ficha ?? formatearCedula(seleccionado.cedula, seleccionado.tipo_doc)}
+            <div className="rounded-lg border bg-muted/20 p-3 text-sm">
+              <p className="font-medium">{nombreCompleto(seleccionado)}</p>
+              <p className="text-xs text-muted-foreground">
+                {seleccionado.codigo_ficha ?? formatearCedula(seleccionado.cedula, seleccionado.tipo_doc)}
+              </p>
+              {activosSeleccionado.length > 0 && (
+                <p className="mt-2 text-xs text-amber-300">
+                  Tiene alojamiento activo en: {activosSeleccionado.join(", ")}.
                 </p>
-                {activosSeleccionado.length > 0 && (
-                  <p className="mt-2 text-xs text-amber-300">
-                    Tiene alojamiento activo en: {activosSeleccionado.join(", ")}.
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                {sexoEfectivo === "F" ? (
-                  <CampoSiNo
-                    label="¿Embarazada?"
-                    valor={embarazada}
-                    onChange={setEmbarazada}
-                  />
-                ) : null}
-                <CampoSiNo
-                  label="¿Discapacidad / patologías?"
-                  valor={discapacidad}
-                  onChange={(v) => {
-                    setDiscapacidad(v);
-                    if (!v) setDiscapacidadDetalle("");
-                  }}
-                >
-                  <Input
-                    value={discapacidadDetalle}
-                    onChange={(e) => setDiscapacidadDetalle(e.target.value)}
-                    placeholder="Indique discapacidad o patología"
-                    className="h-9"
-                    autoComplete="off"
-                  />
-                </CampoSiNo>
-              </div>
+              )}
             </div>
           )}
 
