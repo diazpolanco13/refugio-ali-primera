@@ -4,7 +4,7 @@ export const SECCIONES_FICHA_CENTRO = [
   { id: "resumen", label: "Resumen" },
   { id: "coordinacion", label: "Coordinación" },
   { id: "poblacion", label: "Población" },
-  { id: "censo_rapido", label: "Censo" },
+  { id: "censo_rapido", label: "Registro" },
   { id: "reporte", label: "Reporte" },
   // El id se mantiene "incidencias" por compatibilidad con enlaces guardados.
   { id: "incidencias", label: "Seguimiento" },

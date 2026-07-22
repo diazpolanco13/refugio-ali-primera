@@ -279,7 +279,7 @@ export function EstadoSistemaView({ sesion }: Props) {
             <TarjetaServicio
               icono={MonitorSmartphone}
               nombre="Aplicación (PWA)"
-              descripcion="La interfaz de campamentos, censo y reportes servida desde el VPS propio."
+              descripcion="La interfaz de campamentos, registro y reportes servida desde el VPS propio."
               ok
               estadoTexto="Operativa — la está usando en este momento."
               segmentos={barraDe("pwa")}

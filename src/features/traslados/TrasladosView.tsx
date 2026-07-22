@@ -294,7 +294,7 @@ export function TrasladosView() {
           titulo="Traslados entre campamentos"
           descripcion={
             puedeTrasladar
-              ? "Busque por cédula o nombre, seleccione quién se traslada y registre el movimiento entre campamentos. El historial incluye traslados del wizard y del censo en terreno."
+              ? "Busque por cédula o nombre, seleccione quién se traslada y registre el movimiento entre campamentos. El historial incluye traslados del wizard y del registro en terreno."
               : "Consulta del historial de movimientos entre campamentos (wizard y censo)."
           }
         />

@@ -19,7 +19,7 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
   const { resumenes } = useCensoNominalRed();
 
   if (!centroId) {
-    navigate("/centros/censo", { replace: true });
+    navigate("/centros/registro", { replace: true });
     return null;
   }
 
@@ -31,12 +31,12 @@ export function CensoCentroDetalleView({ sesion }: { sesion: Sesion }) {
       icono={ClipboardList}
       acento="teal"
       titulo={centroNombre}
-      descripcion="Avance del censo nominal vs parte y personas registradas en este campamento"
+      descripcion="Avance del registro nominal vs parte y personas registradas en este campamento"
       cuerpoClassName="p-4 lg:p-6"
       acciones={
         tieneAccesoRed ? (
           <Button size="sm" variant="outline" asChild>
-            <Link to="/centros/censo">
+            <Link to="/centros/registro">
               <ArrowLeft className="size-4" />
               Volver
             </Link>

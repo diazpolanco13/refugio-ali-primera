@@ -41,7 +41,7 @@ export function RefugiadosRedSkeleton() {
         icono={Users}
         acento="violet"
         titulo="Población (red)"
-        descripcion="Censo nominal activo en todos los campamentos visibles"
+        descripcion="Registro nominal activo en todos los campamentos visibles"
         acciones={
           <Button variant="outline" size="sm" className="h-8 gap-1.5" disabled>
             <Gift className="size-3.5" />

@@ -621,6 +621,79 @@ export async function obtenerResumenSiipol(): Promise<ResumenSiipol> {
   };
 }
 
+/** Fila agregada de verificación Nexus/SIIPOL por campamento (import_excel). */
+export interface VerificacionCensoCentro {
+  centroId: string;
+  centroNro: number | null;
+  centroNombre: string;
+  censadas: number;
+  menores: number;
+  adultos: number;
+  nexus: number;
+  siipol: number;
+  ambos: number;
+  soloNexus: number;
+  soloSiipol: number;
+  verificadas: number;
+  faltan: number;
+  solicitadas: number;
+  conRegistro: number;
+}
+
+type FilaVerificacionCensoCentro = {
+  centro_id?: string;
+  centro_nro?: number | null;
+  centro_nombre?: string;
+  censadas?: number;
+  menores?: number;
+  adultos?: number;
+  nexus?: number;
+  siipol?: number;
+  ambos?: number;
+  solo_nexus?: number;
+  solo_siipol?: number;
+  verificadas?: number;
+  faltan?: number;
+  solicitadas?: number;
+  con_registro?: number;
+};
+
+function mapearVerificacionCensoCentro(
+  fila: FilaVerificacionCensoCentro,
+): VerificacionCensoCentro {
+  const nroRaw = fila.centro_nro;
+  const centroNro =
+    nroRaw == null || Number.isNaN(Number(nroRaw)) ? null : Number(nroRaw);
+  return {
+    centroId: String(fila.centro_id ?? ""),
+    centroNro,
+    centroNombre: String(fila.centro_nombre ?? fila.centro_id ?? ""),
+    censadas: Number(fila.censadas ?? 0),
+    menores: Number(fila.menores ?? 0),
+    adultos: Number(fila.adultos ?? 0),
+    nexus: Number(fila.nexus ?? 0),
+    siipol: Number(fila.siipol ?? 0),
+    ambos: Number(fila.ambos ?? 0),
+    soloNexus: Number(fila.solo_nexus ?? 0),
+    soloSiipol: Number(fila.solo_siipol ?? 0),
+    verificadas: Number(fila.verificadas ?? 0),
+    faltan: Number(fila.faltan ?? 0),
+    solicitadas: Number(fila.solicitadas ?? 0),
+    conRegistro: Number(fila.con_registro ?? 0),
+  };
+}
+
+/** Verificación Nexus/SIIPOL de Importaciones Excel, una fila por campamento. */
+export async function obtenerVerificacionPorCentro(): Promise<
+  VerificacionCensoCentro[]
+> {
+  const { data, error } = await supabase.rpc("censo_verificacion_por_centro");
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as FilaVerificacionCensoCentro[]).map(
+    mapearVerificacionCensoCentro,
+  );
+}
+
 type FilaListadoCensoRed = RegistroCensoRed;
 
 export const FILAS_POR_PAGINA_CENSO_RED = 50;
@@ -737,4 +810,21 @@ export async function obtenerListadoCensoRedFiltrado(
 /** @deprecated Usar obtenerListadoCensoRedPaginado o obtenerListadoCensoRedFiltrado. */
 export async function obtenerListadoCensoRed(): Promise<RegistroCensoRed[]> {
   return obtenerListadoCensoRedFiltrado();
+}
+
+/**
+ * Personas con ambas alertas (solicitado Y registro policial), origen
+ * import_excel — anexo del PDF de verificación.
+ */
+export async function obtenerAlertasVerificacionCenso(): Promise<
+  RegistroCensoRed[]
+> {
+  const filas = await obtenerListadoCensoRedFiltrado({
+    solicitado: "si",
+    registroPolicial: "si",
+    orden: "campamento",
+  });
+  return filas.filter(
+    (fila) => fila.origen == null || fila.origen === "import_excel",
+  );
 }

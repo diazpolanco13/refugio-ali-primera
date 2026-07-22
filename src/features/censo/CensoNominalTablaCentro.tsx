@@ -428,7 +428,7 @@ function FilaDamnificado({
             variant="ghost"
             size="icon"
             className="size-8 text-destructive hover:text-destructive"
-            title="Eliminar del censo"
+            title="Eliminar del registro"
             disabled={eliminando}
             onClick={(e) => {
               e.stopPropagation();
@@ -516,7 +516,7 @@ function FilaFamiliaCard({
             variant="ghost"
             size="icon"
             className="size-8 shrink-0 text-destructive hover:text-destructive"
-            title="Eliminar jefe del censo"
+            title="Eliminar jefe del registro"
             disabled={eliminandoId === familia.jefe.id}
             onClick={() => onEliminar(familia.jefe)}
           >
@@ -907,7 +907,7 @@ export function CensoNominalTablaCentro({
           <div className="min-w-0 space-y-1">
             <CardTitle className="flex items-center gap-2 text-base">
               <Users className="size-4 text-teal-600 dark:text-teal-300" />
-              Censo nominal
+              Registro nominal
             </CardTitle>
             <CardDescription>
               {cargando && alojamientos.length === 0
@@ -991,7 +991,7 @@ export function CensoNominalTablaCentro({
         </div>
         <div
           role="tablist"
-          aria-label="Vistas del censo nominal"
+          aria-label="Vistas del registro nominal"
           className="grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-muted/40 shadow-sm"
         >
           {(
@@ -1046,14 +1046,14 @@ export function CensoNominalTablaCentro({
         {cargando && alojamientos.length === 0 ? (
           <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
-            Cargando censo nominal…
+            Cargando registro nominal…
           </div>
         ) : pestana === "damnificados" ? (
           filtrados.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {hayFiltros
                 ? "Ningún resultado con esos filtros."
-                : "Aún no hay personas censadas en este campamento."}
+                : "Aún no hay personas registradas en este campamento."}
             </p>
           ) : (
             <div className="space-y-3">
@@ -1195,7 +1195,7 @@ export function CensoNominalTablaCentro({
           <p className="py-6 text-center text-sm text-muted-foreground">
             {hayFiltros
               ? "Ninguna familia coincide con esos filtros."
-              : "Aún no hay familias censadas en este campamento."}
+              : "Aún no hay familias registradas en este campamento."}
           </p>
         ) : (
           <div className="space-y-2">

@@ -1,0 +1,1013 @@
+// PDF institucional: verificación poblacional Nexus/SIIPOL (Importaciones Excel).
+// Reutiliza logos y franja del membrete dinámico (mismo patrón que estatus censo).
+
+import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import type { VerificacionCensoCentro } from "@/data/reposCenso";
+import type { TotalesVerificacionCenso } from "@/data/useCensoVerificacion";
+import type { MembreteListo } from "@/lib/imagenPdf";
+
+const azul = "#0f2f3f";
+const azulInstitucional = "#0b1c2e";
+const oroInstitucional = "#d4af37";
+const teal = "#0f766e";
+const verde = "#047857";
+const ambar = "#b45309";
+const rojo = "#b91c1c";
+const naranja = "#ea580c";
+const gris = "#64748b";
+const borde = "#d8e2ea";
+const fondoSuave = "#f4f8fb";
+const sky = "#0369a1";
+const skyClaro = "#7dd3fc";
+
+const MESES_MILITAR = [
+  "JAN",
+  "FEB",
+  "MAR",
+  "APR",
+  "MAY",
+  "JUN",
+  "JUL",
+  "AUG",
+  "SEP",
+  "OCT",
+  "NOV",
+  "DEC",
+] as const;
+
+function n(valor: number): string {
+  return valor.toLocaleString("es-VE");
+}
+
+function pct(parte: number, total: number): number {
+  if (total <= 0) return 0;
+  return Math.round((parte / total) * 1000) / 10;
+}
+
+function fechaHoraMilitar(ts: number): string {
+  const d = new Date(ts);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const mon = MESES_MILITAR[d.getMonth()];
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${dd}${hh}${mm}${mon}${yy}`;
+}
+
+function fechaCorteLegible(ts: number): string {
+  return new Date(ts).toLocaleString("es-VE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function ordenarPorNro(
+  filas: VerificacionCensoCentro[],
+): VerificacionCensoCentro[] {
+  return [...filas].sort((a, b) => {
+    const na = a.centroNro;
+    const nb = b.centroNro;
+    if (na != null && nb != null && na !== nb) return na - nb;
+    if (na != null && nb == null) return -1;
+    if (na == null && nb != null) return 1;
+    return a.centroNombre.localeCompare(b.centroNombre, "es");
+  });
+}
+
+const styles = StyleSheet.create({
+  page: {
+    paddingTop: 0,
+    paddingHorizontal: 0,
+    paddingBottom: 26,
+    backgroundColor: "#ffffff",
+    color: "#10212b",
+    fontFamily: "Helvetica",
+    fontSize: 7.5,
+  },
+  contenido: {
+    paddingHorizontal: 12,
+    paddingTop: 6,
+  },
+  franja: {
+    backgroundColor: azulInstitucional,
+    borderTopWidth: 3,
+    borderTopColor: oroInstitucional,
+    borderBottomWidth: 1.5,
+    borderBottomColor: oroInstitucional,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  franjaLado: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1.15,
+    minWidth: 0,
+  },
+  franjaLadoDerecho: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    flex: 1.15,
+    minWidth: 0,
+  },
+  franjaCentro: {
+    flex: 0.9,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  logoSebin: {
+    width: 48,
+    height: 32,
+    objectFit: "contain",
+  },
+  logoSae: {
+    width: 34,
+    height: 34,
+    objectFit: "contain",
+  },
+  franjaTextoIzq: {
+    marginLeft: 8,
+    color: "#ffffff",
+    fontSize: 7,
+    fontWeight: 700,
+    lineHeight: 1.25,
+  },
+  franjaTextoDer: {
+    marginRight: 8,
+    color: "#ffffff",
+    fontSize: 7,
+    fontWeight: 700,
+    textAlign: "right",
+    lineHeight: 1.25,
+  },
+  franjaSubrayado: {
+    marginTop: 3,
+    height: 1,
+    backgroundColor: oroInstitucional,
+    width: "100%",
+  },
+  dtgCaja: {
+    borderWidth: 1,
+    borderColor: "#ffffff",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  dtgTexto: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: 1.2,
+    textAlign: "center",
+  },
+  tituloBloque: {
+    marginTop: 4,
+    marginBottom: 3,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 4,
+    backgroundColor: azulInstitucional,
+  },
+  tituloBloqueTexto: {
+    color: oroInstitucional,
+    fontSize: 9,
+    fontWeight: 700,
+    letterSpacing: 0.5,
+    textAlign: "center",
+  },
+  corteCaja: {
+    marginBottom: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: oroInstitucional,
+    borderRadius: 4,
+    backgroundColor: fondoSuave,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  corteLabel: {
+    color: azul,
+    fontSize: 7.5,
+    fontWeight: 700,
+  },
+  corteValor: {
+    color: azulInstitucional,
+    fontSize: 8,
+    fontWeight: 700,
+  },
+  kpiRow: {
+    flexDirection: "row",
+    marginBottom: 4,
+  },
+  kpiCard: {
+    flex: 1,
+    marginRight: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 5,
+    borderWidth: 1,
+    borderColor: borde,
+    borderRadius: 5,
+    backgroundColor: "#fbfdff",
+  },
+  kpiCardLast: {
+    marginRight: 0,
+  },
+  kpiLabel: {
+    color: gris,
+    fontSize: 6,
+    fontWeight: 700,
+  },
+  kpiValue: {
+    marginTop: 1,
+    color: azul,
+    fontSize: 12,
+    fontWeight: 700,
+  },
+  kpiDetalle: {
+    marginTop: 1,
+    color: gris,
+    fontSize: 5.5,
+  },
+  seccion: {
+    marginBottom: 6,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: borde,
+    borderRadius: 5,
+    backgroundColor: "#ffffff",
+  },
+  seccionTitulo: {
+    color: azul,
+    fontSize: 8,
+    fontWeight: 700,
+    marginBottom: 4,
+  },
+  barrasRow: {
+    flexDirection: "row",
+  },
+  barraBloque: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 8,
+  },
+  barraBloqueLast: {
+    marginRight: 0,
+  },
+  barraTitulo: {
+    color: azul,
+    fontSize: 6.5,
+    fontWeight: 700,
+    marginBottom: 3,
+  },
+  barraTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: fondoSuave,
+    borderWidth: 0.5,
+    borderColor: borde,
+    flexDirection: "row",
+    overflow: "hidden",
+  },
+  barraSeg: {
+    height: "100%",
+  },
+  leyendaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 3,
+  },
+  leyendaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 8,
+    marginBottom: 2,
+  },
+  leyendaCuadro: {
+    width: 7,
+    height: 7,
+    borderRadius: 1,
+    marginRight: 3,
+  },
+  leyendaTexto: {
+    color: gris,
+    fontSize: 5.5,
+  },
+  tablaHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 3,
+    borderBottomWidth: 1,
+    borderBottomColor: borde,
+    backgroundColor: fondoSuave,
+  },
+  fila: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 2.5,
+    borderBottomWidth: 0.4,
+    borderBottomColor: "#e8eef3",
+  },
+  filaSinLista: {
+    backgroundColor: "#f8fafc",
+  },
+  colNro: { width: 28, textAlign: "right", paddingRight: 4 },
+  colNombre: { flex: 2.4, minWidth: 0, paddingRight: 4 },
+  colNum: { width: 36, textAlign: "right", paddingRight: 2 },
+  colPct: { width: 52, paddingLeft: 2 },
+  colAlert: { width: 32, textAlign: "right", paddingRight: 2 },
+  celda: { fontSize: 6.2, color: azul, fontWeight: 700 },
+  celdaMuted: { fontSize: 6.2, color: gris },
+  celdaHeader: { fontSize: 5.8, color: gris, fontWeight: 700 },
+  nombreTexto: { fontSize: 6.3, color: azul, fontWeight: 700 },
+  badgeSin: {
+    marginLeft: 3,
+    fontSize: 5,
+    color: ambar,
+    fontWeight: 700,
+  },
+  miniBarTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: fondoSuave,
+    borderWidth: 0.4,
+    borderColor: borde,
+    overflow: "hidden",
+    marginBottom: 1,
+  },
+  miniBarFill: {
+    height: "100%",
+    backgroundColor: sky,
+  },
+  pctMini: {
+    fontSize: 5.5,
+    color: gris,
+    textAlign: "right",
+  },
+  alertaRoja: { color: rojo, fontSize: 6.2, fontWeight: 700, textAlign: "right" },
+  alertaAmbar: { color: ambar, fontSize: 6.2, fontWeight: 700, textAlign: "right" },
+  pie: {
+    position: "absolute",
+    bottom: 8,
+    left: 12,
+    right: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  pieTexto: {
+    color: gris,
+    fontSize: 5.5,
+  },
+  nota: {
+    color: gris,
+    fontSize: 5.8,
+    marginBottom: 4,
+  },
+  campGrupo: {
+    marginBottom: 6,
+    padding: 5,
+    borderWidth: 1,
+    borderColor: borde,
+    borderRadius: 4,
+    backgroundColor: "#ffffff",
+  },
+  campGrupoTitulo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 3,
+    paddingBottom: 3,
+    borderBottomWidth: 0.6,
+    borderBottomColor: borde,
+  },
+  campGrupoNombre: {
+    color: azulInstitucional,
+    fontSize: 7.5,
+    fontWeight: 700,
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 6,
+  },
+  campGrupoMeta: {
+    color: gris,
+    fontSize: 6,
+    fontWeight: 700,
+  },
+  alertaTablaHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 2.5,
+    borderBottomWidth: 0.8,
+    borderBottomColor: borde,
+    backgroundColor: fondoSuave,
+  },
+  alertaFila: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 2,
+    borderBottomWidth: 0.35,
+    borderBottomColor: "#e8eef3",
+  },
+  colAlertaNro: { width: 22, textAlign: "right", paddingRight: 3 },
+  colAlertaNombre: { flex: 2.2, minWidth: 0, paddingRight: 3 },
+  colAlertaDoc: { width: 72, paddingRight: 3 },
+  colAlertaEdad: { width: 28, textAlign: "right", paddingRight: 3 },
+  colAlertaFlag: { width: 28, textAlign: "center" },
+  colAlertaTipo: { flex: 1.4, minWidth: 0, paddingLeft: 3 },
+  celdaAlerta: { fontSize: 6, color: azul, fontWeight: 700 },
+  celdaAlertaMuted: { fontSize: 6, color: gris },
+  badgeSol: { color: rojo, fontSize: 6, fontWeight: 700, textAlign: "center" },
+  badgeReg: { color: ambar, fontSize: 6, fontWeight: 700, textAlign: "center" },
+  vacioAnexo: {
+    marginTop: 8,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: borde,
+    borderRadius: 4,
+    backgroundColor: fondoSuave,
+  },
+  vacioAnexoTexto: {
+    color: gris,
+    fontSize: 7.5,
+    textAlign: "center",
+  },
+});
+
+function EncabezadoInstitucional({
+  generadoTs,
+  membrete,
+}: {
+  generadoTs: number;
+  membrete: MembreteListo;
+}) {
+  return (
+    <View style={styles.franja} fixed>
+      <View style={styles.franjaLado}>
+        {membrete.izqLogo ? (
+          <Image src={membrete.izqLogo} style={styles.logoSebin} />
+        ) : null}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          {membrete.izqLineas.map((linea) => (
+            <Text key={linea} style={styles.franjaTextoIzq}>
+              {linea}
+            </Text>
+          ))}
+          {membrete.izqLineas.length > 0 && <View style={styles.franjaSubrayado} />}
+        </View>
+      </View>
+
+      <View style={styles.franjaCentro}>
+        <View style={styles.dtgCaja}>
+          <Text style={styles.dtgTexto}>{fechaHoraMilitar(generadoTs)}</Text>
+        </View>
+      </View>
+
+      <View style={styles.franjaLadoDerecho}>
+        <View style={{ flex: 1, minWidth: 0, alignItems: "flex-end" }}>
+          {membrete.derLineas.map((linea) => (
+            <Text key={linea} style={styles.franjaTextoDer}>
+              {linea}
+            </Text>
+          ))}
+          {membrete.derLineas.length > 0 && <View style={styles.franjaSubrayado} />}
+        </View>
+        {membrete.derLogo ? (
+          <Image src={membrete.derLogo} style={styles.logoSae} />
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  detalle,
+  accent,
+  last,
+}: {
+  label: string;
+  value: number;
+  detalle?: string;
+  accent?: string;
+  last?: boolean;
+}) {
+  return (
+    <View style={last ? [styles.kpiCard, styles.kpiCardLast] : styles.kpiCard}>
+      <Text style={styles.kpiLabel}>{label}</Text>
+      <Text style={accent ? [styles.kpiValue, { color: accent }] : styles.kpiValue}>
+        {n(value)}
+      </Text>
+      {detalle ? <Text style={styles.kpiDetalle}>{detalle}</Text> : null}
+    </View>
+  );
+}
+
+function BarraApiladaPdf({
+  titulo,
+  segmentos,
+  last,
+}: {
+  titulo: string;
+  segmentos: { label: string; valor: number; color: string }[];
+  last?: boolean;
+}) {
+  const total = segmentos.reduce((acc, s) => acc + s.valor, 0);
+  return (
+    <View style={last ? [styles.barraBloque, styles.barraBloqueLast] : styles.barraBloque}>
+      <Text style={styles.barraTitulo}>{titulo}</Text>
+      <View style={styles.barraTrack}>
+        {total <= 0 ? (
+          <View style={[styles.barraSeg, { flex: 1, backgroundColor: fondoSuave }]} />
+        ) : (
+          segmentos.map((s) =>
+            s.valor <= 0 ? null : (
+              <View
+                key={s.label}
+                style={[
+                  styles.barraSeg,
+                  {
+                    width: `${(s.valor / total) * 100}%`,
+                    backgroundColor: s.color,
+                  },
+                ]}
+              />
+            ),
+          )
+        )}
+      </View>
+      <View style={styles.leyendaRow}>
+        {segmentos.map((s) => (
+          <View key={s.label} style={styles.leyendaItem}>
+            <View style={[styles.leyendaCuadro, { backgroundColor: s.color }]} />
+            <Text style={styles.leyendaTexto}>
+              {s.label} {pct(s.valor, total)}%
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function EncabezadoTabla() {
+  return (
+    <View style={styles.tablaHeader} wrap={false}>
+      <Text style={[styles.colNro, styles.celdaHeader]}>N.º</Text>
+      <Text style={[styles.colNombre, styles.celdaHeader]}>Campamento</Text>
+      <Text style={[styles.colNum, styles.celdaHeader]}>Cens.</Text>
+      <Text style={[styles.colNum, styles.celdaHeader]}>Men.</Text>
+      <Text style={[styles.colNum, styles.celdaHeader]}>Adul.</Text>
+      <Text style={[styles.colNum, styles.celdaHeader]}>Nex.</Text>
+      <Text style={[styles.colNum, styles.celdaHeader]}>SIIP.</Text>
+      <Text style={[styles.colNum, styles.celdaHeader]}>Verif.</Text>
+      <Text style={[styles.colPct, styles.celdaHeader]}>% verif.</Text>
+      <Text style={[styles.colNum, styles.celdaHeader]}>Falt.</Text>
+      <Text style={[styles.colAlert, styles.celdaHeader]}>Sol.</Text>
+      <Text style={[styles.colAlert, styles.celdaHeader]}>Reg.</Text>
+    </View>
+  );
+}
+
+function EncabezadoTablaAlertas() {
+  return (
+    <View style={styles.alertaTablaHeader} wrap={false}>
+      <Text style={[styles.colAlertaNro, styles.celdaHeader]}>#</Text>
+      <Text style={[styles.colAlertaNombre, styles.celdaHeader]}>Nombre</Text>
+      <Text style={[styles.colAlertaDoc, styles.celdaHeader]}>Documento</Text>
+      <Text style={[styles.colAlertaEdad, styles.celdaHeader]}>Edad</Text>
+      <Text style={[styles.colAlertaFlag, styles.celdaHeader]}>Sol.</Text>
+      <Text style={[styles.colAlertaFlag, styles.celdaHeader]}>Reg.</Text>
+      <Text style={[styles.colAlertaTipo, styles.celdaHeader]}>
+        Tipo registro / obs.
+      </Text>
+    </View>
+  );
+}
+
+function FilaAlerta({
+  persona,
+  indice,
+}: {
+  persona: PersonaAlertaVerificacion;
+  indice: number;
+}) {
+  const detalle = [persona.tipoRegistroPolicial, persona.observacionesSeguridad]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <View style={styles.alertaFila} wrap={false}>
+      <Text style={[styles.colAlertaNro, styles.celdaAlertaMuted]}>{indice}</Text>
+      <Text style={[styles.colAlertaNombre, styles.celdaAlerta]}>
+        {persona.nombre.length > 48
+          ? `${persona.nombre.slice(0, 46)}…`
+          : persona.nombre}
+      </Text>
+      <Text style={[styles.colAlertaDoc, styles.celdaAlertaMuted]}>
+        {persona.documento}
+      </Text>
+      <Text style={[styles.colAlertaEdad, styles.celdaAlertaMuted]}>
+        {persona.edad != null ? String(persona.edad) : "—"}
+      </Text>
+      <Text style={[styles.colAlertaFlag, persona.solicitado ? styles.badgeSol : styles.celdaAlertaMuted]}>
+        {persona.solicitado ? "Sí" : "—"}
+      </Text>
+      <Text
+        style={[
+          styles.colAlertaFlag,
+          persona.registroPolicial ? styles.badgeReg : styles.celdaAlertaMuted,
+        ]}
+      >
+        {persona.registroPolicial ? "Sí" : "—"}
+      </Text>
+      <Text style={[styles.colAlertaTipo, styles.celdaAlertaMuted]}>
+        {detalle
+          ? detalle.length > 56
+            ? `${detalle.slice(0, 54)}…`
+            : detalle
+          : "—"}
+      </Text>
+    </View>
+  );
+}
+
+function GrupoCampamentoAlertas({ grupo }: { grupo: GrupoAlertaCampamento }) {
+  const nro = grupo.centroNro != null ? `${grupo.centroNro}. ` : "";
+  return (
+    <View style={styles.campGrupo}>
+      <View style={styles.campGrupoTitulo} wrap={false}>
+        <Text style={styles.campGrupoNombre}>
+          {nro}
+          {grupo.centroNombre}
+        </Text>
+        <Text style={styles.campGrupoMeta}>
+          {n(grupo.personas.length)} pers. · Sol. {n(grupo.solicitadas)} · Reg.{" "}
+          {n(grupo.conRegistro)}
+        </Text>
+      </View>
+      <EncabezadoTablaAlertas />
+      {grupo.personas.map((p, i) => (
+        <FilaAlerta key={p.id} persona={p} indice={i + 1} />
+      ))}
+    </View>
+  );
+}
+
+function FilaCentro({ fila }: { fila: VerificacionCensoCentro }) {
+  const sinLista = fila.censadas === 0;
+  const pctVerif = pct(fila.verificadas, fila.adultos);
+  return (
+    <View
+      style={sinLista ? [styles.fila, styles.filaSinLista] : styles.fila}
+      wrap={false}
+    >
+      <Text style={[styles.colNro, styles.celdaMuted]}>
+        {fila.centroNro ?? "—"}
+      </Text>
+      <View style={[styles.colNombre, { flexDirection: "row", alignItems: "center" }]}>
+        <Text style={styles.nombreTexto}>
+          {fila.centroNombre.length > 42
+            ? `${fila.centroNombre.slice(0, 40)}…`
+            : fila.centroNombre}
+        </Text>
+        {sinLista ? <Text style={styles.badgeSin}>SIN LISTA</Text> : null}
+      </View>
+      <Text style={[styles.colNum, styles.celda]}>{n(fila.censadas)}</Text>
+      <Text style={[styles.colNum, styles.celdaMuted]}>{n(fila.menores)}</Text>
+      <Text style={[styles.colNum, styles.celdaMuted]}>{n(fila.adultos)}</Text>
+      <Text style={[styles.colNum, styles.celdaMuted]}>{n(fila.nexus)}</Text>
+      <Text style={[styles.colNum, styles.celdaMuted]}>{n(fila.siipol)}</Text>
+      <Text style={[styles.colNum, styles.celda]}>{n(fila.verificadas)}</Text>
+      <View style={styles.colPct}>
+        {sinLista ? (
+          <Text style={styles.pctMini}>—</Text>
+        ) : (
+          <>
+            <View style={styles.miniBarTrack}>
+              <View style={[styles.miniBarFill, { width: `${pctVerif}%` }]} />
+            </View>
+            <Text style={styles.pctMini}>{pctVerif}%</Text>
+          </>
+        )}
+      </View>
+      <Text style={[styles.colNum, styles.celdaMuted]}>{n(fila.faltan)}</Text>
+      <Text
+        style={[
+          styles.colAlert,
+          fila.solicitadas > 0 ? styles.alertaRoja : styles.celdaMuted,
+        ]}
+      >
+        {fila.solicitadas > 0 ? n(fila.solicitadas) : "—"}
+      </Text>
+      <Text
+        style={[
+          styles.colAlert,
+          fila.conRegistro > 0 ? styles.alertaAmbar : styles.celdaMuted,
+        ]}
+      >
+        {fila.conRegistro > 0 ? n(fila.conRegistro) : "—"}
+      </Text>
+    </View>
+  );
+}
+
+/** Persona con ambas alertas (solicitado + registro policial) para el anexo. */
+export interface PersonaAlertaVerificacion {
+  id: string;
+  centroId: string;
+  centroNombre: string;
+  nombre: string;
+  documento: string;
+  edad: number | null;
+  sexo: string | null;
+  solicitado: boolean;
+  registroPolicial: boolean;
+  tipoRegistroPolicial: string;
+  observacionesSeguridad: string;
+}
+
+export interface DatosReporteVerificacionCenso {
+  filas: VerificacionCensoCentro[];
+  totales: TotalesVerificacionCenso;
+  /** Personas solicitadas y con registro policial, detalle por campamento. */
+  alertas: PersonaAlertaVerificacion[];
+  /** Epoch ms: fecha de corte de los datos (= momento de generación). */
+  fechaCorteTs: number;
+  generadoPor?: string;
+}
+
+interface GrupoAlertaCampamento {
+  centroId: string;
+  centroNro: number | null;
+  centroNombre: string;
+  personas: PersonaAlertaVerificacion[];
+  solicitadas: number;
+  conRegistro: number;
+}
+
+function agruparAlertasPorCampamento(
+  alertas: PersonaAlertaVerificacion[],
+  filas: VerificacionCensoCentro[],
+): GrupoAlertaCampamento[] {
+  const meta = new Map(
+    filas.map((f) => [
+      f.centroId,
+      { nro: f.centroNro, nombre: f.centroNombre },
+    ]),
+  );
+  const grupos = new Map<string, GrupoAlertaCampamento>();
+
+  for (const p of alertas) {
+    const m = meta.get(p.centroId);
+    let g = grupos.get(p.centroId);
+    if (!g) {
+      g = {
+        centroId: p.centroId,
+        centroNro: m?.nro ?? null,
+        centroNombre: m?.nombre ?? p.centroNombre,
+        personas: [],
+        solicitadas: 0,
+        conRegistro: 0,
+      };
+      grupos.set(p.centroId, g);
+    }
+    g.personas.push(p);
+    if (p.solicitado) g.solicitadas += 1;
+    if (p.registroPolicial) g.conRegistro += 1;
+  }
+
+  for (const g of grupos.values()) {
+    g.personas.sort((a, b) => {
+      const pri =
+        Number(b.solicitado) - Number(a.solicitado) ||
+        Number(b.registroPolicial) - Number(a.registroPolicial);
+      if (pri !== 0) return pri;
+      return a.nombre.localeCompare(b.nombre, "es");
+    });
+  }
+
+  return [...grupos.values()].sort((a, b) => {
+    const na = a.centroNro;
+    const nb = b.centroNro;
+    if (na != null && nb != null && na !== nb) return na - nb;
+    if (na != null && nb == null) return -1;
+    if (na == null && nb != null) return 1;
+    return a.centroNombre.localeCompare(b.centroNombre, "es");
+  });
+}
+
+export function ReporteVerificacionCensoPdf({
+  datos,
+  membrete,
+}: {
+  datos: DatosReporteVerificacionCenso;
+  membrete: MembreteListo;
+}) {
+  const { filas, totales, alertas, fechaCorteTs, generadoPor } = datos;
+  const ordenadas = ordenarPorNro(filas);
+  const gruposAlerta = agruparAlertasPorCampamento(alertas ?? [], filas);
+  const totalAlertas = alertas?.length ?? 0;
+
+  return (
+    <Document
+      title="Verificación poblacional — Importaciones Excel"
+      author={generadoPor ?? "Sala de Análisis Estratégico"}
+      subject="Cobertura Nexus/SAIME y SIIPOL de personas registradas (import_excel)"
+      creator="Campamentos Transitorios"
+      producer="@react-pdf/renderer"
+      language="es-VE"
+    >
+      <Page size="LETTER" orientation="landscape" style={styles.page}>
+        <EncabezadoInstitucional generadoTs={fechaCorteTs} membrete={membrete} />
+
+        <View style={styles.contenido}>
+          <View style={styles.tituloBloque}>
+            <Text style={styles.tituloBloqueTexto}>
+              SALA SITUACIONAL — VERIFICACIÓN POBLACIONAL (IMPORTACIONES EXCEL)
+            </Text>
+          </View>
+
+          <View style={styles.corteCaja}>
+            <Text style={styles.corteLabel}>FECHA DE CORTE DE LOS DATOS</Text>
+            <Text style={styles.corteValor}>
+              {fechaCorteLegible(fechaCorteTs)} · DTG {fechaHoraMilitar(fechaCorteTs)}
+            </Text>
+          </View>
+
+          <Text style={styles.nota}>
+            Fuente: Importaciones Excel · Menores de 18 años no se verifican ·
+            Adulto verificado = Nexus o SIIPOL · {n(totales.campamentos)} centros ·{" "}
+            {n(totales.campamentosConLista)} con lista · {n(totales.campamentosSinLista)}{" "}
+            sin lista
+          </Text>
+
+          <View style={styles.kpiRow}>
+            <KpiCard
+              label="Personas registradas"
+              value={totales.censadas}
+              detalle={`${n(totales.campamentosConLista)} con lista`}
+            />
+            <KpiCard
+              label="Menores de edad"
+              value={totales.menores}
+              detalle={`${pct(totales.menores, totales.censadas)}% · no se verifican`}
+              accent={teal}
+            />
+            <KpiCard
+              label="Adultos (a verificar)"
+              value={totales.adultos}
+              detalle={`${pct(totales.adultos, totales.censadas)}% del total`}
+              last
+            />
+          </View>
+          <View style={styles.kpiRow}>
+            <KpiCard
+              label="Adultos verificados"
+              value={totales.verificadas}
+              detalle={`${pct(totales.verificadas, totales.adultos)}% de adultos`}
+              accent={sky}
+            />
+            <KpiCard
+              label="Por Nexus / SAIME"
+              value={totales.nexus}
+              detalle={`${pct(totales.nexus, totales.adultos)}% de adultos`}
+              accent={sky}
+            />
+            <KpiCard
+              label="Por SIIPOL"
+              value={totales.siipol}
+              detalle={`${pct(totales.siipol, totales.adultos)}% de adultos`}
+              accent={verde}
+              last
+            />
+          </View>
+          <View style={styles.kpiRow}>
+            <KpiCard
+              label="Faltan por verificar"
+              value={totales.faltan}
+              detalle={`${pct(totales.faltan, totales.adultos)}% de adultos`}
+              accent={gris}
+            />
+            <KpiCard
+              label="Solicitadas"
+              value={totales.solicitadas}
+              detalle={`${n(totales.campamentosConSolicitadas)} campamentos`}
+              accent={rojo}
+            />
+            <KpiCard
+              label="Con registro policial"
+              value={totales.conRegistro}
+              detalle={`${n(totales.campamentosConRegistro)} campamentos`}
+              accent={ambar}
+              last
+            />
+          </View>
+
+          <View style={styles.seccion}>
+            <Text style={styles.seccionTitulo}>Composición y cobertura de verificación</Text>
+            <View style={styles.barrasRow}>
+              <BarraApiladaPdf
+                titulo="Composición del registro"
+                segmentos={[
+                  {
+                    label: "Adultos",
+                    valor: totales.adultos,
+                    color: "#0c4a6e",
+                  },
+                  {
+                    label: "Menores",
+                    valor: totales.menores,
+                    color: skyClaro,
+                  },
+                ]}
+              />
+              <BarraApiladaPdf
+                titulo="Verificación de los adultos"
+                last
+                segmentos={[
+                  { label: "Nexus + SIIPOL", valor: totales.ambos, color: "#0c4a6e" },
+                  { label: "Solo Nexus", valor: totales.soloNexus, color: naranja },
+                  { label: "Solo SIIPOL", valor: totales.soloSiipol, color: verde },
+                  { label: "Sin verificar", valor: totales.faltan, color: "#94a3b8" },
+                ]}
+              />
+            </View>
+          </View>
+
+          <View style={styles.seccion}>
+            <Text style={styles.seccionTitulo}>
+              Campamentos — registro, verificación y alertas ({n(ordenadas.length)})
+            </Text>
+            <EncabezadoTabla />
+            {ordenadas.map((f) => (
+              <FilaCentro key={f.centroId} fila={f} />
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.pie} fixed>
+          <Text style={styles.pieTexto}>
+            Verificación poblacional · corte {fechaCorteLegible(fechaCorteTs)} ·{" "}
+            {fechaHoraMilitar(fechaCorteTs)}
+          </Text>
+          <Text
+            style={styles.pieTexto}
+            render={({ pageNumber, totalPages }) =>
+              `Pág. ${pageNumber} / ${totalPages}`
+            }
+          />
+        </View>
+      </Page>
+
+      <Page size="LETTER" orientation="landscape" style={styles.page}>
+        <EncabezadoInstitucional generadoTs={fechaCorteTs} membrete={membrete} />
+
+        <View style={styles.contenido}>
+          <View style={styles.tituloBloque}>
+            <Text style={styles.tituloBloqueTexto}>
+              ANEXO — SOLICITADOS CON REGISTRO POLICIAL POR CAMPAMENTO
+            </Text>
+          </View>
+
+          <Text style={styles.nota}>
+            Solo personas que están solicitadas y tienen registro policial ·{" "}
+            {n(totalAlertas)} personas · {n(gruposAlerta.length)} campamentos
+          </Text>
+
+          {gruposAlerta.length === 0 ? (
+            <View style={styles.vacioAnexo}>
+              <Text style={styles.vacioAnexoTexto}>
+                Sin personas que estén solicitadas y tengan registro policial en
+                la fecha de corte.
+              </Text>
+            </View>
+          ) : (
+            gruposAlerta.map((g) => (
+              <GrupoCampamentoAlertas key={g.centroId} grupo={g} />
+            ))
+          )}
+        </View>
+
+        <View style={styles.pie} fixed>
+          <Text style={styles.pieTexto}>
+            Anexo alertas · corte {fechaCorteLegible(fechaCorteTs)} ·{" "}
+            {fechaHoraMilitar(fechaCorteTs)}
+          </Text>
+          <Text
+            style={styles.pieTexto}
+            render={({ pageNumber, totalPages }) =>
+              `Pág. ${pageNumber} / ${totalPages}`
+            }
+          />
+        </View>
+      </Page>
+    </Document>
+  );
+}

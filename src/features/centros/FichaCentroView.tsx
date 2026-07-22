@@ -580,7 +580,7 @@ export function FichaCentroView({ sesion }: Props) {
           icono={UserPlus}
           acento="emerald"
           titulo="Registrar persona"
-          descripcion={`Censo nominal · ${titulo}`}
+          descripcion={`Registro nominal · ${titulo}`}
           acciones={
             <Button
               variant="outline"

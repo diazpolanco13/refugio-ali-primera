@@ -101,7 +101,7 @@ export function TarjetaCensoResumen({ resumen }: Props) {
 
   return (
     <Link
-      to={`/centros/censo/${resumen.centroId}`}
+      to={`/centros/registro/${resumen.centroId}`}
       className="block rounded-xl transition-colors hover:bg-teal-500/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
     >
       <Card className={cn("h-full shadow-sm", bordeCard)}>

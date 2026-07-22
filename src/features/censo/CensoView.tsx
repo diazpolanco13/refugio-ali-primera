@@ -628,7 +628,7 @@ export function CensoView() {
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-semibold leading-tight">
-              Planilla de Registro de Damnificados
+              Planilla de Registro y Verificación de Damnificados
             </h1>
             <p className="text-xs opacity-80">Fecha: {fechaHoy}</p>
           </div>
@@ -637,11 +637,11 @@ export function CensoView() {
               type="button"
               onClick={inicioDelCenso}
               className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-primary-foreground/25 bg-primary-foreground/10 px-2.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary-foreground/20 sm:px-3 sm:text-sm"
-              aria-label="Inicio del censo: registrar otra persona"
-              title="Inicio del censo"
+              aria-label="Iniciar registro: registrar otra persona"
+              title="Iniciar registro"
             >
               <RotateCcw className="size-3.5 shrink-0" aria-hidden />
-              <span className="hidden sm:inline">Inicio del censo</span>
+              <span className="hidden sm:inline">Iniciar registro</span>
               <span className="sm:hidden">Inicio</span>
             </button>
             {/* Con token del QR se vuelve al portal de terreno; con sesión por
@@ -717,7 +717,7 @@ export function CensoView() {
               )}
               onClick={() => setModoCenso("nexus")}
             >
-              Censo
+              Registro
             </button>
             {mostrarCensoManual ? (
               <button
@@ -730,7 +730,7 @@ export function CensoView() {
                 )}
                 onClick={() => setModoCenso("manual")}
               >
-                Censo Manual
+                Registro manual
               </button>
             ) : null}
             <button
@@ -743,7 +743,7 @@ export function CensoView() {
               )}
               onClick={() => setModoCenso("lista")}
             >
-              Censados
+              Registrados
             </button>
           </div>
         )}
@@ -812,7 +812,7 @@ export function CensoView() {
                     Campamento
                   </CardTitle>
                   <CardDescription>
-                    Elija el campamento para ver a las personas censadas.
+                    Elija el campamento para ver a las personas registradas.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -867,7 +867,7 @@ export function CensoView() {
                 Seleccione el campamento
               </CardTitle>
               <CardDescription>
-                Elija el campamento transitorio donde realiza el censo. Toque un nombre de la
+                Elija el campamento transitorio donde realiza el registro. Toque un nombre de la
                 lista o búsquelo por escrito.
               </CardDescription>
             </CardHeader>
@@ -894,7 +894,7 @@ export function CensoView() {
               titulo="Datos del funcionario"
               descripcion={
                 <>
-                  Identifique al funcionario que realiza el censo en{" "}
+                  Identifique al funcionario que realiza el registro en{" "}
                   <span className="font-medium text-foreground">{centroNombre}</span>.
                 </>
               }
@@ -970,7 +970,7 @@ export function CensoView() {
                     </p>
                   )}
                   <p className="text-[11px] text-muted-foreground">
-                    La ubicación valida que el censo se hace desde el campamento. Es importante,
+                    La ubicación valida que el registro se hace desde el campamento. Es importante,
                     pero no obligatoria.
                   </p>
                 </div>
@@ -1803,7 +1803,7 @@ function PasoRegistrados({
         <div className="flex items-start gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-800 dark:text-emerald-300">
           <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
           <div className="min-w-0">
-            <p className="font-medium">Censo completado</p>
+            <p className="font-medium">Registro completado</p>
             <p className="text-xs opacity-90">
               {fechaCierre} · {cierre.funcionario_nombre} ({cierre.funcionario_institucion}) ·{" "}
               {cierre.total_registrados} persona{cierre.total_registrados === 1 ? "" : "s"}
@@ -1827,7 +1827,7 @@ function PasoRegistrados({
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <BarChart3 className="size-4 text-primary" />
-            Estadística del censo
+            Estadística del registro
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -1937,7 +1937,7 @@ function PasoRegistrados({
             ) : (
               <p className="text-sm text-muted-foreground">
                 Si el campamento no tiene personas damnificadas todavía (vacío o en adecuación), puede
-                declarar el censo completado con 0 ocupantes.
+                declarar el registro completado con 0 ocupantes.
               </p>
             )}
             <Button
@@ -1954,7 +1954,7 @@ function PasoRegistrados({
               }}
             >
               <Flag className="size-4" />
-              {filas.length === 0 ? "Completado (sin damnificados)" : "Censo completado"}
+              {filas.length === 0 ? "Completado (sin damnificados)" : "Registro completado"}
             </Button>
           </CardContent>
         </Card>
@@ -2026,7 +2026,7 @@ function PasoRegistrados({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Confirmar censo completado?</AlertDialogTitle>
+            <AlertDialogTitle>¿Confirmar registro completado?</AlertDialogTitle>
             <AlertDialogDescription>
               {stats.total === 0 ? (
                 <>
@@ -2062,7 +2062,7 @@ function PasoRegistrados({
                   Guardando…
                 </>
               ) : (
-                "Sí, censo completado"
+                "Sí, registro completado"
               )}
             </AlertDialogAction>
             <AlertDialogCancel
@@ -2153,7 +2153,7 @@ function FilaTabla({
             <Badge
               variant="outline"
               className="h-4 shrink-0 gap-0.5 border-emerald-500/50 px-1 text-[9px] text-emerald-600 dark:text-emerald-400"
-              title="Ya verificado en el censo nominal (Por cédula)"
+              title="Ya verificado en el registro nominal (Por cédula)"
             >
               <Check className="size-2.5" />
               Nominal
@@ -2232,7 +2232,7 @@ function FilaTabla({
               variant="ghost"
               size="icon"
               className="size-7 text-primary hover:text-primary"
-              title="Verificar en el censo nominal (Por cédula)"
+              title="Verificar en el registro nominal (Por cédula)"
               onClick={onVerificar}
             >
               <UserCheck className="size-3.5" />

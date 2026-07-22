@@ -124,31 +124,54 @@ export function migasPanDeRuta(
     return [INICIO, CAMPAMENTOS, { label: "Traslados" }];
   }
 
-  if (pathname === "/centros/censo" || pathname === "/centros/censo-rapido") {
-    return [INICIO, CAMPAMENTOS, { label: "Censo (red)" }];
+  if (
+    pathname === "/centros/registro" ||
+    pathname === "/centros/censo" ||
+    pathname === "/centros/censo-rapido"
+  ) {
+    return [INICIO, CAMPAMENTOS, { label: "Registro (red)" }];
   }
 
   if (
+    pathname === "/centros/registro/personas" ||
     pathname === "/centros/censo/personas" ||
     pathname === "/centros/censo-rapido/personas"
   ) {
     return [
       INICIO,
       CAMPAMENTOS,
-      { label: "Censo (red)", to: "/centros/censo" },
+      { label: "Registro (red)", to: "/centros/registro" },
       { label: "Importaciones Excel" },
     ];
   }
 
-  const matchCensoCentro =
-    matchPath("/centros/censo/:centroId", pathname) ??
-    matchPath("/centros/censo-rapido/:centroId", pathname);
-  if (matchCensoCentro?.params.centroId && matchCensoCentro.params.centroId !== "personas") {
+  if (
+    pathname === "/centros/registro/verificacion" ||
+    pathname === "/centros/censo/verificacion" ||
+    pathname === "/centros/censo-rapido/verificacion"
+  ) {
     return [
       INICIO,
       CAMPAMENTOS,
-      { label: "Censo (red)", to: "/centros/censo" },
-      { label: nombreCentro(centro, matchCensoCentro.params.centroId) },
+      { label: "Registro (red)", to: "/centros/registro" },
+      { label: "Verificación" },
+    ];
+  }
+
+  const matchRegistroCentro =
+    matchPath("/centros/registro/:centroId", pathname) ??
+    matchPath("/centros/censo/:centroId", pathname) ??
+    matchPath("/centros/censo-rapido/:centroId", pathname);
+  if (
+    matchRegistroCentro?.params.centroId &&
+    matchRegistroCentro.params.centroId !== "personas" &&
+    matchRegistroCentro.params.centroId !== "verificacion"
+  ) {
+    return [
+      INICIO,
+      CAMPAMENTOS,
+      { label: "Registro (red)", to: "/centros/registro" },
+      { label: nombreCentro(centro, matchRegistroCentro.params.centroId) },
     ];
   }
 

@@ -105,7 +105,7 @@ function urlCensoCentro(centroId: string): string {
   const params = new URLSearchParams();
   params.set("centro", centroId);
   if (token) params.set("t", token);
-  return `/censo?${params.toString()}`;
+  return `/registro?${params.toString()}`;
 }
 
 function quitarTareaDeUrl(): void {
@@ -594,7 +594,7 @@ export function TerrenoView() {
 
   function abrirCenso() {
     if (!centroValido) {
-      setErrorEntrar("Abra el enlace o código QR de su campamento para acceder al censo.");
+      setErrorEntrar("Abra el enlace o código QR de su campamento para acceder al registro.");
       return;
     }
     // /censo maneja sus propias instrucciones y token de sesión al llegar.
@@ -1025,7 +1025,7 @@ export function TerrenoView() {
             <BotonTareaTerreno
               onClick={abrirCenso}
               disabled={cargandoCentros || !centroValido}
-              titulo="Censo"
+              titulo="Registro"
               estado={estadoCensoTerreno}
               actualizadoTs={censoTs}
               icono={<Users className={CLASE_ICONO_TAREA} />}

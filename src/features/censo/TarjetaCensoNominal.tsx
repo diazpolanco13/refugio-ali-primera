@@ -35,7 +35,7 @@ const META_CONTRASTE_EXTRA = {
     clase: "border-border bg-muted/40 text-muted-foreground",
   },
   sin_censo: {
-    label: "Sin censo",
+    label: "Sin registro",
     clase: "border-border bg-muted/40 text-muted-foreground",
   },
   en_progreso: null,
@@ -85,20 +85,20 @@ function BadgeCondicion({
 function mensajeAvance(r: ResumenCensoNominalCentro): string {
   const faltan = Math.max(0, r.metaRefugiados - r.registrados);
   if (r.contraste === "excede_parte") {
-    return `Discrepancia: el censo supera el parte numérico${r.parteDia ? ` del ${formatearDia(r.parteDia)}` : ""}.`;
+    return `Discrepancia: el registro supera el parte numérico${r.parteDia ? ` del ${formatearDia(r.parteDia)}` : ""}.`;
   }
   if (r.contraste === "cuadra") {
-    return "Censo cuadra con el último parte";
+    return "Registro cuadra con el último parte";
   }
   if (r.registrados <= 0) {
     return r.metaRefugiados > 0
       ? `Parte: ${r.metaRefugiados.toLocaleString("es")} · sin personas nominales aún`
-      : "Sin parte numérico ni censo nominal";
+      : "Sin parte numérico ni registro nominal";
   }
   if (r.metaRefugiados <= 0) {
-    return `${r.registrados.toLocaleString("es")} censado${r.registrados === 1 ? "" : "s"} · sin parte para contrastar`;
+    return `${r.registrados.toLocaleString("es")} registrado${r.registrados === 1 ? "" : "s"} · sin parte para contrastar`;
   }
-  return `Censo en progreso — faltan ${faltan.toLocaleString("es")} por registrar`;
+  return `Registro en progreso — faltan ${faltan.toLocaleString("es")} por registrar`;
 }
 
 interface Props {
@@ -123,7 +123,7 @@ export function TarjetaCensoNominal({ resumen }: Props) {
 
   return (
     <Link
-      to={`/centros/censo/${resumen.centroId}`}
+      to={`/centros/registro/${resumen.centroId}`}
       className="block rounded-xl transition-colors hover:bg-teal-500/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
     >
       <Card className={cn("h-full shadow-sm", bordeCard)}>
@@ -154,7 +154,7 @@ export function TarjetaCensoNominal({ resumen }: Props) {
             </div>
             <div className="rounded-lg border bg-muted/30 px-2 py-2 text-center">
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Censados
+                Registrados
               </p>
               <p className="text-lg font-semibold tabular-nums text-primary">
                 {resumen.registrados.toLocaleString("es")}

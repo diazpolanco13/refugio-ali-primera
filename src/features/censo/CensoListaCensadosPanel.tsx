@@ -118,7 +118,7 @@ function BotonEliminar({
         "size-8 shrink-0 text-destructive hover:text-destructive",
         className,
       )}
-      title="Eliminar del censo"
+      title="Eliminar del registro"
       disabled={eliminando}
       onClick={onClick}
     >
@@ -529,7 +529,7 @@ export function CensoListaCensadosPanel({
     setEliminandoId(id);
     try {
       await registrarEgreso(id, {
-        motivo: "Corrección de censo",
+        motivo: "Corrección de registro",
       });
       // Actualización optimista: no depender solo de Realtime (a veces el
       // evento no llega o reinserta si el payload omite `estado`).
@@ -538,7 +538,7 @@ export function CensoListaCensadosPanel({
     } catch (err) {
       console.error("[CensoListaCensados] eliminar:", err);
       setErrorEliminar(
-        err instanceof Error ? err.message : "No se pudo eliminar del censo.",
+        err instanceof Error ? err.message : "No se pudo eliminar del registro.",
       );
     } finally {
       setEliminandoId(null);
@@ -564,7 +564,7 @@ export function CensoListaCensadosPanel({
 
       <Card className="shadow-lg">
         <CardHeader className="space-y-3 pb-2">
-          <CardTitle className="text-base">Censo nominal</CardTitle>
+          <CardTitle className="text-base">Registro nominal</CardTitle>
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -578,7 +578,7 @@ export function CensoListaCensadosPanel({
           </div>
           <div
             role="tablist"
-            aria-label="Vistas del censo nominal"
+            aria-label="Vistas del registro nominal"
             className={cn(
               "grid overflow-hidden rounded-xl border border-border bg-muted/40 shadow-sm",
               censoViejo.length > 0 ? "grid-cols-3" : "grid-cols-2",
@@ -655,7 +655,7 @@ export function CensoListaCensadosPanel({
               <>
                 <p className="mb-1 text-[11px] leading-snug text-muted-foreground">
                   Relaciones externas no verificadas (Excel/MCP). "Verificado" =
-                  identidad confirmada con Nexus y alta en censo nominal.
+                  identidad confirmada con Nexus y alta en registro nominal.
                 </p>
                 <ul className="-mx-1">
                   {censoViejoFiltrado.map((f, i) => (
@@ -684,7 +684,7 @@ export function CensoListaCensadosPanel({
               <p className="py-6 text-center text-sm text-muted-foreground">
                 {busqueda.trim()
                   ? "Ningún resultado para esa búsqueda."
-                  : "Aún no hay personas censadas en este campamento."}
+                  : "Aún no hay personas registradas en este campamento."}
               </p>
             ) : (
               <ul className="-mx-1">
@@ -704,7 +704,7 @@ export function CensoListaCensadosPanel({
             <p className="py-6 text-center text-sm text-muted-foreground">
               {busqueda.trim()
                 ? "Ninguna familia coincide con esa búsqueda."
-                : "Aún no hay familias censadas en este campamento."}
+                : "Aún no hay familias registradas en este campamento."}
             </p>
           ) : (
             <div className="space-y-2">
@@ -750,10 +750,10 @@ export function CensoListaCensadosPanel({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar del censo?</AlertDialogTitle>
+            <AlertDialogTitle>¿Eliminar del registro?</AlertDialogTitle>
             <AlertDialogDescription>
               {eliminarTarget
-                ? `Se quitará a ${nombreCompleto(eliminarTarget.refugiado)} del campamento (egreso por corrección de censo).`
+                ? `Se quitará a ${nombreCompleto(eliminarTarget.refugiado)} del campamento (egreso por corrección de registro).`
                 : null}
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -10,7 +10,7 @@ import { ocultarSplashCuandoListo } from "./lib/splash";
 
 /**
  * Arranque mínimo de las vistas públicas de campo (sin login ni mapa):
- * /terreno (portal con Reporte diario + Censo), /censo (planilla) y
+ * /terreno (portal con Reporte diario + Registro), /registro (planilla) y
  * /denuncia (canal anónimo de los damnificados, QR público).
  */
 export function mount(): void {
@@ -26,7 +26,7 @@ export function mount(): void {
     ? "Denuncias y sugerencias"
     : esTerreno
       ? "Reportes en el terreno"
-      : "Registro de damnificados";
+      : "Registro y verificación de damnificados";
 
   createRoot(root).render(
     <StrictMode>

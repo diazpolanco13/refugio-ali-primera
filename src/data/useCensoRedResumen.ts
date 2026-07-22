@@ -30,7 +30,7 @@ export function useCensoRedResumen() {
       setResumenes(data);
       setSiipol(resumenSiipol);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo cargar el censo");
+      setError(err instanceof Error ? err.message : "No se pudo cargar el registro");
       setResumenes([]);
       setSiipol({ totalImportados: 0, verificados: 0, pendientes: 0 });
     } finally {

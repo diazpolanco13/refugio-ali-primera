@@ -82,7 +82,7 @@ function MensajeContraste({
     return (
       <p className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
         <CheckCircle2 className="size-3.5 shrink-0" />
-        Censo cuadra con el último parte
+        Registro cuadra con el último parte
       </p>
     );
   }
@@ -90,7 +90,7 @@ function MensajeContraste({
     return (
       <p className="flex items-center gap-1.5 text-[11px] font-medium text-sky-700 dark:text-sky-300">
         <TrendingUp className="size-3.5 shrink-0" />
-        Censo en progreso — faltan {faltan.toLocaleString("es")} por registrar
+        Registro en progreso — faltan {faltan.toLocaleString("es")} por registrar
       </p>
     );
   }
@@ -100,7 +100,7 @@ function MensajeContraste({
       <p className="flex items-start gap-1.5 text-[11px] font-medium text-red-600 dark:text-red-400">
         <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
         <span>
-          Discrepancia: el censo supera el parte numérico registrado el día{" "}
+          Discrepancia: el registro supera el parte numérico registrado el día{" "}
           <strong>{diaParte}</strong>.
         </span>
       </p>
@@ -134,7 +134,7 @@ export function ContrasteCensoParte({
           {avance.actual.toLocaleString("es")}
         </p>
         <p className="text-[10px] text-muted-foreground">
-          personas en censo · sin referencia de revista
+          personas en registro · sin referencia de revista
         </p>
       </div>
     );
@@ -173,7 +173,7 @@ export function ContrasteCensoParte({
         </div>
         <div className="min-w-0 border-l border-border/60 pl-3">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Censo en curso
+            Registro en curso
           </p>
           <p
             className={cn(
@@ -253,7 +253,7 @@ export function BarraCensoVsParteMini({
     return (
       <div className={cn("space-y-1", className)}>
         <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-          <span>Censo vs parte</span>
+          <span>Registro vs parte</span>
           <span className="tabular-nums">…</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-muted/80" />
@@ -269,16 +269,16 @@ export function BarraCensoVsParteMini({
   if (!tieneParte) {
     detalle =
       registrados > 0
-        ? `${registrados.toLocaleString("es")} en censo · sin parte`
-        : "Sin parte ni censo";
+        ? `${registrados.toLocaleString("es")} en registro · sin parte`
+        : "Sin parte ni registro";
   } else if (contraste === "cuadra") {
-    detalle = "Censo cuadra con el parte";
+    detalle = "Registro cuadra con el parte";
   } else if (contraste === "excede_parte") {
     detalle = `+${excedente.toLocaleString("es")} sobre el parte`;
   } else if (faltan > 0) {
     detalle = `Faltan ${faltan.toLocaleString("es")}`;
   } else {
-    detalle = "Sin registros en censo";
+    detalle = "Sin registros en planilla";
   }
 
   const detalleClase =
@@ -293,7 +293,7 @@ export function BarraCensoVsParteMini({
   return (
     <div className={cn("space-y-1", className)}>
       <div className="flex items-center justify-between gap-2 text-[10px]">
-        <span className="shrink-0 text-muted-foreground">Censo vs parte</span>
+        <span className="shrink-0 text-muted-foreground">Registro vs parte</span>
         <span className={cn("min-w-0 truncate text-right tabular-nums font-medium", detalleClase)}>
           {tieneParte ? (
             <>

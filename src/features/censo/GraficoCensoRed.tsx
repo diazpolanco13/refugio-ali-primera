@@ -23,7 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const config: ChartConfig = {
   censados: {
-    label: "Censados (acumulado)",
+    label: "Registrados (acumulado)",
     color: "var(--chart-1)",
   },
   nuevos: {
@@ -84,10 +84,10 @@ export function GraficoCensoRed({ serie, cargando = false }: Props) {
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 px-4 pb-1 pt-3">
         <div className="min-w-0 space-y-0.5">
           <CardTitle className="text-sm font-semibold">
-            Avance del censo por día
+            Avance del registro por día
           </CardTitle>
           <p className="text-[11px] text-muted-foreground">
-            Acumulado de personas censadas · {formatearDia(serie[0].dia)} →{" "}
+            Acumulado de personas registradas · {formatearDia(serie[0].dia)} →{" "}
             {formatearDia(ultimo.dia)}
           </p>
         </div>
@@ -172,7 +172,7 @@ export function GraficoCensoRed({ serie, cargando = false }: Props) {
                     const p = payload?.[0]?.payload as
                       | PuntoSerieCensoNominal
                       | undefined;
-                    return p ? `Censo al ${formatearDia(p.dia)}` : "";
+                    return p ? `Registro al ${formatearDia(p.dia)}` : "";
                   }}
                 />
               }

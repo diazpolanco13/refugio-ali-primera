@@ -25,7 +25,7 @@ interface Props {
 
 export function MigaPasosCenso({ pasos, onIr, className }: Props) {
   return (
-    <nav aria-label="Pasos del censo" className={cn("flex items-center", className)}>
+    <nav aria-label="Pasos del registro" className={cn("flex items-center", className)}>
       {pasos.map((p, i) => (
         <Fragment key={p.id}>
           {i > 0 ? (

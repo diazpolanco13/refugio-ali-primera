@@ -66,7 +66,7 @@ export function PanelCensoSala({ resumenes, cargando, idsVisibles }: Props) {
   if (!cargando && filas.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Sin datos de censo nominal en la red.
+        Sin datos de registro nominal en la red.
       </p>
     );
   }
@@ -77,7 +77,7 @@ export function PanelCensoSala({ resumenes, cargando, idsVisibles }: Props) {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-300">
-              Red · censo nominal / parte
+              Red · registro nominal / parte
             </p>
             <p className="mt-0.5 text-lg font-bold tabular-nums text-sky-50">
               {totalCenso.toLocaleString("es")}
@@ -134,7 +134,7 @@ export function PanelCensoSala({ resumenes, cargando, idsVisibles }: Props) {
           return (
             <Link
               key={resumen.centroId}
-              to={`/centros/censo/${resumen.centroId}`}
+              to={`/centros/registro/${resumen.centroId}`}
               className="block rounded-lg border border-border bg-card/60 px-2.5 py-2 transition-colors hover:bg-muted/50"
             >
               <div className="mb-1 flex items-center justify-between gap-2">

@@ -167,7 +167,7 @@ export function ListaRefugiadosCentro({
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <Users className="size-4 text-muted-foreground" />
-              Censo nominal
+              Registro nominal
             </CardTitle>
             <CardDescription>
               {activos} activo(s) · {filtrados.length} visible(s)

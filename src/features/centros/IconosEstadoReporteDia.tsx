@@ -41,19 +41,19 @@ const META_CENSO: Record<
   { label: string; clase: string }
 > = {
   sin_iniciar: {
-    label: "Censo sin iniciar",
+    label: "Registro sin iniciar",
     clase: "text-muted-foreground",
   },
   en_curso: {
-    label: "Censo en curso",
+    label: "Registro en curso",
     clase: "text-sky-400",
   },
   meta_alcanzada: {
-    label: "Censo cuadra con el parte",
+    label: "Registro cuadra con el parte",
     clase: "text-emerald-400",
   },
   discrepancia: {
-    label: "Censo con discrepancia vs parte",
+    label: "Registro con discrepancia vs parte",
     clase: "text-red-400",
   },
 };

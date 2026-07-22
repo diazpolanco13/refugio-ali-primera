@@ -5,7 +5,7 @@
 export const LABEL_IMPORTACIONES_EXCEL = "Importaciones Excel";
 
 export const DESC_IMPORTACIONES_EXCEL =
-  "Personas de planillas externas (MCP). No verificadas por el censo nominal.";
+  "Personas de planillas externas (MCP). No verificadas por el registro nominal.";
 
 export const LABEL_IMPORT_VERIFICADO =
   "Import Excel verificadas en nominal";

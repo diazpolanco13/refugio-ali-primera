@@ -150,7 +150,7 @@ export function AvanceCensoNominal({
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <Users className="size-4 text-primary" />
-          Avance del censo
+          Avance del registro
         </CardTitle>
         <p className="truncate text-xs text-muted-foreground">
           {centroNombre} · vs parte numérico del reporte diario
@@ -237,7 +237,7 @@ export function AvanceCensoNominal({
         {demografia && demografia.total > 0 ? (
           <div className="space-y-1.5 border-t border-border/60 pt-3">
             <p className="text-[11px] font-medium text-muted-foreground">
-              Demografía del censo nominal
+              Demografía del registro nominal
               {onFiltroKpi ? " · pulse un KPI para filtrar la tabla" : ""}
             </p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">

@@ -60,6 +60,8 @@ const importDotacionesPendientesView = () =>
 const importCensoView = () => import("./features/censo/CensoView");
 const importCensoRedView = () => import("./features/censo/CensoRedView");
 const importCensoRedListadoView = () => import("./features/censo/CensoRedListadoView");
+const importCensoVerificacionView = () =>
+  import("./features/censo/CensoVerificacionView");
 const importCensoCentroDetalleView = () => import("./features/censo/CensoCentroDetalleView");
 const importTrasladosView = () => import("./features/traslados/TrasladosView");
 const importCampoTareaView = () => import("./features/terreno/CampoTareaView");
@@ -132,6 +134,9 @@ const CensoRedView = lazy(() => importCensoRedView().then((m) => ({ default: m.C
 const CensoRedListadoView = lazy(() =>
   importCensoRedListadoView().then((m) => ({ default: m.CensoRedListadoView })),
 );
+const CensoVerificacionView = lazy(() =>
+  importCensoVerificacionView().then((m) => ({ default: m.CensoVerificacionView })),
+);
 const CensoCentroDetalleView = lazy(() =>
   importCensoCentroDetalleView().then((m) => ({ default: m.CensoCentroDetalleView })),
 );
@@ -149,33 +154,52 @@ const CampoTareaView = lazy(() =>
  */
 function esListadoCensoRed(pathname: string): boolean {
   return (
+    pathname.startsWith("/centros/registro/personas") ||
     pathname.startsWith("/centros/censo/personas") ||
     pathname.startsWith("/centros/censo-rapido/personas")
   );
 }
 
-function esDetalleCensoRed(pathname: string): boolean {
+function esVerificacionCensoRed(pathname: string): boolean {
   return (
+    pathname.startsWith("/centros/registro/verificacion") ||
+    pathname.startsWith("/centros/censo/verificacion") ||
+    pathname.startsWith("/centros/censo-rapido/verificacion")
+  );
+}
+
+function esDetalleCensoRed(pathname: string): boolean {
+  if (esListadoCensoRed(pathname) || esVerificacionCensoRed(pathname)) {
+    return false;
+  }
+  return (
+    /^\/centros\/registro\/[^/]+$/.test(pathname) ||
     /^\/centros\/censo\/[^/]+$/.test(pathname) ||
     /^\/centros\/censo-rapido\/[^/]+$/.test(pathname)
   );
 }
 
 function esTableroCensoRed(pathname: string): boolean {
-  return pathname === "/centros/censo" || pathname === "/centros/censo-rapido";
+  return (
+    pathname === "/centros/registro" ||
+    pathname === "/centros/censo" ||
+    pathname === "/centros/censo-rapido"
+  );
 }
 
-/** Redirect legacy `/centros/censo-rapido/:centroId` → `/centros/censo/:centroId`. */
-function RedirigirCensoRapidoCentro() {
+/** Redirect legacy `/centros/censo|censo-rapido/:centroId` → `/centros/registro/:centroId`. */
+function RedirigirRegistroCentroLegacy() {
   const { centroId } = useParams<{ centroId: string }>();
-  return <Navigate to={`/centros/censo/${centroId ?? ""}`} replace />;
+  return <Navigate to={`/centros/registro/${centroId ?? ""}`} replace />;
 }
 
 function precargarRutaInicial(pathname: string): Promise<unknown> {
   if (esListadoCensoRed(pathname)) return importCensoRedListadoView();
+  if (esVerificacionCensoRed(pathname)) return importCensoVerificacionView();
   if (esDetalleCensoRed(pathname)) return importCensoCentroDetalleView();
   if (esTableroCensoRed(pathname)) return importCensoRedView();
-  if (pathname.startsWith("/censo")) return importCensoView();
+  if (pathname.startsWith("/registro") || pathname.startsWith("/censo"))
+    return importCensoView();
   if (pathname.startsWith("/dashboard")) return importDashboardView();
   if (pathname.startsWith("/centros/tablero")) return importCentrosView();
   if (/^\/centros\/reportes\/[^/]+/.test(pathname)) return importFichaCentroView();
@@ -241,13 +265,15 @@ export function App() {
   const mostrarFabCache = !(esMovil && enMapa) && !enReporteDiario;
 
   useEffect(() => {
-    const esCenso =
+    const esPlanillaPublica =
+      window.location.pathname === "/registro" ||
+      window.location.pathname.startsWith("/registro/") ||
       window.location.pathname === "/censo" ||
       window.location.pathname.startsWith("/censo/");
 
     // La planilla pública no necesita restaurar sesión: evita una ida a Supabase
-    // Auth antes de pintar. (En /censo el bootstrap ligero ni siquiera monta App.)
-    const sesionLista = esCenso ? Promise.resolve() : initAuth();
+    // Auth antes de pintar. (En /registro el bootstrap ligero ni siquiera monta App.)
+    const sesionLista = esPlanillaPublica ? Promise.resolve() : initAuth();
     // Prefetch del chunk de la ruta EN PARALELO, pero NO bloquea el splash:
     // antes se esperaba auth+chunk juntos (~10–20s en dev con MapLibre) y el
     // intro mentía "SISTEMA LISTO". Suspense/skeleton cubren el hueco del chunk.
@@ -262,9 +288,12 @@ export function App() {
   const contenido = (() => {
     if (arrancando) return null;
 
-    // Planilla de censo rápido en terreno: vista pública, sin login. Va antes
+    // Planilla de registro en terreno: vista pública, sin login. Va antes
     // del gate de sesión para que los operadores accedan directo desde el enlace.
-    if (location.pathname.startsWith("/censo")) {
+    if (
+      location.pathname.startsWith("/registro") ||
+      location.pathname.startsWith("/censo")
+    ) {
       return (
         <>
           <AvisoActualizacionApp />
@@ -361,17 +390,27 @@ export function App() {
             }
           />
           <Route
-            path="/centros/censo/personas"
+            path="/centros/registro/personas"
             element={
               <RutaConSkeleton
-                fallback={<TablaRedSkeleton conTabs etiqueta="Cargando listado de censo" />}
+                fallback={<TablaRedSkeleton conTabs etiqueta="Cargando listado de registro" />}
               >
                 <CensoRedListadoView sesion={sesion} />
               </RutaConSkeleton>
             }
           />
           <Route
-            path="/centros/censo/:centroId"
+            path="/centros/registro/verificacion"
+            element={
+              <RutaConSkeleton
+                fallback={<TablaRedSkeleton conTabs etiqueta="Cargando verificación de registro" />}
+              >
+                <CensoVerificacionView sesion={sesion} />
+              </RutaConSkeleton>
+            }
+          />
+          <Route
+            path="/centros/registro/:centroId"
             element={
               <RutaConSkeleton fallback={<FichaCentroSkeleton />}>
                 <CensoCentroDetalleView sesion={sesion} />
@@ -379,25 +418,45 @@ export function App() {
             }
           />
           <Route
-            path="/centros/censo"
+            path="/centros/registro"
             element={
               <RutaConSkeleton fallback={<CensoRedSkeleton />}>
                 <CensoRedView sesion={sesion} />
               </RutaConSkeleton>
             }
           />
-          {/* Alias legacy: censo-rapido → censo */}
+          {/* Alias legacy: /centros/censo y /centros/censo-rapido → /centros/registro */}
+          <Route
+            path="/centros/censo/personas"
+            element={<Navigate to="/centros/registro/personas" replace />}
+          />
+          <Route
+            path="/centros/censo/verificacion"
+            element={<Navigate to="/centros/registro/verificacion" replace />}
+          />
+          <Route
+            path="/centros/censo/:centroId"
+            element={<RedirigirRegistroCentroLegacy />}
+          />
+          <Route
+            path="/centros/censo"
+            element={<Navigate to="/centros/registro" replace />}
+          />
           <Route
             path="/centros/censo-rapido/personas"
-            element={<Navigate to="/centros/censo/personas" replace />}
+            element={<Navigate to="/centros/registro/personas" replace />}
+          />
+          <Route
+            path="/centros/censo-rapido/verificacion"
+            element={<Navigate to="/centros/registro/verificacion" replace />}
           />
           <Route
             path="/centros/censo-rapido/:centroId"
-            element={<RedirigirCensoRapidoCentro />}
+            element={<RedirigirRegistroCentroLegacy />}
           />
           <Route
             path="/centros/censo-rapido"
-            element={<Navigate to="/centros/censo" replace />}
+            element={<Navigate to="/centros/registro" replace />}
           />
           <Route
             path="/centros/refugiados"

@@ -50,8 +50,8 @@ export function CensoRedSkeleton() {
     <VistaPagina
       icono={ClipboardList}
       acento="teal"
-      titulo="Censo (red)"
-      descripcion="Avance del censo nominal por escuela/campamento"
+      titulo="Registro (red)"
+      descripcion="Avance del registro nominal por escuela/campamento"
       cuerpoClassName="p-4 lg:p-6"
     >
       <div className="space-y-4">
@@ -59,11 +59,11 @@ export function CensoRedSkeleton() {
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <KpiShell
-            etiqueta="Escuelas sin iniciar censo"
+            etiqueta="Escuelas sin iniciar registro"
             icono={CircleDashed}
             clase="bg-muted text-muted-foreground"
           />
-          <KpiShell etiqueta="Escuelas con censo activo" icono={ClipboardList} />
+          <KpiShell etiqueta="Escuelas con registro activo" icono={ClipboardList} />
           <KpiShell etiqueta="Personas registradas (red)" icono={Users} />
           <KpiShell
             etiqueta="Escuelas con cierre declarado"
@@ -81,7 +81,7 @@ export function CensoRedSkeleton() {
         <div
           className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
           aria-busy="true"
-          aria-label="Cargando escuelas del censo"
+          aria-label="Cargando escuelas del registro"
         >
           {Array.from({ length: 6 }, (_, i) => (
             <div

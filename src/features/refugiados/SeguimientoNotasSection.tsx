@@ -44,7 +44,7 @@ function textoDetalleTraslado(e: EntradaHistorial): string | null {
 
 function etiquetaAccion(accion: string): string {
   if (accion === "trasladar_familia") return "Traslado (wizard)";
-  if (accion === "traslado_nominal") return "Traslado (censo)";
+  if (accion === "traslado_nominal") return "Traslado (registro)";
   return accion;
 }
 
@@ -211,7 +211,7 @@ export function SeguimientoNotasSection({ detalle, puedeEditar }: Props) {
             Traslados entre campamentos
           </CardTitle>
           <CardDescription className="text-xs">
-            Movimientos registrados (wizard o censo) con motivo
+            Movimientos registrados (wizard o registro) con motivo
           </CardDescription>
         </CardHeader>
         <CardContent>

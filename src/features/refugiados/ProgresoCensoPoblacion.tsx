@@ -61,7 +61,7 @@ export function ProgresoCensoPoblacion({ centro, compacto = false, className }: 
               compacto ? "size-3.5" : "size-4",
             )}
           />
-          Progreso del censo nominal
+          Progreso del registro nominal
         </CardTitle>
         {!compacto && (
           <CardDescription className="text-xs">

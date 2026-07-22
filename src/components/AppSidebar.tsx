@@ -165,7 +165,7 @@ function NavTerreno({ sesion }: Props) {
     if (centroId) params.set("centro", centroId);
     if (tokenQr) params.set("t", tokenQr);
     const q = params.toString();
-    window.location.assign(q ? `/censo?${q}` : "/censo");
+    window.location.assign(q ? `/registro?${q}` : "/registro");
   }
 
   return (
@@ -202,7 +202,7 @@ function NavTerreno({ sesion }: Props) {
             {/* Capacidad no va en el menú: ya vive en la pestaña
                 Infraestructura de la ficha (con su botón de edición); la ruta
                 /campo/capacidad sigue existiendo para el portal y deep links. */}
-            <ItemMenuPortal icono={Users} label="Censo" onClick={irCenso} />
+            <ItemMenuPortal icono={Users} label="Registro" onClick={irCenso} />
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -260,10 +260,10 @@ function NavContenido({ sesion }: Props) {
                 activo={pathname === "/" || rutaActiva(pathname, "/centros/mapa")}
               />
               <ItemMenu
-                to="/centros/censo"
+                to="/centros/registro"
                 icono={ContactRound}
-                label="Censo (red)"
-                activo={rutaActiva(pathname, "/centros/censo")}
+                label="Registro (red)"
+                activo={rutaActiva(pathname, "/centros/registro")}
               />
             </SidebarMenu>
           </SidebarGroupContent>
@@ -329,10 +329,10 @@ function NavContenido({ sesion }: Props) {
             />
             {veCensoRed && (
               <ItemMenu
-                to="/centros/censo"
+                to="/centros/registro"
                 icono={ContactRound}
-                label="Censo (red)"
-                activo={rutaActiva(pathname, "/centros/censo")}
+                label="Registro (red)"
+                activo={rutaActiva(pathname, "/centros/registro")}
               />
             )}
             {vePoblacionRed && (

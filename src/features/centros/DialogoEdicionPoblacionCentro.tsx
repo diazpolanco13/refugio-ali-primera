@@ -107,7 +107,7 @@ export function DialogoEdicionPoblacionCentro({
           <section className="space-y-2">
             <p className="text-xs font-semibold text-foreground">Desglose demográfico</p>
             <p className="text-[11px] text-muted-foreground">
-              Por edad y sexo. Completa cuando el censo avance.
+              Por edad y sexo. Completa cuando el registro avance.
             </p>
             <div className={cn(datos.censo_en_proceso && "opacity-90")}>
               <DesgloseDemografico

@@ -279,7 +279,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             Solo el administrador, el analista y la autoridad pueden
-            consultar el censo de la red.
+            consultar el registro de la red.
           </p>
         </div>
       ) : (
@@ -298,7 +298,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
                 Demografía
               </p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-                <KpiPersona valor={kpis.total} etiqueta="Total censados" icono={Users} />
+                <KpiPersona valor={kpis.total} etiqueta="Total registrados" icono={Users} />
                 <KpiPersona
                   valor={kpis.campamentos}
                   etiqueta="Campamentos"
@@ -573,7 +573,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
 
           <Card className="border-teal-500/15">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Censo rápido</CardTitle>
+              <CardTitle className="text-base">Registro rápido</CardTitle>
               <CardDescription>
                 {cargando && registros.length === 0
                   ? "Cargando…"
@@ -590,7 +590,7 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
                 <p className="py-12 text-center text-sm text-muted-foreground">
                   {hayFiltros
                     ? "Ninguna persona coincide con los filtros seleccionados."
-                    : "Aún no hay registros en el censo rápido."}
+                    : "Aún no hay registros en la planilla rápida."}
                 </p>
               ) : (
                 <>

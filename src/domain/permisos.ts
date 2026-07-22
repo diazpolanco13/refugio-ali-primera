@@ -172,7 +172,7 @@ export function puedeVerEstadoSistema(rol: Rol): boolean {
   return rol !== "operador" && rol !== "censo_rapido";
 }
 
-/** Vista interna /centros/censo (resumen agregado del censo nominal en red). */
+/** Vista interna /centros/registro (resumen agregado del registro nominal en red). */
 export function puedeVerCensoRapidoRed(rol: Rol): boolean {
   return (
     rol === "admin" ||
@@ -500,6 +500,7 @@ export function rutaPermitidaParaRol(pathname: string, rol: Rol): boolean {
     return (
       pathname === "/" ||
       pathname === "/centros/mapa" ||
+      pathname.startsWith("/centros/registro") ||
       pathname.startsWith("/centros/censo")
     );
   }

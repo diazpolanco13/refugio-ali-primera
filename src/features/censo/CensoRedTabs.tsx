@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { FileSpreadsheet, LayoutGrid } from "lucide-react";
+import { FileSpreadsheet, LayoutGrid, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import {
@@ -8,14 +8,21 @@ import {
 } from "@/domain/importacionesExcel";
 
 const TABS = [
-  { to: "/centros/censo", label: "Censo nominal", icono: LayoutGrid, exact: true },
+  { to: "/centros/registro", label: "Registro nominal", icono: LayoutGrid, exact: true },
   // censo_registros origen=import_excel: relaciones externas no verificadas.
   {
-    to: "/centros/censo/personas",
+    to: "/centros/registro/personas",
     label: LABEL_IMPORTACIONES_EXCEL,
     icono: FileSpreadsheet,
     exact: false,
     title: DESC_IMPORTACIONES_EXCEL,
+  },
+  {
+    to: "/centros/registro/verificacion",
+    label: "Verificación",
+    icono: ShieldCheck,
+    exact: false,
+    title: "Cobertura Nexus/SAIME y SIIPOL de Importaciones Excel",
   },
 ] as const;
 

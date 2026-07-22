@@ -50,7 +50,7 @@ export function BotonReporteEstatusCenso({
         disabled={bloqueado}
         title={
           cargando
-            ? "Espera a que termine de cargar el censo nominal"
+            ? "Espera a que termine de cargar el registro nominal"
             : undefined
         }
         onClick={() => {
@@ -73,7 +73,7 @@ export function BotonReporteEstatusCenso({
     return (
       <Button type="button" size="sm" variant="default" className="h-8 gap-1.5" disabled>
         <Loader2 className="size-3.5 animate-spin" />
-        Esperando censo…
+        Esperando registro…
       </Button>
     );
   }

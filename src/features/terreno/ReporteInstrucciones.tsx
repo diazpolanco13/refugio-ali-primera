@@ -76,7 +76,7 @@ export function ReporteInstrucciones({ onContinuar }: Props) {
         </BloqueInstruccion>
 
         <BloqueInstruccion icono={LockKeyhole} titulo="Requiere usuario">
-          A diferencia del censo, el reporte pide{" "}
+          A diferencia del registro, el reporte pide{" "}
           <strong className="font-medium text-foreground">usuario y contraseña</strong>. Si no tiene acceso,
           solicítelo a la sala situacional.
         </BloqueInstruccion>

@@ -61,7 +61,7 @@ const OPCIONES_ESTADO: { valor: FiltroEstado; label: string }[] = [
 
 const OPCIONES_ORDEN: { valor: OrdenCenso; label: string }[] = [
   { valor: "nombre", label: "Nombre A → Z" },
-  { valor: "registrados", label: "Más censados" },
+  { valor: "registrados", label: "Más registrados" },
   { valor: "actividad", label: "Actividad reciente" },
   { valor: "discrepancia", label: "Discrepancias primero" },
 ];
@@ -269,8 +269,8 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
     <VistaPagina
       icono={ClipboardList}
       acento="teal"
-      titulo="Censo (red)"
-      descripcion="Progreso del censo nominal por campamento (contraste vs parte)"
+      titulo="Registro (red)"
+      descripcion="Progreso del registro nominal por campamento (contraste vs parte)"
       cuerpoClassName="p-4 lg:p-6"
     >
       {!tieneAcceso ? (
@@ -281,7 +281,7 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             Solo el administrador, el analista y la autoridad pueden
-            consultar el censo de la red.
+            consultar el registro de la red.
           </p>
         </div>
       ) : (
@@ -293,7 +293,7 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
             <KpiRed
               valor={kpis.sinIniciar}
-              etiqueta="Sin iniciar censo"
+              etiqueta="Sin iniciar registro"
               icono={CircleDashed}
               clase="bg-muted text-muted-foreground"
               delta={kpis.deltaSinIniciar}
@@ -302,7 +302,7 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
             />
             <KpiRed
               valor={kpis.enCurso}
-              etiqueta="Censo en progreso"
+              etiqueta="Registro en progreso"
               icono={ClipboardList}
               delta={kpis.deltaEnCurso}
               cargando={cargando}
@@ -311,8 +311,8 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
               valor={kpis.totalPersonas}
               etiqueta={
                 kpis.totalParte > 0
-                  ? `Censados / parte (${kpis.totalParte.toLocaleString("es")})`
-                  : "Personas censadas (red)"
+                  ? `Registrados / parte (${kpis.totalParte.toLocaleString("es")})`
+                  : "Personas registradas (red)"
               }
               icono={Users}
               delta={kpis.deltaTotalPersonas}
@@ -419,7 +419,7 @@ export function CensoRedView({ sesion }: { sesion: Sesion }) {
             <div
               className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
               aria-busy="true"
-              aria-label="Cargando escuelas del censo"
+              aria-label="Cargando escuelas del registro"
             >
               {Array.from({ length: 6 }, (_, i) => (
                 <div

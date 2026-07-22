@@ -92,7 +92,7 @@ function mensajeDe(informe: InformeEstadoNexus | null, cargando: boolean): {
       tono: "degraded",
       titulo: "Servicios NEXUS/SAIME con fallas",
       cuerpo:
-        "El registro de identidad está fallando: las búsquedas nuevas salen vacías aunque la cédula exista. Pause el censo por cédula e intente más tarde. Las cédulas ya consultadas (caché) sí funcionan.",
+        "El registro de identidad está fallando: las búsquedas nuevas salen vacías aunque la cédula exista. Pause el registro por cédula e intente más tarde. Las cédulas ya consultadas (caché) sí funcionan.",
     };
   }
   if (estado === "offline") {

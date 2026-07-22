@@ -41,7 +41,12 @@ function debeIrATerreno(): boolean {
 
 if (debeIrATerreno()) {
   window.location.replace("/terreno");
-} else if (rutaEs("/censo") || rutaEs("/terreno") || rutaEs("/denuncia")) {
+} else if (rutaEs("/censo")) {
+  // Legacy: planilla pública renombrada a /registro.
+  window.location.replace(
+    `${window.location.pathname.replace(/^\/censo/, "/registro")}${window.location.search}${window.location.hash}`,
+  );
+} else if (rutaEs("/registro") || rutaEs("/terreno") || rutaEs("/denuncia")) {
   // Mismo splash cinematográfico que el resto de la app (logo + CAMPAMENTOS).
   // Antes se forzaba `modo-campo` (solo barra verde) y /terreno se veía vacío.
   void import("./censo-entry").then((m) => m.mount());

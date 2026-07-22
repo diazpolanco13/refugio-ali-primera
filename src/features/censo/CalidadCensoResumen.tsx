@@ -23,7 +23,7 @@ export function CalidadCensoResumen({ resumen }: { resumen: ResumenCensoCentro }
 
   return (
     <div className="space-y-1.5">
-      <p className="text-[11px] font-medium text-muted-foreground">Calidad del censo</p>
+      <p className="text-[11px] font-medium text-muted-foreground">Calidad del registro</p>
       <div className="flex flex-wrap gap-1">
         <Badge
           variant="outline"

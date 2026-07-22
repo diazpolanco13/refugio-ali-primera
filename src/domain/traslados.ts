@@ -122,7 +122,7 @@ export function normalizarFuenteTraslado(raw: unknown): FuenteTraslado {
 }
 
 export function etiquetaFuenteTraslado(fuente: FuenteTraslado): string {
-  return fuente === "censo_nominal" ? "Censo" : "Wizard";
+  return fuente === "censo_nominal" ? "Registro" : "Wizard";
 }
 
 export function normalizarTraslado(raw: Record<string, unknown>): Traslado {

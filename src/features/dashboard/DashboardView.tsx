@@ -619,8 +619,8 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
 
               <PanelSalaPlegable
                 id="censo"
-                titulo="Censo nominal vs parte"
-                tituloCorto="Censo"
+                titulo="Registro nominal vs parte"
+                tituloCorto="Registro"
                 badge={
                   conteosCenso.enCurso > 0
                     ? conteosCenso.enCurso
@@ -630,7 +630,7 @@ export function DashboardView({ sesion }: { sesion: Sesion }) {
                 }
                 resumenPlegado={
                   <ResumenPlegadoSala
-                    nombre="Censo"
+                    nombre="Registro"
                     items={[
                       {
                         valor: conteosCenso.completo,

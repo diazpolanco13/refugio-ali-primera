@@ -438,7 +438,7 @@ function EncabezadoColumnas() {
       </View>
       <Text style={[styles.filaUnidad, styles.kpiLabel]}>Unidad SEBIN</Text>
       <Text style={[styles.filaParte, styles.kpiLabel]}>Parte</Text>
-      <Text style={[styles.filaCensados, styles.kpiLabel]}>Censados</Text>
+      <Text style={[styles.filaCensados, styles.kpiLabel]}>Registrados</Text>
       <View style={styles.filaProgreso}>
         <Text style={[styles.kpiLabel, { textAlign: "right" }]}>Progreso</Text>
       </View>
@@ -534,9 +534,9 @@ export function ReporteEstatusCensoRedPdf({
 
   return (
     <Document
-      title="Estatus del censo nominal — red de campamentos"
+      title="Estatus del registro nominal — red de campamentos"
       author={generadoPor ?? "Sala de Análisis Estratégico"}
-      subject="Progreso del censo nominal vs parte declarado"
+      subject="Progreso del registro nominal vs parte declarado"
       creator="Campamentos Transitorios"
       producer="@react-pdf/renderer"
       language="es-VE"
@@ -568,7 +568,7 @@ export function ReporteEstatusCensoRedPdf({
               accent={discrepancias.length > 0 ? rojo : gris}
             />
             <KpiCard
-              label={totalParte > 0 ? "Censados (red)" : "Censados"}
+              label={totalParte > 0 ? "Registrados (red)" : "Registrados"}
               value={totalPersonas}
               accent={ambar}
               last
@@ -594,17 +594,17 @@ export function ReporteEstatusCensoRedPdf({
             items={completados}
           />
           <SeccionLista
-            titulo="2. Campamentos con censo en progreso"
+            titulo="2. Campamentos con registro en progreso"
             items={enProgreso}
             tint
           />
           <SeccionLista
-            titulo="3. Campamentos con censo sin iniciar"
+            titulo="3. Campamentos con registro sin iniciar"
             items={sinIniciar}
           />
           {discrepancias.length > 0 ? (
             <SeccionLista
-              titulo="4. Campamentos con discrepancia (censo supera el parte)"
+              titulo="4. Campamentos con discrepancia (registro supera el parte)"
               items={discrepancias}
               tint
             />
@@ -613,7 +613,7 @@ export function ReporteEstatusCensoRedPdf({
 
         <View style={styles.pie} fixed>
           <Text style={styles.pieTexto}>
-            Censo nominal vs parte · {fechaHoraMilitar(generadoTs)}
+            Registro nominal vs parte · {fechaHoraMilitar(generadoTs)}
           </Text>
           <Text
             style={styles.pieTexto}

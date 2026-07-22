@@ -355,7 +355,7 @@ export function CensoCentroPanel({
   const centroNombre =
     centro?.nombre ?? resumen?.centroNombre ?? centroNombreProp ?? "Campamento";
   const totalPersonasStaging = resumen?.totalRegistrados ?? total;
-  const urlPlanilla = `/censo?centro=${encodeURIComponent(centroId)}`;
+  const urlPlanilla = `/registro?centro=${encodeURIComponent(centroId)}`;
 
   async function refrescarTodo() {
     await Promise.all([
@@ -406,14 +406,14 @@ export function CensoCentroPanel({
     setErrorEliminarNominal(null);
     setEliminandoNominalId(id);
     try {
-      await registrarEgreso(id, { motivo: "Corrección de censo" });
+      await registrarEgreso(id, { motivo: "Corrección de registro" });
       quitarLocal(id);
       setEliminarNominal(null);
     } catch (err) {
       setErrorEliminarNominal(
         err instanceof Error
           ? err.message
-          : "No se pudo eliminar del censo.",
+          : "No se pudo eliminar del registro.",
       );
     } finally {
       setEliminandoNominalId(null);
@@ -456,7 +456,7 @@ export function CensoCentroPanel({
         <p className="text-sm font-medium text-foreground">Acceso restringido</p>
         <p className="mt-1 text-xs text-muted-foreground">
           Solo el administrador, el analista, la autoridad y el supervisor de
-          este campamento pueden consultar el censo.
+          este campamento pueden consultar el registro.
         </p>
       </div>
     );
@@ -499,7 +499,7 @@ export function CensoCentroPanel({
 
     if (estadoEditable === "sin_iniciar" && nuevo === "en_curso") {
       setErrorEstado(
-        "El censo pasa a «En curso» al registrar la primera persona. Use «Ir al censo» para empezar.",
+        "El registro pasa a «En curso» al registrar la primera persona. Use «Ir al registro» para empezar.",
       );
       return;
     }
@@ -515,11 +515,11 @@ export function CensoCentroPanel({
   const textoConfirmacionEstado =
     pendienteEstado === "completado"
       ? totalPersonasStaging === 0
-        ? `Declarará el censo de ${centroNombre} como completado sin ocupantes (0 personas).`
-        : `Declarará el censo de ${centroNombre} como completado con ${totalPersonasStaging.toLocaleString("es")} persona${totalPersonasStaging === 1 ? "" : "s"} registradas.`
+        ? `Declarará el registro de ${centroNombre} como completado sin ocupantes (0 personas).`
+        : `Declarará el registro de ${centroNombre} como completado con ${totalPersonasStaging.toLocaleString("es")} persona${totalPersonasStaging === 1 ? "" : "s"} registradas.`
       : pendienteEstado === "en_curso"
-        ? `Reabrirá el censo de ${centroNombre}. Se anulará el cierre declarado y quedará en curso.`
-        : `Reabrirá el censo de ${centroNombre} y lo dejará como sin iniciar (sin cierre declarado).`;
+        ? `Reabrirá el registro de ${centroNombre}. Se anulará el cierre declarado y quedará en curso.`
+        : `Reabrirá el registro de ${centroNombre} y lo dejará como sin iniciar (sin cierre declarado).`;
 
   const tabTriggerClass = cn(
     "relative flex h-full min-h-0 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-none px-2 py-0",
@@ -537,11 +537,11 @@ export function CensoCentroPanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="text-[10px]">
-            Censo nominal
+            Registro nominal
           </Badge>
           {progreso.registradosRefugiados > 0 ? (
             <span className="text-xs text-muted-foreground">
-              {progreso.registradosRefugiados.toLocaleString("es")} censado
+              {progreso.registradosRefugiados.toLocaleString("es")} registrado
               {progreso.registradosRefugiados === 1 ? "" : "s"}
             </span>
           ) : null}
@@ -551,7 +551,7 @@ export function CensoCentroPanel({
           <Button size="sm" variant="outline" asChild>
             <a href={urlPlanilla} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="size-4" />
-              Ir al censo
+              Ir al registro
             </a>
           </Button>
           {mostrarActualizar ? (
@@ -582,7 +582,7 @@ export function CensoCentroPanel({
           >
             <TabsTrigger value="actual" className={tabTriggerClass}>
               <ClipboardList className="size-3.5 shrink-0" />
-              <span className="truncate">Censo actual</span>
+              <span className="truncate">Registro actual</span>
               {progreso.registradosRefugiados > 0 ? (
                 <Badge
                   variant="secondary"
@@ -715,8 +715,8 @@ export function CensoCentroPanel({
               <div className="min-w-0">
                 <p className="font-medium">
                   {estado === "sin_ocupantes"
-                    ? "Censo cerrado sin ocupantes"
-                    : "Censo completado declarado"}
+                    ? "Registro cerrado sin ocupantes"
+                    : "Registro completado declarado"}
                 </p>
                 <p className="text-xs opacity-90">
                   {formatearFecha(resumen.cierreEn)}
@@ -908,10 +908,10 @@ export function CensoCentroPanel({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar del censo?</AlertDialogTitle>
+            <AlertDialogTitle>¿Eliminar del registro?</AlertDialogTitle>
             <AlertDialogDescription>
               {eliminarNominal
-                ? `Se quitará a ${nombreCompleto(eliminarNominal.refugiado)} del campamento (egreso por corrección de censo).`
+                ? `Se quitará a ${nombreCompleto(eliminarNominal.refugiado)} del campamento (egreso por corrección de registro).`
                 : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -962,10 +962,10 @@ export function CensoCentroPanel({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {pendienteEstado === "completado"
-                ? "¿Marcar censo como completado?"
+                ? "¿Marcar registro como completado?"
                 : pendienteEstado === "en_curso"
-                  ? "¿Reabrir censo (en curso)?"
-                  : "¿Dejar censo sin iniciar?"}
+                  ? "¿Reabrir registro (en curso)?"
+                  : "¿Dejar registro sin iniciar?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {textoConfirmacionEstado}

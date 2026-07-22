@@ -563,7 +563,7 @@ function mensajeReporteDuplicado(
     .map((o) => `${nombreCentroFn(o.centroId)} — ${detalleOtroRegistro(o)}`)
     .join("; ");
   return [
-    "Posible registro duplicado — Censo por cédula",
+    "Posible registro duplicado — Registro por cédula",
     `Cédula: ${formatearCedula(persona.cedula, persona.letra === "E" ? "E" : "V")} — ${persona.nombre_completo}`,
     `Registrando en: ${centroNombreActual}`,
     `Ya figura activo en: ${otros}`,
@@ -869,7 +869,7 @@ export function CensoNexusPanel({
     setEliminandoMiembro(true);
     try {
       await registrarEgreso(eliminarMiembro.alojamientoId, {
-        motivo: "Corrección de censo",
+        motivo: "Corrección de registro",
       });
       await refrescarMiembros(familiaId);
       setMensaje(`Se quitó del hogar a ${eliminarMiembro.nombre}.`);
@@ -1184,7 +1184,7 @@ export function CensoNexusPanel({
           ? `Familia trasladada a este campamento (${r.movidos} ${
               r.movidos === 1 ? "miembro" : "miembros"
             }). El registro anterior quedó cerrado; continúe con el hogar aquí.`
-          : "Registro anterior cerrado por traslado. Continúe el censo en este campamento.",
+          : "Registro anterior cerrado por traslado. Continúe el registro en este campamento.",
       );
     } catch (err) {
       setTrasladoError(mensajeErrorParaUsuario(err, "No se pudo completar el traslado"));
@@ -1888,7 +1888,7 @@ export function CensoNexusPanel({
                 esJefe == null &&
                 !estatusVivienda
               }
-              title="Reiniciar el censo desde el inicio"
+              title="Reiniciar el registro desde el inicio"
             >
               <RotateCcw className="size-3.5 shrink-0" />
               Reiniciar
@@ -1896,7 +1896,7 @@ export function CensoNexusPanel({
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>¿Reiniciar el censo?</AlertDialogTitle>
+              <AlertDialogTitle>¿Reiniciar el registro?</AlertDialogTitle>
               <AlertDialogDescription>
                 Se limpia la búsqueda, la ficha y el hogar en curso en esta pantalla.
                 Lo ya guardado en la base nominal no se borra.
@@ -1954,7 +1954,7 @@ export function CensoNexusPanel({
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <ShieldCheck className="size-4" />
-            Censo por cédula
+            Registro por cédula
           </CardTitle>
           <CardDescription>
             Ubique a un adulto cedulado que pueda dar la información del hogar —
@@ -2856,7 +2856,7 @@ export function CensoNexusPanel({
                         id="motivo-traslado-censo"
                         value={motivoTraslado}
                         onChange={(e) => setMotivoTraslado(e.target.value)}
-                        placeholder="Ej.: reubicación por capacidad / solicitud familiar / censo en destino"
+                        placeholder="Ej.: reubicación por capacidad / solicitud familiar / registro en destino"
                         rows={3}
                         disabled={trasladando !== null}
                       />
@@ -2957,12 +2957,12 @@ export function CensoNexusPanel({
             {registroViejo ? (
               <div className="space-y-1.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
                 <p className="text-sm font-medium leading-snug">
-                  Ya fue censado/a el {fechaCorta(new Date(registroViejo.creadoEn).getTime())}
+                  Ya fue registrado/a el {fechaCorta(new Date(registroViejo.creadoEn).getTime())}
                   {registroViejo.funcionarioNombre ? ` por ${registroViejo.funcionarioNombre}` : ""}
                   {registroViejo.centroId !== centroId
                     ? ` en el campamento ${nombreCentro(registroViejo.centroId)}`
                     : ""}{" "}
-                  (censo manual anterior).
+                  (registro manual anterior).
                 </p>
                 <p className="text-xs text-muted-foreground leading-snug">
                   Datos de esa planilla, solo como referencia — verifique con la persona:
@@ -4088,7 +4088,7 @@ export function CensoNexusPanel({
             <AlertDialogTitle>¿Quitar del hogar?</AlertDialogTitle>
             <AlertDialogDescription>
               {eliminarMiembro
-                ? `Se quitará a ${eliminarMiembro.nombre} de este hogar (egreso por corrección de censo).`
+                ? `Se quitará a ${eliminarMiembro.nombre} de este hogar (egreso por corrección de registro).`
                 : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
