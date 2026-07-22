@@ -34,7 +34,6 @@ import {
   type PuntoSerieCensoNominal,
   type VariacionKpisCenso,
 } from "@/domain/serieCensoNominal";
-import { tieneEnfermedadNominal } from "@/features/censo/metricasDemograficasNominal";
 
 export function useCensoNominalRed(): {
   resumenes: ResumenCensoNominalCentro[];
@@ -94,10 +93,7 @@ export function useCensoNominalRed(): {
         },
       );
 
-      let embarazadas = 0;
-      let discapacidad = 0;
       let adultosMayores = 0;
-      let conEnfermedad = 0;
       let mujeres = 0;
       let hombres = 0;
       let menores = 0;
@@ -108,9 +104,6 @@ export function useCensoNominalRed(): {
         const r = a.refugiado;
         if (r.sexo === "F") mujeres++;
         else if (r.sexo === "M") hombres++;
-        if (r.vulnerabilidades?.embarazada) embarazadas++;
-        if (r.vulnerabilidades?.discapacidad) discapacidad++;
-        if (tieneEnfermedadNominal(a)) conEnfermedad++;
         const grupo = grupoEtarioRefugiado(r.fecha_nacimiento);
         if (grupo === "adulto_mayor") adultosMayores++;
         if (
@@ -146,10 +139,7 @@ export function useCensoNominalRed(): {
         parteDia: snap?.dia ?? null,
         ultimoRegistroTs,
         contraste: contrasteDesdeProgreso(progreso),
-        embarazadas,
-        discapacidad,
         adultosMayores,
-        conEnfermedad,
         mujeres,
         hombres,
         menores,

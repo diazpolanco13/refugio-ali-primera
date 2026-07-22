@@ -10,7 +10,6 @@ import {
   FileWarning,
   FilterX,
   Gift,
-  HeartPulse,
   Home,
   Search,
   ShieldAlert,
@@ -75,8 +74,6 @@ const FILAS_POR_PAGINA = 50;
 type FiltroGrupoEtario = GrupoEtarioRefugiado | "todos";
 type FiltroVulnerabilidad =
   | "todos"
-  | "embarazada"
-  | "discapacidad"
   | "documento_pendiente"
   | "sin_documento"
   | "vulnerables";
@@ -102,8 +99,6 @@ interface PerfilPoblacion {
   grupo: GrupoEtarioRefugiado;
   tieneDocumento: boolean;
   documentoPendiente: boolean;
-  embarazada: boolean;
-  discapacidad: boolean;
   vulnerable: boolean;
   esJefe: boolean;
   sinHogar: boolean;
@@ -122,10 +117,8 @@ function perfilDeAlojamiento(a: AlojamientoEnriquecido): PerfilPoblacion {
     a.refugiado.estado_documento === "perdida" ||
     a.refugiado.estado_documento === "danada" ||
     documentosPendientes.length > 0;
-  const embarazada = Boolean(a.refugiado.vulnerabilidades.embarazada);
-  const discapacidad = Boolean(a.refugiado.vulnerabilidades.discapacidad);
   const vulnerable =
-    embarazada || discapacidad || grupo === "menor5" || grupo === "adulto_mayor" || documentoPendiente;
+    grupo === "menor5" || grupo === "adulto_mayor" || documentoPendiente;
 
   return {
     alojamiento: a,
@@ -134,8 +127,6 @@ function perfilDeAlojamiento(a: AlojamientoEnriquecido): PerfilPoblacion {
     grupo,
     tieneDocumento,
     documentoPendiente,
-    embarazada,
-    discapacidad,
     vulnerable,
     esJefe: a.es_jefe_familia,
     sinHogar: !a.familia_id,
@@ -173,8 +164,6 @@ function etiquetaFamilia(p: PerfilPoblacion): string {
 
 function pesoVulnerabilidad(p: PerfilPoblacion): number {
   let n = 0;
-  if (p.embarazada) n += 4;
-  if (p.discapacidad) n += 3;
   if (p.documentoPendiente) n += 2;
   if (p.grupo === "menor5" || p.grupo === "adulto_mayor") n += 1;
   return n;
@@ -271,8 +260,6 @@ export function RefugiadosRedView() {
       if (documento === "sin_documento" && p.tieneDocumento) return false;
       if (documento === "cedula" && !["V", "E"].includes(a.refugiado.tipo_doc ?? "")) return false;
       if (documento === "pasaporte" && a.refugiado.tipo_doc !== "P") return false;
-      if (vulnerabilidad === "embarazada" && !p.embarazada) return false;
-      if (vulnerabilidad === "discapacidad" && !p.discapacidad) return false;
       if (vulnerabilidad === "documento_pendiente" && !p.documentoPendiente) return false;
       if (vulnerabilidad === "sin_documento" && p.tieneDocumento) return false;
       if (vulnerabilidad === "vulnerables" && !p.vulnerable) return false;
@@ -312,9 +299,7 @@ export function RefugiadosRedView() {
     let adultos = 0;
     let ninos = 0;
     let adolescentes = 0;
-    let embarazadas = 0;
     let adultosMayores = 0;
-    let discapacidad = 0;
     let documentoPendiente = 0;
     for (const p of visibles) {
       if (p.alojamiento.familia_id) familias.add(p.alojamiento.familia_id);
@@ -323,8 +308,6 @@ export function RefugiadosRedView() {
       else if (p.grupo === "menor5" || p.grupo === "ninez") ninos++;
       else if (p.grupo === "adolescente") adolescentes++;
       else if (p.grupo === "adulto_mayor") adultosMayores++;
-      if (p.embarazada) embarazadas++;
-      if (p.discapacidad) discapacidad++;
       if (p.documentoPendiente) documentoPendiente++;
     }
     return {
@@ -333,9 +316,7 @@ export function RefugiadosRedView() {
       adultos,
       ninos,
       adolescentes,
-      embarazadas,
       adultosMayores,
-      discapacidad,
       documentoPendiente,
     };
   }, [visibles]);
@@ -414,15 +395,13 @@ export function RefugiadosRedView() {
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="space-y-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:p-6">
-          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9">
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
             <KpiPerfil titulo="Total visible" valor={kpis.total} icono={Users} />
             <KpiPerfil titulo="Familias" valor={kpis.familias} icono={Home} />
             <KpiPerfil titulo="Adultos" valor={kpis.adultos} icono={UserRound} />
             <KpiPerfil titulo="Niños" valor={kpis.ninos} icono={Baby} />
             <KpiPerfil titulo="Adolescentes" valor={kpis.adolescentes} icono={ShieldAlert} />
             <KpiPerfil titulo="Adultos mayores" valor={kpis.adultosMayores} icono={Users} />
-            <KpiPerfil titulo="Embarazadas" valor={kpis.embarazadas} icono={HeartPulse} />
-            <KpiPerfil titulo="Discapacidad" valor={kpis.discapacidad} icono={HeartPulse} />
             <KpiPerfil titulo="Doc. pendiente" valor={kpis.documentoPendiente} icono={FileWarning} />
           </div>
 
@@ -479,9 +458,7 @@ export function RefugiadosRedView() {
                   <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todas</SelectItem>
-                    <SelectItem value="vulnerables">Cualquier vulnerabilidad</SelectItem>
-                    <SelectItem value="embarazada">Embarazadas</SelectItem>
-                    <SelectItem value="discapacidad">Discapacidad</SelectItem>
+                    <SelectItem value="vulnerables">Cualquier alerta</SelectItem>
                     <SelectItem value="documento_pendiente">Documento pendiente</SelectItem>
                     <SelectItem value="sin_documento">Sin documento</SelectItem>
                   </SelectContent>
@@ -729,8 +706,6 @@ export function RefugiadosRedView() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex max-w-[16rem] flex-wrap gap-1">
-                                  {p.embarazada && <BadgePerfil className="text-pink-400">Embarazada</BadgePerfil>}
-                                  {p.discapacidad && <BadgePerfil className="text-amber-400">Discapacidad</BadgePerfil>}
                                   {p.documentoPendiente && <BadgePerfil className="text-orange-400">Doc. pendiente</BadgePerfil>}
                                   {!p.vulnerable && <span className="text-xs text-muted-foreground">Sin alertas</span>}
                                 </div>

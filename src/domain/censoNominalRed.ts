@@ -26,10 +26,7 @@ export interface ResumenCensoNominalCentro {
   parteDia: string | null;
   ultimoRegistroTs: number;
   contraste: EstadoContrasteCenso;
-  embarazadas: number;
-  discapacidad: number;
   adultosMayores: number;
-  conEnfermedad: number;
   mujeres: number;
   hombres: number;
   menores: number;

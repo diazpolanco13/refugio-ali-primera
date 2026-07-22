@@ -55,26 +55,6 @@ function formatearFechaHora(ts: number): string {
   });
 }
 
-/** Condiciones de salud relevantes en una sola celda legible. */
-function resumenSalud(r: Refugiado): string {
-  const s = r.salud ?? {};
-  const partes: string[] = [];
-  if (s.lesiones?.trim()) partes.push(`Lesiones: ${s.lesiones.trim()}`);
-  if (s.condiciones_cronicas?.trim()) {
-    partes.push(`Crónicas: ${s.condiciones_cronicas.trim()}`);
-  }
-  if (s.medicamentos_urgente) partes.push("Medicamentos urgentes");
-  if (s.medicamentos_perdidos?.trim()) {
-    partes.push(`Medicamentos perdidos: ${s.medicamentos_perdidos.trim()}`);
-  }
-  if ((s.embarazo_semanas ?? 0) > 0) {
-    partes.push(`Embarazo ${s.embarazo_semanas} sem.`);
-  }
-  if (s.lactancia) partes.push("Lactancia");
-  if (s.notas?.trim()) partes.push(s.notas.trim());
-  return partes.join(" · ");
-}
-
 /**
  * Clave de la caché Nexus para una persona (letra + dígitos). Los pasaportes
  * no existen en Nexus; se omiten.
@@ -141,7 +121,6 @@ function filaExcel(
   const familia =
     a.familia?.nombre?.trim() ||
     (a.familia_id ? a.familia_id.slice(0, 8) : "");
-  const vul = r.vulnerabilidades ?? {};
 
   return {
     "#": numero,
@@ -154,12 +133,6 @@ function filaExcel(
     "Estado civil (SAIME)": nexus?.estado_civil?.trim() || "",
     Parentesco: parentesco,
     Familia: familia,
-    Embarazada: vul.embarazada ? "Sí" : "No",
-    Discapacidad: vul.discapacidad ? "Sí" : "No",
-    "Detalle discapacidad": vul.discapacidad_detalle?.trim() || "",
-    Salud: resumenSalud(r),
-    "Desaparecidos hogar": a.familia?.desaparecidos ?? 0,
-    "Fallecidos hogar": a.familia?.fallecidos_confirmados ?? 0,
     Teléfono: r.contacto?.telefono_principal?.trim() || "",
     "Teléfonos (SAIME)": nexus?.telefonos?.length
       ? nexus.telefonos.join(" / ")

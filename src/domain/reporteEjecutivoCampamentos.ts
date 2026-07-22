@@ -41,12 +41,7 @@ import {
   serieOcupacionRedVentana,
   type SnapshotOcupacion,
 } from "./serieOcupacionCentros";
-import {
-  totalHombres,
-  totalMujeres,
-  totalVulnerables,
-  type Vulnerables,
-} from "./tipos";
+import { totalHombres, totalMujeres, type Vulnerables } from "./tipos";
 import {
   agruparPorUnidadConteo,
   contarUnidadesCon,
@@ -105,9 +100,6 @@ export interface DemografiaEjecutiva {
   adolescentes: number;
   adultos: number;
   adultosMayores: number;
-  embarazadas: number;
-  discapacidad: number;
-  vulnerables: number;
   mascotas: number;
   /** Desglose H/M por grupo etario (para el parte demográfico detallado). */
   porGrupo: {
@@ -115,8 +107,6 @@ export interface DemografiaEjecutiva {
     h: number;
     m: number;
   }[];
-  discapacidadH: number;
-  discapacidadM: number;
 }
 
 export interface LogisticaEjecutiva {
@@ -424,7 +414,6 @@ function porcentaje(valor: number, total: number): number {
 }
 
 function sumarDemografia(v: Vulnerables): DemografiaEjecutiva {
-  const discapacidad = v.discapacidad_h + v.discapacidad_m;
   const porGrupo = [
     { etiqueta: "0-2 años", h: v.recien_nacidos_h, m: v.recien_nacidos_m },
     { etiqueta: "3-11 años", h: v.ninos, m: v.ninas },
@@ -441,13 +430,8 @@ function sumarDemografia(v: Vulnerables): DemografiaEjecutiva {
     adolescentes: v.adolescentes_h + v.adolescentes_m,
     adultos: v.adultos_h + v.adultos_m,
     adultosMayores: v.adultos_mayores_h + v.adultos_mayores_m,
-    embarazadas: v.embarazadas,
-    discapacidad,
-    vulnerables: totalVulnerables(v),
     mascotas: v.mascotas,
     porGrupo,
-    discapacidadH: v.discapacidad_h,
-    discapacidadM: v.discapacidad_m,
   };
 }
 

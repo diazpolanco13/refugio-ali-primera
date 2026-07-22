@@ -211,24 +211,9 @@ export function TarjetaCensoNominal({ resumen }: Props) {
                 clase="border-sky-500/30 text-sky-600 dark:text-sky-300"
               />
               <BadgeCondicion
-                valor={resumen.embarazadas}
-                label="Embarazadas"
-                clase="border-pink-500/30 text-pink-600 dark:text-pink-300"
-              />
-              <BadgeCondicion
-                valor={resumen.discapacidad}
-                label="Discapacidad"
-                clase="border-amber-500/30 text-amber-600 dark:text-amber-300"
-              />
-              <BadgeCondicion
                 valor={resumen.adultosMayores}
                 label="Adultos 60+"
                 clase="border-violet-500/30 text-violet-600 dark:text-violet-300"
-              />
-              <BadgeCondicion
-                valor={resumen.conEnfermedad}
-                label="Enfermedad"
-                clase="border-red-500/30 text-red-600 dark:text-red-300"
               />
               <BadgeCondicion
                 valor={resumen.menores}

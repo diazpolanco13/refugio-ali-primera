@@ -893,16 +893,6 @@ function Barra({
   );
 }
 
-function MiniDato({ label, value }: { label: string; value: number }) {
-  return (
-    <View style={styles.miniBox}>
-      <Text style={styles.miniLabel}>{label}</Text>
-      <Text style={styles.miniValue}>{n(value)}</Text>
-    </View>
-  );
-}
-
-
 const ANCHOS_TABLA = {
   nro: 0.35,
   campamento: 1.48,
@@ -1144,10 +1134,6 @@ export function ReporteEjecutivoCampamentosPdf({
                   </Text>
                   <Text style={[styles.rowValue, { flex: 0.7, textAlign: "right" }]}>{n(dem.total)}</Text>
                 </View>
-              </View>
-              <View style={styles.miniGrid}>
-                <MiniDato label="Embarazadas" value={dem.embarazadas} />
-                <MiniDato label="Discapacidad/patologías" value={dem.discapacidad} />
               </View>
             </Section>
 

@@ -46,10 +46,8 @@ import {
   alojamientosActivos,
   contarFamiliasActivas,
   nombreCompleto,
-  normalizarEstatusVivienda,
   progresoCensoNominal,
   type AlojamientoEnriquecido,
-  type EstatusVivienda,
 } from "@/domain/refugiados";
 import { AvanceCensoNominal, type FiltroKpiDemografico } from "@/features/censo/AvanceCensoNominal";
 import { BotonExportarCensoCentro } from "@/features/censo/BotonExportarCensoCentro";
@@ -190,9 +188,6 @@ export function CensoCentroPanel({
     null,
   );
   const [filtroKpi, setFiltroKpi] = useState<FiltroKpiDemografico>(null);
-  const [estatusPorFamilia, setEstatusPorFamilia] = useState<
-    Map<string, EstatusVivienda>
-  >(new Map());
 
   const [centroLocal, setCentroLocal] = useState<CentroTransitorio | null>(null);
   const [censoViejoCount, setCensoViejoCount] = useState(0);
@@ -230,37 +225,6 @@ export function CensoCentroPanel({
     centroId,
     estado: "activo",
   });
-
-  useEffect(() => {
-    let cancelado = false;
-    void (async () => {
-      const { data, error } = await supabase
-        .from("residencias_afectadas")
-        .select("familia_id,estatus_vivienda")
-        .eq("centro_id", centroId);
-      if (cancelado) return;
-      if (error) {
-        console.warn("[CensoCentroPanel] residencias:", error.message);
-        setEstatusPorFamilia(new Map());
-        return;
-      }
-      const map = new Map<string, EstatusVivienda>();
-      for (const row of data ?? []) {
-        const famId = (row as { familia_id?: string }).familia_id;
-        if (!famId) continue;
-        map.set(
-          famId,
-          normalizarEstatusVivienda(
-            (row as { estatus_vivienda?: string }).estatus_vivienda,
-          ),
-        );
-      }
-      setEstatusPorFamilia(map);
-    })();
-    return () => {
-      cancelado = true;
-    };
-  }, [centroId]);
 
   useEffect(() => {
     if (centroProp) {
@@ -343,8 +307,8 @@ export function CensoCentroPanel({
   }, [alojamientos, metaFamilias, metaRefugiados]);
 
   const demografia = useMemo(
-    () => metricasDemograficasNominal(alojamientos, estatusPorFamilia),
-    [alojamientos, estatusPorFamilia],
+    () => metricasDemograficasNominal(alojamientos),
+    [alojamientos],
   );
 
   const resumen = useMemo(
@@ -628,7 +592,6 @@ export function CensoCentroPanel({
             nivel={nivelColumnas}
             puedeEditar={puedeEditar}
             eliminandoId={eliminandoNominalId}
-            estatusPorFamilia={estatusPorFamilia}
             filtroKpi={filtroKpi}
             onLimpiarFiltroKpi={() => setFiltroKpi(null)}
             onAbrirRefugiado={abrirRefugiado}

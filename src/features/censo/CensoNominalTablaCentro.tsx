@@ -19,7 +19,6 @@ import {
   useEtiquetaPerfil,
 } from "@/data/useEtiquetaPerfil";
 import { useSesion } from "@/data/authSupabase";
-import { supabase } from "@/data/supabaseClient";
 import {
   puedeExportarCensoNominal,
   type NivelColumnasCensoNominal,
@@ -31,16 +30,10 @@ import {
   grupoEtarioRefugiado,
   META_ESTADO_ALOJAMIENTO,
   nombreCompleto,
-  normalizarEstatusVivienda,
   type AlojamientoEnriquecido,
-  type EstatusVivienda,
 } from "@/domain/refugiados";
 import type { FiltroKpiDemografico } from "@/features/censo/AvanceCensoNominal";
 import { exportarCensoNominalExcel } from "@/features/censo/exportarCensoNominal";
-import {
-  metaNivelHogar,
-  tieneEnfermedadNominal,
-} from "@/features/censo/metricasDemograficasNominal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -86,22 +79,12 @@ type ColumnaOrden =
   | "edad"
   | "sexo"
   | "familia"
-  | "embarazada"
-  | "discapacidad"
-  | "hogar"
   | "estado"
   | "registrado";
 
 type DireccionOrden = "asc" | "desc";
 type FiltroSexo = "todos" | "F" | "M" | "O";
-type FiltroPerfil =
-  | "todos"
-  | "embarazada"
-  | "discapacidad"
-  | "adulto_mayor"
-  | "enfermedad"
-  | "desaparecidos"
-  | "critico";
+type FiltroPerfil = "todos" | "adulto_mayor";
 
 const FILAS_POR_PAGINA = 50;
 
@@ -186,8 +169,6 @@ interface Props {
   nivel: NivelColumnasCensoNominal;
   puedeEditar: boolean;
   eliminandoId?: string | null;
-  /** Estatus vivienda por familia (si el padre ya lo cargó). */
-  estatusPorFamilia?: Map<string, EstatusVivienda>;
   /** Filtro externo desde KPIs del avance. */
   filtroKpi?: FiltroKpiDemografico;
   onLimpiarFiltroKpi?: () => void;
@@ -291,22 +272,10 @@ function CabeceraOrdenable({
   );
 }
 
-function SiNo({ valor }: { valor: boolean }) {
-  if (!valor) {
-    return <span className="text-xs text-muted-foreground">—</span>;
-  }
-  return (
-    <Badge variant="outline" className="border-amber-500/40 text-[10px] text-amber-400">
-      Sí
-    </Badge>
-  );
-}
-
 function FilaDamnificado({
   a,
   numero,
   nivel,
-  estatusPorFamilia,
   puedeEditar,
   eliminando,
   onAbrir,
@@ -315,7 +284,6 @@ function FilaDamnificado({
   a: AlojamientoEnriquecido;
   numero: number;
   nivel: NivelColumnasCensoNominal;
-  estatusPorFamilia: Map<string, EstatusVivienda>;
   puedeEditar: boolean;
   eliminando: boolean;
   onAbrir?: () => void;
@@ -328,9 +296,6 @@ function FilaDamnificado({
   const familia =
     a.familia?.nombre?.trim() ||
     (a.familia_id ? "Con hogar" : "Sin hogar");
-  const embarazada = Boolean(a.refugiado.vulnerabilidades?.embarazada);
-  const discapacidad = Boolean(a.refugiado.vulnerabilidades?.discapacidad);
-  const nivelHogar = metaNivelHogar(a, estatusPorFamilia);
 
   return (
     <TableRow
@@ -366,28 +331,6 @@ function FilaDamnificado({
             {familia}
           </p>
         </div>
-      </TableCell>
-      <TableCell>
-        <SiNo valor={embarazada} />
-      </TableCell>
-      <TableCell>
-        <SiNo valor={discapacidad} />
-      </TableCell>
-      <TableCell>
-        <Badge
-          variant="outline"
-          className="text-[10px]"
-          style={{ borderColor: nivelHogar.color, color: nivelHogar.color }}
-          title={
-            (a.familia?.desaparecidos ?? 0) > 0
-              ? `Desaparecidos: ${a.familia?.desaparecidos}`
-              : (a.familia?.fallecidos_confirmados ?? 0) > 0
-                ? `Fallecidos: ${a.familia?.fallecidos_confirmados}`
-                : undefined
-          }
-        >
-          {nivelHogar.label}
-        </Badge>
       </TableCell>
       {nivel === "amplio" ? (
         <TableCell className="font-mono text-xs text-muted-foreground">
@@ -450,7 +393,6 @@ function FilaDamnificado({
 function FilaFamiliaCard({
   familia,
   numero,
-  estatusPorFamilia,
   puedeEditar,
   eliminandoId,
   onAbrir,
@@ -458,7 +400,6 @@ function FilaFamiliaCard({
 }: {
   familia: FamiliaFila;
   numero: number;
-  estatusPorFamilia: Map<string, EstatusVivienda>;
   puedeEditar: boolean;
   eliminandoId: string | null;
   onAbrir?: (alojamientoId: string) => void;
@@ -469,7 +410,6 @@ function FilaFamiliaCard({
     familia.jefe.familia?.nombre?.trim() ||
     `Familia ${nombreCompleto(familia.jefe.refugiado).split(/\s+/).slice(-1)[0] || ""}`.trim();
   const otros = familia.miembros.filter((m) => m.id !== familia.jefe.id);
-  const nivelHogar = metaNivelHogar(familia.jefe, estatusPorFamilia);
 
   return (
     <Collapsible
@@ -493,13 +433,6 @@ function FilaFamiliaCard({
             <span className="font-mono">{etiquetaCedula(familia.jefe)}</span>
             <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
               {familia.jefe.es_jefe_familia ? "Líder" : "Sin líder aún"}
-            </Badge>
-            <Badge
-              variant="outline"
-              className="h-5 px-1.5 text-[10px]"
-              style={{ borderColor: nivelHogar.color, color: nivelHogar.color }}
-            >
-              {nivelHogar.label}
             </Badge>
             {titulo ? (
               <span className="truncate text-muted-foreground/80">{titulo}</span>
@@ -568,24 +501,6 @@ function FilaFamiliaCard({
                     {etiquetaCedula(m)} · {etiquetaParentesco(m)}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-1">
-                  {m.refugiado.vulnerabilidades?.embarazada ? (
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] text-pink-400"
-                    >
-                      Emb.
-                    </Badge>
-                  ) : null}
-                  {m.refugiado.vulnerabilidades?.discapacidad ? (
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] text-amber-400"
-                    >
-                      Disc.
-                    </Badge>
-                  ) : null}
-                </div>
                 {puedeEditar && onEliminar ? (
                   <Button
                     type="button"
@@ -620,28 +535,19 @@ function filtroDesdeKpi(kpi: FiltroKpiDemografico): {
 } {
   if (kpi === "mujeres") return { sexo: "F", perfil: "todos" };
   if (kpi === "hombres") return { sexo: "M", perfil: "todos" };
-  if (kpi === "embarazadas") return { sexo: "todos", perfil: "embarazada" };
-  if (kpi === "discapacidad") return { sexo: "todos", perfil: "discapacidad" };
   if (kpi === "adultos_mayores") {
     return { sexo: "todos", perfil: "adulto_mayor" };
   }
-  if (kpi === "enfermedad") return { sexo: "todos", perfil: "enfermedad" };
-  if (kpi === "desaparecidos") {
-    return { sexo: "todos", perfil: "desaparecidos" };
-  }
-  if (kpi === "critico") return { sexo: "todos", perfil: "critico" };
   return { sexo: "todos", perfil: "todos" };
 }
 
 export function CensoNominalTablaCentro({
   alojamientos,
   cargando,
-  centroId,
   centroNombre,
   nivel,
   puedeEditar,
   eliminandoId = null,
-  estatusPorFamilia: estatusProp,
   filtroKpi = null,
   onLimpiarFiltroKpi,
   onAbrirRefugiado,
@@ -661,43 +567,6 @@ export function CensoNominalTablaCentro({
   const puedeExportar = sesion
     ? puedeExportarCensoNominal(sesion.user.rol)
     : false;
-  const [estatusLocal, setEstatusLocal] = useState<
-    Map<string, EstatusVivienda>
-  >(new Map());
-
-  const estatusPorFamilia = estatusProp ?? estatusLocal;
-
-  useEffect(() => {
-    if (estatusProp) return;
-    let cancelado = false;
-    void (async () => {
-      const { data, error } = await supabase
-        .from("residencias_afectadas")
-        .select("familia_id,estatus_vivienda")
-        .eq("centro_id", centroId);
-      if (cancelado) return;
-      if (error) {
-        console.warn("[CensoNominalTabla] residencias:", error.message);
-        setEstatusLocal(new Map());
-        return;
-      }
-      const map = new Map<string, EstatusVivienda>();
-      for (const row of data ?? []) {
-        const famId = (row as { familia_id?: string }).familia_id;
-        if (!famId) continue;
-        map.set(
-          famId,
-          normalizarEstatusVivienda(
-            (row as { estatus_vivienda?: string }).estatus_vivienda,
-          ),
-        );
-      }
-      setEstatusLocal(map);
-    })();
-    return () => {
-      cancelado = true;
-    };
-  }, [centroId, estatusProp]);
 
   useEffect(() => {
     const sync = filtroDesdeKpi(filtroKpi);
@@ -753,20 +622,8 @@ export function CensoNominalTablaCentro({
       if (filtroSexo !== "todos" && a.refugiado.sexo !== filtroSexo) {
         return false;
       }
-      if (filtroPerfil === "embarazada") {
-        if (!a.refugiado.vulnerabilidades?.embarazada) return false;
-      } else if (filtroPerfil === "discapacidad") {
-        if (!a.refugiado.vulnerabilidades?.discapacidad) return false;
-      } else if (filtroPerfil === "adulto_mayor") {
+      if (filtroPerfil === "adulto_mayor") {
         if (grupoEtarioRefugiado(a.refugiado.fecha_nacimiento) !== "adulto_mayor") {
-          return false;
-        }
-      } else if (filtroPerfil === "enfermedad") {
-        if (!tieneEnfermedadNominal(a)) return false;
-      } else if (filtroPerfil === "desaparecidos") {
-        if ((a.familia?.desaparecidos ?? 0) <= 0) return false;
-      } else if (filtroPerfil === "critico") {
-        if (metaNivelHogar(a, estatusPorFamilia).valor !== "critico") {
           return false;
         }
       }
@@ -811,21 +668,6 @@ export function CensoNominalTablaCentro({
             a.familia?.nombre || etiquetaParentesco(a),
             b.familia?.nombre || etiquetaParentesco(b),
           );
-        case "embarazada":
-          return cmp(
-            Boolean(a.refugiado.vulnerabilidades?.embarazada),
-            Boolean(b.refugiado.vulnerabilidades?.embarazada),
-          );
-        case "discapacidad":
-          return cmp(
-            Boolean(a.refugiado.vulnerabilidades?.discapacidad),
-            Boolean(b.refugiado.vulnerabilidades?.discapacidad),
-          );
-        case "hogar":
-          return cmp(
-            metaNivelHogar(a, estatusPorFamilia).label,
-            metaNivelHogar(b, estatusPorFamilia).label,
-          );
         case "estado":
           return cmp(a.estado, b.estado);
         case "registrado":
@@ -843,7 +685,6 @@ export function CensoNominalTablaCentro({
     busqueda,
     columnaOrden,
     direccionOrden,
-    estatusPorFamilia,
     filtroPerfil,
     filtroSexo,
   ]);
@@ -968,12 +809,7 @@ export function CensoNominalTablaCentro({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todo perfil</SelectItem>
-              <SelectItem value="embarazada">Embarazadas</SelectItem>
-              <SelectItem value="discapacidad">Discapacidad</SelectItem>
               <SelectItem value="adulto_mayor">Adultos 60+</SelectItem>
-              <SelectItem value="enfermedad">Enfermedad</SelectItem>
-              <SelectItem value="desaparecidos">Con desaparecidos</SelectItem>
-              <SelectItem value="critico">Hogar crítico</SelectItem>
             </SelectContent>
           </Select>
           {hayFiltros ? (
@@ -1108,33 +944,6 @@ export function CensoNominalTablaCentro({
                         Familia
                       </CabeceraOrdenable>
                     </TableHead>
-                    <TableHead>
-                      <CabeceraOrdenable
-                        activa={columnaOrden === "embarazada"}
-                        direccion={direccionOrden}
-                        onClick={() => alternarOrden("embarazada")}
-                      >
-                        Emb.
-                      </CabeceraOrdenable>
-                    </TableHead>
-                    <TableHead>
-                      <CabeceraOrdenable
-                        activa={columnaOrden === "discapacidad"}
-                        direccion={direccionOrden}
-                        onClick={() => alternarOrden("discapacidad")}
-                      >
-                        Disc.
-                      </CabeceraOrdenable>
-                    </TableHead>
-                    <TableHead>
-                      <CabeceraOrdenable
-                        activa={columnaOrden === "hogar"}
-                        direccion={direccionOrden}
-                        onClick={() => alternarOrden("hogar")}
-                      >
-                        Estado hogar
-                      </CabeceraOrdenable>
-                    </TableHead>
                     {nivel === "amplio" ? <TableHead>Teléfono</TableHead> : null}
                     <TableHead>
                       <CabeceraOrdenable
@@ -1173,7 +982,6 @@ export function CensoNominalTablaCentro({
                       a={a}
                       numero={paginaSegura * FILAS_POR_PAGINA + i + 1}
                       nivel={nivel}
-                      estatusPorFamilia={estatusPorFamilia}
                       puedeEditar={puedeEditar}
                       eliminando={eliminandoId === a.id}
                       onAbrir={
@@ -1204,7 +1012,6 @@ export function CensoNominalTablaCentro({
                 key={f.key}
                 familia={f}
                 numero={paginaSegura * FILAS_POR_PAGINA + i + 1}
-                estatusPorFamilia={estatusPorFamilia}
                 puedeEditar={puedeEditar}
                 eliminandoId={eliminandoId}
                 onAbrir={onAbrirRefugiado}

@@ -98,12 +98,7 @@ function KpiChip({
 }
 
 export type FiltroKpiDemografico =
-  | "embarazadas"
-  | "discapacidad"
   | "adultos_mayores"
-  | "enfermedad"
-  | "desaparecidos"
-  | "critico"
   | "mujeres"
   | "hombres"
   | null;
@@ -240,7 +235,7 @@ export function AvanceCensoNominal({
               Demografía del registro nominal
               {onFiltroKpi ? " · pulse un KPI para filtrar la tabla" : ""}
             </p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <KpiChip
                 label="Mujeres"
                 valor={demografia.mujeres}
@@ -254,56 +249,17 @@ export function AvanceCensoNominal({
                 onClick={onFiltroKpi ? () => toggleKpi("hombres") : undefined}
               />
               <KpiChip
-                label="Embarazadas"
-                valor={demografia.embarazadas}
-                alerta
-                activo={filtroKpi === "embarazadas"}
-                onClick={
-                  onFiltroKpi ? () => toggleKpi("embarazadas") : undefined
-                }
-              />
-              <KpiChip
-                label="Discapacidad"
-                valor={demografia.discapacidad}
-                alerta
-                activo={filtroKpi === "discapacidad"}
-                onClick={
-                  onFiltroKpi ? () => toggleKpi("discapacidad") : undefined
-                }
-              />
-              <KpiChip
                 label="Adultos 60+"
                 valor={demografia.adultosMayores}
-                alerta
                 activo={filtroKpi === "adultos_mayores"}
                 onClick={
                   onFiltroKpi ? () => toggleKpi("adultos_mayores") : undefined
                 }
               />
               <KpiChip
-                label="Enfermedad"
-                valor={demografia.conEnfermedad}
-                alerta
-                activo={filtroKpi === "enfermedad"}
-                onClick={
-                  onFiltroKpi ? () => toggleKpi("enfermedad") : undefined
-                }
-              />
-              <KpiChip
-                label="Hogares desaparec."
-                valor={demografia.hogaresConDesaparecidos}
-                alerta
-                activo={filtroKpi === "desaparecidos"}
-                onClick={
-                  onFiltroKpi ? () => toggleKpi("desaparecidos") : undefined
-                }
-              />
-              <KpiChip
-                label="Hogares críticos"
-                valor={demografia.hogaresCriticos}
-                alerta
-                activo={filtroKpi === "critico"}
-                onClick={onFiltroKpi ? () => toggleKpi("critico") : undefined}
+                label="Menores de 18"
+                valor={demografia.menores}
+                activo={false}
               />
             </div>
           </div>
