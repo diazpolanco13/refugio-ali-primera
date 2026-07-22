@@ -1,9 +1,11 @@
 // Planilla pública de registro rápido de damnificados (sin login).
 // Paso 1: refugio (con búsqueda) + identificación del funcionario.
-// Paso 2: registro de personas según la planilla física (documento, teléfono,
-//         embarazo/discapacidad/enfermedad condicionales y dirección perdida).
+// Paso 2: registro de personas según la planilla física (identidad, documento,
+//         teléfono y vínculo con el jefe de familia).
 // Paso 3: estadística y lista de los registrados en el refugio.
 // Los datos van a la tabla staging `censo_registros` vía RPCs públicas.
+// Los campos históricos de salud/vivienda se conservan en el estado del
+// formulario (sin UI) para que editar un registro viejo no los pise.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -56,7 +58,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -65,10 +66,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { SelectoresGeo } from "@/components/SelectoresGeo";
 import { CEDULA_JEFE_NO_SE } from "@/domain/catalogosHumanitarios";
 import {
-  CONDICIONES_VIVIENDA,
   PARENTESCOS_MENOR,
   actualizarCenso,
   completarCenso,
@@ -92,7 +91,7 @@ import { CensoInstrucciones } from "@/features/censo/CensoInstrucciones";
 import { CensoNexusPanel } from "@/features/censo/CensoNexusPanel";
 import { CensoListaCensadosPanel } from "@/features/censo/CensoListaCensadosPanel";
 import { SelectorCentroLista } from "@/features/censo/SelectorCentroLista";
-import { GrupoOpcionesSegmentadas, CENSO_BOTON_ACCION, CENSO_BOTON_SECUNDARIO, CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
+import { CENSO_BOTON_ACCION, CENSO_BOTON_SECUNDARIO, CENSO_SELECT_TRIGGER } from "@/features/censo/censoFormularioShared";
 import { FormularioIdentificacionFuncionario } from "@/features/censo/FormularioIdentificacionFuncionario";
 import { type NexusEnLinea } from "@/features/censo/EstadoNexusApi";
 import { consultarEstadoNexusApi } from "@/data/reposNexus";
@@ -451,13 +450,7 @@ export function CensoView() {
       r.documento.trim() !== "" ||
       r.telefono.trim() !== "" ||
       r.parentesco_jefe.trim() !== "" ||
-      (r.jefe_documento.trim() !== "" && r.jefe_documento !== CEDULA_JEFE_NO_SE) ||
-      r.condicion_vivienda !== "" ||
-      r.estado_federativo !== "" ||
-      r.municipio !== "" ||
-      r.parroquia !== "" ||
-      r.calle.trim() !== "" ||
-      r.casa_edificio.trim() !== ""
+      (r.jefe_documento.trim() !== "" && r.jefe_documento !== CEDULA_JEFE_NO_SE)
     );
   }, [registro]);
 
@@ -1222,15 +1215,7 @@ export function CensoView() {
                             type="button"
                             variant={registro.sexo === s.valor ? "default" : "outline"}
                             className="h-11 px-2 text-sm"
-                            onClick={() =>
-                              cambiarRegistro({
-                                sexo: s.valor,
-                                // Embarazo solo aplica a mujeres.
-                                embarazada: s.valor === "F" ? registro.embarazada : false,
-                                embarazo_semanas:
-                                  s.valor === "F" ? registro.embarazo_semanas : null,
-                              })
-                            }
+                            onClick={() => cambiarRegistro({ sexo: s.valor })}
                           >
                             {s.label}
                           </Button>
@@ -1357,142 +1342,6 @@ export function CensoView() {
                       className="h-11"
                       autoComplete="off"
                     />
-                  </div>
-
-                  {/* Vulnerabilidades: por defecto NO */}
-                  {registro.sexo === "F" && (
-                    <CampoSiNo
-                      label="¿Embarazada?"
-                      valor={registro.embarazada}
-                      onChange={(v) =>
-                        cambiarRegistro({
-                          embarazada: v,
-                          embarazo_semanas: v ? registro.embarazo_semanas : null,
-                        })
-                      }
-                    >
-                      <div className="space-y-1.5">
-                        <Label htmlFor="censo-semanas" className="text-xs">
-                          Semanas de embarazo
-                        </Label>
-                        <Input
-                          id="censo-semanas"
-                          type="number"
-                          inputMode="numeric"
-                          min={1}
-                          max={45}
-                          value={
-                            registro.embarazo_semanas != null
-                              ? String(registro.embarazo_semanas)
-                              : ""
-                          }
-                          onChange={(e) =>
-                            cambiarRegistro({
-                              embarazo_semanas:
-                                e.target.value === ""
-                                  ? null
-                                  : Math.min(45, Math.max(1, Number(e.target.value))),
-                            })
-                          }
-                          placeholder="Ej: 24"
-                          className="h-11"
-                        />
-                      </div>
-                    </CampoSiNo>
-                  )}
-
-                  <CampoSiNo
-                    label="¿Discapacitado?"
-                    valor={registro.discapacidad}
-                    onChange={(v) =>
-                      cambiarRegistro({
-                        discapacidad: v,
-                        discapacidad_detalle: v ? registro.discapacidad_detalle : "",
-                      })
-                    }
-                  >
-                    <Input
-                      value={registro.discapacidad_detalle}
-                      onChange={(e) => cambiarRegistro({ discapacidad_detalle: e.target.value })}
-                      placeholder="Indique la discapacidad"
-                      className="h-11"
-                      autoComplete="off"
-                    />
-                  </CampoSiNo>
-
-                  <CampoSiNo
-                    label="¿Enfermedad condicionante?"
-                    valor={registro.enfermedad}
-                    onChange={(v) =>
-                      cambiarRegistro({
-                        enfermedad: v,
-                        enfermedad_detalle: v ? registro.enfermedad_detalle : "",
-                      })
-                    }
-                  >
-                    <Input
-                      value={registro.enfermedad_detalle}
-                      onChange={(e) => cambiarRegistro({ enfermedad_detalle: e.target.value })}
-                      placeholder="Indique cuál enfermedad"
-                      className="h-11"
-                      autoComplete="off"
-                    />
-                  </CampoSiNo>
-
-                  <Separator />
-                  <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    <MapPin className="size-3.5" />
-                    Dirección de la vivienda perdida
-                  </p>
-
-                  <div className="space-y-1.5">
-                    <Label>Condición de la vivienda</Label>
-                    <GrupoOpcionesSegmentadas
-                      opciones={CONDICIONES_VIVIENDA}
-                      valor={registro.condicion_vivienda}
-                      onChange={(v) => cambiarRegistro({ condicion_vivienda: v })}
-                      columnas={3}
-                    />
-                  </div>
-
-                  <SelectoresGeo
-                    pais={registro.pais}
-                    estado={registro.estado_federativo}
-                    municipio={registro.municipio}
-                    parroquia={registro.parroquia}
-                    onPaisChange={(v) => cambiarRegistro({ pais: v })}
-                    onEstadoChange={(v) => cambiarRegistro({ estado_federativo: v })}
-                    onMunicipioChange={(v) => cambiarRegistro({ municipio: v })}
-                    onParroquiaChange={(v) => cambiarRegistro({ parroquia: v })}
-                    mostrarPais={false}
-                    paisBloqueado
-                    soloEstadosMetropolitanos
-                    permitirNoSe
-                  />
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="censo-calle">Calle</Label>
-                      <Input
-                        id="censo-calle"
-                        value={registro.calle}
-                        onChange={(e) => cambiarRegistro({ calle: e.target.value })}
-                        placeholder="Calle o avenida"
-                        className="h-11"
-                        autoComplete="off"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="censo-casa">Casa / edificio</Label>
-                      <Input
-                        id="censo-casa"
-                        value={registro.casa_edificio}
-                        onChange={(e) => cambiarRegistro({ casa_edificio: e.target.value })}
-                        placeholder="N.º de casa, edificio, piso…"
-                        className="h-11"
-                        autoComplete="off"
-                      />
-                    </div>
                   </div>
 
                   {errorGuardar && (
@@ -1749,9 +1598,6 @@ function PasoRegistrados({
     const total = filas.length;
     const mujeres = filas.filter((f) => f.sexo === "F").length;
     const hombres = filas.filter((f) => f.sexo === "M").length;
-    const embarazadas = filas.filter((f) => f.embarazada).length;
-    const discapacidad = filas.filter((f) => f.discapacidad).length;
-    const enfermedad = filas.filter((f) => f.enfermedad).length;
     const menores = filas.filter((f) => f.edad != null && f.edad < 18).length;
     const adultosMayores = filas.filter((f) => f.edad != null && f.edad >= 60).length;
     const procesados = filas.filter((f) => procesadosIds.has(f.id)).length;
@@ -1759,9 +1605,6 @@ function PasoRegistrados({
       total,
       mujeres,
       hombres,
-      embarazadas,
-      discapacidad,
-      enfermedad,
       menores,
       adultosMayores,
       procesados,
@@ -1837,9 +1680,6 @@ function PasoRegistrados({
             <TarjetaStat valor={stats.hombres} label="Hombres" />
             <TarjetaStat valor={stats.menores} label="Menores de 18" />
             <TarjetaStat valor={stats.adultosMayores} label="Adultos 60+" />
-            <TarjetaStat valor={stats.embarazadas} label="Embarazadas" alerta={stats.embarazadas > 0} />
-            <TarjetaStat valor={stats.discapacidad} label="Discapacidad" alerta={stats.discapacidad > 0} />
-            <TarjetaStat valor={stats.enfermedad} label="Enf. condicionante" alerta={stats.enfermedad > 0} />
             <TarjetaStat valor={stats.procesados} label="Verificados en nominal" />
           </div>
         </CardContent>
@@ -1897,7 +1737,6 @@ function PasoRegistrados({
                     <TableHead className="h-8 px-2 text-center">Edad</TableHead>
                     <TableHead className="h-8 px-2 text-center">Sexo</TableHead>
                     <TableHead className="h-8 px-2">Parroquia</TableHead>
-                    <TableHead className="h-8 px-2 text-center">Viv.</TableHead>
                     <TableHead className="h-8 px-2 text-right">Hora</TableHead>
                     <TableHead className="h-8 w-16 px-1 text-center" />
                   </TableRow>
@@ -2105,13 +1944,6 @@ function TarjetaStat({
   );
 }
 
-/** Abreviatura de la condición de la vivienda para la tabla compacta. */
-const ABREV_VIVIENDA: Record<string, string> = {
-  destruida: "D",
-  inhabitable: "I",
-  no_posee: "NP",
-};
-
 function FilaTabla({
   fila,
   numero,
@@ -2135,7 +1967,6 @@ function FilaTabla({
   const doc = fila.documento
     ? `${fila.tipo_doc === "P" ? "PP " : (fila.tipo_doc ?? "V") + "-"}${fila.documento}`
     : "—";
-  const vivienda = CONDICIONES_VIVIENDA.find((c) => c.valor === fila.condicion_vivienda);
   const hora = new Date(fila.creado_en).toLocaleTimeString("es-VE", {
     hour: "2-digit",
     minute: "2-digit",
@@ -2182,46 +2013,12 @@ function FilaTabla({
             ) : null}
           </span>
         )}
-        {(fila.embarazada || fila.discapacidad || fila.enfermedad) && (
-          <span className="mt-0.5 flex gap-1">
-            {fila.embarazada && (
-              <Badge
-                variant="outline"
-                className="h-4 border-pink-500/50 px-1 text-[9px] text-pink-600 dark:text-pink-400"
-                title={`Embarazada${fila.embarazo_semanas != null ? ` (${fila.embarazo_semanas} semanas)` : ""}`}
-              >
-                EMB{fila.embarazo_semanas != null ? ` ${fila.embarazo_semanas}s` : ""}
-              </Badge>
-            )}
-            {fila.discapacidad && (
-              <Badge
-                variant="outline"
-                className="h-4 border-amber-500/50 px-1 text-[9px] text-amber-600 dark:text-amber-400"
-                title={`Discapacidad${fila.discapacidad_detalle ? `: ${fila.discapacidad_detalle}` : ""}`}
-              >
-                DISC
-              </Badge>
-            )}
-            {fila.enfermedad && (
-              <Badge
-                variant="outline"
-                className="h-4 border-red-500/50 px-1 text-[9px] text-red-600 dark:text-red-400"
-                title={`Enfermedad${fila.enfermedad_detalle ? `: ${fila.enfermedad_detalle}` : ""}`}
-              >
-                ENF
-              </Badge>
-            )}
-          </span>
-        )}
       </TableCell>
       <TableCell className="px-2 py-1.5 font-mono text-[11px]">{doc}</TableCell>
       <TableCell className="px-2 py-1.5 text-center">{fila.edad ?? "—"}</TableCell>
       <TableCell className="px-2 py-1.5 text-center">{fila.sexo ?? "—"}</TableCell>
       <TableCell className="max-w-28 truncate px-2 py-1.5" title={[fila.parroquia, fila.municipio].filter(Boolean).join(", ")}>
         {fila.parroquia || fila.municipio || "—"}
-      </TableCell>
-      <TableCell className="px-2 py-1.5 text-center" title={vivienda?.label ?? ""}>
-        {ABREV_VIVIENDA[fila.condicion_vivienda] ?? "—"}
       </TableCell>
       <TableCell className="px-2 py-1.5 text-right text-muted-foreground">{hora}</TableCell>
       <TableCell className="px-1 py-1.5">

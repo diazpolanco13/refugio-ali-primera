@@ -1,6 +1,6 @@
 // Exporta personas registradas de un campamento (censo rápido) a PDF (jsPDF) o Excel (xlsx).
 
-import { CONDICIONES_VIVIENDA, type RegistroCensoGuardado } from "@/data/reposCenso";
+import { type RegistroCensoGuardado } from "@/data/reposCenso";
 import { nombreCompletoRegistro } from "./censoRegistrosUtil";
 
 function fechaArchivo(): string {
@@ -32,10 +32,6 @@ function etiquetaSexo(sexo: string | null): string {
   return "";
 }
 
-function etiquetaVivienda(valor: string): string {
-  return CONDICIONES_VIVIENDA.find((c) => c.valor === valor)?.label ?? valor;
-}
-
 function formatearFechaRegistro(iso: string): string {
   return new Date(iso).toLocaleString("es-VE", {
     day: "2-digit",
@@ -59,11 +55,10 @@ const ENCABEZADOS_PDF = [
   "Sexo",
   "Teléfono",
   "Parroquia",
-  "Vivienda",
   "Registro",
 ];
 
-const ANCHOS_PDF_MM = [8, 48, 26, 10, 10, 24, 28, 20, 30];
+const ANCHOS_PDF_MM = [8, 52, 28, 10, 10, 26, 30, 30];
 
 function filaPdf(fila: RegistroCensoGuardado, numero: number): string[] {
   return [
@@ -74,7 +69,6 @@ function filaPdf(fila: RegistroCensoGuardado, numero: number): string[] {
     fila.sexo ?? "",
     fila.telefono,
     fila.parroquia || fila.municipio,
-    etiquetaVivienda(fila.condicion_vivienda),
     formatearFechaRegistro(fila.creado_en),
   ];
 }
@@ -95,12 +89,6 @@ function filaExcel(
     Edad: fila.edad ?? "",
     Sexo: etiquetaSexo(fila.sexo),
     Teléfono: fila.telefono,
-    Embarazada: fila.embarazada ? "Sí" : "No",
-    "Semanas embarazo": fila.embarazo_semanas ?? "",
-    Discapacidad: fila.discapacidad ? "Sí" : "No",
-    "Detalle discapacidad": fila.discapacidad_detalle,
-    Enfermedad: fila.enfermedad ? "Sí" : "No",
-    "Detalle enfermedad": fila.enfermedad_detalle,
     "Tipo doc. jefe": fila.jefe_tipo_doc ?? "",
     "Cédula jefe": fila.jefe_documento,
     "Parentesco jefe": fila.parentesco_jefe,
@@ -108,9 +96,6 @@ function filaExcel(
     Estado: fila.estado_federativo,
     Municipio: fila.municipio,
     Parroquia: fila.parroquia,
-    "Condición vivienda": etiquetaVivienda(fila.condicion_vivienda),
-    Calle: fila.calle,
-    "Casa / edificio": fila.casa_edificio,
     "Fecha registro": formatearFechaRegistro(fila.creado_en),
   };
 }

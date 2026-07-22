@@ -1,4 +1,4 @@
-import { FileSpreadsheet, IdCard, MapPinOff } from "lucide-react";
+import { FileSpreadsheet, IdCard } from "lucide-react";
 import { pctConCedula, type ResumenCensoCentro } from "@/domain/censoResumen";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -11,15 +11,10 @@ export function CalidadCensoResumen({ resumen }: { resumen: ResumenCensoCentro }
     resumen.totalRegistrados > 0
       ? Math.round((resumen.importadosPlanilla / resumen.totalRegistrados) * 100)
       : 0;
-  const pctSinVivienda =
-    resumen.totalRegistrados > 0
-      ? Math.round((resumen.sinCondicionVivienda / resumen.totalRegistrados) * 100)
-      : 0;
 
   const alertaCalidad =
     resumen.importadosPlanilla > 0 ||
-    resumen.sinCedula > resumen.totalRegistrados * 0.3 ||
-    resumen.sinCondicionVivienda > resumen.totalRegistrados * 0.5;
+    resumen.sinCedula > resumen.totalRegistrados * 0.3;
 
   return (
     <div className="space-y-1.5">
@@ -49,21 +44,6 @@ export function CalidadCensoResumen({ resumen }: { resumen: ResumenCensoCentro }
             <FileSpreadsheet className="size-3" />
             {resumen.importadosPlanilla.toLocaleString("es")} import. Excel
             <span className="tabular-nums">({pctImportados}%)</span>
-          </Badge>
-        )}
-
-        {resumen.sinCondicionVivienda > 0 && (
-          <Badge
-            variant="outline"
-            className={cn(
-              "gap-1 px-1.5 text-[10px]",
-              pctSinVivienda >= 50
-                ? "border-amber-500/40 text-amber-700 dark:text-amber-300"
-                : "border-border text-muted-foreground",
-            )}
-          >
-            <MapPinOff className="size-3" />
-            {resumen.sinCondicionVivienda.toLocaleString("es")} sin vivienda
           </Badge>
         )}
 

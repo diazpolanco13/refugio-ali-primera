@@ -529,15 +529,6 @@ interface FilaResumenCensoRed {
   adultos_m: number;
   adultos_mayores_h: number;
   adultos_mayores_m: number;
-  embarazadas: number;
-  discapacidad: number;
-  discapacidad_h: number;
-  discapacidad_m: number;
-  enfermedad: number;
-  vivienda_destruida: number;
-  vivienda_inhabitable: number;
-  vivienda_no_posee: number;
-  sin_condicion_vivienda: number;
   parte_total: number | null;
   parte_familias: number | null;
   parte_dia: string | null;
@@ -571,15 +562,6 @@ function mapearResumenCensoCentro(fila: FilaResumenCensoRed): ResumenCensoCentro
     adultosM: Number(fila.adultos_m ?? 0),
     adultosMayoresH: Number(fila.adultos_mayores_h ?? 0),
     adultosMayoresM: Number(fila.adultos_mayores_m ?? 0),
-    embarazadas: Number(fila.embarazadas ?? 0),
-    discapacidad: Number(fila.discapacidad ?? 0),
-    discapacidadH: Number(fila.discapacidad_h ?? 0),
-    discapacidadM: Number(fila.discapacidad_m ?? 0),
-    enfermedad: Number(fila.enfermedad ?? 0),
-    viviendaDestruida: Number(fila.vivienda_destruida ?? 0),
-    viviendaInhabitable: Number(fila.vivienda_inhabitable ?? 0),
-    viviendaNoPosee: Number(fila.vivienda_no_posee ?? 0),
-    sinCondicionVivienda: Number(fila.sin_condicion_vivienda ?? 0),
     parteTotal: fila.parte_total != null ? Number(fila.parte_total) : null,
     parteFamilias: fila.parte_familias != null ? Number(fila.parte_familias) : null,
     parteDia: fila.parte_dia,

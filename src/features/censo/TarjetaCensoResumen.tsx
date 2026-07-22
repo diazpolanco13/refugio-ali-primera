@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { Users } from "lucide-react";
 import {
   aVulnerables,
   estadoCensoCentro,
@@ -58,24 +57,6 @@ function formatearFecha(iso: string | null): string {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function BadgeCondicion({
-  valor,
-  label,
-  clase,
-}: {
-  valor: number;
-  label: string;
-  clase?: string;
-}) {
-  if (valor <= 0) return null;
-  return (
-    <Badge variant="outline" className={cn("gap-1 px-1.5 text-[10px]", clase)}>
-      {label}
-      <span className="tabular-nums">{valor.toLocaleString("es")}</span>
-    </Badge>
-  );
 }
 
 function badgeEstado(resumen: ResumenCensoCentro) {
@@ -139,54 +120,6 @@ export function TarjetaCensoResumen({ resumen }: Props) {
           <CalidadCensoResumen resumen={resumen} />
 
           <DemografiaResumen vulnerables={aVulnerables(resumen)} compacto />
-
-          <div className="space-y-1.5">
-            <p className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-              <Users className="size-3" />
-              Condición y vivienda
-            </p>
-            <div className="flex flex-wrap gap-1">
-              <BadgeCondicion
-                valor={resumen.embarazadas}
-                label="Embarazadas"
-                clase="border-pink-500/30 text-pink-600 dark:text-pink-300"
-              />
-              <BadgeCondicion
-                valor={resumen.discapacidad}
-                label="Discapacidad"
-                clase="border-amber-500/30 text-amber-600 dark:text-amber-300"
-              />
-              <BadgeCondicion
-                valor={resumen.enfermedad}
-                label="Enf. condicionante"
-                clase="border-red-500/30 text-red-600 dark:text-red-300"
-              />
-              <BadgeCondicion
-                valor={resumen.viviendaDestruida}
-                label="Destruida"
-                clase="border-orange-500/30 text-orange-600 dark:text-orange-300"
-              />
-              <BadgeCondicion
-                valor={resumen.viviendaInhabitable}
-                label="Inhabitable"
-                clase="border-yellow-500/30 text-yellow-700 dark:text-yellow-300"
-              />
-              <BadgeCondicion
-                valor={resumen.viviendaNoPosee}
-                label="No posee"
-                clase="border-slate-500/30 text-slate-600 dark:text-slate-300"
-              />
-              {resumen.embarazadas +
-                resumen.discapacidad +
-                resumen.enfermedad +
-                resumen.viviendaDestruida +
-                resumen.viviendaInhabitable +
-                resumen.viviendaNoPosee ===
-                0 && (
-                <span className="text-[10px] text-muted-foreground">Sin condiciones registradas</span>
-              )}
-            </div>
-          </div>
         </CardContent>
       </Card>
     </Link>

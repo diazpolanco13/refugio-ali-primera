@@ -383,10 +383,7 @@ function textoDemografia(r: ResumenCensoNominalCentro): string {
   if (r.mujeres > 0) partes.push(`Muj ${n(r.mujeres)}`);
   if (r.hombres > 0) partes.push(`Hom ${n(r.hombres)}`);
   if (r.menores > 0) partes.push(`Men ${n(r.menores)}`);
-  if (r.embarazadas > 0) partes.push(`Emb ${n(r.embarazadas)}`);
-  if (r.discapacidad > 0) partes.push(`Disc ${n(r.discapacidad)}`);
   if (r.adultosMayores > 0) partes.push(`60+ ${n(r.adultosMayores)}`);
-  if (r.conEnfermedad > 0) partes.push(`Enf ${n(r.conEnfermedad)}`);
   return partes.length > 0 ? partes.join(" · ") : "Sin demografía nominal";
 }
 

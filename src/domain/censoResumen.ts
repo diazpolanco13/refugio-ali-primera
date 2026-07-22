@@ -29,15 +29,6 @@ export interface ResumenCensoCentro {
   adultosM: number;
   adultosMayoresH: number;
   adultosMayoresM: number;
-  embarazadas: number;
-  discapacidad: number;
-  discapacidadH: number;
-  discapacidadM: number;
-  enfermedad: number;
-  viviendaDestruida: number;
-  viviendaInhabitable: number;
-  viviendaNoPosee: number;
-  sinCondicionVivienda: number;
   /** Último parte numérico (ocupaciones_centros.total_afectados). */
   parteTotal: number | null;
   parteFamilias: number | null;
@@ -136,7 +127,8 @@ export function totalPoblacionResumen(resumen: ResumenCensoCentro): number {
   );
 }
 
-/** Adaptador para reutilizar DemografiaResumen sin duplicar markup. */
+/** Adaptador para reutilizar DemografiaResumen sin duplicar markup.
+ * Los campos de salud van en 0: el registro ya no los levanta. */
 export function aVulnerables(resumen: ResumenCensoCentro): Partial<Vulnerables> {
   return {
     recien_nacidos_h: resumen.recienNacidosH,
@@ -149,9 +141,9 @@ export function aVulnerables(resumen: ResumenCensoCentro): Partial<Vulnerables> 
     adultos_m: resumen.adultosM,
     adultos_mayores_h: resumen.adultosMayoresH,
     adultos_mayores_m: resumen.adultosMayoresM,
-    embarazadas: resumen.embarazadas,
-    discapacidad_h: resumen.discapacidadH,
-    discapacidad_m: resumen.discapacidadM,
+    embarazadas: 0,
+    discapacidad_h: 0,
+    discapacidad_m: 0,
     mascotas: 0,
   };
 }

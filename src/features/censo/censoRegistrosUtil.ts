@@ -101,14 +101,3 @@ export function ordenarRegistrosCenso<T extends RegistroCensoGuardado>(
       return copia.sort(porReciente);
   }
 }
-
-export function estadisticasRegistrosCenso(filas: RegistroCensoGuardado[]) {
-  const total = filas.length;
-  const mujeres = filas.filter((f) => f.sexo === "F").length;
-  const hombres = filas.filter((f) => f.sexo === "M").length;
-  const menores = filas.filter((f) => f.edad != null && f.edad < 18).length;
-  const embarazadas = filas.filter((f) => f.embarazada).length;
-  const discapacidad = filas.filter((f) => f.discapacidad).length;
-  const enfermedad = filas.filter((f) => f.enfermedad).length;
-  return { total, mujeres, hombres, menores, embarazadas, discapacidad, enfermedad };
-}

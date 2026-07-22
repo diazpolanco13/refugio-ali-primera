@@ -1,7 +1,7 @@
 // Exporta Importaciones Excel (red) a PDF (jsPDF) o Excel (xlsx).
 // PDF = mismas columnas que CensoRegistrosTabla; Excel = detalle completo.
 
-import { CONDICIONES_VIVIENDA, type RegistroCensoRed } from "@/data/reposCenso";
+import { type RegistroCensoRed } from "@/data/reposCenso";
 import { nombreCompletoRegistro } from "./censoRegistrosUtil";
 
 function fechaArchivo(): string {
@@ -19,10 +19,6 @@ function etiquetaSexo(sexo: string | null): string {
   if (sexo === "F") return "Mujer";
   if (sexo === "O") return "Otro";
   return "";
-}
-
-function etiquetaVivienda(valor: string): string {
-  return CONDICIONES_VIVIENDA.find((c) => c.valor === valor)?.label ?? valor;
 }
 
 function formatearFechaRegistro(iso: string): string {
@@ -165,21 +161,12 @@ function filaExcel(fila: RegistroCensoRed, numero: number): Record<string, strin
     Sexo: etiquetaSexo(fila.sexo),
     Teléfono: fila.telefono,
     Campamento: fila.centro_nombre,
-    Embarazada: fila.embarazada ? "Sí" : "No",
-    "Semanas embarazo": fila.embarazo_semanas ?? "",
-    Discapacidad: fila.discapacidad ? "Sí" : "No",
-    "Detalle discapacidad": fila.discapacidad_detalle,
-    Enfermedad: fila.enfermedad ? "Sí" : "No",
-    "Detalle enfermedad": fila.enfermedad_detalle,
     "Parentesco jefe": fila.parentesco_jefe,
     "Cédula jefe": fila.jefe_documento,
     País: fila.pais,
     Estado: fila.estado_federativo,
     Municipio: fila.municipio,
     Parroquia: fila.parroquia,
-    "Condición vivienda": etiquetaVivienda(fila.condicion_vivienda),
-    Calle: fila.calle,
-    "Casa / edificio": fila.casa_edificio,
     "Verificado Nexus": !fila.documento?.trim()
       ? ""
       : fila.verificado_nexus

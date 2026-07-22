@@ -6,7 +6,6 @@ import {
   BadgeCheck,
   Check,
   ChevronsUpDown,
-  Heart,
   Loader2,
   RefreshCw,
   Search,
@@ -185,7 +184,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
     let hombres = 0;
     let mujeres = 0;
     let menores = 0;
-    let especiales = 0;
     let solicitados = 0;
     let conRegistroPolicial = 0;
     let campamentosConDatos = 0;
@@ -202,7 +200,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
         r.ninas +
         r.adolescentesH +
         r.adolescentesM;
-      especiales += r.embarazadas + r.discapacidad;
       solicitados += r.solicitados;
       conRegistroPolicial += r.conRegistroPolicial;
     }
@@ -212,7 +209,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
       hombres,
       mujeres,
       menores,
-      especiales,
       solicitados,
       conRegistroPolicial,
     };
@@ -322,12 +318,6 @@ export function CensoRedListadoView({ sesion }: { sesion: Sesion }) {
                   valor={kpis.menores}
                   etiqueta="Menores de 18"
                   icono={Baby}
-                />
-                <KpiPersona
-                  valor={kpis.especiales}
-                  etiqueta="Emb. + discapacidad"
-                  icono={Heart}
-                  clase="bg-amber-500/10 text-amber-600 dark:text-amber-300"
                 />
               </div>
             </div>

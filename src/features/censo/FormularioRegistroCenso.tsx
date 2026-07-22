@@ -1,6 +1,5 @@
 import { useMemo, useRef } from "react";
-import { Check, Loader2, MapPin, UserPlus } from "lucide-react";
-import { SelectoresGeo } from "@/components/SelectoresGeo";
+import { Check, Loader2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,14 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { CONDICIONES_VIVIENDA, type RegistroCenso } from "@/data/reposCenso";
+import { type RegistroCenso } from "@/data/reposCenso";
 import { cn } from "@/lib/utils";
 import {
   AvisoCamposFaltantes,
   CEDULA_JEFE_NO_SE,
   CampoSiNo,
-  GrupoOpcionesSegmentadas,
   LabelCampoCenso,
   PARENTESCOS_MENOR,
   SEXOS,
@@ -214,13 +211,7 @@ export function FormularioRegistroCenso({
                 type="button"
                 variant={registro.sexo === s.valor ? "default" : "outline"}
                 className="h-11 px-2 text-sm"
-                onClick={() =>
-                  onChange({
-                    sexo: s.valor,
-                    embarazada: s.valor === "F" ? registro.embarazada : false,
-                    embarazo_semanas: s.valor === "F" ? registro.embarazo_semanas : null,
-                  })
-                }
+                onClick={() => onChange({ sexo: s.valor })}
               >
                 {s.label}
               </Button>
@@ -341,137 +332,6 @@ export function FormularioRegistroCenso({
           className="h-11"
           autoComplete="off"
         />
-      </div>
-
-      {registro.sexo === "F" && (
-        <CampoSiNo
-          label="¿Embarazada?"
-          valor={registro.embarazada}
-          onChange={(v) =>
-            onChange({
-              embarazada: v,
-              embarazo_semanas: v ? registro.embarazo_semanas : null,
-            })
-          }
-        >
-          <div className="space-y-1.5">
-            <Label htmlFor={`${idPrefix}-semanas`} className="text-xs">
-              Semanas de embarazo
-            </Label>
-            <Input
-              id={`${idPrefix}-semanas`}
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={45}
-              value={registro.embarazo_semanas != null ? String(registro.embarazo_semanas) : ""}
-              onChange={(e) =>
-                onChange({
-                  embarazo_semanas:
-                    e.target.value === ""
-                      ? null
-                      : Math.min(45, Math.max(1, Number(e.target.value))),
-                })
-              }
-              placeholder="Ej: 24"
-              className="h-11"
-            />
-          </div>
-        </CampoSiNo>
-      )}
-
-      <CampoSiNo
-        label="¿Discapacitado?"
-        valor={registro.discapacidad}
-        onChange={(v) =>
-          onChange({
-            discapacidad: v,
-            discapacidad_detalle: v ? registro.discapacidad_detalle : "",
-          })
-        }
-      >
-        <Input
-          value={registro.discapacidad_detalle}
-          onChange={(e) => onChange({ discapacidad_detalle: e.target.value })}
-          placeholder="Indique la discapacidad"
-          className="h-11"
-          autoComplete="off"
-        />
-      </CampoSiNo>
-
-      <CampoSiNo
-        label="¿Enfermedad condicionante?"
-        valor={registro.enfermedad}
-        onChange={(v) =>
-          onChange({
-            enfermedad: v,
-            enfermedad_detalle: v ? registro.enfermedad_detalle : "",
-          })
-        }
-      >
-        <Input
-          value={registro.enfermedad_detalle}
-          onChange={(e) => onChange({ enfermedad_detalle: e.target.value })}
-          placeholder="Indique cuál enfermedad"
-          className="h-11"
-          autoComplete="off"
-        />
-      </CampoSiNo>
-
-      <Separator />
-      <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        <MapPin className="size-3.5" />
-        Dirección de la vivienda perdida
-      </p>
-
-      <div className="space-y-1.5">
-        <Label>Condición de la vivienda</Label>
-        <GrupoOpcionesSegmentadas
-          opciones={CONDICIONES_VIVIENDA}
-          valor={registro.condicion_vivienda}
-          onChange={(v) => onChange({ condicion_vivienda: v })}
-          columnas={3}
-        />
-      </div>
-
-      <SelectoresGeo
-        pais={registro.pais}
-        estado={registro.estado_federativo}
-        municipio={registro.municipio}
-        parroquia={registro.parroquia}
-        onPaisChange={(v) => onChange({ pais: v })}
-        onEstadoChange={(v) => onChange({ estado_federativo: v })}
-        onMunicipioChange={(v) => onChange({ municipio: v })}
-        onParroquiaChange={(v) => onChange({ parroquia: v })}
-        mostrarPais={false}
-        paisBloqueado
-        soloEstadosMetropolitanos
-        permitirNoSe
-      />
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}-calle`}>Calle</Label>
-          <Input
-            id={`${idPrefix}-calle`}
-            value={registro.calle}
-            onChange={(e) => onChange({ calle: e.target.value })}
-            placeholder="Calle o avenida"
-            className="h-11"
-            autoComplete="off"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}-casa`}>Casa / edificio</Label>
-          <Input
-            id={`${idPrefix}-casa`}
-            value={registro.casa_edificio}
-            onChange={(e) => onChange({ casa_edificio: e.target.value })}
-            placeholder="N.º de casa, edificio, piso…"
-            className="h-11"
-            autoComplete="off"
-          />
-        </div>
       </div>
 
       {errorGuardar && (

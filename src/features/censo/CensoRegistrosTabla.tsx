@@ -81,40 +81,20 @@ function FilaRegistro({
             {fila.jefe_documento === CEDULA_JEFE_NO_SE ? " · cédula no conocida" : null}
           </span>
         )}
-        {(fila.embarazada ||
-          fila.discapacidad ||
-          fila.enfermedad ||
-          fila.origen === "import_excel") && (
+        {fila.origen === "import_excel" && (
           <span className="mt-0.5 flex flex-wrap gap-1">
-            {fila.origen === "import_excel" && (
-              <Badge
-                variant="outline"
-                className="h-4 gap-0.5 border-violet-500/50 px-1 text-[9px] text-violet-700 dark:text-violet-300"
-                title={
-                  [fila.fuente_archivo, fila.nombre_centro_raw, fila.centro_match]
-                    .filter(Boolean)
-                    .join(" · ") || "Importación Excel"
-                }
-              >
-                <FileSpreadsheet className="size-2.5" />
-                XLS
-              </Badge>
-            )}
-            {fila.embarazada && (
-              <Badge variant="outline" className="h-4 border-pink-500/50 px-1 text-[9px] text-pink-600 dark:text-pink-400">
-                EMB
-              </Badge>
-            )}
-            {fila.discapacidad && (
-              <Badge variant="outline" className="h-4 border-amber-500/50 px-1 text-[9px] text-amber-600 dark:text-amber-400">
-                DISC
-              </Badge>
-            )}
-            {fila.enfermedad && (
-              <Badge variant="outline" className="h-4 border-red-500/50 px-1 text-[9px] text-red-600 dark:text-red-400">
-                ENF
-              </Badge>
-            )}
+            <Badge
+              variant="outline"
+              className="h-4 gap-0.5 border-violet-500/50 px-1 text-[9px] text-violet-700 dark:text-violet-300"
+              title={
+                [fila.fuente_archivo, fila.nombre_centro_raw, fila.centro_match]
+                  .filter(Boolean)
+                  .join(" · ") || "Importación Excel"
+              }
+            >
+              <FileSpreadsheet className="size-2.5" />
+              XLS
+            </Badge>
           </span>
         )}
       </TableCell>

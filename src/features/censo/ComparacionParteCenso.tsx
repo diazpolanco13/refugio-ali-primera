@@ -47,8 +47,6 @@ const FILAS: Fila[] = [
   { key: "adol", etiqueta: "Adolescentes (12-17)", tipo: "sexo", h: "adolescentes_h", m: "adolescentes_m" },
   { key: "adult", etiqueta: "Adultos (18-59)", tipo: "sexo", h: "adultos_h", m: "adultos_m" },
   { key: "mayor", etiqueta: "Adultos mayores (60+)", tipo: "sexo", h: "adultos_mayores_h", m: "adultos_mayores_m" },
-  { key: "disc", etiqueta: "Discapacidad", tipo: "sexo", h: "discapacidad_h", m: "discapacidad_m" },
-  { key: "emb", etiqueta: "Embarazadas", tipo: "total", campo: "embarazadas" },
 ];
 
 function Num({ valor, tono }: { valor: number | null; tono?: "sky" | "pink" }) {
@@ -175,9 +173,6 @@ export function ComparacionParteCenso({ resumen, ocupacionParte }: Props) {
     adultos_m: resumen.adultosM,
     adultos_mayores_h: resumen.adultosMayoresH,
     adultos_mayores_m: resumen.adultosMayoresM,
-    embarazadas: resumen.embarazadas,
-    discapacidad_h: resumen.discapacidadH,
-    discapacidad_m: resumen.discapacidadM,
   });
 
   const totalParteDesglose = totalPoblacion(parte);
