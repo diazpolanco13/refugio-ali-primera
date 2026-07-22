@@ -576,7 +576,11 @@ function EncabezadoTabla() {
   );
 }
 
-function EncabezadoTablaAlertas() {
+function EncabezadoTablaAlertas({
+  mostrarTipoRegistro,
+}: {
+  mostrarTipoRegistro: boolean;
+}) {
   return (
     <View style={styles.alertaTablaHeader} wrap={false}>
       <Text style={[styles.colAlertaNro, styles.celdaHeader]}>#</Text>
@@ -585,9 +589,11 @@ function EncabezadoTablaAlertas() {
       <Text style={[styles.colAlertaEdad, styles.celdaHeader]}>Edad</Text>
       <Text style={[styles.colAlertaFlag, styles.celdaHeader]}>Sol.</Text>
       <Text style={[styles.colAlertaFlag, styles.celdaHeader]}>Reg.</Text>
-      <Text style={[styles.colAlertaTipo, styles.celdaHeader]}>
-        Tipo registro / obs.
-      </Text>
+      {mostrarTipoRegistro ? (
+        <Text style={[styles.colAlertaTipo, styles.celdaHeader]}>
+          Tipo registro / obs.
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -595,9 +601,11 @@ function EncabezadoTablaAlertas() {
 function FilaAlerta({
   persona,
   indice,
+  mostrarTipoRegistro,
 }: {
   persona: PersonaAlertaVerificacion;
   indice: number;
+  mostrarTipoRegistro: boolean;
 }) {
   const detalle = [persona.tipoRegistroPolicial, persona.observacionesSeguridad]
     .filter(Boolean)
@@ -616,7 +624,12 @@ function FilaAlerta({
       <Text style={[styles.colAlertaEdad, styles.celdaAlertaMuted]}>
         {persona.edad != null ? String(persona.edad) : "—"}
       </Text>
-      <Text style={[styles.colAlertaFlag, persona.solicitado ? styles.badgeSol : styles.celdaAlertaMuted]}>
+      <Text
+        style={[
+          styles.colAlertaFlag,
+          persona.solicitado ? styles.badgeSol : styles.celdaAlertaMuted,
+        ]}
+      >
         {persona.solicitado ? "Sí" : "—"}
       </Text>
       <Text
@@ -627,19 +640,23 @@ function FilaAlerta({
       >
         {persona.registroPolicial ? "Sí" : "—"}
       </Text>
-      <Text style={[styles.colAlertaTipo, styles.celdaAlertaMuted]}>
-        {detalle
-          ? detalle.length > 56
-            ? `${detalle.slice(0, 54)}…`
-            : detalle
-          : "—"}
-      </Text>
+      {mostrarTipoRegistro ? (
+        <Text style={[styles.colAlertaTipo, styles.celdaAlertaMuted]}>
+          {detalle
+            ? detalle.length > 56
+              ? `${detalle.slice(0, 54)}…`
+              : detalle
+            : "—"}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
 function GrupoCampamentoAlertas({ grupo }: { grupo: GrupoAlertaCampamento }) {
   const nro = grupo.centroNro != null ? `${grupo.centroNro}. ` : "";
+  const sol = grupo.personas.filter((p) => p.solicitado).length;
+  const reg = grupo.personas.filter((p) => p.registroPolicial).length;
   return (
     <View style={styles.campGrupo}>
       <View style={styles.campGrupoTitulo} wrap={false}>
@@ -648,15 +665,74 @@ function GrupoCampamentoAlertas({ grupo }: { grupo: GrupoAlertaCampamento }) {
           {grupo.centroNombre}
         </Text>
         <Text style={styles.campGrupoMeta}>
-          {n(grupo.personas.length)} pers. · Sol. {n(grupo.solicitadas)} · Reg.{" "}
-          {n(grupo.conRegistro)}
+          {n(grupo.personas.length)} pers. · Sol. {n(sol)} · Reg. {n(reg)}
         </Text>
       </View>
-      <EncabezadoTablaAlertas />
+      <EncabezadoTablaAlertas mostrarTipoRegistro />
       {grupo.personas.map((p, i) => (
-        <FilaAlerta key={p.id} persona={p} indice={i + 1} />
+        <FilaAlerta
+          key={p.id}
+          persona={p}
+          indice={i + 1}
+          mostrarTipoRegistro
+        />
       ))}
     </View>
+  );
+}
+
+function AnexoAlertasPage({
+  titulo,
+  nota,
+  grupos,
+  vacioTexto,
+  fechaCorteTs,
+  membrete,
+  pieLabel,
+}: {
+  titulo: string;
+  nota: string;
+  grupos: GrupoAlertaCampamento[];
+  vacioTexto: string;
+  fechaCorteTs: number;
+  membrete: MembreteListo;
+  pieLabel: string;
+}) {
+  return (
+    <Page size="LETTER" orientation="landscape" style={styles.page}>
+      <EncabezadoInstitucional generadoTs={fechaCorteTs} membrete={membrete} />
+
+      <View style={styles.contenido}>
+        <View style={styles.tituloBloque}>
+          <Text style={styles.tituloBloqueTexto}>{titulo}</Text>
+        </View>
+
+        <Text style={styles.nota}>{nota}</Text>
+
+        {grupos.length === 0 ? (
+          <View style={styles.vacioAnexo}>
+            <Text style={styles.vacioAnexoTexto}>{vacioTexto}</Text>
+          </View>
+        ) : (
+          grupos.map((g) => (
+            <GrupoCampamentoAlertas key={g.centroId} grupo={g} />
+          ))
+        )}
+      </View>
+
+      <View style={styles.pie} fixed>
+        <Text style={styles.pieTexto}>
+          {pieLabel} · corte {fechaCorteLegible(fechaCorteTs)} ·{" "}
+          {fechaHoraMilitar(fechaCorteTs)}
+        </Text>
+        <Text
+          style={styles.pieTexto}
+          render={({ pageNumber, totalPages }) =>
+            `Pág. ${pageNumber} / ${totalPages}`
+          }
+        />
+      </View>
+    </Page>
   );
 }
 
@@ -718,7 +794,7 @@ function FilaCentro({ fila }: { fila: VerificacionCensoCentro }) {
   );
 }
 
-/** Persona con ambas alertas (solicitado + registro policial) para el anexo. */
+/** Persona con alerta (solicitado y/o registro policial) para anexos. */
 export interface PersonaAlertaVerificacion {
   id: string;
   centroId: string;
@@ -736,7 +812,7 @@ export interface PersonaAlertaVerificacion {
 export interface DatosReporteVerificacionCenso {
   filas: VerificacionCensoCentro[];
   totales: TotalesVerificacionCenso;
-  /** Personas solicitadas y con registro policial, detalle por campamento. */
+  /** Personas solicitadas y/o con registro policial. */
   alertas: PersonaAlertaVerificacion[];
   /** Epoch ms: fecha de corte de los datos (= momento de generación). */
   fechaCorteTs: number;
@@ -748,8 +824,6 @@ interface GrupoAlertaCampamento {
   centroNro: number | null;
   centroNombre: string;
   personas: PersonaAlertaVerificacion[];
-  solicitadas: number;
-  conRegistro: number;
 }
 
 function agruparAlertasPorCampamento(
@@ -773,22 +847,18 @@ function agruparAlertasPorCampamento(
         centroNro: m?.nro ?? null,
         centroNombre: m?.nombre ?? p.centroNombre,
         personas: [],
-        solicitadas: 0,
-        conRegistro: 0,
       };
       grupos.set(p.centroId, g);
     }
     g.personas.push(p);
-    if (p.solicitado) g.solicitadas += 1;
-    if (p.registroPolicial) g.conRegistro += 1;
   }
 
   for (const g of grupos.values()) {
+    // Primero solicitados; luego solo-registro; nombre dentro de cada bloque.
     g.personas.sort((a, b) => {
-      const pri =
-        Number(b.solicitado) - Number(a.solicitado) ||
-        Number(b.registroPolicial) - Number(a.registroPolicial);
-      if (pri !== 0) return pri;
+      const rank = (p: PersonaAlertaVerificacion) => (p.solicitado ? 0 : 1);
+      const porTipo = rank(a) - rank(b);
+      if (porTipo !== 0) return porTipo;
       return a.nombre.localeCompare(b.nombre, "es");
     });
   }
@@ -812,8 +882,10 @@ export function ReporteVerificacionCensoPdf({
 }) {
   const { filas, totales, alertas, fechaCorteTs, generadoPor } = datos;
   const ordenadas = ordenarPorNro(filas);
-  const gruposAlerta = agruparAlertasPorCampamento(alertas ?? [], filas);
-  const totalAlertas = alertas?.length ?? 0;
+  const listaAlertas = alertas ?? [];
+  const gruposMixtos = agruparAlertasPorCampamento(listaAlertas, filas);
+  const totalSol = listaAlertas.filter((a) => a.solicitado).length;
+  const totalReg = listaAlertas.filter((a) => a.registroPolicial).length;
 
   return (
     <Document
@@ -966,48 +1038,15 @@ export function ReporteVerificacionCensoPdf({
         </View>
       </Page>
 
-      <Page size="LETTER" orientation="landscape" style={styles.page}>
-        <EncabezadoInstitucional generadoTs={fechaCorteTs} membrete={membrete} />
-
-        <View style={styles.contenido}>
-          <View style={styles.tituloBloque}>
-            <Text style={styles.tituloBloqueTexto}>
-              ANEXO — SOLICITADOS CON REGISTRO POLICIAL POR CAMPAMENTO
-            </Text>
-          </View>
-
-          <Text style={styles.nota}>
-            Solo personas que están solicitadas y tienen registro policial ·{" "}
-            {n(totalAlertas)} personas · {n(gruposAlerta.length)} campamentos
-          </Text>
-
-          {gruposAlerta.length === 0 ? (
-            <View style={styles.vacioAnexo}>
-              <Text style={styles.vacioAnexoTexto}>
-                Sin personas que estén solicitadas y tengan registro policial en
-                la fecha de corte.
-              </Text>
-            </View>
-          ) : (
-            gruposAlerta.map((g) => (
-              <GrupoCampamentoAlertas key={g.centroId} grupo={g} />
-            ))
-          )}
-        </View>
-
-        <View style={styles.pie} fixed>
-          <Text style={styles.pieTexto}>
-            Anexo alertas · corte {fechaCorteLegible(fechaCorteTs)} ·{" "}
-            {fechaHoraMilitar(fechaCorteTs)}
-          </Text>
-          <Text
-            style={styles.pieTexto}
-            render={({ pageNumber, totalPages }) =>
-              `Pág. ${pageNumber} / ${totalPages}`
-            }
-          />
-        </View>
-      </Page>
+      <AnexoAlertasPage
+        titulo="ANEXO — SOLICITADOS Y REGISTRO POLICIAL POR CAMPAMENTO"
+        nota={`Lista mixta por campamento (primero solicitados, luego con registro) · ${n(listaAlertas.length)} personas · Sol. ${n(totalSol)} · Reg. ${n(totalReg)} · ${n(gruposMixtos.length)} campamentos`}
+        grupos={gruposMixtos}
+        vacioTexto="Sin personas solicitadas ni con registro policial en la fecha de corte."
+        fechaCorteTs={fechaCorteTs}
+        membrete={membrete}
+        pieLabel="Anexo · Alertas por campamento"
+      />
     </Document>
   );
 }

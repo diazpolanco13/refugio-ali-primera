@@ -813,18 +813,27 @@ export async function obtenerListadoCensoRed(): Promise<RegistroCensoRed[]> {
 }
 
 /**
- * Personas con ambas alertas (solicitado Y registro policial), origen
- * import_excel — anexo del PDF de verificación.
+ * Personas solicitadas y/o con registro policial (import_excel) para el
+ * anexo del PDF de verificación. Une ambas alertas; deduplica por id.
  */
 export async function obtenerAlertasVerificacionCenso(): Promise<
   RegistroCensoRed[]
 > {
-  const filas = await obtenerListadoCensoRedFiltrado({
-    solicitado: "si",
-    registroPolicial: "si",
-    orden: "campamento",
-  });
-  return filas.filter(
-    (fila) => fila.origen == null || fila.origen === "import_excel",
-  );
+  const [solicitados, conRegistro] = await Promise.all([
+    obtenerListadoCensoRedFiltrado({
+      solicitado: "si",
+      orden: "campamento",
+    }),
+    obtenerListadoCensoRedFiltrado({
+      registroPolicial: "si",
+      orden: "campamento",
+    }),
+  ]);
+
+  const porId = new Map<string, RegistroCensoRed>();
+  for (const fila of [...solicitados, ...conRegistro]) {
+    if (fila.origen != null && fila.origen !== "import_excel") continue;
+    porId.set(String(fila.id), fila);
+  }
+  return [...porId.values()];
 }
