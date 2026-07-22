@@ -1,7 +1,7 @@
 // Formulario integrado de alta de refugiado con pestañas.
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Home, Search, UserPlus, Users } from "lucide-react";
+import { AlertTriangle, Search, UserPlus, Users } from "lucide-react";
 import {
   esMenor,
   normalizarCedula,
@@ -15,17 +15,10 @@ import {
   buscarRefugiadoPorCedula,
   crearFamilia,
   crearRefugiado,
-  guardarResidenciaAfectada,
   listarAlojamientosActivosRefugiado,
   registrarAlojamiento,
 } from "@/data/reposRefugiados";
-import { subirFotoResidencia, supabaseDisponible } from "@/data/supabase";
 import { claveDia } from "@/data/reposSupabase";
-import {
-  CamposResidenciaAfectada,
-  valoresResidenciaVacios,
-  type ValoresResidenciaForm,
-} from "./CamposResidenciaAfectada";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -71,8 +64,6 @@ export function RefugiadoForm({
   const [lugarNac, setLugarNac] = useState("");
   const [fechaNac, setFechaNac] = useState("");
   const [sexo, setSexo] = useState<SexoRefugiado | "">("");
-  const [embarazada, setEmbarazada] = useState(false);
-  const [discapacidad, setDiscapacidad] = useState(false);
   const [telefono, setTelefono] = useState("");
   const [whatsapp, setWhatsapp] = useState(true);
   const [consentimientoFoto, setConsentimientoFoto] = useState(false);
@@ -85,11 +76,6 @@ export function RefugiadoForm({
   const [fechaIngreso, setFechaIngreso] = useState(() => claveDia(Date.now()));
   const [itinerante, setItinerante] = useState(false);
   const [esJefe, setEsJefe] = useState(false);
-
-  const [registrarResidencia, setRegistrarResidencia] = useState(false);
-  const [valoresResidencia, setValoresResidencia] = useState<ValoresResidenciaForm>(valoresResidenciaVacios);
-  const [fotosResidencia] = useState<string[]>([]);
-  const [fotosPendientes, setFotosPendientes] = useState<File[]>([]);
 
   const [buscando, setBuscando] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -121,8 +107,6 @@ export function RefugiadoForm({
         setLugarNac(existente.lugar_nacimiento);
         setFechaNac(existente.fecha_nacimiento ?? "");
         setSexo(existente.sexo ?? "");
-        setEmbarazada(Boolean(existente.vulnerabilidades.embarazada));
-        setDiscapacidad(Boolean(existente.vulnerabilidades.discapacidad));
         const activos = await listarAlojamientosActivosRefugiado(existente.id);
         const otros = activos
           .filter((a) => a.centro_id !== centroId)
@@ -181,7 +165,6 @@ export function RefugiadoForm({
           lugar_nacimiento: lugarNac,
           fecha_nacimiento: fechaNac || null,
           sexo: sexo || null,
-          vulnerabilidades: { embarazada, discapacidad },
           contacto: telefono ? { telefono_principal: telefono, whatsapp_principal: whatsapp } : undefined,
           tallas: tallaCamisa || tallaPantalon ? { camisa: tallaCamisa, pantalon: tallaPantalon } : undefined,
           consentimiento_foto: consentimientoFoto,
@@ -202,32 +185,6 @@ export function RefugiadoForm({
         es_jefe_familia: esJefe,
         parentesco_jefe: esJefe ? "" : parentesco,
       });
-
-      if (registrarResidencia && famId) {
-        const paths = [...fotosResidencia];
-        if (fotosPendientes.length > 0 && supabaseDisponible()) {
-          for (const file of fotosPendientes) {
-            const path = await subirFotoResidencia(centroId, famId, file);
-            paths.push(path);
-          }
-        }
-        await guardarResidenciaAfectada({
-          familia_id: famId,
-          centro_id: centroId,
-          pais: valoresResidencia.pais,
-          estado_federativo: valoresResidencia.estado_federativo,
-          municipio: valoresResidencia.municipio,
-          parroquia: valoresResidencia.parroquia,
-          sector: valoresResidencia.sector,
-          direccion: valoresResidencia.direccion,
-          referencia: valoresResidencia.referencia,
-          estatus_vivienda: valoresResidencia.estatus_vivienda,
-          lat: valoresResidencia.lat,
-          lng: valoresResidencia.lng,
-          fotos: paths,
-          observaciones: valoresResidencia.observaciones,
-        });
-      }
 
       onRegistrado(alojId);
     } catch (err) {
@@ -253,10 +210,6 @@ export function RefugiadoForm({
             <TabsTrigger value="familia" className="gap-1.5">
               <Users className="size-3.5" />
               Hogar
-            </TabsTrigger>
-            <TabsTrigger value="residencia" className="gap-1.5" disabled={!tieneFamilia}>
-              <Home className="size-3.5" />
-              Residencia
             </TabsTrigger>
           </TabsList>
 
@@ -395,16 +348,6 @@ export function RefugiadoForm({
                     </Select>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-4">
-                  <div className="flex items-center gap-2">
-                    <Checkbox id="emb" checked={embarazada} onCheckedChange={(v) => setEmbarazada(Boolean(v))} />
-                    <Label htmlFor="emb">Embarazada</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox id="disc" checked={discapacidad} onCheckedChange={(v) => setDiscapacidad(Boolean(v))} />
-                    <Label htmlFor="disc">Discapacidad</Label>
-                  </div>
-                </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
                     <Label className="text-xs">Teléfono</Label>
@@ -503,71 +446,6 @@ export function RefugiadoForm({
                 )}
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" onClick={() => setPestana("personal")}>
-                    Atrás
-                  </Button>
-                  {tieneFamilia ? (
-                    <Button type="button" className="flex-1" onClick={() => setPestana("residencia")}>
-                      Siguiente: Residencia
-                    </Button>
-                  ) : (
-                    <Button type="button" className="flex-1" disabled={guardando} onClick={() => void guardar()}>
-                      {guardando ? "Guardando…" : "Registrar en el campamento"}
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="residencia">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Residencia afectada</CardTitle>
-                <CardDescription>Vivienda de la familia al momento de la emergencia</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="reg-res"
-                    checked={registrarResidencia}
-                    onCheckedChange={(v) => setRegistrarResidencia(Boolean(v))}
-                  />
-                  <Label htmlFor="reg-res">Registrar residencia afectada ahora</Label>
-                </div>
-
-                {registrarResidencia && (
-                  <>
-                    <CamposResidenciaAfectada
-                      valores={valoresResidencia}
-                      onChange={(p) => setValoresResidencia((prev) => ({ ...prev, ...p }))}
-                      mostrarTenencia={false}
-                    />
-                    {supabaseDisponible() && (
-                      <div>
-                        <Label className="text-xs">Fotos de la vivienda</Label>
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          className="mt-1 text-xs"
-                          onChange={(e) => {
-                            const files = e.target.files;
-                            if (files) setFotosPendientes((prev) => [...prev, ...Array.from(files)]);
-                            e.target.value = "";
-                          }}
-                        />
-                        {fotosPendientes.length > 0 && (
-                          <p className="mt-1 text-[11px] text-muted-foreground">
-                            {fotosPendientes.length} foto(s) pendiente(s) de subir
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-
-                <div className="flex gap-2 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setPestana("familia")}>
                     Atrás
                   </Button>
                   <Button type="button" className="flex-1" disabled={guardando} onClick={() => void guardar()}>

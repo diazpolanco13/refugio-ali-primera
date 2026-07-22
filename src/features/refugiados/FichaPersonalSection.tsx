@@ -315,7 +315,7 @@ function CabeceraRefugiado({ detalle, nombreCampamento, puedeEditar }: Props) {
                 </h3>
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Ubicación física de la persona dentro de {nombreCampamento}. No es la dirección de
-                  su casa antes de la emergencia (eso va en la pestaña Residencia).
+                  su casa antes de la emergencia.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -432,12 +432,6 @@ function CabeceraRefugiado({ detalle, nombreCampamento, puedeEditar }: Props) {
                   {detalle.parentesco_jefe && !detalle.es_jefe_familia && (
                     <Badge variant="outline">{detalle.parentesco_jefe}</Badge>
                   )}
-                  {refugiado.vulnerabilidades.embarazada && (
-                    <Badge variant="secondary" className="text-[10px]">Embarazada</Badge>
-                  )}
-                  {refugiado.vulnerabilidades.discapacidad && (
-                    <Badge variant="secondary" className="text-[10px]">Discapacidad</Badge>
-                  )}
                 </div>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <Dato label="Ingreso" valor={detalle.fecha_ingreso} />
@@ -476,8 +470,6 @@ function IdentidadCard({ detalle, puedeEditar }: { detalle: DetalleAlojamiento; 
   const [primerApellido, setPrimerApellido] = useState(refugiado.primer_apellido);
   const [segundoApellido, setSegundoApellido] = useState(refugiado.segundo_apellido);
   const [lugarNac, setLugarNac] = useState(refugiado.lugar_nacimiento);
-  const [embarazada, setEmbarazada] = useState(Boolean(refugiado.vulnerabilidades.embarazada));
-  const [discapacidad, setDiscapacidad] = useState(Boolean(refugiado.vulnerabilidades.discapacidad));
   const [apodo, setApodo] = useState(refugiado.apodo);
 
   useEffect(() => {
@@ -486,8 +478,6 @@ function IdentidadCard({ detalle, puedeEditar }: { detalle: DetalleAlojamiento; 
     setPrimerApellido(refugiado.primer_apellido);
     setSegundoApellido(refugiado.segundo_apellido);
     setLugarNac(refugiado.lugar_nacimiento);
-    setEmbarazada(Boolean(refugiado.vulnerabilidades.embarazada));
-    setDiscapacidad(Boolean(refugiado.vulnerabilidades.discapacidad));
     setApodo(refugiado.apodo);
   }, [refugiado]);
 
@@ -505,7 +495,6 @@ function IdentidadCard({ detalle, puedeEditar }: { detalle: DetalleAlojamiento; 
         primer_apellido: primerApellido,
         segundo_apellido: segundoApellido,
         lugar_nacimiento: lugarNac,
-        vulnerabilidades: { embarazada, discapacidad },
         apodo,
       });
       setEditando(false);
@@ -543,19 +532,6 @@ function IdentidadCard({ detalle, puedeEditar }: { detalle: DetalleAlojamiento; 
           <CampoInput label="Apodo" value={apodo} onChange={setApodo} disabled={soloLectura} />
           <CampoInput label="Lugar de nacimiento" value={lugarNac} onChange={setLugarNac} disabled={soloLectura} className="sm:col-span-3" />
         </div>
-
-        {!soloLectura && (
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <Checkbox id="emb" checked={embarazada} onCheckedChange={(v) => setEmbarazada(Boolean(v))} />
-              <Label htmlFor="emb">Embarazada</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox id="disc" checked={discapacidad} onCheckedChange={(v) => setDiscapacidad(Boolean(v))} />
-              <Label htmlFor="disc">Discapacidad</Label>
-            </div>
-          </div>
-        )}
 
         {editando && (
           <div className="flex gap-2 pt-2">

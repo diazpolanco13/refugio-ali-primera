@@ -1,18 +1,15 @@
-// Carga un alojamiento por id con refugiado, familia, miembros y residencia (vista de ficha).
+// Carga un alojamiento por id con refugiado, familia y miembros (vista de ficha).
 
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
-import { normalizarGeom } from "./normalizarGeom";
 import {
   normalizarAlojamiento,
   normalizarFamiliaCentro,
   normalizarRefugiado,
-  normalizarResidenciaAfectada,
   type AlojamientoEnriquecido,
   type AlojamientoRefugiado,
   type FamiliaCentro,
   type Refugiado,
-  type ResidenciaAfectada,
 } from "../domain/refugiados";
 
 import type { BeneficioOtorgado } from "../domain/beneficios";
@@ -20,7 +17,6 @@ import type { BeneficioOtorgado } from "../domain/beneficios";
 export interface DetalleAlojamiento extends AlojamientoEnriquecido {
   miembrosFamilia: AlojamientoEnriquecido[];
   miembrosFamiliaEgresados: AlojamientoEnriquecido[];
-  residencia: ResidenciaAfectada | null;
   beneficios: BeneficioOtorgado[];
 }
 
@@ -68,13 +64,10 @@ export function useAlojamientoDetalle(alojamientoId: string | undefined): {
 
         const aloj = normalizarAlojamiento(alojRaw as AlojamientoRefugiado);
 
-        const [refRes, famRes, resRes] = await Promise.all([
+        const [refRes, famRes] = await Promise.all([
           supabase.from("refugiados").select("*").eq("id", aloj.refugiado_id).maybeSingle(),
           aloj.familia_id
             ? supabase.from("familias_centro").select("*").eq("id", aloj.familia_id).maybeSingle()
-            : Promise.resolve({ data: null, error: null }),
-          aloj.familia_id
-            ? supabase.from("residencias_afectadas").select("*").eq("familia_id", aloj.familia_id).maybeSingle()
             : Promise.resolve({ data: null, error: null }),
         ]);
 
@@ -91,12 +84,6 @@ export function useAlojamientoDetalle(alojamientoId: string | undefined): {
         const familia = famRes.data
           ? normalizarFamiliaCentro(famRes.data as FamiliaCentro)
           : null;
-
-        let residencia: ResidenciaAfectada | null = null;
-        if (resRes.data) {
-          const raw = resRes.data as ResidenciaAfectada & { geom?: unknown };
-          residencia = normalizarResidenciaAfectada(raw, normalizarGeom(raw.geom));
-        }
 
         let miembrosFamilia: AlojamientoEnriquecido[] = [];
         let miembrosFamiliaEgresados: AlojamientoEnriquecido[] = [];
@@ -127,7 +114,6 @@ export function useAlojamientoDetalle(alojamientoId: string | undefined): {
           familia,
           miembrosFamilia,
           miembrosFamiliaEgresados,
-          residencia,
           beneficios: prev?.beneficios ?? [],
         }));
       } catch (err) {
@@ -152,11 +138,6 @@ export function useAlojamientoDetalle(alojamientoId: string | undefined): {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "refugiados" },
-        recargar,
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "residencias_afectadas" },
         recargar,
       )
       .on(

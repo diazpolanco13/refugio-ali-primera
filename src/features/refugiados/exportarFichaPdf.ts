@@ -1,6 +1,6 @@
 // Exporta ficha humanitaria a PDF con código QR.
 
-import { nombreCompleto, formatearCedula, direccionResidencia } from "@/domain/refugiados";
+import { nombreCompleto, formatearCedula } from "@/domain/refugiados";
 import type { DetalleAlojamiento } from "@/data/useAlojamientoDetalle";
 
 export async function exportarFichaPdf(
@@ -35,11 +35,6 @@ export async function exportarFichaPdf(
     `Teléfono: ${refugiado.contacto.telefono_principal ?? "—"}`,
     `Familia: ${detalle.familia?.nombre ?? "—"}`,
   ];
-
-  if (detalle.residencia) {
-    lineas.push(`Residencia afectada: ${direccionResidencia(detalle.residencia)}`);
-    lineas.push(`Estatus vivienda: ${detalle.residencia.estatus_vivienda}`);
-  }
 
   for (const linea of lineas) {
     doc.text(linea, margen, y);

@@ -1,6 +1,6 @@
 // Ficha interna de refugiado (vista de página). La pestaña Personal concentra
 // la ficha individual (cabecera, identidad, contacto, documentación y empleo);
-// el resto de pestañas cubre familia, residencia, salud, tallas y seguimiento.
+// el resto de pestañas cubre familia, tallas y seguimiento.
 
 import { useMemo, useState } from "react";
 import {
@@ -8,8 +8,6 @@ import {
   ArrowLeft,
   ClipboardList,
   FileDown,
-  Heart,
-  Home,
   LogOut,
   Ruler,
   User,
@@ -21,9 +19,6 @@ import {
   META_ESTADO_ALOJAMIENTO,
   nombreCompleto,
 } from "@/domain/refugiados";
-import { puedeVerSaludMental } from "@/domain/permisos";
-import { META_NIVEL_AFECTACION, nivelAfectacionHogar } from "@/domain/nivelAfectacionHogar";
-import { useSesion } from "@/data/authSupabase";
 import { useAlojamientoDetalle } from "@/data/useAlojamientoDetalle";
 import { useRefugiadosRed } from "@/data/useRefugiadosRed";
 import { useSupabaseQuery } from "@/data/useSupabaseQuery";
@@ -41,12 +36,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { ANCHO_VISTA_PRINCIPAL, MarcoVista } from "@/components/VistaContenedor";
 import { VistaEncabezado } from "@/components/VistaEncabezado";
 import { DocumentacionLegalSection } from "./DocumentacionLegalSection";
-import { FamiliaresReferenciaSection } from "./FamiliaresReferenciaSection";
 import { FamiliaresSection } from "./FamiliaresSection";
 import { FichaPersonalSection } from "./FichaPersonalSection";
 import { HabilidadesMediosVidaSection } from "./HabilidadesMediosVidaSection";
-import { ResidenciaAfectadaSection } from "./ResidenciaAfectadaSection";
-import { SaludBienestarSection } from "./SaludBienestarSection";
 import { SeguimientoNotasSection } from "./SeguimientoNotasSection";
 import { TallasDotacionesSection } from "./TallasDotacionesSection";
 import { exportarFichaPdf } from "./exportarFichaPdf";
@@ -66,10 +58,8 @@ export function FichaRefugiadoView({
   onEgreso,
   onAbrirMiembro,
 }: Props) {
-  const sesion = useSesion();
   const { alojamiento, cargando } = useAlojamientoDetalle(alojamientoId);
   const { alojamientos: alojamientosRed } = useRefugiadosRed();
-  const verSaludMental = sesion ? puedeVerSaludMental(sesion.user.rol) : false;
 
   type CentroFila = CentroTransitorio & { deleted: boolean };
   const filasCentros = useSupabaseQuery<CentroFila, FilaSync<CentroTransitorio>>("centros", {
@@ -124,14 +114,6 @@ export function FichaRefugiadoView({
   const esDuplicado = centrosDup && centrosDup.length >= 2;
   const metaEstado = META_ESTADO_ALOJAMIENTO[alojamiento.estado];
   const nombreCampamento = nombresCentros.get(alojamiento.centro_id) ?? alojamiento.centro_id;
-  const nivelFamilia =
-    META_NIVEL_AFECTACION[
-      nivelAfectacionHogar(
-        alojamiento.residencia?.estatus_vivienda ?? "sin_verificar",
-        alojamiento.familia?.fallecidos_confirmados ?? 0,
-        alojamiento.familia?.desaparecidos ?? 0,
-      )
-    ];
 
   async function confirmarEgreso() {
     setProcesando(true);
@@ -204,14 +186,6 @@ export function FichaRefugiadoView({
               </Badge>
             )}
             {alojamiento.es_jefe_familia && <Badge variant="outline">Jefe de familia</Badge>}
-            {alojamiento.familia && (
-              <Badge
-                variant="outline"
-                style={{ borderColor: nivelFamilia.color, color: nivelFamilia.color }}
-              >
-                {nivelFamilia.emoji} {nivelFamilia.label}
-              </Badge>
-            )}
           </div>
         }
       />
@@ -236,12 +210,6 @@ export function FichaRefugiadoView({
               </TabsTrigger>
               <TabsTrigger value="familiares" className="gap-1.5">
                 <Users className="size-3.5" /> Familiares
-              </TabsTrigger>
-              <TabsTrigger value="residencia" className="gap-1.5" disabled={!alojamiento.familia_id}>
-                <Home className="size-3.5" /> Residencia
-              </TabsTrigger>
-              <TabsTrigger value="salud" className="gap-1.5">
-                <Heart className="size-3.5" /> Salud
               </TabsTrigger>
               <TabsTrigger value="tallas" className="gap-1.5">
                 <Ruler className="size-3.5" /> Tallas / Kit
@@ -272,31 +240,6 @@ export function FichaRefugiadoView({
                 alojamientoActualId={alojamiento.id}
                 puedeEditar={puedeEditar}
                 onAbrirMiembro={onAbrirMiembro}
-              />
-              <FamiliaresReferenciaSection detalle={alojamiento} puedeEditar={puedeEditar} />
-            </TabsContent>
-
-            <TabsContent value="residencia">
-              {alojamiento.familia_id ? (
-                <ResidenciaAfectadaSection
-                  familiaId={alojamiento.familia_id}
-                  centroId={alojamiento.centro_id}
-                  familiaNombre={alojamiento.familia?.nombre}
-                  residencia={alojamiento.residencia}
-                  puedeEditar={puedeEditar}
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Asigna un grupo familiar para registrar la residencia afectada.
-                </p>
-              )}
-            </TabsContent>
-
-            <TabsContent value="salud">
-              <SaludBienestarSection
-                detalle={alojamiento}
-                puedeEditar={puedeEditar}
-                puedeVerSaludMental={verSaludMental}
               />
             </TabsContent>
 
