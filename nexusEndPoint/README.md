@@ -161,7 +161,11 @@ Escucha en `:8080` dentro del contenedor.
 
 1. **`Authorization: Bearer <JWT de Supabase>`** — valida contra
    `{SUPABASE_URL}/auth/v1/user` con la anon key. Es lo que usa el navegador
-   (sesión de login o de QR de terreno).
+   (sesión de login o de QR de terreno). Desde 22-jul-2026 la validación se
+   **cachea 5 min por token** (una ficha del censo dispara varias `/foto` de
+   golpe y todas las validaciones salen de la IP del VPS → riesgo de rate
+   limit de Supabase Auth). Un fallo de validación que NO sea token inválido
+   (429, 5xx, timeout, DNS) deja rastro: `WARN validar_jwt: …` en los logs.
 2. **`X-Gateway-Secret`** — secreto del env Dokploy; para scripts/ops en el VPS.
 
 CORS: orígenes de producción y dev (`m0n1t0r-d3-3v3nt0s.net`, localhost:5173/5180,
@@ -267,6 +271,25 @@ Medido: hit ~0.06 s vs miss ~0.6 s. Las fotos ya cacheadas se sirven
 
 Los objetos son inmutables por nombre (el `foto_nombre` lleva sufijo hash), así
 que el cache no necesita TTL ni invalidación.
+
+### Backfill / precalentado del cache (22-jul-2026)
+
+Las ~8,7k consultas precacheadas en `nexus_consultas` **ya traían
+`foto_nombre`** en el slim (el dato siempre se extrajo; lo nuevo era el
+endpoint `/foto`). Solo 8 filas eran del slim viejo y se refrescaron contra
+Nexus. Para que las fotos estén disponibles **sin VPN**, el script
+[`backfill_fotos.py`](./backfill_fotos.py) (copia operativa en
+`/root/backfill_fotos.py` del VPS) precalienta el cache bajando por el
+gateway todas las fotos con nombre conocido (~8,5k, secuencial, pausa 0.5 s,
+no toca el API de búsqueda de Nexus → sin riesgo de vigilante/degradado).
+
+- Modos: `--contar` · `--limit N` · `--precalentar` · (sin flags = refrescar
+  slims viejos contra Nexus, con abort si detecta modo degradado).
+- Auth Supabase: usuario bot `robot` (rol `autoridad`, solo lectura) con
+  credenciales en `/etc/dokploy/backfill-fotos.env` (no git). La RLS de
+  `nexus_consultas` exige rol admin/autoridad/analista-total para listar;
+  el upsert lo puede hacer cualquier autenticado.
+- Log del run: `/var/log/backfill-fotos.log`.
 
 **Gotcha DNS (musl/Alpine):** el contenedor `nexus-gateway` pisa
 `resolv.conf` con el DNS de la VPN, y el resolver de musl consulta todos los
@@ -386,6 +409,11 @@ el `docker-compose` / env.
       gateway (`cache=hit` ~0.06 s; sirve fotos cacheadas con VPN caída),
       credenciales propias, API S3 solo red interna, consola solo por túnel
       SSH. Ver §6.
+- [x] **Backfill + precalentado de fotos** (22-jul-2026): 8 slims viejos
+      refrescados; ~8,5k fotos conocidas precalentadas al MinIO propio con
+      `backfill_fotos.py` (ver §6). Cache de validación JWT en el gateway
+      (5 min) + log del motivo real cuando la validación falla por algo
+      distinto a un token inválido.
 - [ ] Edge Function opcional (hoy el browser habla directo al gateway)
 - [ ] Commit/push a `main` + env `VITE_NEXUS_GATEWAY_URL` en build Dokploy de la PWA
 

@@ -286,7 +286,11 @@ datos viven en Postgres.
   (hit ~0.06 s vs miss ~0.6 s; fotos cacheadas se sirven aun con VPN caída).
   UI `/censo` prioriza SAIME sobre foto de campo en Storage. **No** cachear
   en Supabase (factura / salida prevista). Bucket `media` reservado para
-  migrar fotos de campo/centros. Detalle: `nexusEndPoint/README.md` §6.
+  migrar fotos de campo/centros. Las ~8,5k fotos del precache de consultas
+  quedaron precalentadas con `nexusEndPoint/backfill_fotos.py` (usuario bot
+  `robot`, rol `autoridad`; creds en `/etc/dokploy/backfill-fotos.env`).
+  El gateway cachea la validación JWT 5 min (rate limit Supabase Auth).
+  Detalle: `nexusEndPoint/README.md` §6.
 - ✅ **Traslado formal entre centros (nominal)** — HECHO (20-jul-2026): el
   aviso "ya activa en otro campamento" del censo por cédula ahora ofrece
   **"Trasladar solo a esta persona"** o **"Trasladar a toda la familia (N

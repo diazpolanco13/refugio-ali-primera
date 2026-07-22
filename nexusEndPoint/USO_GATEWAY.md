@@ -13,7 +13,8 @@ Ver la documentación completa en **[README.md](./README.md)**.
 
 ## Auth
 
-1. `Authorization: Bearer <JWT sesión Supabase>` (app / QR terreno), o  
+1. `Authorization: Bearer <JWT sesión Supabase>` (app / QR terreno) —
+   validación cacheada 5 min por token, o  
 2. `X-Gateway-Secret` (solo servidor).
 
 `/health` y `/health/nexus` son públicos. `/foto` exige auth.
