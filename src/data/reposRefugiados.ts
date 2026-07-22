@@ -6,33 +6,22 @@ import {
   normalizarCedula,
   normalizarContacto,
   normalizarDocumentacion,
-  normalizarEstatusVivienda,
   normalizarFamiliaCentro,
-  normalizarFamiliaresReferencia,
-  normalizarFamiliaresSeparados,
   normalizarHabilidades,
   normalizarRefugiado,
-  normalizarResidenciaAfectada,
-  normalizarSalud,
   normalizarSeguimiento,
   normalizarTallas,
   normalizarVulnerabilidadesRefugiado,
   type AlojamientoRefugiado,
   type ContactoRefugiado,
   type DocumentacionRefugiado,
-  type EstatusVivienda,
-  type FamiliarReferencia,
-  type FamiliarSeparado,
   type FamiliaCentro,
   type HabilidadesRefugiado,
   type Refugiado,
-  type ResidenciaAfectada,
-  type SaludRefugiado,
   type SeguimientoAlojamiento,
   type SexoRefugiado,
   type TallasRefugiado,
   type TipoDoc,
-  type TipoTenencia,
   type VulnerabilidadesRefugiado,
 } from "../domain/refugiados";
 import {
@@ -48,7 +37,6 @@ import {
   type TipoBeneficio,
 } from "../domain/beneficios";
 import { esFalloDeRed, MENSAJE_SIN_CONEXION } from "@/lib/errorRed";
-import { normalizarGeom } from "./normalizarGeom";
 import { supabase } from "./supabaseClient";
 import { claveDia, usuarioActual } from "./reposSupabase";
 import { registrarHistorial } from "./historial";
@@ -517,20 +505,6 @@ export async function actualizarConsentimientoFoto(
   if (error) throw new Error(`[reposRefugiados] update consentimiento foto: ${error.message}`);
 }
 
-export async function actualizarSalud(id: string, salud: SaludRefugiado): Promise<void> {
-  const now = Date.now();
-  const { error } = await supabase
-    .from("refugiados")
-    .update({
-      salud: normalizarSalud(salud),
-      updated_at: now,
-      updated_by: usuarioActual(),
-    })
-    .eq("id", id);
-  if (error) throw new Error(`[reposRefugiados] update salud: ${error.message}`);
-  registrarHistorial("editar_salud", "refugiado", id, {});
-}
-
 export async function actualizarHabilidades(
   id: string,
   habilidades: HabilidadesRefugiado,
@@ -565,25 +539,6 @@ export async function actualizarDocumentacion(
   registrarHistorial("editar_documentacion", "refugiado", id, {});
 }
 
-export async function guardarFamiliaresReferencia(
-  familiaId: string,
-  referencia: FamiliarReferencia[],
-  separados: FamiliarSeparado[],
-): Promise<void> {
-  const now = Date.now();
-  const { error } = await supabase
-    .from("familias_centro")
-    .update({
-      familiares_referencia: normalizarFamiliaresReferencia(referencia),
-      familiares_separados: normalizarFamiliaresSeparados(separados),
-      updated_at: now,
-      updated_by: usuarioActual(),
-    })
-    .eq("id", familiaId);
-  if (error) throw new Error(`[reposRefugiados] update familiares referencia: ${error.message}`);
-  registrarHistorial("editar_familiares_referencia", "familia", familiaId, {});
-}
-
 export async function actualizarFotoFamiliar(
   familiaId: string,
   fotoUrl: string | null,
@@ -600,34 +555,6 @@ export async function actualizarFotoFamiliar(
     })
     .eq("id", familiaId);
   if (error) throw new Error(`[reposRefugiados] update foto familiar: ${error.message}`);
-}
-
-/** Guarda el conteo rápido de damnificación de un hogar (miembros esperados + pérdidas). */
-export async function actualizarDamnificacionFamilia(
-  familiaId: string,
-  datos: {
-    miembros_damnificados_declarados?: number | null;
-    fallecidos_confirmados?: number;
-    desaparecidos?: number;
-  },
-): Promise<void> {
-  const now = Date.now();
-  const fila: Record<string, unknown> = { updated_at: now, updated_by: usuarioActual() };
-  if (datos.miembros_damnificados_declarados !== undefined) {
-    fila.miembros_damnificados_declarados = datos.miembros_damnificados_declarados;
-  }
-  if (datos.fallecidos_confirmados !== undefined) {
-    fila.fallecidos_confirmados = Math.max(0, datos.fallecidos_confirmados);
-  }
-  if (datos.desaparecidos !== undefined) {
-    fila.desaparecidos = Math.max(0, datos.desaparecidos);
-  }
-  const { error } = await supabase.from("familias_centro").update(fila).eq("id", familiaId);
-  if (error) throw new Error(`[reposRefugiados] update damnificacion: ${error.message}`);
-  registrarHistorial("editar_damnificacion", "familia", familiaId, {
-    fallecidos_confirmados: datos.fallecidos_confirmados,
-    desaparecidos: datos.desaparecidos,
-  });
 }
 
 export async function actualizarSeguimiento(
@@ -875,74 +802,6 @@ export async function registrarEgreso(
     motivo: fila.motivo_egreso,
     destino: fila.destino_egreso,
   });
-}
-
-/** Guarda o actualiza la residencia afectada de una familia. */
-export async function guardarResidenciaAfectada(datos: {
-  familia_id: string;
-  centro_id: string;
-  pais?: string;
-  estado_federativo?: string;
-  municipio?: string;
-  parroquia?: string;
-  sector?: string;
-  direccion?: string;
-  referencia?: string;
-  estatus_vivienda?: EstatusVivienda;
-  lng?: number | null;
-  lat?: number | null;
-  fotos?: string[];
-  observaciones?: string;
-  tipo_tenencia?: TipoTenencia;
-  perdio_todo?: boolean;
-  perdidas_materiales?: string[];
-}): Promise<string> {
-  const estatus = normalizarEstatusVivienda(datos.estatus_vivienda);
-  const { data, error } = await supabase.rpc("upsert_residencia_afectada", {
-    p_familia_id: datos.familia_id,
-    p_centro_id: datos.centro_id,
-    p_pais: (datos.pais ?? "Venezuela").trim() || "Venezuela",
-    p_estado_federativo: (datos.estado_federativo ?? "").trim(),
-    p_municipio: (datos.municipio ?? "").trim(),
-    p_parroquia: (datos.parroquia ?? "").trim(),
-    p_sector: (datos.sector ?? "").trim(),
-    p_direccion: (datos.direccion ?? "").trim(),
-    p_referencia: (datos.referencia ?? "").trim(),
-    p_estatus_vivienda: estatus,
-    p_lng: datos.lng ?? null,
-    p_lat: datos.lat ?? null,
-    p_fotos: datos.fotos ?? [],
-    p_observaciones: (datos.observaciones ?? "").trim(),
-    p_tipo_tenencia: datos.tipo_tenencia ?? "",
-    p_perdio_todo: Boolean(datos.perdio_todo),
-    p_perdidas_materiales: datos.perdidas_materiales ?? [],
-  });
-  if (error) {
-    throw new Error(`[reposRefugiados] upsert residencia: ${error.message}`);
-  }
-  const id = data as string;
-  registrarHistorial("editar_residencia", "residencia", id, {
-    familia_id: datos.familia_id,
-    estatus_vivienda: estatus,
-  });
-  return id;
-}
-
-/** Obtiene la residencia afectada de una familia. */
-export async function obtenerResidenciaFamilia(
-  familiaId: string,
-): Promise<ResidenciaAfectada | null> {
-  const { data, error } = await supabase
-    .from("residencias_afectadas")
-    .select("*")
-    .eq("familia_id", familiaId)
-    .maybeSingle();
-  if (error) {
-    throw new Error(`[reposRefugiados] select residencia: ${error.message}`);
-  }
-  if (!data) return null;
-  const raw = data as ResidenciaAfectada & { geom?: unknown };
-  return normalizarResidenciaAfectada(raw, normalizarGeom(raw.geom));
 }
 
 /** Lista miembros activos de una familia en un campamento. */

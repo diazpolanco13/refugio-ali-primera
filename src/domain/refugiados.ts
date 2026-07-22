@@ -70,7 +70,8 @@ export interface FamiliarReferencia {
   estado_doc?: EstadoDocumento;
 }
 
-/** Familiar separado, desaparecido o fallecido (trazabilidad reunificación / pérdidas). */
+/** Familiar separado, desaparecido o fallecido (trazabilidad reunificación / pérdidas).
+ * Solo lectura histórica: la UI ya no captura ni muestra estos datos. */
 export interface FamiliarSeparado {
   id: string;
   nombre: string;
@@ -89,7 +90,8 @@ export interface FamiliarSeparado {
   verificado_nexus?: boolean;
 }
 
-/** Bloque de salud y bienestar. */
+/** Bloque de salud y bienestar.
+ * Solo lectura histórica: la UI ya no captura ni muestra estos datos. */
 export interface SaludRefugiado {
   lesiones?: string;
   condiciones_cronicas?: string;
@@ -210,7 +212,8 @@ export const PARENTESCOS_JEFE = [
 
 export type ParentescoJefe = (typeof PARENTESCOS_JEFE)[number] | string;
 
-/** Flags personales de vulnerabilidad (subconjunto de Vulnerables agregado). */
+/** Flags personales de vulnerabilidad.
+ * Solo lectura histórica: la UI ya no captura ni muestra estos datos. */
 export interface VulnerabilidadesRefugiado {
   embarazada?: boolean;
   discapacidad?: boolean;
@@ -294,7 +297,8 @@ export interface AlojamientoRefugiado {
   updated_by: string;
 }
 
-/** Residencia afectada de una familia (una por familia). */
+/** Residencia afectada de una familia (una por familia).
+ * Solo lectura histórica: la UI ya no captura ni muestra estos datos. */
 export interface ResidenciaAfectada {
   id: string;
   familia_id: string;
