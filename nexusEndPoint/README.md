@@ -38,16 +38,13 @@ Así el censo pasa de “llenar planilla” a “verificar y confirmar”, y la 
 queda donde debe vivir operativamente (nominal), no solo en un staging de
 campo.
 
-### Foto SAIME: mecanismo confirmado, pendiente activar
+### Foto SAIME: activa (opción B, 22-jul-2026)
 
 El endpoint `POST …/full/{letra}/{cedula}` devuelve el **nombre** del archivo
-de foto (`photoPersons[0].photo.url`, ej. `V-17089732-186c1dea.jpg`; el slim lo
-expone como `foto_nombre`), **no** el binario. La imagen real vive en un
-**MinIO (S3)** aparte: `http://10.51.12.85:9000`, bucket `alfa-images`. La
-institución expone `GET /api/cedula-photo/<filename>/`, que hace el `GetObject`
-del lado de ellos y devuelve la imagen. Detalle y plan de wire-up en **§6**.
-Falta solo que el admin entregue la URL base y las credenciales; hasta entonces
-la UI muestra iniciales + badge “SAIME”.
+de foto (`photoPersons[0].photo.url` → slim `foto_nombre`). La imagen vive en
+**MinIO** (`alfa-images`, VPN `10.51.12.85:9000`). El gateway la sirve en
+`GET /foto/<filename>` (JWT / secret). La UI `/censo` la muestra al verificar.
+Detalle en **§6**.
 
 ### Qué sí está listo mientras tanto
 
@@ -219,40 +216,41 @@ La planilla manual antigua sigue disponible en la otra pestaña (staging
 
 ## 6. Foto SAIME — mecanismo y wire-up
 
-**Circuito (confirmado por el admin el 11-jul):**
+**Circuito:**
 
-1. Onfalo (`api.onfalo.nexus.ia.ve`) da el **nombre** del archivo:
-   `photoPersons[0].photo.url` → el slim ya lo expone como `foto_nombre`
-   (ej. `V-17089732-186c1dea.jpg`).
-2. La **imagen** vive en un MinIO (S3): `http://10.51.12.85:9000`, bucket
-   **`alfa-images`**. Se baja usando `foto_nombre` como key.
-3. La institución expone `GET /api/cedula-photo/<filename>/`, que hace el
-   `GetObject` sobre `ONFALO_MINIO_BUCKET` vía `ONFALO_MINIO_URL` del lado de
-   ellos y devuelve `image/*` (credenciales S3 `ONFALO_MINIO_USER` /
-   `ONFALO_MINIO_TOKEN` en su servidor).
+1. Onfalo da el **nombre** del archivo: `photoPersons[0].photo.url` → slim
+   `foto_nombre` (ej. `V-17089732-186c1dea.jpg`).
+2. La imagen vive en MinIO institucional: `http://10.51.12.85:9000`, bucket
+   **`alfa-images`**, key = `foto_nombre`.
+3. **Nuestro gateway** (opción B, 22-jul-2026) hace `GetObject` SigV4 (stdlib,
+   sin boto3) vía VPN y expone:
 
-**Pendiente para activar** (el admin dijo "ya te paso la URL base y las
-credenciales"):
+   `GET /foto/<foto_nombre>` — auth JWT Supabase o `X-Gateway-Secret`.
 
-1. **URL base / host de `/api/cedula-photo/`** — ¿mismo `api.onfalo.nexus.ia.ve`
-   (IP VPN `10.51.2.21`) u otro? ¿headers `X-Api-Key` + `X-Tenant-Id: sp3`?
-2. `ONFALO_MINIO_USER` (solo si vamos por S3 directo).
-3. `ONFALO_MINIO_TOKEN` (solo si vamos por S3 directo).
+**Estado: ACTIVO**
 
-**Plan de wire-up (~15 min cuando lleguen los valores):**
+| Pieza | Dónde |
+|---|---|
+| Vars `MINIO_HOST/PORT/ACCESS_KEY/SECRET_KEY/BUCKET` | Dokploy compose `nexus-vpn` (no git) |
+| `proxy.py` con `/foto` | `/etc/dokploy/nexus-vpn/proxy.py` (bind-mount) |
+| Cliente UI | `cargarFotoSaime()` en `reposNexus.ts` |
+| Avatares censo | `CensoNexusPanel`: prioriza SAIME sobre `foto_url` Storage viejo |
 
-- **Opción A — proxear `/api/cedula-photo/` (recomendada).** El gateway añade
-  `GET /foto/<filename>` que reenvía a `/api/cedula-photo/<filename>/` del
-  upstream con la `X-Api-Key` ya encapsulada y devuelve `image/*`. **No mete
-  credenciales S3 en nuestra infra.** Solo necesita el dato (1).
-- **Opción B — S3 directo.** El gateway usa `boto3`/`minio` con
-  `ONFALO_MINIO_USER`/`ONFALO_MINIO_TOKEN` contra `10.51.12.85:9000` bucket
-  `alfa-images`. Necesita (1)+(2)+(3). Usar solo si el endpoint no existe.
-- **Caché:** guardar la imagen bajada en un bucket Supabase (`saime-fotos` o el
-  existente `centros-fotos`) para no re-descargar; URL en `nexus_consultas`.
-- **Frontend (~10 min):** en `CensoNexusPanel.tsx` el `<Avatar>` ya está listo —
-  sustituir `AvatarFallback` por `<AvatarImage src={urlGatewayNexus() + "/foto/"
-  + persona.foto_nombre}>` cuando haya `foto_nombre`.
+Health: `GET /health` → `{ "foto_minio": true }` si las vars están cargadas.
+
+**No cachear en Supabase Storage** (factura + roadmap de salir de Supabase).
+
+**Siguiente (decidido 22-jul):** MinIO **propio** en Dokploy como almacén de
+media post-Supabase. Flujo cache-aside:
+
+```
+GET /foto/<nombre>
+  → ¿objeto en MinIO propio (bucket saime-fotos)? → servir
+  → miss → MinIO institucional → PutObject propio → servir
+```
+
+Así: menos latencia/VPN en 2ª vista, cero bytes SAIME en Supabase, base para
+migrar fotos de campo/centros al mismo MinIO.
 
 ---
 
@@ -261,7 +259,7 @@ credenciales"):
 | Qué | Dónde | ¿Git? |
 |---|---|---|
 | API key Nexus, VPN user/pass, PROXY_SECRET, anon Supabase | Dokploy env del compose + `/etc/dokploy/nexus-vpn/env.secret` | **No** |
-| `ONFALO_MINIO_USER` / `ONFALO_MINIO_TOKEN` (foto SAIME, cuando lleguen) | Dokploy env del compose `nexus-vpn` | **No** |
+| `ONFALO_MINIO_*` / `MINIO_*` (foto SAIME) | Dokploy env del compose `nexus-vpn` | **No** |
 | `.ovpn` con cert/key | `/etc/dokploy/nexus-vpn/client.ovpn` (y copia local en `runtime/`) | **No** (gitignore) |
 | `vpn.txt`, `runtime/` | Local / host | **No** |
 | Esta documentación, ejemplos JSON, `endpointNexus.txt` | `nexusEndPoint/` | Sí (sin keys) |
@@ -279,8 +277,13 @@ nexusEndPoint/*.ovpn
 ## 8. Operación rápida
 
 ```bash
-# Salud pública
+# Salud pública (incluye foto_minio)
 curl -sS https://nexus.m0n1t0r-d3-3v3nt0s.net/health
+
+# Foto SAIME (ops)
+curl -sS -o /tmp/saime.jpg \
+  -H "X-Gateway-Secret: $PROXY_SECRET" \
+  "https://nexus.m0n1t0r-d3-3v3nt0s.net/foto/V-17089732-186c1dea.jpg"
 
 # Consulta slim (ops, con secret del env Dokploy)
 curl -sS -X POST \
@@ -355,10 +358,9 @@ el `docker-compose` / env.
       `cp nexusEndPoint/runtime/proxy.py /etc/dokploy/nexus-vpn/proxy.py && docker restart nexus-gateway`.
       Las consultas ya guardadas en `nexus_consultas` son de la versión vieja:
       usar «Reconsultar» para refrescarlas.
-- [ ] **Foto SAIME** — mecanismo confirmado (§6): Onfalo da el nombre → MinIO
-      `alfa-images` da la imagen, vía `GET /api/cedula-photo/<filename>/`.
-      Pendiente: que el admin entregue URL base + credenciales, luego wire-up
-      del gateway (`GET /foto/<filename>`) y del avatar (~15 min).
+- [x] **Foto SAIME** — Opción B activa (22-jul-2026): MinIO institucional vía
+      VPN; gateway `GET /foto/<filename>`; UI prioriza SAIME. **Siguiente:**
+      MinIO propio Dokploy (cache-aside; no Supabase Storage).
 - [ ] Edge Function opcional (hoy el browser habla directo al gateway)
 - [ ] Commit/push a `main` + env `VITE_NEXUS_GATEWAY_URL` en build Dokploy de la PWA
 

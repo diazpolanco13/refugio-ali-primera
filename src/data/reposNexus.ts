@@ -137,6 +137,39 @@ export async function reportarFallaNexus(contexto: {
   if (!resp.ok) throw new Error(`No se pudo enviar el reporte (${resp.status})`);
 }
 
+/**
+ * Baja la foto SAIME desde el gateway (`GET /foto/<foto_nombre>` → MinIO).
+ * Devuelve un blob: URL (revoke con URL.revokeObjectURL al limpiar).
+ * Requiere sesión: el <img> no puede mandar Authorization.
+ */
+export async function cargarFotoSaime(
+  fotoNombre: string,
+  opts?: { signal?: AbortSignal },
+): Promise<string | null> {
+  const nombre = (fotoNombre || "").trim();
+  if (!nombre || /[\\/]/.test(nombre) || nombre.includes("..")) return null;
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return null;
+
+  let resp: Response;
+  try {
+    resp = await fetch(`${GATEWAY_URL}/foto/${encodeURIComponent(nombre)}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      signal: opts?.signal,
+    });
+  } catch {
+    return null;
+  }
+  if (!resp.ok) return null;
+  const blob = await resp.blob();
+  if (!blob.type.startsWith("image/") && blob.size < 100) return null;
+  return URL.createObjectURL(blob);
+}
+
 /** Busca una persona por cédula (modo slim para censo). Requiere sesión. */
 export async function buscarPersonaNexus(
   letra: "V" | "E" | "J",

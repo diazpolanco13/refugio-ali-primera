@@ -6,14 +6,17 @@ Ver la documentación completa en **[README.md](./README.md)**.
 
 | Uso | URL |
 |---|---|
-| Health | `https://nexus.m0n1t0r-d3-3v3nt0s.net/health` |
+| Health | `https://nexus.m0n1t0r-d3-3v3nt0s.net/health` (`foto_minio`) |
 | Censo (slim) | `POST …/v1/person/search/external/full/{V\|E}/{cedula}/censo` |
 | Upstream crudo | `POST …/v1/person/search/external/full/{V\|E}/{cedula}` |
+| Foto SAIME | `GET …/foto/<foto_nombre>` → `image/jpeg` |
 
 ## Auth
 
 1. `Authorization: Bearer <JWT sesión Supabase>` (app / QR terreno), o  
 2. `X-Gateway-Secret` (solo servidor).
+
+`/health` y `/health/nexus` son públicos. `/foto` exige auth.
 
 ## UI
 
@@ -22,7 +25,18 @@ Destino: tablas nominales (`refugiados`, `familias_centro`, `alojamientos_refugi
 
 ## Foto SAIME
 
-El full trae el *nombre* del archivo (`foto_nombre`), no la imagen. La imagen
-vive en un MinIO (`alfa-images` en `10.51.12.85:9000`) y la institución la sirve
-por `GET /api/cedula-photo/<filename>/`. Pendiente: URL base + credenciales del
-admin, luego wire-up del gateway/avatar. Detalle en `README.md` §6.
+1. Slim trae `foto_nombre` (no el binario).
+2. Origen: MinIO institucional `alfa-images` (VPN).
+3. Gateway: `GET /foto/<foto_nombre>` (SigV4 path-style).
+4. UI: `cargarFotoSaime()` → blob URL; avatares del hogar priorizan SAIME
+   sobre `foto_url` de Storage (foto de campo antigua).
+
+**No** guardar en Supabase Storage. Próximo: MinIO propio en Dokploy
+(cache-aside) — ver README §6.
+
+```bash
+# Ejemplo (ops)
+curl -sS -o /tmp/saime.jpg -D- \
+  -H "X-Gateway-Secret: $PROXY_SECRET" \
+  "https://nexus.m0n1t0r-d3-3v3nt0s.net/foto/V-17089732-186c1dea.jpg"
+```

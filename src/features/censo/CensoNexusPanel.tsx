@@ -75,6 +75,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import {
   buscarPersonaNexusConCache,
+  cargarFotoSaime,
   esNexusNoDisponible,
   reportarFallaNexus,
 } from "@/data/reposNexus";
@@ -104,6 +105,7 @@ import {
 } from "@/data/reposRefugiados";
 import { nuevoId } from "@/data/reposSupabase";
 import { subirFotoRefugiado, supabaseDisponible, urlFotoRefugiado } from "@/data/supabase";
+import { supabase } from "@/data/supabaseClient";
 import { asegurarSesionTerreno } from "@/data/loginTerreno";
 import { type FamiliarNexus, type PersonaNexusCenso } from "@/domain/nexusPersona";
 import {
@@ -254,7 +256,7 @@ function BuscadorCedula({
   buscando,
   onSubmit,
   labelCedula = "Número de cédula",
-  placeholder = "Ej. 17089732",
+  placeholder = "Solo dígitos",
 }: {
   letra: Letra;
   onLetra: (l: Letra) => void;
@@ -365,25 +367,46 @@ interface ResumenFamiliaAqui {
 
 function AvatarMiembro({
   fotoUrl,
+  fotoNombreSaime,
   nombre,
   sinCedula = false,
 }: {
+  /** Path en Storage (foto de campo antigua). Se ignora si hay SAIME. */
   fotoUrl: string | null;
+  /** Nombre de archivo MinIO (`foto_nombre` del slim Nexus). Preferido. */
+  fotoNombreSaime?: string | null;
   nombre: string;
   /** Sin documento: borde ámbar si aún no hay foto (marca visual del flujo). */
   sinCedula?: boolean;
 }) {
   const [rota, setRota] = useState(false);
   const [src, setSrc] = useState<string | null>(null);
+  const saime = (fotoNombreSaime ?? "").trim();
   const path = (fotoUrl ?? "").trim();
 
   useEffect(() => {
     let cancelado = false;
+    let blobCreado: string | null = null;
     setRota(false);
-    if (!path) {
-      setSrc(null);
-      return;
+    setSrc(null);
+
+    // Prioridad: SAIME (MinIO vía gateway) > Storage de campo.
+    if (saime) {
+      void cargarFotoSaime(saime).then((url) => {
+        if (cancelado) {
+          if (url) URL.revokeObjectURL(url);
+          return;
+        }
+        blobCreado = url;
+        setSrc(url);
+      });
+      return () => {
+        cancelado = true;
+        if (blobCreado) URL.revokeObjectURL(blobCreado);
+      };
     }
+
+    if (!path) return;
     if (path.startsWith("http") || path.startsWith("blob:") || path.startsWith("data:")) {
       setSrc(path);
       return;
@@ -394,7 +417,7 @@ function AvatarMiembro({
     return () => {
       cancelado = true;
     };
-  }, [path]);
+  }, [saime, path]);
 
   const mostrarFoto = Boolean(src) && !rota;
   const pedirFoto = sinCedula && !mostrarFoto;
@@ -490,6 +513,21 @@ function fechaAproximadaPorEdad(edad: number): string {
 
 const soloDigitos = (c: string) => c.replace(/\D/g, "");
 
+/** Acumula `foto_nombre` SAIME por cédula (sesión de censo). */
+function mergeFotosSaimePorCedula(
+  prev: Record<string, string>,
+  persona: { cedula: string; foto_nombre?: string | null; familiares?: FamiliarNexus[] },
+): Record<string, string> {
+  const next = { ...prev };
+  const propia = persona.foto_nombre?.trim();
+  if (propia) next[soloDigitos(persona.cedula)] = propia;
+  for (const f of persona.familiares ?? []) {
+    const n = f.foto_nombre?.trim();
+    if (n) next[soloDigitos(f.cedula)] = n;
+  }
+  return next;
+}
+
 function fechaCorta(ts: number): string {
   return new Date(ts).toLocaleDateString("es-VE", {
     day: "2-digit",
@@ -576,6 +614,14 @@ export function CensoNexusPanel({
   // local; se sube al bucket al crear/agregar en nominal.
   const [fotoArchivo, setFotoArchivo] = useState<File | null>(null);
   const [fotoPreviewUrl, setFotoPreviewUrl] = useState<string | null>(null);
+  /** Blob URL de la foto SAIME (MinIO vía gateway). Campo local la sobreescribe en UI. */
+  const [fotoSaimeUrl, setFotoSaimeUrl] = useState<string | null>(null);
+  const [fotoSaimeCargando, setFotoSaimeCargando] = useState(false);
+  /** `cedula_digitos → foto_nombre` vistos en esta sesión (Nexus). */
+  const [fotoSaimePorCedula, setFotoSaimePorCedula] = useState<Record<string, string>>(
+    {},
+  );
+
   const inputFotoCamaraRef = useRef<HTMLInputElement | null>(null);
   const inputFotoGaleriaRef = useRef<HTMLInputElement | null>(null);
   // Foto del alta sin cédula (menor / no documentado): estado aparte para no
@@ -738,9 +784,47 @@ export function CensoNexusPanel({
 
   const nombreCentro = (id: string) => nombresCentros[id] ?? id;
 
+  async function enriquecerFotosSaimeMiembros(
+    lista: { cedula: string | null }[],
+  ): Promise<void> {
+    const pendientes = lista
+      .map((m) => soloDigitos(m.cedula || ""))
+      .filter((d) => d.length >= 5);
+    if (pendientes.length === 0) return;
+
+    const updates: Record<string, string> = {};
+    await Promise.all(
+      pendientes.map(async (digits) => {
+        for (const letra of ["V", "E"] as const) {
+          const { data } = await supabase
+            .rpc("nexus_cache_cedula", { p_letra: letra, p_cedula: digits })
+            .maybeSingle<{ data: { foto_nombre?: string | null } | null }>();
+          const nombre = data?.data?.foto_nombre?.trim();
+          if (nombre) {
+            updates[digits] = nombre;
+            return;
+          }
+        }
+      }),
+    );
+    if (Object.keys(updates).length === 0) return;
+    setFotoSaimePorCedula((prev) => {
+      const next = { ...prev };
+      let cambio = false;
+      for (const [k, v] of Object.entries(updates)) {
+        if (!next[k]) {
+          next[k] = v;
+          cambio = true;
+        }
+      }
+      return cambio ? next : prev;
+    });
+  }
+
   async function refrescarMiembros(id: string) {
     const lista = await miembrosHogarActual(id);
     setMiembros(lista);
+    void enriquecerFotosSaimeMiembros(lista);
   }
 
   /** Abre en la vista de hogar un familia ya registrada (cédula duplicada en el campamento). */
@@ -753,6 +837,7 @@ export function CensoNexusPanel({
       const jefe = lista.find((m) => m.es_jefe);
       setFamiliaId(id);
       setMiembros(lista);
+      void enriquecerFotosSaimeMiembros(lista);
       setCedulaJefe(jefe?.cedula ?? null);
       setPersona(null);
       setEstadoNominal(null);
@@ -865,6 +950,36 @@ export function CensoNexusPanel({
       if (fotoMenorPreviewUrl) URL.revokeObjectURL(fotoMenorPreviewUrl);
     };
   }, [fotoMenorPreviewUrl]);
+
+  // Foto SAIME: fetch autenticado → blob URL (el <img> no manda JWT).
+  useEffect(() => {
+    const nombre = persona?.foto_nombre?.trim() || "";
+    let cancelado = false;
+
+    setFotoSaimeUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+
+    if (!nombre || !persona?.tiene_foto_saime) {
+      setFotoSaimeCargando(false);
+      return;
+    }
+
+    setFotoSaimeCargando(true);
+    void cargarFotoSaime(nombre).then((url) => {
+      if (cancelado) {
+        if (url) URL.revokeObjectURL(url);
+        return;
+      }
+      setFotoSaimeUrl(url);
+      setFotoSaimeCargando(false);
+    });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [persona?.foto_nombre, persona?.tiene_foto_saime]);
 
   function resetDamnificacion() {
     setEstatusVivienda(null);
@@ -986,6 +1101,7 @@ export function CensoNexusPanel({
       ]);
       const p = ficha.persona;
       setPersona(p);
+      setFotoSaimePorCedula((prev) => mergeFotosSaimePorCedula(prev, p));
       setEstadoNominal(estado);
       setRegistroViejo(viejo);
       setOrigenFicha({ desdeCache: ficha.desdeCache, consultadaTs: ficha.consultadaTs });
@@ -2034,6 +2150,15 @@ export function CensoNexusPanel({
                             }
                             id={`fam-${f.cedula}`}
                           />
+                          <AvatarMiembro
+                            fotoUrl={null}
+                            fotoNombreSaime={
+                              f.foto_nombre ||
+                              fotoSaimePorCedula[soloDigitos(f.cedula)] ||
+                              null
+                            }
+                            nombre={f.nombre || "Familiar"}
+                          />
                           <label
                             htmlFor={`fam-${f.cedula}`}
                             className="flex-1 text-sm cursor-pointer min-w-[8rem]"
@@ -2456,25 +2581,33 @@ export function CensoNexusPanel({
               </div>
             ) : null}
             <div className="flex gap-3 items-start">
-              {/* Foto de verificación: toque grande para cámara en el teléfono. */}
+              {/* Foto de verificación: SAIME si hay; toque para cámara de campo. */}
               <div className="flex w-[5.5rem] shrink-0 flex-col items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => inputFotoCamaraRef.current?.click()}
                   className={cn(
                     "relative flex size-[5.5rem] flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-colors",
-                    fotoPreviewUrl
+                    fotoPreviewUrl || fotoSaimeUrl
                       ? "border-primary/40 bg-muted"
                       : "border-muted-foreground/40 bg-muted/40 hover:border-primary/50 hover:bg-muted",
                   )}
-                  aria-label={fotoPreviewUrl ? "Cambiar foto (cámara)" : "Añadir foto con la cámara"}
+                  aria-label={
+                    fotoPreviewUrl
+                      ? "Cambiar foto (cámara)"
+                      : fotoSaimeUrl
+                        ? "Foto SAIME; tocar para reemplazar con cámara"
+                        : "Añadir foto con la cámara"
+                  }
                 >
-                  {fotoPreviewUrl ? (
+                  {fotoPreviewUrl || fotoSaimeUrl ? (
                     <img
-                      src={fotoPreviewUrl}
+                      src={(fotoPreviewUrl || fotoSaimeUrl)!}
                       alt={`Foto de ${persona.nombre_completo}`}
                       className="size-full object-cover"
                     />
+                  ) : fotoSaimeCargando ? (
+                    <Loader2 className="size-7 animate-spin text-muted-foreground" />
                   ) : (
                     <>
                       <Camera className="size-7 text-muted-foreground" />
@@ -2533,7 +2666,7 @@ export function CensoNexusPanel({
                 <p className="font-mono text-sm text-muted-foreground">
                   {formatearCedula(persona.cedula, persona.letra === "E" ? "E" : "V")}
                 </p>
-                {!fotoPreviewUrl ? (
+                {!fotoPreviewUrl && !fotoSaimeUrl ? (
                   <p className="text-[11px] text-muted-foreground leading-snug">
                     Compare con la persona frente a usted. Puede tomar la foto con la cámara del teléfono.
                   </p>
@@ -2551,9 +2684,17 @@ export function CensoNexusPanel({
                     <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 border-transparent gap-1">
                       <Camera className="size-3" /> Foto de campo
                     </Badge>
+                  ) : fotoSaimeUrl ? (
+                    <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 border-transparent gap-1">
+                      <ShieldCheck className="size-3" /> SAIME
+                    </Badge>
+                  ) : fotoSaimeCargando ? (
+                    <Badge variant="outline" className="gap-1">
+                      <Loader2 className="size-3 animate-spin" /> SAIME…
+                    </Badge>
                   ) : persona.tiene_foto_saime ? (
                     <Badge variant="outline" className="gap-1">
-                      <ShieldCheck className="size-3" /> SAIME (pendiente)
+                      <ShieldCheck className="size-3" /> SAIME (no cargó)
                     </Badge>
                   ) : (
                     <Badge variant="outline">Sin foto SAIME</Badge>
@@ -3749,6 +3890,11 @@ export function CensoNexusPanel({
                     </span>
                     <AvatarMiembro
                       fotoUrl={m.fotoUrl}
+                      fotoNombreSaime={
+                        m.cedula
+                          ? fotoSaimePorCedula[soloDigitos(m.cedula)] || null
+                          : null
+                      }
                       nombre={m.nombre}
                       sinCedula={!m.cedula}
                     />
@@ -3875,6 +4021,11 @@ export function CensoNexusPanel({
                     </span>
                     <AvatarMiembro
                       fotoUrl={m.fotoUrl}
+                      fotoNombreSaime={
+                        m.cedula
+                          ? fotoSaimePorCedula[soloDigitos(m.cedula)] || null
+                          : null
+                      }
                       nombre={m.nombre}
                       sinCedula={!m.cedula}
                     />

@@ -279,13 +279,11 @@ datos viven en Postgres.
   `funcionario` (v2) sigue vivo para /censo hasta que se decida apagarlo, y
   la fusión de duplicados `operador-*` viejos ocurre gradualmente cuando cada
   persona se identifica con su cédula.
-- 📸 **Foto SAIME en el censo por cédula:** Nexus da el *nombre* del archivo
-  (`foto_nombre` en el slim), no la imagen; la imagen vive en un MinIO
-  (`alfa-images`, `10.51.12.85:9000`) al que la institución expone
-  `GET /api/cedula-photo/<filename>/`. Falta que el admin de Nexus entregue la
-  **URL base y credenciales** de ese endpoint (pedido pendiente desde el
-  11-jul). Wire-up documentado y listo en `nexusEndPoint/README.md` §6
-  (~15 min: ruta nueva en el gateway + `AvatarImage` en `CensoNexusPanel`).
+- ✅ **Foto SAIME en el censo por cédula** — HECHO (22-jul-2026): gateway
+  `GET /foto/<foto_nombre>` baja de MinIO institucional (`alfa-images`) vía
+  VPN; UI `/censo` prioriza SAIME sobre foto de campo en Storage. **No**
+  cachear en Supabase (factura / salida prevista). Siguiente: MinIO propio
+  en Dokploy (cache-aside). Detalle: `nexusEndPoint/README.md` §6.
 - ✅ **Traslado formal entre centros (nominal)** — HECHO (20-jul-2026): el
   aviso "ya activa en otro campamento" del censo por cédula ahora ofrece
   **"Trasladar solo a esta persona"** o **"Trasladar a toda la familia (N
