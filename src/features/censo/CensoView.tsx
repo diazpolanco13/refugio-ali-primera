@@ -796,7 +796,7 @@ export function CensoView() {
         )}
 
         {!mostrarInstrucciones && modoCenso === "lista" && (
-          <div className="-mt-3 space-y-3">
+          <div className={cn("space-y-3", centroId ? "mt-3" : "-mt-3")}>
             {!centroId ? (
               <Card className="shadow-lg">
                 <CardHeader className="pb-2">
@@ -828,13 +828,21 @@ export function CensoView() {
             ) : (
               <>
                 {!token ? (
-                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                    <span className="truncate">{centroNombre || centroId}</span>
+                  <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-card px-3 py-2.5 shadow-lg">
+                    <MapPin className="size-4 shrink-0 text-primary" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                        Consultando en
+                      </p>
+                      <p className="truncate text-sm font-semibold">
+                        {centroNombre || centroId}
+                      </p>
+                    </div>
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      className="h-7 shrink-0"
+                      className="shrink-0"
                       onClick={() => setCentroId("")}
                     >
                       Cambiar
