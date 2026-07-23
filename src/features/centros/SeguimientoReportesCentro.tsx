@@ -1464,9 +1464,7 @@ function SeguimientoExpandido({
               </div>
             </div>
           )}
-          {subSalud === "seguimiento"
-            ? renderListaSalud(listaCasosPagina)
-            : renderListaSalud(listaCasosPagina, [])}
+          {renderListaSalud(listaCasosPagina)}
         </TabsContent>
 
         <TabsContent value="trabajos" className="mt-4 space-y-4">
