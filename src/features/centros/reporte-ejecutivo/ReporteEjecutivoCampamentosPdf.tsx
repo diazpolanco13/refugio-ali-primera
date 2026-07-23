@@ -1145,7 +1145,7 @@ export function ReporteEjecutivoCampamentosPdf({
           <View style={styles.columnWide}>
             {reporte.censo ? (
               <Section
-                title="Censo SEBIN"
+                title="Data poblacional"
                 hint={`${n(reporte.censo.completados + reporte.censo.enCurso + reporte.censo.sinIniciar)} campamentos`}
                 tint
                 fixed
