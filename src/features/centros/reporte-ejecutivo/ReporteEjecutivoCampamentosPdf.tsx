@@ -840,7 +840,13 @@ function StatCard({
   return (
     <View style={wide ? [styles.statCard, styles.statCardWide] : styles.statCard}>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, valueColor ? { color: valueColor } : null]}>
+      <Text
+        style={
+          valueColor
+            ? [styles.statValue, { color: valueColor }]
+            : styles.statValue
+        }
+      >
         {n(value)}
       </Text>
       {sub ? <Text style={styles.statSub}>{sub}</Text> : null}
