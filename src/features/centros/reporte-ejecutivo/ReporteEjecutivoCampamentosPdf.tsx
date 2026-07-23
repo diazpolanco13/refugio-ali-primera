@@ -640,6 +640,12 @@ function pct(valor: number): string {
   return `${Math.max(0, Math.min(100, valor))}%`;
 }
 
+/** Porcentaje parte/total con 1 decimal (igual que PDF verificación). */
+function pctDe(parte: number, total: number): number {
+  if (total <= 0) return 0;
+  return Math.round((parte / total) * 1000) / 10;
+}
+
 /** Fecha-hora militar: DDHHMMMONYY (ej. 091430JUL26). */
 function fechaHoraMilitar(ts: number): string {
   const d = new Date(ts);
@@ -823,16 +829,20 @@ function StatCard({
   value,
   sub,
   wide,
+  valueColor,
 }: {
   label: string;
   value: number;
   sub?: string;
   wide?: boolean;
+  valueColor?: string;
 }) {
   return (
     <View style={wide ? [styles.statCard, styles.statCardWide] : styles.statCard}>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{n(value)}</Text>
+      <Text style={[styles.statValue, valueColor ? { color: valueColor } : null]}>
+        {n(value)}
+      </Text>
       {sub ? <Text style={styles.statSub}>{sub}</Text> : null}
     </View>
   );
@@ -1143,24 +1153,49 @@ export function ReporteEjecutivoCampamentosPdf({
           </View>
 
           <View style={styles.columnWide}>
-            {reporte.censo ? (
+            {reporte.verificacionPolicial ? (
               <Section
-                title="Data poblacional"
-                hint={`${n(reporte.censo.completados + reporte.censo.enCurso + reporte.censo.sinIniciar)} campamentos`}
+                title="Verificación policial"
+                hint={`${n(reporte.verificacionPolicial.campamentos)} centros`}
                 tint
                 fixed
               >
                 <View style={styles.miniGrid}>
-                  <StatCard label="Completados" value={reporte.censo.completados} />
-                  <StatCard label="En curso" value={reporte.censo.enCurso} />
-                  <StatCard label="Sin iniciar" value={reporte.censo.sinIniciar} wide />
+                  <StatCard
+                    label="Personas verificadas"
+                    value={reporte.verificacionPolicial.personas}
+                    sub={`${n(reporte.verificacionPolicial.campamentosConLista)} con lista · ${n(reporte.verificacionPolicial.campamentos)} centros`}
+                    wide
+                  />
+                  <StatCard
+                    label="Adultos (a verificar)"
+                    value={reporte.verificacionPolicial.adultos}
+                    sub={`${pctDe(
+                      reporte.verificacionPolicial.adultos,
+                      reporte.verificacionPolicial.personas,
+                    )}% del total`}
+                  />
+                  <StatCard
+                    label="Por SIIPOL"
+                    value={reporte.verificacionPolicial.siipol}
+                    sub={`${pctDe(
+                      reporte.verificacionPolicial.siipol,
+                      reporte.verificacionPolicial.adultos,
+                    )}% de adultos`}
+                  />
+                  <StatCard
+                    label="Solicitadas"
+                    value={reporte.verificacionPolicial.solicitadas}
+                    sub={`${n(reporte.verificacionPolicial.campamentosConSolicitadas)} campamentos`}
+                    valueColor={rojo}
+                  />
+                  <StatCard
+                    label="Con registro policial"
+                    value={reporte.verificacionPolicial.conRegistro}
+                    sub={`${n(reporte.verificacionPolicial.campamentosConRegistro)} campamentos`}
+                    valueColor={ambar}
+                  />
                 </View>
-                <Barra
-                  label="Avance del levantamiento"
-                  value={reporte.censo.completados}
-                  total={reporte.censo.completados + reporte.censo.enCurso + reporte.censo.sinIniciar}
-                  color={verde}
-                />
               </Section>
             ) : null}
 

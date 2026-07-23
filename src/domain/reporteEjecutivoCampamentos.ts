@@ -84,8 +84,8 @@ export interface EntradaReporteEjecutivoCampamentos {
   casosSaludAbiertos?: CasoSaludCentro[];
   /** Novedades con título/descripción (se filtran por `dia`). */
   eventosDetalle?: EventoReporte[];
-  /** Estatus del censo SEBIN de la red (conteo por estado). */
-  censoEstados?: CensoEstadosEjecutivo | null;
+  /** Totales de verificación policial Nexus/SAIME + SIIPOL (import_excel). */
+  verificacionPolicial?: VerificacionPolicialEjecutiva | null;
   dia: string;
   generadoTs?: number;
   generadoPor?: string | null;
@@ -254,10 +254,18 @@ export interface RequerimientoCategoriaEjecutivo {
   unidades: number;
 }
 
-export interface CensoEstadosEjecutivo {
-  completados: number;
-  enCurso: number;
-  sinIniciar: number;
+/** KPIs verificación policial (Importaciones Excel) para Parte Global. */
+export interface VerificacionPolicialEjecutiva {
+  /** Personas en import_excel (etiqueta PDF: «Personas verificadas»). */
+  personas: number;
+  campamentos: number;
+  campamentosConLista: number;
+  adultos: number;
+  siipol: number;
+  solicitadas: number;
+  conRegistro: number;
+  campamentosConSolicitadas: number;
+  campamentosConRegistro: number;
 }
 
 export interface UnidadSebinEjecutiva {
@@ -332,7 +340,7 @@ export interface ReporteEjecutivoCampamentos {
   /** Campamentos con parte numérico del día del corte. */
   partesDelDia: number;
   unidadesSebin: UnidadSebinEjecutiva[];
-  censo: CensoEstadosEjecutivo | null;
+  verificacionPolicial: VerificacionPolicialEjecutiva | null;
   ocupacionRed: OcupacionRedEjecutiva;
   /** Ocupación por región (Caracas/Miranda, Vargas, …). */
   ocupacionPorSegmento: OcupacionSegmentoEjecutivo[];
@@ -560,7 +568,7 @@ export function construirReporteEjecutivoCampamentos({
   requerimientosActivos = [],
   casosSaludAbiertos = [],
   eventosDetalle = [],
-  censoEstados = null,
+  verificacionPolicial = null,
   dia,
   generadoTs = Date.now(),
   generadoPor,
@@ -828,7 +836,7 @@ export function construirReporteEjecutivoCampamentos({
     trabajosRed,
     partesDelDia: contarUnidadesCon(centrosConParte, (c) => diasConParteHoy.has(c.id)),
     unidadesSebin,
-    censo: censoEstados,
+    verificacionPolicial,
     ocupacionRed: conteosOcupacionRed(centrosOp, snapshotsOp, dia),
     ocupacionPorSegmento: conteosOcupacionPorSegmento(centrosOp, snapshotsOp, dia),
     serieSemanal: serieOcupacionRedVentana(

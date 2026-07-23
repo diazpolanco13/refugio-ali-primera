@@ -37,8 +37,7 @@ import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { useReparacionesCentros } from "@/data/useReparacionesCentros";
 import { useRequerimientosSeguimiento } from "@/data/useRequerimientosSeguimiento";
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
-import { useCensoRedResumen } from "@/data/useCensoRedResumen";
-import { estadoCensoCentro } from "@/domain/censoResumen";
+import { useCensoVerificacion } from "@/data/useCensoVerificacion";
 import { casosAbiertosSeguimiento } from "@/domain/casosSalud";
 import { textoParteGeneralRed } from "@/domain/reporteTelegramRed";
 import { claveDia } from "@/data/reposSupabase";
@@ -779,7 +778,8 @@ export function ReportesDiariosRedView() {
   const { trabajos: trabajosRed } = useReparacionesCentros({ soloActivos: true });
   const { requerimientos: requerimientosRed } = useRequerimientosSeguimiento({ soloActivos: true });
   const { casos: casosSaludRed } = useCasosSaludCentros({ soloActivos: true });
-  const { resumenes: censoResumenes } = useCensoRedResumen();
+  const { totales: totalesVerificacion, filas: filasVerificacion, cargando: cargandoVerificacion } =
+    useCensoVerificacion();
 
   const [generandoPdf, setGenerandoPdf] = useState(false);
   const [menuCompartirAbierto, setMenuCompartirAbierto] = useState(false);
@@ -1112,35 +1112,21 @@ export function ReportesDiariosRedView() {
     [centrosEnAlcance],
   );
 
-  /** Censo SEBIN por unidad de conteo (complejo = 1 campamento). */
-  const censoEstados = useMemo(() => {
-    if (!censoResumenes.length) return null;
-    const porCentro = new Map(censoResumenes.map((r) => [r.centroId, r]));
-    const conteo = { completados: 0, enCurso: 0, sinIniciar: 0 };
-    for (const miembros of agruparPorUnidadConteo(centrosMetricas).values()) {
-      const estados = miembros.map((c) => {
-        const resumen = porCentro.get(c.id);
-        return resumen ? estadoCensoCentro(resumen) : ("sin_iniciar" as const);
-      });
-      if (
-        estados.every((e) => e === "completado_declarado" || e === "sin_ocupantes")
-      ) {
-        conteo.completados += 1;
-      } else if (
-        estados.some(
-          (e) =>
-            e === "en_curso" ||
-            e === "completado_declarado" ||
-            e === "sin_ocupantes",
-        )
-      ) {
-        conteo.enCurso += 1;
-      } else {
-        conteo.sinIniciar += 1;
-      }
-    }
-    return conteo;
-  }, [censoResumenes, centrosMetricas]);
+  /** Totales verificación policial (Importaciones Excel) para el PDF ejecutivo. */
+  const verificacionPolicial = useMemo(() => {
+    if (cargandoVerificacion || filasVerificacion.length === 0) return null;
+    return {
+      personas: totalesVerificacion.censadas,
+      campamentos: totalesVerificacion.campamentos,
+      campamentosConLista: totalesVerificacion.campamentosConLista,
+      adultos: totalesVerificacion.adultos,
+      siipol: totalesVerificacion.siipol,
+      solicitadas: totalesVerificacion.solicitadas,
+      conRegistro: totalesVerificacion.conRegistro,
+      campamentosConSolicitadas: totalesVerificacion.campamentosConSolicitadas,
+      campamentosConRegistro: totalesVerificacion.campamentosConRegistro,
+    };
+  }, [cargandoVerificacion, filasVerificacion.length, totalesVerificacion]);
 
   /** Total oficial en el alcance actual (complejos = 1). */
   const totalCampamentos = useMemo(
@@ -1378,7 +1364,7 @@ export function ReportesDiariosRedView() {
           idsEnAlcance.has(c.centro_id),
         ),
         eventosDetalle: eventos.filter((e) => idsEnAlcance.has(e.centro_id)),
-        censoEstados,
+        verificacionPolicial,
         dia: diaActivo,
         generadoPor: sesion.user.nombre ?? sesion.user.username,
       }),
@@ -1392,7 +1378,7 @@ export function ReportesDiariosRedView() {
       trabajosEnAlcance,
       requerimientosEnAlcance,
       casosSaludRed,
-      censoEstados,
+      verificacionPolicial,
       diaActivo,
       sesion.user.nombre,
       sesion.user.username,
