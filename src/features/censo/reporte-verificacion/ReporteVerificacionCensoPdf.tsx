@@ -915,7 +915,7 @@ export function ReporteVerificacionCensoPdf({
 
           <Text style={styles.nota}>
             Fuente: Importaciones Excel · Menores de 18 años no se verifican ·
-            Adulto verificado = Nexus o SIIPOL · {n(totales.campamentos)} centros ·{" "}
+            Adulto verificado = Nexus o SIIPOL · {n(totales.campamentos)} campamentos ·{" "}
             {n(totales.campamentosConLista)} con lista · {n(totales.campamentosSinLista)}{" "}
             sin lista
           </Text>

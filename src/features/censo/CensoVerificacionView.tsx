@@ -280,7 +280,7 @@ export function CensoVerificacionView({ sesion }: { sesion: Sesion }) {
                 <KpiCard
                   valor={totales.censadas}
                   etiqueta="Personas censadas"
-                  detalle={`${fmt(totales.campamentosConLista)} con lista · ${fmt(totales.campamentos)} centros`}
+                  detalle={`${fmt(totales.campamentosConLista)} con lista · ${fmt(totales.campamentos)} campamentos`}
                   icono={Users}
                 />
                 <KpiCard

@@ -1,7 +1,15 @@
 // Hook para /centros/censo/verificacion: agregados Nexus/SIIPOL por campamento
 // (solo origen=import_excel) vía RPC censo_verificacion_por_centro.
+// Totales de campamentos usan unidades de conteo (complejo Gran Colombia = 1).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  COMPLEJO_GRAN_COLOMBIA,
+  IDS_COMPLEJO_GRAN_COLOMBIA,
+  contarUnidadesCon,
+  totalUnidadesConteo,
+  type CentroConUnidad,
+} from "@/domain/complejosCentros";
 import {
   obtenerVerificacionPorCentro,
   type VerificacionCensoCentro,
@@ -27,11 +35,28 @@ export interface TotalesVerificacionCenso {
   campamentosConRegistro: number;
 }
 
+type FilaConUnidad = VerificacionCensoCentro & CentroConUnidad;
+
+function conUnidad(f: VerificacionCensoCentro): FilaConUnidad {
+  const esGranColombia = (IDS_COMPLEJO_GRAN_COLOMBIA as readonly string[]).includes(
+    f.centroId,
+  );
+  return {
+    ...f,
+    id: f.centroId,
+    complejoId: esGranColombia ? COMPLEJO_GRAN_COLOMBIA : null,
+  };
+}
+
 function sumarTotales(filas: VerificacionCensoCentro[]): TotalesVerificacionCenso {
+  const unidades = filas.map(conUnidad);
+  const campamentos = totalUnidadesConteo(unidades);
+  const campamentosConLista = contarUnidadesCon(unidades, (u) => u.censadas > 0);
+
   const totales: TotalesVerificacionCenso = {
-    campamentos: filas.length,
-    campamentosConLista: 0,
-    campamentosSinLista: 0,
+    campamentos,
+    campamentosConLista,
+    campamentosSinLista: campamentos - campamentosConLista,
     censadas: 0,
     menores: 0,
     adultos: 0,
@@ -44,13 +69,14 @@ function sumarTotales(filas: VerificacionCensoCentro[]): TotalesVerificacionCens
     faltan: 0,
     solicitadas: 0,
     conRegistro: 0,
-    campamentosConSolicitadas: 0,
-    campamentosConRegistro: 0,
+    campamentosConSolicitadas: contarUnidadesCon(
+      unidades,
+      (u) => u.solicitadas > 0,
+    ),
+    campamentosConRegistro: contarUnidadesCon(unidades, (u) => u.conRegistro > 0),
   };
 
   for (const f of filas) {
-    if (f.censadas > 0) totales.campamentosConLista += 1;
-    else totales.campamentosSinLista += 1;
     totales.censadas += f.censadas;
     totales.menores += f.menores;
     totales.adultos += f.adultos;
@@ -63,8 +89,6 @@ function sumarTotales(filas: VerificacionCensoCentro[]): TotalesVerificacionCens
     totales.faltan += f.faltan;
     totales.solicitadas += f.solicitadas;
     totales.conRegistro += f.conRegistro;
-    if (f.solicitadas > 0) totales.campamentosConSolicitadas += 1;
-    if (f.conRegistro > 0) totales.campamentosConRegistro += 1;
   }
 
   return totales;

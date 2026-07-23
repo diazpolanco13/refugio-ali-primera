@@ -1162,7 +1162,7 @@ export function ReporteEjecutivoCampamentosPdf({
             {reporte.verificacionPolicial ? (
               <Section
                 title="Verificación policial"
-                hint={`${n(reporte.verificacionPolicial.campamentos)} centros`}
+                hint={`${n(reporte.verificacionPolicial.campamentos)} campamentos`}
                 tint
                 fixed
               >
@@ -1170,7 +1170,7 @@ export function ReporteEjecutivoCampamentosPdf({
                   <StatCard
                     label="Personas verificadas"
                     value={reporte.verificacionPolicial.personas}
-                    sub={`${n(reporte.verificacionPolicial.campamentosConLista)} con lista · ${n(reporte.verificacionPolicial.campamentos)} centros`}
+                    sub={`${n(reporte.verificacionPolicial.campamentosConLista)} con lista · ${n(reporte.verificacionPolicial.campamentos)} campamentos`}
                     wide
                   />
                   <StatCard
