@@ -74,6 +74,15 @@ export function casosAbiertosSeguimiento(casos: CasoSaludCentro[]): CasoSaludCen
   return casos.filter((c) => c.estatus === "activo" || c.estatus === "en_proceso");
 }
 
+/** Fichas creadas en un día (cualquier estatus). Fuente del conteo del parte. */
+export function contarCasosSaludPorDia(
+  casos: CasoSaludCentro[],
+  centroId: string,
+  dia: string,
+): number {
+  return casos.filter((c) => c.centro_id === centroId && c.reportado_dia === dia).length;
+}
+
 export function puedeArchivarCasoSalud(estatus: EstatusCasoSalud): boolean {
   return estatus === "resuelto";
 }

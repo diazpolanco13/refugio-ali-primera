@@ -1,7 +1,7 @@
 // Helper de herencia al abrir el reporte diario de hoy.
 
 import type { CasoSaludCentro } from "./casosSalud";
-import { casosAbiertosSeguimiento, casosSaludActivos } from "./casosSalud";
+import { casosSaludActivos, contarCasosSaludPorDia } from "./casosSalud";
 import {
   CONTROL_VACIO,
   normalizarReporteControlDia,
@@ -21,7 +21,7 @@ export interface ContextoReporteHoy {
   trabajos: TrabajoCentro[];
   requerimientos: RequerimientoSeguimiento[];
   casosSalud: CasoSaludCentro[];
-  /** Contador manual del parte; 0 si hoy no confirmado. */
+  /** Conteo derivado: fichas con `reportado_dia` = hoy. */
   incidenciasSalud: number;
   parteConfirmadoHoy: boolean;
 }
@@ -76,7 +76,6 @@ export function construirContextoReporteHoy(opts: {
   const parteConfirmadoHoy = Boolean(snapHoy);
 
   const casosCentro = casosSaludActivos(casosSalud.filter((c) => c.centro_id === centroId));
-  const abiertosSeguimiento = casosAbiertosSeguimiento(casosCentro).length;
 
   return {
     controlBorrador,
@@ -86,7 +85,7 @@ export function construirContextoReporteHoy(opts: {
       requerimientos.filter((r) => r.centro_id === centroId),
     ),
     casosSalud: casosCentro,
-    incidenciasSalud: snapHoy?.incidencias_salud ?? abiertosSeguimiento,
+    incidenciasSalud: contarCasosSaludPorDia(casosSalud, centroId, hoyClave),
     parteConfirmadoHoy,
   };
 }

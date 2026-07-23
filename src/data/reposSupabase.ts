@@ -620,9 +620,10 @@ export async function confirmarParteNumericoDia(
 }
 
 /**
- * Guarda el conteo de incidencias de salud del día en `ocupaciones_centros`.
- * Si ya hay snapshot, solo actualiza `incidencias_salud`; si no, crea uno con
- * la demografía vigente del centro (sin tocar el blob del centro).
+ * Cache denormalizado: escribe `incidencias_salud` en `ocupaciones_centros`.
+ * La fuente de verdad son las fichas en `casos_salud_centros` (sync vía
+ * `sincronizarIncidenciasSaludDesdeCasos`). Si ya hay snapshot, solo actualiza
+ * el conteo; si no, crea uno con la demografía vigente del centro.
  */
 export async function guardarIncidenciasSaludDia(
   centro: Omit<CentroTransitorio, "updated_at" | "updated_by">,

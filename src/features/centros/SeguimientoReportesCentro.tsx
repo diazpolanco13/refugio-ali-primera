@@ -39,7 +39,7 @@ import {
   eliminarEventoReporte,
 } from "@/data/reposEventosReportes";
 import { claveDia } from "@/data/reposSupabase";
-import { casosAbiertosSeguimiento, ESTATUS_CASO_SALUD, puedeArchivarCasoSalud } from "@/domain/casosSalud";
+import { ESTATUS_CASO_SALUD, puedeArchivarCasoSalud } from "@/domain/casosSalud";
 import {
   casosSaludEnSeguimiento,
   casosSaludPendientes,
@@ -62,7 +62,6 @@ import {
   type TipoEventoReporte,
 } from "@/domain/eventosReportes";
 import type { CentroTransitorio } from "@/domain/centrosTransitorios";
-import type { SnapshotOcupacion } from "@/domain/serieOcupacionCentros";
 import { BadgeAntiguedad } from "@/components/ui/badge-antiguedad";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -150,68 +149,6 @@ function tsDesdeHora(hora: string, dia: string): number {
 }
 
 /** Partes con contador de salud pero sin casos detallados registrados. */
-function partesSaludSinDetalle(
-  centroId: string,
-  snapshots: SnapshotOcupacion[],
-  casos: CasoSaludCentro[],
-  hoyClave: string,
-): { dia: string; reportadas: number; faltan: number }[] {
-  const casosCentro = casos.filter((c) => c.centro_id === centroId);
-  const abiertosTotal = casosAbiertosSeguimiento(casosCentro).length;
-
-  return snapshots
-    .filter((s) => s.centro_id === centroId && (s.incidencias_salud ?? 0) > 0)
-    .map((snap) => {
-      const reportadas = snap.incidencias_salud ?? 0;
-      const registrados =
-        snap.dia === hoyClave
-          ? abiertosTotal
-          : casosCentro.filter((c) => c.reportado_dia === snap.dia).length;
-      return { dia: snap.dia, reportadas, faltan: Math.max(0, reportadas - registrados) };
-    })
-    .filter((x) => x.faltan > 0)
-    .sort((a, b) => b.dia.localeCompare(a.dia));
-}
-
-function TarjetaSaludPendienteDetalle({
-  dia,
-  reportadas,
-  faltan,
-  onCompletar,
-}: {
-  dia: string;
-  reportadas: number;
-  faltan: number;
-  onCompletar?: () => void;
-}) {
-  return (
-    <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Stethoscope className="size-4 text-rose-400" />
-            <Badge variant="outline" className="border-amber-500/50 text-amber-400 text-[9px]">
-              Pendiente de detallar
-            </Badge>
-          </div>
-          <p className="mt-1.5 text-sm font-medium text-foreground">
-            {reportadas} incidencia{reportadas === 1 ? "" : "s"} de salud reportada
-            {reportadas === 1 ? "" : "s"} el {formatearDiaCalendario(dia)}
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Faltan {faltan} caso{faltan === 1 ? "" : "s"} por registrar en el parte numérico.
-          </p>
-        </div>
-        {onCompletar && (
-          <Button type="button" size="sm" variant="secondary" onClick={onCompletar}>
-            Completar en reporte
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function TarjetaCasoSalud({
   caso,
   puedeEditar,
@@ -799,24 +736,13 @@ function SeguimientoExpandido({
     [eventos, centro.id, hoyClave],
   );
 
-  const saludSinDetalle = useMemo(
-    () => partesSaludSinDetalle(centro.id, snapshots, todosCasos, hoyClave),
-    [centro.id, snapshots, todosCasos, hoyClave],
-  );
-
   const tab: TabSeguimiento =
     tabManual ??
-    (casosPendientes.length + saludSinDetalle.length > 0
+    (casosPendientes.length > 0
       ? "salud"
       : trabajosPendientesCount > 0
         ? "trabajos"
         : "novedades");
-
-  const saludSinDetalleVisibles = useMemo(() => {
-    if (subSalud === "archivados") return [];
-    if (diaSel) return saludSinDetalle.filter((p) => p.dia === diaSel);
-    return saludSinDetalle;
-  }, [subSalud, diaSel, saludSinDetalle]);
 
   function seleccionarDia(dia: string | null) {
     setDiaSel(dia);
@@ -1051,8 +977,8 @@ function SeguimientoExpandido({
     contadores.casosActivos > 0 ||
     contadores.novedadesNegativasRecientes > 0 ||
     trabajosPendientesCount > 0;
-  // El badge de Salud cuenta solo lo accionable: casos abiertos y partes sin detallar.
-  const totalSaludTab = casosPendientes.length + saludSinDetalle.length;
+  // Badge Salud = casos abiertos (activo / en proceso).
+  const totalSaludTab = casosPendientes.length;
 
   const tabTriggerClass = cn(
     "relative flex h-full min-h-0 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-none px-2 py-0",
@@ -1065,11 +991,8 @@ function SeguimientoExpandido({
     "dark:data-active:!border-b-primary dark:data-active:!bg-transparent",
   );
 
-  function renderListaSalud(casosLista: CasoSaludCentro[], pendientesDetalle: typeof saludSinDetalle) {
-    const vacio =
-      casosLista.length === 0 &&
-      listaCasos.length === 0 &&
-      pendientesDetalle.length === 0;
+  function renderListaSalud(casosLista: CasoSaludCentro[]) {
+    const vacio = casosLista.length === 0 && listaCasos.length === 0;
 
     if (vacio) {
       return (
@@ -1104,17 +1027,6 @@ function SeguimientoExpandido({
 
     return (
       <div className="space-y-4">
-        {pendientesDetalle.map((p) => (
-          <TarjetaSaludPendienteDetalle
-            key={`pendiente-${p.dia}`}
-            dia={p.dia}
-            reportadas={p.reportadas}
-            faltan={p.faltan}
-            onCompletar={
-              puedeEditar && onIrAReporte ? () => onIrAReporte("salud") : undefined
-            }
-          />
-        ))}
         {grupos.map((grupo) => (
           <div key={grupo.dia} className="space-y-2">
             <EncabezadoDiaSeguimiento
@@ -1553,7 +1465,7 @@ function SeguimientoExpandido({
             </div>
           )}
           {subSalud === "seguimiento"
-            ? renderListaSalud(listaCasosPagina, saludSinDetalleVisibles)
+            ? renderListaSalud(listaCasosPagina)
             : renderListaSalud(listaCasosPagina, [])}
         </TabsContent>
 

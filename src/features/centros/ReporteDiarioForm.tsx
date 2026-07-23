@@ -14,9 +14,9 @@ import {
   confirmarParteNumericoDia,
   eliminarParteNumericoDia,
   guardarCentro,
-  guardarIncidenciasSaludDia,
   claveDia,
 } from "@/data/reposSupabase";
+import { sincronizarIncidenciasSaludDesdeCasos } from "@/data/reposCasosSalud";
 import { useOcupacionesCentros } from "@/data/useOcupacionesCentros";
 import { guardarReporteDiario } from "@/data/reposReportes";
 import { guardarReporteControlDia } from "@/data/reposControlReporte";
@@ -28,6 +28,7 @@ import { useRequerimientosSeguimiento } from "@/data/useRequerimientosSeguimient
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import { useEventosReportes } from "@/data/useEventosReportes";
 import { construirContextoReporteHoy } from "@/domain/contextoReporteDiario";
+import { contarCasosSaludPorDia } from "@/domain/casosSalud";
 import type { EventoReporte } from "@/domain/eventosReportes";
 import {
   normalizarComidas,
@@ -194,7 +195,6 @@ export function ReporteDiarioForm({
   const [ocupacion, setOcupacion] = useState<Vulnerables>(base.ocupacion);
   const [totalAfectados, setTotalAfectados] = useState(base.total_afectados);
   const [familias, setFamilias] = useState(base.familias_ocupadas);
-  const [incidenciasSalud, setIncidenciasSalud] = useState(0);
 
   const [control, setControl] = useState<Omit<ReporteControlDia, "id">>({
     ...CONTROL_VACIO,
@@ -230,7 +230,6 @@ export function ReporteDiarioForm({
     totalAfectados: base.total_afectados,
     familias: base.familias_ocupadas,
   });
-  const baselineIncidenciasSalud = useRef(0);
 
   const baselineControl = useRef<ControlDatos>(
     controlDatos({
@@ -265,7 +264,6 @@ export function ReporteDiarioForm({
   // Día cuya demografía ya se cargó en el formulario. Se resetea al cambiar
   // `diaReporte` para que flechas/calendario recarguen el parte de ESE día.
   const parteDiaSincronizado = useRef<string | null>(null);
-  const incidenciasInicializado = useRef(false);
   const controlTocado = useRef(false);
   const [contextoCargado, setContextoCargado] = useState(false);
   const [precargadoReporte, setPrecargadoReporte] = useState(false);
@@ -273,7 +271,6 @@ export function ReporteDiarioForm({
 
   useEffect(() => {
     parteDiaSincronizado.current = null;
-    incidenciasInicializado.current = false;
     controlTocado.current = false;
     setMostrarReporteCompleto(false);
     setPrecargadoReporte(false);
@@ -401,51 +398,21 @@ export function ReporteDiarioForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [controles, centro.id, diaReporte]);
 
-  useEffect(() => {
-    if (incidenciasInicializado.current) return;
-    if (snapHoy?.incidencias_salud != null) {
-      setIncidenciasSalud(snapHoy.incidencias_salud);
-      baselineIncidenciasSalud.current = snapHoy.incidencias_salud;
-      if (snapHoy.incidencias_salud > 0 || (reporteExistente?.salud_reportada ?? false)) {
-        setSaludConfirmadaOk(true);
-      }
-      incidenciasInicializado.current = true;
-      return;
-    }
-    if (!contextoCargado) return;
-    const ctx = construirContextoReporteHoy({
-      centroId: centro.id,
-      hoyClave: diaReporte,
-      snapshots,
-      controles,
-      trabajos,
-      requerimientos,
-      casosSalud,
-    });
-    setIncidenciasSalud(ctx.incidenciasSalud);
-    baselineIncidenciasSalud.current = ctx.incidenciasSalud;
-    incidenciasInicializado.current = true;
-  }, [
-    snapHoy?.incidencias_salud,
-    contextoCargado,
-    centro.id,
-    diaReporte,
-    snapshots,
-    controles,
-    trabajos,
-    requerimientos,
-    casosSalud,
-    reporteExistente?.salud_reportada,
-  ]);
+  const incidenciasSaludDia = useMemo(
+    () => contarCasosSaludPorDia(casosSalud, centro.id, diaReporte),
+    [casosSalud, centro.id, diaReporte],
+  );
 
   useEffect(() => {
     if (precargadoReporte || !reporteExistente) return;
     setTrabajosRevisados(reporteExistente.trabajos_revisados);
     setRequerimientosRevisados(reporteExistente.requerimientos_revisados);
     setEventosRevisados(reporteExistente.eventos_revisados);
-    if (reporteExistente.salud_reportada) setSaludConfirmadaOk(true);
+    if (reporteExistente.salud_reportada || incidenciasSaludDia > 0) {
+      setSaludConfirmadaOk(true);
+    }
     setPrecargadoReporte(true);
-  }, [precargadoReporte, reporteExistente]);
+  }, [precargadoReporte, reporteExistente, incidenciasSaludDia]);
 
   const controlHoy = reporteControlDelDia(controles, centro.id, diaReporte);
   useEffect(() => {
@@ -471,11 +438,12 @@ export function ReporteDiarioForm({
   };
   const parteModificado = !parteIgual(parteActual, baselineParte.current);
   const parteHoyConfirmado = !parteDesmarcadoOk && (parteHoyEnBd || parteConfirmadoOk);
-  const saludModificada = incidenciasSalud !== baselineIncidenciasSalud.current;
+  // El conteo ya no es editable: la fase solo cambia al confirmar/desmarcar.
+  const saludModificada = false;
   const saludHoyConfirmada =
     saludConfirmadaOk ||
     (reporteExistente?.salud_reportada ?? false) ||
-    (snapHoy != null && (snapHoy.incidencias_salud ?? 0) > 0 && !saludModificada);
+    incidenciasSaludDia > 0;
 
   const controlModificado = !controlIgual(controlDatos(control), baselineControl.current);
 
@@ -578,7 +546,7 @@ export function ReporteDiarioForm({
       salud_reportada:
         saludConfirmadaOk ||
         (reporteExistente?.salud_reportada ?? false) ||
-        (snapHoy != null && (snapHoy.incidencias_salud ?? 0) > 0),
+        incidenciasSaludDia > 0,
       eventos_revisados: overrides?.eventos_revisados ?? eventosRevisados,
       trabajos_revisados: overrides?.trabajos_revisados ?? trabajosRevisados,
       requerimientos_revisados: overrides?.requerimientos_revisados ?? requerimientosRevisados,
@@ -604,8 +572,8 @@ export function ReporteDiarioForm({
         total_afectados: totalAfectados,
         familias_ocupadas: familias,
       };
-      // Conserva el conteo de salud ya guardado en el snapshot (vive en su pestaña).
-      const incidenciasSnapshot = snapHoy?.incidencias_salud ?? incidenciasSalud;
+      // Conteo derivado de fichas del día (cache en snapshot).
+      const incidenciasSnapshot = incidenciasSaludDia;
       if (esDiaPasado) {
         await confirmarParteNumericoDia(centroActualizado, diaReporte, {
           incidenciasSalud: incidenciasSnapshot,
@@ -642,10 +610,9 @@ export function ReporteDiarioForm({
     setConfirmandoSalud(true);
     // Optimista: el icono/progreso y el badge del padre no deben esperar Realtime.
     const prevConfirmada = saludConfirmadaOk;
-    baselineIncidenciasSalud.current = incidenciasSalud;
     setSaludConfirmadaOk(true);
     try {
-      await guardarIncidenciasSaludDia(centro, diaReporte, incidenciasSalud);
+      await sincronizarIncidenciasSaludDesdeCasos(centro.id, diaReporte);
       await guardarReporteDiario({
         centro_id: centro.id,
         dia: diaReporte,
@@ -663,7 +630,7 @@ export function ReporteDiarioForm({
       setSaludConfirmadaOk(prevConfirmada);
       console.error("[ReporteDiarioForm] error guardando salud:", err);
       setErrorGuardado(
-        err instanceof Error ? err.message : "No se pudo guardar las incidencias de salud.",
+        err instanceof Error ? err.message : "No se pudo confirmar la revisión de salud.",
       );
     } finally {
       setConfirmandoSalud(false);
@@ -1006,7 +973,11 @@ export function ReporteDiarioForm({
             <BloqueConfirmacionReporte
               titulo="Salud de hoy"
               tituloRevisado="Salud confirmada hoy"
-              descripcion="Conteo de incidencias y detalle de casos del día."
+              descripcion={
+                incidenciasSaludDia > 0
+                  ? `${incidenciasSaludDia} caso${incidenciasSaludDia === 1 ? "" : "s"} registrado${incidenciasSaludDia === 1 ? "" : "s"} hoy. Confirma la revisión del día.`
+                  : "Registra fichas si hubo incidencias, o confirma sin casos."
+              }
               icono={Stethoscope}
               acento="rose"
               revisado={saludHoyConfirmada}
@@ -1015,31 +986,14 @@ export function ReporteDiarioForm({
               deshabilitado={formBloqueado}
               onConfirmar={() => void guardarSalud()}
               onDesmarcar={() => void desmarcarSalud()}
-              etiquetaGuardar="Guardar salud"
+              etiquetaGuardar="Confirmar salud"
               etiquetaConfirmar="Confirmar sin cambios"
               etiquetaActualizar="Actualizar salud"
             />
 
-            <div>
-              <Label htmlFor="incidencias-salud" className="text-sm font-semibold">
-                Incidencias de salud (hoy)
-              </Label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Conteo manual reportado por el supervisor para el día.
-              </p>
-              <NumInput
-                id="incidencias-salud"
-                className="mt-2 max-w-[8rem]"
-                value={incidenciasSalud}
-                onChange={setIncidenciasSalud}
-                disabled={formBloqueado}
-              />
-            </div>
-
             <CasosSaludParte
               centroId={centro.id}
               hoyClave={diaReporte}
-              incidenciasSalud={incidenciasSalud}
               deshabilitado={formBloqueado}
             />
           </TabsContent>

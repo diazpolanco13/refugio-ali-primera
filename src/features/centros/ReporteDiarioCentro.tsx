@@ -335,10 +335,7 @@ function TarjetaReporteDia({
             >
               <p className="text-[11px] text-muted-foreground">
                 <span className="font-bold tabular-nums text-foreground">
-                  {Math.max(
-                    snapshot?.incidencias_salud ?? 0,
-                    casosSaludAbiertos.length,
-                  ).toLocaleString("es")}
+                  {(snapshot?.incidencias_salud ?? 0).toLocaleString("es")}
                 </span>{" "}
                 incidencias reportadas
               </p>

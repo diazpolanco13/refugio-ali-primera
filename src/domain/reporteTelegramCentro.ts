@@ -126,7 +126,7 @@ export function textoReporteTelegramCentro({
         `- ADULTOS MAYORES MUJERES: ${n2(v.adultos_mayores_m)}`,
         `- MUJERES EMBARAZADAS: ${n2(v.embarazadas)}`,
         `- PERSONAS CON DISCAPACIDAD: ${n2(v.discapacidad_h + v.discapacidad_m)}`,
-        `- CASOS DE SALUD: ${n2(Math.max(snapshot.incidencias_salud ?? 0, casosSaludAbiertos.length))}`,
+        `- CASOS DE SALUD: ${n2(snapshot.incidencias_salud ?? 0)}`,
         `- MASCOTAS: ${n2(v.mascotas)}`,
         `- PERSONAL OPERATIVO: ${n2(snapshot.personal_total)}`,
       ].join("\n"),

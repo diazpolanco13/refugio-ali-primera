@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Check, Loader2, Pencil, Plus, Stethoscope, Trash2, X } from "lucide-react";
 import { useCasosSaludCentros } from "@/data/useCasosSaludCentros";
 import {
@@ -8,6 +8,7 @@ import {
 } from "@/data/reposCasosSalud";
 import {
   casosAbiertosSeguimiento,
+  contarCasosSaludPorDia,
   ESTATUS_CASO_SALUD,
   type CasoSaludCentro,
   type EstatusCasoSalud,
@@ -31,7 +32,6 @@ import { cn } from "@/lib/utils";
 interface Props {
   centroId: string;
   hoyClave: string;
-  incidenciasSalud: number;
   deshabilitado?: boolean;
 }
 
@@ -154,12 +154,14 @@ function TarjetaCaso({
   );
 }
 
-export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabilitado }: Props) {
-  const { casos: casosActivos, recargar } = useCasosSaludCentros({
-    centroId,
-    soloActivos: true,
-  });
+export function CasosSaludParte({ centroId, hoyClave, deshabilitado }: Props) {
+  // Incluye archivados para que el conteo del día (= fichas creadas) sea exacto.
+  const { casos: todosCasos, recargar } = useCasosSaludCentros({ centroId });
 
+  const casosActivos = useMemo(
+    () => todosCasos.filter((c) => c.estatus !== "archivado"),
+    [todosCasos],
+  );
   const casosSeguimiento = useMemo(
     () => casosAbiertosSeguimiento(casosActivos),
     [casosActivos],
@@ -172,6 +174,10 @@ export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabil
     () => casosSeguimiento.filter((c) => c.reportado_dia !== hoyClave),
     [casosSeguimiento, hoyClave],
   );
+  const casosDelDia = useMemo(
+    () => contarCasosSaludPorDia(todosCasos, centroId, hoyClave),
+    [todosCasos, centroId, hoyClave],
+  );
 
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -180,39 +186,14 @@ export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabil
   const [guardando, setGuardando] = useState(false);
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
   const [cambiandoEstatusId, setCambiandoEstatusId] = useState<string | null>(null);
-
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const prevIncidenciasRef = useRef(incidenciasSalud);
-  const primeraRenderRef = useRef(true);
-
-  const mostrar = true;
-  const puedeAnadir =
-    incidenciasSalud > 0 && casosSeguimiento.length < incidenciasSalud && !editandoId;
-  const limiteAlcanzado =
-    incidenciasSalud > 0 && casosSeguimiento.length >= incidenciasSalud && !editandoId;
-
-  useEffect(() => {
-    const prev = prevIncidenciasRef.current;
-    prevIncidenciasRef.current = incidenciasSalud;
-
-    const debeScroll =
-      (prev === 0 && incidenciasSalud > 0) ||
-      (primeraRenderRef.current && incidenciasSalud > 0);
-    primeraRenderRef.current = false;
-
-    if (!debeScroll) return;
-
-    const timer = window.setTimeout(() => {
-      sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }, 350);
-    return () => window.clearTimeout(timer);
-  }, [incidenciasSalud]);
+  const [formularioAbierto, setFormularioAbierto] = useState(false);
 
   function cancelarEdicion() {
     setEditandoId(null);
     setTitulo("");
     setDescripcion("");
     setEstatus("activo");
+    setFormularioAbierto(false);
   }
 
   function iniciarEdicion(caso: CasoSaludCentro) {
@@ -220,6 +201,15 @@ export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabil
     setTitulo(caso.titulo);
     setDescripcion(caso.descripcion);
     setEstatus(caso.estatus);
+    setFormularioAbierto(true);
+  }
+
+  function abrirNuevo() {
+    setEditandoId(null);
+    setTitulo("");
+    setDescripcion("");
+    setEstatus("activo");
+    setFormularioAbierto(true);
   }
 
   async function guardarCaso() {
@@ -265,30 +255,28 @@ export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabil
     }
   }
 
-  if (!mostrar) return null;
-
-  const tituloSeccion =
-    incidenciasSalud > 0
-      ? `Añade información sobre los ${incidenciasSalud} casos de salud:`
-      : "Casos de salud en seguimiento";
-
   const etiquetaBotonGuardar = editandoId
     ? "Actualizar caso"
-    : casosSeguimiento.length === 0
+    : casosDelDia === 0
       ? "Guardar primer caso"
-      : "Añadir siguiente caso";
+      : "Añadir caso";
 
   return (
-    <div
-      ref={sectionRef}
-      className="scroll-mt-4 rounded-lg border border-teal-500/30 bg-teal-500/5"
-    >
+    <div className="scroll-mt-4 rounded-lg border border-teal-500/30 bg-teal-500/5">
       <div className="flex items-start justify-between gap-3 px-3 py-3 sm:px-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <Stethoscope className="size-5 shrink-0 text-teal-400" />
-            <p className="text-sm font-semibold leading-snug text-foreground">{tituloSeccion}</p>
+            <p className="text-sm font-semibold leading-snug text-foreground">
+              Casos de salud del día
+            </p>
           </div>
+          <p className="mt-1 pl-7 text-xs text-muted-foreground">
+            El conteo del parte se calcula con las fichas registradas.
+            {casosDelDia === 0
+              ? " Sin casos hoy = sin incidencias."
+              : ` ${casosDelDia} caso${casosDelDia === 1 ? "" : "s"} registrado${casosDelDia === 1 ? "" : "s"} hoy.`}
+          </p>
           {casosHeredados.length > 0 && (
             <p className="mt-1 pl-7 text-xs text-muted-foreground">
               Incluye {casosHeredados.length}{" "}
@@ -296,26 +284,16 @@ export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabil
               anteriores
             </p>
           )}
-          {incidenciasSalud > 0 && casosSeguimiento.length < incidenciasSalud && (
-            <p className="mt-1 pl-7 text-xs text-muted-foreground">
-              Faltan {incidenciasSalud - casosSeguimiento.length}{" "}
-              {incidenciasSalud - casosSeguimiento.length === 1 ? "caso por registrar" : "casos por registrar"}.
-            </p>
-          )}
         </div>
-        {incidenciasSalud > 0 && (
-          <Badge
-            variant="outline"
-            className={cn(
-              "shrink-0 tabular-nums",
-              casosSeguimiento.length >= incidenciasSalud
-                ? "border-teal-500/50 text-teal-400"
-                : "border-amber-500/50 text-amber-400",
-            )}
-          >
-            {casosSeguimiento.length}/{incidenciasSalud}
-          </Badge>
-        )}
+        <Badge
+          variant="outline"
+          className={cn(
+            "shrink-0 tabular-nums",
+            casosDelDia > 0 ? "border-teal-500/50 text-teal-400" : "text-muted-foreground",
+          )}
+        >
+          {casosDelDia}
+        </Badge>
       </div>
 
       {casosSeguimiento.length > 0 && (
@@ -360,14 +338,10 @@ export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabil
         </div>
       )}
 
-      {(puedeAnadir || editandoId) && (
+      {formularioAbierto ? (
         <div className="space-y-3 border-t border-border/60 px-3 py-3 sm:px-4">
           <Label className="text-xs font-medium text-muted-foreground">
-            {editandoId
-              ? "Editar caso"
-              : casosSeguimiento.length === 0
-                ? "Primer caso"
-                : "Siguiente caso"}
+            {editandoId ? "Editar caso" : "Nuevo caso"}
           </Label>
           <Input
             className="h-10 text-sm"
@@ -417,28 +391,32 @@ export function CasosSaludParte({ centroId, hoyClave, incidenciasSalud, deshabil
               )}
               {etiquetaBotonGuardar}
             </Button>
-            {editandoId && (
-              <Button
-                type="button"
-                size="lg"
-                variant="outline"
-                className="w-full sm:w-auto"
-                disabled={guardando || deshabilitado}
-                onClick={cancelarEdicion}
-              >
-                <X className="size-4" />
-                Cancelar
-              </Button>
-            )}
+            <Button
+              type="button"
+              size="lg"
+              variant="outline"
+              className="w-full sm:w-auto"
+              disabled={guardando || deshabilitado}
+              onClick={cancelarEdicion}
+            >
+              <X className="size-4" />
+              Cancelar
+            </Button>
           </div>
         </div>
-      )}
-
-      {limiteAlcanzado && (
-        <p className="border-t border-border/60 px-3 py-3 text-xs text-muted-foreground sm:px-4">
-          Has registrado los {incidenciasSalud} casos en seguimiento indicados. Puedes editarlos
-          arriba si necesitas corregir algo.
-        </p>
+      ) : (
+        <div className="border-t border-border/60 px-3 py-3 sm:px-4">
+          <Button
+            type="button"
+            size="sm"
+            className="gap-1.5 bg-teal-600 hover:bg-teal-500"
+            disabled={deshabilitado}
+            onClick={abrirNuevo}
+          >
+            <Plus className="size-3.5" />
+            Añadir caso
+          </Button>
+        </div>
       )}
     </div>
   );
